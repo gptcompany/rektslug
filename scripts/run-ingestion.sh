@@ -83,7 +83,7 @@ send_discord() {
 
     # Load webhook URL from dotenvx (safe - value never printed)
     local webhook_url
-    webhook_url=$(dotenvx get DISCORD_WEBHOOK_URL -f /media/sam/1TB/.env 2>/dev/null || echo "")
+    webhook_url=$(dotenvx get DISCORD_WEBHOOK_LIQUIDATION -f /media/sam/1TB/.env 2>/dev/null || echo "")
 
     if [ -z "$webhook_url" ]; then
         log "WARN: DISCORD_WEBHOOK_URL not available, skipping notification"
