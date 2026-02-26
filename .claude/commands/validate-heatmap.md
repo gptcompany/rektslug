@@ -1,73 +1,75 @@
-# /validate-heatmap - Visual Heatmap Validation
+# /validate-heatmap - 30d Coinank Visual Validation
 
-Iterative visual validation of liquidation heatmap at `http://localhost:8000/heatmap.html`.
+Validate the single-timeframe dashboard (`30d`) against Coinank (`1M`) using a reproducible screenshot pipeline.
 
 ## Usage
-```
-/validate-heatmap [--max-rounds 5] [--reference screenshots/baseline.png]
+```bash
+/validate-heatmap [--headed]
 ```
 
 ## Repo Context
 
-- **Frontend**: `frontend/heatmap.html` (Plotly.js)
-- **API**: FastAPI at `localhost:8000` (run via `uv run uvicorn api.main:app`)
-- **DB**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb`
+- **Local page**: `http://localhost:8000/heatmap_30d.html`
+- **Frontend source**: `frontend/heatmap_30d.html`
+- **Pipeline script**: `scripts/validate_heatmap_visual.py`
+- **Coinank reference script**: `scripts/coinank_screenshot.py`
+- **Output directory**: `data/validation/`
+- **API endpoint**: `/liquidations/heatmap-timeseries?symbol=BTCUSDT&time_window=30d&price_bin_size=500`
 
 ## Orchestration Flow
 
-```
-ROUND N
-  │
-  ├─► mcp__playwright__browser_navigate("http://localhost:8000/heatmap.html")
-  ├─► mcp__playwright__browser_take_screenshot()
-  ├─► Analyze Plotly heatmap:
-  │     - Color scale (Viridis/thermal gradient)
-  │     - Price axis (Y) - liquidation levels
-  │     - Time axis (X) - bucket intervals
-  │     - Hover tooltips functional
-  │     - No Plotly error overlays
-  ├─► mcp__chrome-devtools__list_console_messages()
-  │     - Check for JS errors
-  ├─► Score (0-100%)
-  └─► PASS (>= 95%) | FAIL → next round
-```
+1. Run:
+   `uv run python scripts/validate_heatmap_visual.py`
+2. The script will:
+   - start FastAPI if not already running
+   - screenshot `http://localhost:8000/heatmap_30d.html`
+   - screenshot Coinank `https://coinank.com/chart/derivatives/liq-heat-map/btcusdt/1M`
+   - save both PNGs + manifest JSON in `data/validation/`
+3. Pass the two screenshot paths to `alpha-visual` for comparison/scoring
+4. Return PASS/FAIL with annotated differences
 
-## Agent Delegation
+## Alpha-Visual Delegation Prompt
 
-```python
-Task(
-    subagent_type="alpha-visual",
-    prompt="""
-    Validate heatmap at http://localhost:8000/heatmap.html
+```text
+Compare these two screenshots:
+- Local heatmap (Plotly): <ours_screenshot_path>
+- Coinank reference: <coinank_screenshot_path>
 
-    MCP Tools:
-    - mcp__playwright__browser_navigate
-    - mcp__playwright__browser_take_screenshot
-    - mcp__chrome-devtools__list_console_messages
-    - mcp__chrome-devtools__evaluate_script
+Task:
+1. Verify both images are valid heatmap screenshots (not blank/error/loading overlays).
+2. Compare overall structure:
+   - X axis timeline coverage
+   - Y axis price band layout
+   - Heat intensity zones and major clusters
+3. Score similarity 0-100.
+4. Output PASS if >= 85 and no obvious render failure, otherwise FAIL.
+5. List the top 3 mismatches with short annotations.
 
-    Validation criteria:
-    1. Plotly heatmap renders (no blank/error state)
-    2. Color gradient visible (liquidation intensity)
-    3. Both axes labeled correctly
-    4. No console errors
-    5. Data loaded (not "Loading..." state)
-
-    Continue until PASS or max {max_rounds} rounds.
-    """
-)
+Important:
+- The local page is a single-timeframe 30d view (BTCUSDT, bin=500).
+- If local screenshot shows "No heatmap data" or error state, mark FAIL immediately.
 ```
 
-## Output
+## Expected Script Output
+
+```text
+ours_screenshot=data/validation/ours_heatmap_30d_<timestamp>.png
+coinank_screenshot=data/validation/coinank_btc_1M_<timestamp>.png
+manifest=data/validation/validation_manifest_<timestamp>.json
+```
+
+## Result Format
 
 ```markdown
-### Round 1/5
-- Navigate: http://localhost:8000/heatmap.html ✓
-- Screenshot: captured
-- Plotly render: PASS
-- Console errors: 0
-- Score: 98%
-- Decision: PASS
-
-### Result: SUCCESS
+### Validation Result
+- Local screenshot: `data/validation/...`
+- Coinank screenshot: `data/validation/...`
+- Similarity score: 0-100
+- Decision: PASS | FAIL
+- Notes:
+  - ...
 ```
+
+## Notes
+
+- If the script warns that the local API returned zero snapshots, the backend is reachable but the local DB has no data for the requested `30d` window. In that case the run is valid as a pipeline check, but visual validation should be marked `FAIL` (data unavailable).
