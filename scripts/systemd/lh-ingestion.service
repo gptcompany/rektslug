@@ -1,0 +1,29 @@
+[Unit]
+Description=LiquidationHeatmap DuckDB Ingestion Service
+After=network-online.target binance-sync.service questdb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sam
+Group=sam
+WorkingDirectory=/media/sam/1TB/LiquidationHeatmap
+
+# Environment
+Environment=QUESTDB_HOST=localhost
+Environment=QUESTDB_PORT=9009
+Environment=PATH=/home/sam/.local/bin:/home/sam/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+
+ExecStart=/media/sam/1TB/monitoring-stack/scripts/cron-wrapper.sh lh-ingestion /media/sam/1TB/LiquidationHeatmap/scripts/run-ingestion.sh
+
+# Timeout (1h — ingestion is faster than download)
+TimeoutStartSec=3600
+Restart=no
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lh-ingestion
+
+[Install]
+WantedBy=multi-user.target
