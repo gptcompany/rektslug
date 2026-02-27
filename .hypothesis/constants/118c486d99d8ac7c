@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/endpoints/margin.py
-# hypothesis_version: 6.148.2
-
-[400, 404, 500, '/batch', '/calculate', '/health', '/margin', '/tiers/{symbol}', '0', '0%', '1', '1.0.0', 'BTCUSDT', 'Response format', 'comparison', 'healthy', 'margin', 'simple', 'status', 'version']

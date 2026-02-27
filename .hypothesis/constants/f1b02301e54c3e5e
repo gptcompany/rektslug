@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/endpoints/rollback.py
-# hypothesis_version: 6.148.2
-
-[100, 400, 404, 503, '/health', '/history/{symbol}', '/points/{symbol}', '/previous', '/rollback', '/snapshot', 'How long ago (hours)', 'Operation timestamp', 'Reason for snapshot', 'Result message', 'Snapshot UUID', 'Target snapshot ID', 'TierRollbackService', 'Trading pair symbol', 'User-friendly label', 'Who created snapshot', 'available', 'error', 'healthy', 'no snapshots', 'rollback', 'service', 'snapshot_service', 'status', 'validator']

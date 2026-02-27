@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/reports/text_reporter.py
-# hypothesis_version: 6.148.2
-
-[0.0, 100, '-', '=', 'A', 'B', 'C', 'Completeness: N/A', 'DATA WINDOW', 'Duration:   N/A', 'F', 'N/A', 'No tests executed', 'OVERALL RESULTS', 'RECOMMENDATIONS', 'Score:      N/A', 'TEST RESULTS', 'VALIDATION REPORT', 'funding_correlation', 'model_name', 'oi_conservation', 'overall_grade', 'overall_score', 'run_id', 'status', 'unknown', '⚠️', '✅', '✅ PASS', '❌', '❌ FAIL', '🌟']

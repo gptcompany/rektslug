@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/ingestion/aggtrades_streaming.py
-# hypothesis_version: 6.148.2
-
-[1000.0, 200, '%Y-%m-%d', 'aggTrades', 'agg_trade_id', 'header', 'no-header', 'transact_time']

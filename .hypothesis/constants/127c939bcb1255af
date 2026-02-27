@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/main.py
-# hypothesis_version: 6.148.2
-
-['*', '/api', '/health', '1.0.0', 'Margin Tier API', 'margin-tier-api', 'ok', 'service', 'status', 'version']

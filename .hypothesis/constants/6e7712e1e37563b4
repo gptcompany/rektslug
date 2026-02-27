@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/services/tier_snapshot.py
-# hypothesis_version: 6.148.2
-
-['*.json', 'TierSnapshot', 'config_version', 'created_by', 'data/snapshots', 'maintenance_amount', 'manual', 'margin_rate', 'max_notional', 'min_notional', 'r', 'reason', 'snapshot_id', 'symbol', 'system', 'tier_number', 'tiers', 'timestamp', 'w']

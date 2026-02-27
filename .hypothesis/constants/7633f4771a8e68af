@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/services/display_formatter.py
-# hypothesis_version: 6.148.2
-
-['0.01', '1', '10', '100', '5', 'N/A', 'critical', 'formula', 'info', 'maintenance_amount', 'margin_rate', 'notional', 'rate_component', 'tier', 'total_margin', 'warning']

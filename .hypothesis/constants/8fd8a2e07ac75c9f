@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/services/tier_loader.py
-# hypothesis_version: 6.148.2
-
-['*.yaml', 'BTCUSDT', 'binance-default-v1', 'config', 'margin_rate', 'max_notional', 'min_notional', 'r', 'symbol', 'tier_number', 'tiers', 'version']

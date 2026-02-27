@@ -20,6 +20,7 @@ venv/
 .idea/
 .vscode/
 *.swp
+.claude-flow/
 
 # Cache & test artifacts
 .pytest_cache/
@@ -35,4 +36,8 @@ htmlcov/
 # Logs
 test_output.log
 logs/
-!.env.enc
+
+# Validation artifacts
+data/validation/liqmap/*.png
+data/validation/heatmap/*.png
+data/validation/manifests/*.json

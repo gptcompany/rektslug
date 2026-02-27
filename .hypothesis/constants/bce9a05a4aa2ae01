@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/liquidation.py
-# hypothesis_version: 6.148.2
-
-[0.004, 100, 125, 'distance_percent', 'distance_usd', 'high', 'leverage', 'liq_price', 'long', 'long_liquidations', 'low', 'medium', 'position_type', 'risk_level', 'short', 'short_liquidations']

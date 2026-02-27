@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/concurrency_lock.py
-# hypothesis_version: 6.148.2
-
-[600, 'acquired_at', 'hold_duration', 'holder', 'is_timeout', 'locked']

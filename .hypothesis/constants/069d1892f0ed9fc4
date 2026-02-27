@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/data_pruner.py
-# hypothesis_version: 6.148.2
-
-['No reports to prune', 'No runs to prune', 'No tests to prune', 'UTC', 'completed_at', 'cutoff_date', 'deleted', 'dry_run', 'duration_seconds', 'reports', 'runs', 'started_at', 'tests', 'total']

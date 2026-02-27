@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/endpoints/validation.py
-# hypothesis_version: 6.148.2
-
-[202, 300, 400, 404, 500, '/api/validation', '/report/{run_id}', '/run', '/status/{run_id}', 'Initial run status', 'Status message', 'api', 'html', 'json', 'manual', 'queued', 'text', 'unknown', 'validation']

@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/tier_config.py
-# hypothesis_version: 6.148.2
-
-['TierConfiguration', 'continuous', 'difference', 'is_active', 'last_updated', 'manual', 'margin_left', 'margin_right', 'source', 'symbol', 'tiers', 'version']

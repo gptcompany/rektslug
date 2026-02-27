@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/services/tier_rollback.py
-# hypothesis_version: 6.148.2
-
-[3600, 'FAILED', 'SUCCESS', 'added', 'age_hours', 'change', 'created_by', 'current_rate', 'current_version', 'error', 'is_valid', 'label', 'message', 'modified', 'modified_tiers', 'reason', 'removed', 'snapshot_id', 'snapshot_reason', 'snapshot_timestamp', 'success', 'symbol', 'target_rate', 'target_version', 'tier', 'tier_changes', 'tier_count', 'tier_count_change', 'timestamp', 'validation_errors', 'validation_warnings', 'version', 'version_change']

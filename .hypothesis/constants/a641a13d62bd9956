@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/validation_run.py
-# hypothesis_version: 6.148.2
-
-[100, 'A', 'B', 'C', 'Current run status', 'F', 'Last update time', 'Record creation time', 'Run start timestamp', 'completed', 'completed_at', 'data_completeness', 'duration_seconds', 'failed', 'incomplete', 'manual', 'overall_score', 'running', 'scheduled', 'started_at']
