@@ -33,6 +33,10 @@
             '100x': '#ff6384'  // Pink/Red
         };
 
+        // Read chart mode from URL: ?chart=area or ?chart=bar (default: bar)
+        const urlParams = new URLSearchParams(window.location.search);
+        const CHART_MODE = urlParams.get('chart') || 'bar';
+
         async function loadLevels() {
             try {
                 const response = await fetch('/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7');
@@ -45,6 +49,82 @@
             }
         }
 
+        function buildBarTraces(longsByLeverage, shortsByLeverage, seenLeverages) {
+            const traces = [];
+            Object.keys(longsByLeverage).sort().forEach(leverage => {
+                const levels = longsByLeverage[leverage];
+                const showInLegend = !seenLeverages.has(leverage);
+                seenLeverages.add(leverage);
+                traces.push({
+                    x: levels.map(l => parseFloat(l.price_level)),
+                    y: levels.map(l => parseFloat(l.volume)),
+                    type: 'bar',
+                    name: `${leverage} Leverage`,
+                    marker: { color: LEVERAGE_COLORS[leverage] || '#888' },
+                    hovertemplate: `Price: $%{x}<br>Volume: %{y:.2f}<br>Leverage: ${leverage}<extra></extra>`,
+                    legendgroup: leverage,
+                    showlegend: showInLegend,
+                    yaxis: 'y'
+                });
+            });
+            Object.keys(shortsByLeverage).sort().forEach(leverage => {
+                const levels = shortsByLeverage[leverage];
+                const showInLegend = !seenLeverages.has(leverage);
+                seenLeverages.add(leverage);
+                traces.push({
+                    x: levels.map(l => parseFloat(l.price_level)),
+                    y: levels.map(l => parseFloat(l.volume)),
+                    type: 'bar',
+                    name: `${leverage} Leverage`,
+                    marker: { color: LEVERAGE_COLORS[leverage] || '#888' },
+                    hovertemplate: `Price: $%{x}<br>Volume: %{y:.2f}<br>Leverage: ${leverage}<extra></extra>`,
+                    legendgroup: leverage,
+                    showlegend: showInLegend,
+                    yaxis: 'y'
+                });
+            });
+            return traces;
+        }
+
+        function buildAreaTraces(longsByLeverage, shortsByLeverage, seenLeverages) {
+            const traces = [];
+
+            // Helper: sort levels by price_level ascending and build area trace
+            function addAreaTrace(levels, leverage, stackGroup, showInLegend) {
+                const sorted = [...levels].sort((a, b) => parseFloat(a.price_level) - parseFloat(b.price_level));
+                traces.push({
+                    x: sorted.map(l => parseFloat(l.price_level)),
+                    y: sorted.map(l => parseFloat(l.volume)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: `${leverage} Leverage`,
+                    line: { width: 0.5, color: LEVERAGE_COLORS[leverage] || '#888' },
+                    fillcolor: (LEVERAGE_COLORS[leverage] || '#888') + 'AA',
+                    stackgroup: stackGroup,
+                    hovertemplate: `Price: $%{x}<br>Volume: %{y:.2f}<br>Leverage: ${leverage}<extra></extra>`,
+                    legendgroup: leverage,
+                    showlegend: showInLegend,
+                    yaxis: 'y'
+                });
+            }
+
+            // Long tiers stacked together
+            Object.keys(longsByLeverage).sort().forEach(leverage => {
+                const showInLegend = !seenLeverages.has(leverage);
+                seenLeverages.add(leverage);
+                addAreaTrace(longsByLeverage[leverage], leverage, 'long', showInLegend);
+            });
+
+            // Short tiers stacked together
+            Object.keys(shortsByLeverage).sort().forEach(leverage => {
+                const showInLegend = !seenLeverages.has(leverage);
+                seenLeverages.add(leverage);
+                addAreaTrace(shortsByLeverage[leverage], leverage, 'short', showInLegend);
+            });
+
+            return traces;
+        }
+
         function renderLiquidationMap(data) {
             const currentPrice = parseFloat(data.current_price);
             document.getElementById('currentPrice').textContent = `Current Price: $${currentPrice.toLocaleString()}`;
@@ -53,53 +133,14 @@
             const longsByLeverage = groupByLeverage(data.long_liquidations);
             const shortsByLeverage = groupByLeverage(data.short_liquidations);
 
-            // Track which leverages we've seen to avoid legend duplicates
             const seenLeverages = new Set();
+            let traces;
 
-            // Create bar traces for each leverage tier
-            const traces = [];
-
-            // Long liquidations (below price) - separate bars per leverage
-            Object.keys(longsByLeverage).sort().forEach(leverage => {
-                const levels = longsByLeverage[leverage];
-                const showInLegend = !seenLeverages.has(leverage);
-                seenLeverages.add(leverage);
-
-                traces.push({
-                    x: levels.map(l => parseFloat(l.price_level)),
-                    y: levels.map(l => parseFloat(l.volume)),
-                    type: 'bar',
-                    name: `${leverage} Leverage`,
-                    marker: {
-                        color: LEVERAGE_COLORS[leverage] || '#888'
-                    },
-                    hovertemplate: `Price: $%{x}<br>Volume: %{y:.2f}<br>Leverage: ${leverage}<extra></extra>`,
-                    legendgroup: leverage,
-                    showlegend: showInLegend,
-                    yaxis: 'y'
-                });
-            });
-
-            // Short liquidations (above price) - separate bars per leverage
-            Object.keys(shortsByLeverage).sort().forEach(leverage => {
-                const levels = shortsByLeverage[leverage];
-                const showInLegend = !seenLeverages.has(leverage);
-                seenLeverages.add(leverage);
-
-                traces.push({
-                    x: levels.map(l => parseFloat(l.price_level)),
-                    y: levels.map(l => parseFloat(l.volume)),
-                    type: 'bar',
-                    name: `${leverage} Leverage`,
-                    marker: {
-                        color: LEVERAGE_COLORS[leverage] || '#888'
-                    },
-                    hovertemplate: `Price: $%{x}<br>Volume: %{y:.2f}<br>Leverage: ${leverage}<extra></extra>`,
-                    legendgroup: leverage,
-                    showlegend: showInLegend,
-                    yaxis: 'y'
-                });
-            });
+            if (CHART_MODE === 'area') {
+                traces = buildAreaTraces(longsByLeverage, shortsByLeverage, seenLeverages);
+            } else {
+                traces = buildBarTraces(longsByLeverage, shortsByLeverage, seenLeverages);
+            }
 
             // Calculate cumulative distributions (Coinglass style: start from current price)
             // CRITICAL FIX: Remove duplicate prices using Set()
@@ -140,10 +181,11 @@
             });
 
             // Current price vertical line
-            const maxVolume = Math.max(
+            const allVolumes = [
                 ...data.long_liquidations.map(l => parseFloat(l.volume)),
                 ...data.short_liquidations.map(l => parseFloat(l.volume))
-            );
+            ];
+            const maxVolume = allVolumes.length > 0 ? Math.max(...allVolumes) : 0;
 
             traces.push({
                 x: [currentPrice, currentPrice],
@@ -188,7 +230,7 @@
                 font: {
                     color: '#c9d1d9'
                 },
-                barmode: 'stack',  // Stack bars for same price level
+                barmode: 'stack',  // Stack bars for same price level (bar mode)
                 bargap: 0.1,
                 legend: {
                     orientation: 'h',

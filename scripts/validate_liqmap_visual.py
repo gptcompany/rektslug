@@ -18,7 +18,7 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -68,6 +68,138 @@ def preflight_liqmap_api(
         "short_count": len(short_liqs),
         "current_price": payload.get("current_price"),
     }
+
+
+def fetch_liqmap_payload(
+    api_base: str,
+    symbol: str,
+    model: str,
+    timeframe: int,
+) -> dict[str, Any] | None:
+    """Fetch the complete /liquidations/levels JSON payload.
+
+    Returns the full response dict, or None on error.
+    """
+    url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
+    try:
+        return http_get_json(url, timeout=15.0)
+    except Exception:
+        return None
+
+
+def compute_validation_metrics(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Compute style-independent validation metrics from a levels payload.
+
+    Returns a dict with: price_range, volume_totals, leverage_distribution,
+    top_levels, and cumulative_shape.  Returns {"error": ...} if payload is None.
+    """
+    if payload is None:
+        return {"error": "payload is None"}
+
+    current_price = float(payload.get("current_price", 0))
+    longs = payload.get("long_liquidations", [])
+    shorts = payload.get("short_liquidations", [])
+
+    all_prices = [float(entry["price_level"]) for entry in longs] + [
+        float(entry["price_level"]) for entry in shorts
+    ]
+    long_total = sum(float(entry["volume"]) for entry in longs)
+    short_total = sum(float(entry["volume"]) for entry in shorts)
+
+    # --- price_range ---
+    if all_prices:
+        min_price = min(all_prices)
+        max_price = max(all_prices)
+        below = sum(1 for p in all_prices if p < current_price)
+        pct_below = below / len(all_prices) * 100.0
+        pct_above = 100.0 - pct_below
+    else:
+        min_price = max_price = current_price
+        pct_below = pct_above = 0.0
+
+    # --- volume_totals ---
+    if short_total > 0:
+        ls_ratio = long_total / short_total
+    else:
+        ls_ratio = 0.0
+
+    # --- leverage_distribution (% of total volume per tier) ---
+    tier_volumes: dict[str, float] = {}
+    for entry in longs + shorts:
+        lev = entry.get("leverage", "unknown")
+        tier_volumes[lev] = tier_volumes.get(lev, 0.0) + float(entry["volume"])
+    grand_total = long_total + short_total
+    leverage_distribution: dict[str, float] = {}
+    if grand_total > 0:
+        for tier, vol in sorted(tier_volumes.items()):
+            leverage_distribution[tier] = round(vol / grand_total * 100.0, 2)
+    # --- top_levels (top-5 by volume, long and short separate) ---
+
+    def _top5(entries: list[dict]) -> list[dict[str, float]]:
+        parsed = [
+            {"price_level": float(e["price_level"]), "volume": float(e["volume"])} for e in entries
+        ]
+        parsed.sort(key=lambda x: x["volume"], reverse=True)
+        return parsed[:5]
+
+    top_long = _top5(longs)
+    top_short = _top5(shorts)
+
+    return {
+        "price_range": {
+            "min_price": min_price,
+            "max_price": max_price,
+            "current_price": current_price,
+            "pct_below": round(pct_below, 2),
+            "pct_above": round(pct_above, 2),
+        },
+        "volume_totals": {
+            "long_total": long_total,
+            "short_total": short_total,
+            "long_short_ratio": round(ls_ratio, 6),
+        },
+        "leverage_distribution": leverage_distribution,
+        "top_levels": {
+            "long": top_long,
+            "short": top_short,
+        },
+    }
+
+
+def fetch_data_freshness(
+    api_base: str,
+    symbol: str = "BTCUSDT",
+) -> dict[str, Any]:
+    """Check data freshness via /data/date-range endpoint.
+
+    Returns dict with end_date, age_hours, and optional warning.
+    """
+    url = f"{api_base}/data/date-range?symbol={symbol}"
+    try:
+        data = http_get_json(url, timeout=10.0)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+    end_date_str = data.get("end_date", "")
+    if not end_date_str:
+        return {"error": "no end_date in response"}
+
+    try:
+        end_dt = datetime.fromisoformat(end_date_str.replace("Z", "+00:00"))
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        age_hours = (now - end_dt).total_seconds() / 3600.0
+    except Exception as exc:
+        return {"error": f"failed to parse end_date: {exc}", "end_date": end_date_str}
+
+    result: dict[str, Any] = {
+        "end_date": end_date_str,
+        "age_hours": round(age_hours, 2),
+    }
+    if age_hours > 24:
+        result["warning"] = f"Data is {age_hours:.1f}h old (>24h threshold)"
+    return result
 
 
 def start_local_server_if_needed(
@@ -247,6 +379,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run browsers with UI for debugging",
     )
+    parser.add_argument(
+        "--chart-mode",
+        default="area",
+        choices=["area", "bar"],
+        help="Chart rendering mode for local screenshot (default: area)",
+    )
     return parser.parse_args()
 
 
@@ -276,19 +414,40 @@ def main() -> int:
 
     proc: subprocess.Popen | None = None
     api_base = f"http://{args.host}:{args.port}"
+    chart_param = f"chart={args.chart_mode}" if args.chart_mode != "bar" else ""
     page_url = f"{api_base}/liq_map_1w.html"
+    if chart_param:
+        page_url = f"{page_url}?{chart_param}"
 
     try:
         proc, api_base = start_local_server_if_needed(
             repo_root=repo_root, host=args.host, port=args.port
         )
+        # Rebuild page_url with resolved api_base
         page_url = f"{api_base}/liq_map_1w.html"
+        if chart_param:
+            page_url = f"{page_url}?{chart_param}"
 
         api_preflight = preflight_liqmap_api(
             api_base=api_base,
             symbol=args.symbol,
             model=args.model,
             timeframe=args.timeframe,
+        )
+
+        # Fetch full payload for numerical metrics
+        payload = fetch_liqmap_payload(
+            api_base=api_base,
+            symbol=args.symbol,
+            model=args.model,
+            timeframe=args.timeframe,
+        )
+        numerical_metrics = compute_validation_metrics(payload)
+
+        # Fetch data freshness
+        data_freshness = fetch_data_freshness(
+            api_base=api_base,
+            symbol=args.symbol,
         )
 
         local_state = asyncio.run(
@@ -317,6 +476,8 @@ def main() -> int:
             "ours_screenshot": str(ours_path),
             "coinank_screenshot": str(coinank_path),
             "api_preflight": api_preflight,
+            "numerical_metrics": numerical_metrics,
+            "data_freshness": data_freshness,
             "local_page_state": local_state,
         }
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -332,6 +493,8 @@ def main() -> int:
                 print("warning: API returned zero liquidation levels for the selected parameters")
         if not local_state.get("ready"):
             print(f"warning: local page not fully ready (hasPlot={local_state.get('hasPlot')})")
+        if data_freshness.get("warning"):
+            print(f"warning: {data_freshness['warning']}")
 
         return 0
     except URLError as exc:
