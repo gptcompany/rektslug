@@ -2,6 +2,8 @@
 
 from decimal import Decimal
 
+import pytest
+
 from src.liquidationheatmap.ingestion.db_service import DuckDBService
 
 
@@ -57,6 +59,60 @@ class TestDuckDBService:
         assert count1 == count2
         # Values should be same (within precision tolerance)
         assert abs(oi1 - oi2) < Decimal("0.01")
+
+
+class TestLeverageWeightsValidation:
+    """Tests for leverage_weights parameter validation."""
+
+    def test_default_leverage_weights_sum_to_one(self):
+        """Default weights must sum to 1.0."""
+        total = sum(DuckDBService.DEFAULT_LEVERAGE_WEIGHTS.values())
+        assert abs(total - 1.0) < 0.001
+
+    def test_default_leverage_weights_has_five_tiers(self):
+        """Default should have exactly 5 leverage tiers."""
+        assert len(DuckDBService.DEFAULT_LEVERAGE_WEIGHTS) == 5
+        assert set(DuckDBService.DEFAULT_LEVERAGE_WEIGHTS.keys()) == {
+            5, 10, 25, 50, 100,
+        }
+
+    def test_default_leverage_weights_all_positive(self):
+        """All default weights must be positive."""
+        for lev, w in DuckDBService.DEFAULT_LEVERAGE_WEIGHTS.items():
+            assert w > 0, f"Weight for {lev}x must be positive"
+
+    def test_empty_leverage_weights_raises(self, tmp_path):
+        """Empty dict should raise ValueError."""
+        db_path = tmp_path / "test.duckdb"
+        with DuckDBService(str(db_path)) as db:
+            with pytest.raises(ValueError, match="cannot be empty"):
+                db.calculate_liquidations_oi_based(
+                    symbol="BTCUSDT",
+                    current_price=90000.0,
+                    leverage_weights={},
+                )
+
+    def test_negative_weight_raises(self, tmp_path):
+        """Negative weight should raise ValueError."""
+        db_path = tmp_path / "test.duckdb"
+        with DuckDBService(str(db_path)) as db:
+            with pytest.raises(ValueError, match="must be positive"):
+                db.calculate_liquidations_oi_based(
+                    symbol="BTCUSDT",
+                    current_price=90000.0,
+                    leverage_weights={10: -0.5, 25: 0.5},
+                )
+
+    def test_weights_not_summing_to_one_raises(self, tmp_path):
+        """Weights summing to != 1.0 should raise ValueError."""
+        db_path = tmp_path / "test.duckdb"
+        with DuckDBService(str(db_path)) as db:
+            with pytest.raises(ValueError, match="must sum to 1.0"):
+                db.calculate_liquidations_oi_based(
+                    symbol="BTCUSDT",
+                    current_price=90000.0,
+                    leverage_weights={10: 0.5, 25: 0.3},
+                )
 
 
 class TestAggTradesLoading:
