@@ -333,6 +333,12 @@ async def heatmap_30d_page():
     return FileResponse("frontend/heatmap_30d.html")
 
 
+@app.get("/liq_map_1w.html")
+async def liq_map_1w_page():
+    """Serve the 1-week liquidation map validation page."""
+    return FileResponse("frontend/liq_map_1w.html")
+
+
 class LiquidationResponse(BaseModel):
     """Response model for liquidations endpoint."""
 
