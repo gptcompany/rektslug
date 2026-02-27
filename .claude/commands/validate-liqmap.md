@@ -1,0 +1,111 @@
+# /validate-liqmap - Liquidation Map Coinank Validation
+
+Validate our liquidation map (`/liquidations/levels`) against Coinank `liq-map` for a single exchange.
+
+## Usage
+```bash
+/validate-liqmap [--exchange binance] [--timeframe 1w] [--headed]
+```
+
+## Repo Context
+
+- **Local page**: `http://localhost:8000/liq_map_1w.html`
+- **Frontend source**: `frontend/liq_map_1w.html`
+- **Coinank reference script**: `scripts/coinank_screenshot.py --product map`
+- **Output directory**: `data/validation/`
+- **API endpoint**: `/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7`
+
+## Orchestration Flow
+
+1. Ensure FastAPI is running:
+   ```bash
+   uv run uvicorn src.liquidationheatmap.api.main:app --port 8000 &
+   ```
+2. Verify API returns data:
+   ```bash
+   curl -s "http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'long={len(d[\"long_liquidations\"])}, short={len(d[\"short_liquidations\"])}, price={d[\"current_price\"]}')"
+   ```
+3. Screenshot our page via Playwright:
+   ```bash
+   uv run python -c "
+   import asyncio
+   from playwright.async_api import async_playwright
+   async def shot():
+       async with async_playwright() as p:
+           b = await p.chromium.launch()
+           page = await b.new_page(viewport={'width':1920,'height':1080})
+           await page.goto('http://localhost:8000/liq_map_1w.html')
+           await page.wait_for_timeout(5000)
+           await page.screenshot(path='data/validation/ours_liqmap_1w.png')
+           await b.close()
+   asyncio.run(shot())
+   "
+   ```
+4. Screenshot Coinank liq-map:
+   ```bash
+   uv run python scripts/coinank_screenshot.py \
+     --product map --exchange binance --coin BTC --timeframe 1w \
+     --output data/validation/coinank_liqmap_binance_1w.png
+   ```
+5. Pass both screenshots to `alpha-visual` for comparison
+
+## Alpha-Visual Delegation Prompt
+
+```text
+Compare these two liquidation map screenshots:
+- Local map (Plotly): data/validation/ours_liqmap_1w.png
+- Coinank reference: data/validation/coinank_liqmap_binance_1w.png
+
+Task:
+1. Verify both images show valid liquidation map charts (bars + cumulative lines).
+2. Compare structure:
+   - X axis: price levels (USD) should cover similar range around current BTC price
+   - Y axis: liquidation volume bars stacked by leverage tier
+   - Leverage tiers: 5x (cyan), 10x (blue), 25x (dark blue), 50x (orange), 100x (pink)
+   - Cumulative lines: red (long, descending) and green (short, ascending)
+   - Current price marker (vertical dashed line)
+3. Compare magnitudes:
+   - Volume order of magnitude (should both be in billions USD range)
+   - Long vs short distribution asymmetry
+   - Which leverage tiers dominate
+4. Score similarity 0-100.
+5. Output PASS if >= 70 and no obvious render failure, otherwise FAIL.
+6. List the top 5 mismatches with short annotations.
+
+Important:
+- Our map uses Binance-only data. Coinank liq-map for binance should match closely.
+- Volume magnitudes may differ due to different OI sources/timing.
+- Score >= 70 means structure matches even if exact values differ.
+```
+
+## Validation Metrics
+
+| Metric | Expected | Tolerance |
+|--------|----------|-----------|
+| Leverage tiers | 5 tiers (5x,10x,25x,50x,100x) | Exact match |
+| Price range | Within 5% of current BTC price | +/- 10% |
+| Volume magnitude | Billions USD | Same order of magnitude |
+| Long/Short split | Both present | Ratio within 2x |
+| Cumulative lines | Both present, correct direction | Visual match |
+
+## Result Format
+
+```markdown
+### Liquidation Map Validation Result
+- Exchange: binance
+- Timeframe: 1w
+- Local screenshot: `data/validation/ours_liqmap_1w.png`
+- Coinank screenshot: `data/validation/coinank_liqmap_binance_1w.png`
+- Similarity score: 0-100
+- Decision: PASS | FAIL
+- Mismatches:
+  1. ...
+  2. ...
+```
+
+## Notes
+
+- The `/liquidations/levels` endpoint is marked DEPRECATED but still functional.
+- MMR is now computed per-bucket using official Binance tiers (not flat 0.4%).
+- Leverage weights are parameterized (default: 15/30/25/20/10%).
+- Coinank liq-map is per-exchange, making direct comparison with our Binance data possible.
