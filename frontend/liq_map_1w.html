@@ -35,7 +35,7 @@
 
         async function loadLevels() {
             try {
-                const response = await fetch('http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7');
+                const response = await fetch('/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7');
                 const data = await response.json();
 
                 renderLiquidationMap(data);
