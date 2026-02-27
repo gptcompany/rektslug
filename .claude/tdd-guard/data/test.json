@@ -1,56 +1,21 @@
 {
   "testModules": [
     {
-      "moduleId": "tests/test_ingestion/test_db_service.py",
+      "moduleId": "tests/test_visual/test_liqmap_visual.py",
       "tests": [
         {
-          "name": "test_get_latest_open_interest_returns_real_data",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestDuckDBService::test_get_latest_open_interest_returns_real_data",
+          "name": "test_preflight_liqmap_api_parses_response",
+          "fullName": "tests/test_visual/test_liqmap_visual.py::test_preflight_liqmap_api_parses_response",
           "state": "passed"
         },
         {
-          "name": "test_get_latest_funding_rate_returns_real_data",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestDuckDBService::test_get_latest_funding_rate_returns_real_data",
+          "name": "test_preflight_liqmap_api_handles_error",
+          "fullName": "tests/test_visual/test_liqmap_visual.py::test_preflight_liqmap_api_handles_error",
           "state": "passed"
         },
         {
-          "name": "test_no_duplicates_when_loading_same_csv_twice",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestDuckDBService::test_no_duplicates_when_loading_same_csv_twice",
-          "state": "passed"
-        },
-        {
-          "name": "test_default_leverage_weights_sum_to_one",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_default_leverage_weights_sum_to_one",
-          "state": "passed"
-        },
-        {
-          "name": "test_default_leverage_weights_has_five_tiers",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_default_leverage_weights_has_five_tiers",
-          "state": "passed"
-        },
-        {
-          "name": "test_default_leverage_weights_all_positive",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_default_leverage_weights_all_positive",
-          "state": "passed"
-        },
-        {
-          "name": "test_empty_leverage_weights_raises",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_empty_leverage_weights_raises",
-          "state": "passed"
-        },
-        {
-          "name": "test_negative_weight_raises",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_negative_weight_raises",
-          "state": "passed"
-        },
-        {
-          "name": "test_weights_not_summing_to_one_raises",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestLeverageWeightsValidation::test_weights_not_summing_to_one_raises",
-          "state": "passed"
-        },
-        {
-          "name": "test_get_large_trades_returns_dataframe",
-          "fullName": "tests/test_ingestion/test_db_service.py::TestAggTradesLoading::test_get_large_trades_returns_dataframe",
+          "name": "test_validate_liqmap_cli_args_defaults",
+          "fullName": "tests/test_visual/test_liqmap_visual.py::test_validate_liqmap_cli_args_defaults",
           "state": "passed"
         }
       ]
