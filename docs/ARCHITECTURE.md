@@ -109,11 +109,11 @@ LiquidationHeatmap/
 │   ├── coinglass_heatmap.html       # Full-featured heatmap
 │   └── styles.css                   # Shared CSS
 ├── data/                            # Data directory (gitignored)
-│   ├── raw/BTCUSDT/                 # Symlink to Binance historical CSV
-│   ├── processed/                   # DuckDB databases
-│   │   ├── liquidations.duckdb      # Main analytics database
-│   │   └── ingestion_report*.json   # Ingestion metadata
+│   ├── raw/                         # Symlink to 3TB-WDC Binance CSV
 │   └── cache/                       # Temporary cache
+# External Database (NVMe - fast I/O):
+#   Host: /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
+#   N8N:  /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
 ├── config/                          # Configuration files
 │   ├── tiers/                       # YAML tier configurations
 │   ├── alert_settings.yaml          # Alert thresholds
@@ -534,11 +534,12 @@ MA[i] = MA[i-1] + boundary[i] × (rate[i] - rate[i-1])
 Create `.env` from `.env.template`:
 
 ```bash
-# Database Configuration
-DUCKDB_PATH=data/processed/liquidations.duckdb
+# Database Configuration (NVMe for fast I/O)
+DUCKDB_PATH=/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
+# N8N Container: /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
 
-# Data Sources
-BINANCE_DATA_PATH=data/raw/BTCUSDT
+# Data Sources (HDD - read-only raw CSV)
+BINANCE_DATA_PATH=/media/sam/3TB-WDC/binance-history-data-downloader/data
 
 # API Configuration
 API_HOST=0.0.0.0
@@ -600,7 +601,8 @@ uv run python scripts/ingest_aggtrades.py \
     --symbol BTCUSDT \
     --start-date 2025-01-01 \
     --end-date 2025-01-31 \
-    --data-dir /path/to/binance-data
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
+    --data-dir /media/sam/3TB-WDC/binance-history-data-downloader/data
 
 # Create volume profile cache
 uv run python scripts/create_volume_profile_cache.py
@@ -679,5 +681,5 @@ logger.info("Processing liquidations", extra={
 ---
 
 **Maintained by**: Claude Code architecture-validator
-**Last Updated**: 2025-12-27
-**Version**: 1.0
+**Last Updated**: 2026-01-01
+**Version**: 1.1 (NVMe database migration)

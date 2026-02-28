@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/retention_policy.py
-# hypothesis_version: 6.148.2
-
-['alert_cutoff_date', 'alert_retention_days', 'alerts', 'cutoff_date', 'report_cutoff_date', 'reports', 'retention_days', 'run_cutoff_date', 'run_retention_days', 'runs', 'to_delete', 'to_keep', 'total']

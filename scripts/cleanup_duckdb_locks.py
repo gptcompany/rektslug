@@ -52,7 +52,7 @@ def main():
     db_path = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else "/media/sam/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb"
+        else "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
     )
 
     print(f"Cleaning DuckDB locks for: {db_path}")

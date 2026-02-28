@@ -9,7 +9,8 @@ END_DATE="$2"
 MODE="$3"
 
 PROJECT_DIR="/workspace/1TB/LiquidationHeatmap"
-DB_PATH="${PROJECT_DIR}/data/processed/liquidations.duckdb"
+# NVMe database for faster I/O (migrated from HDD 2025-01-01)
+DB_PATH="/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 API_URL="http://host.docker.internal:8000"
 
 cd "$PROJECT_DIR"

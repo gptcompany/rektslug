@@ -119,8 +119,8 @@ Examples:
     parser.add_argument(
         "--db-path",
         type=str,
-        default="data/processed/liquidations.duckdb",
-        help="Path to DuckDB database (default: data/processed/liquidations.duckdb)",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        help="Path to DuckDB database (default: /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb)",
     )
 
     parser.add_argument(

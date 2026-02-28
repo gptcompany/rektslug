@@ -30,7 +30,7 @@ class MetricsAggregator:
 
     def __init__(
         self,
-        db_path: str = "data/processed/liquidations.duckdb",
+        db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
     ):
         """Initialize aggregator.
 
@@ -407,7 +407,7 @@ class MetricsAggregator:
 def get_dashboard_metrics(
     symbol: str = "BTCUSDT",
     days: int = 30,
-    db_path: str = "data/processed/liquidations.duckdb",
+    db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
 ) -> DashboardMetrics | None:
     """Convenience function to get dashboard metrics.
 

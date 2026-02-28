@@ -102,7 +102,7 @@ uv run python /tmp/ingest_full_history.py \
 
 **Modified**:
 - `src/liquidationheatmap/ingestion/aggtrades_streaming.py` - Critical bug fixes
-- `data/processed/liquidations.duckdb` - Rebuilt with correct schema
+- `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` - Rebuilt with correct schema
 
 ### Next Steps
 

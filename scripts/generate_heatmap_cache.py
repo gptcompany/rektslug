@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument(
         "--db-path",
         type=str,
-        default="data/processed/liquidations.duckdb",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         help="DuckDB database path",
     )
     return parser.parse_args()

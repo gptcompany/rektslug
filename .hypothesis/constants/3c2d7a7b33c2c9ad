@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/tier_display.py
-# hypothesis_version: 6.148.2
-
-['$0', '$0 - $50,000', '$0.01', '$1,750.00', '$250,000', '$250.00', '$50,000.00', '$50,000.01', '0.5%', '1.0%', '100.0%', '100x', '2.5%', '200x', '40x', 'BTCUSDT', 'Current tier number', 'List of all tiers', 'Maximum leverage', 'New maximum leverage', 'Tier number', 'Trading pair symbol', 'boundary_crossed', 'crosses_boundary', 'current_position', 'current_tier', 'example', 'info', 'is_current', 'is_improvement', 'leverage_reduced', 'maintenance_amount', 'maintenance_margin', 'margin_increase', 'margin_rate', 'margin_rate_percent', 'max_leverage', 'message', 'new_margin_rate', 'new_max_leverage', 'new_tier', 'next_tier_threshold', 'notional_range', 'old_margin_rate', 'old_max_leverage', 'old_tier', 'symbol', 'tier_number', 'tier_range', 'tiers', 'tiers_crossed', 'tooltip', 'warning', 'warning_level']

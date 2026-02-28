@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/config/precision.py
-# hypothesis_version: 6.148.2
-
-['0', '0.005', '0.01', '0.010', '0.025', '0.050', '0.100', '1', '100', '1000000000000', 'F']

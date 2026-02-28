@@ -4,7 +4,7 @@
 
 set -e
 
-DB_PATH="/workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb"
+DB_PATH="/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 PID_FILE="${DB_PATH}.pid"
 
 echo "🔍 Checking for stuck DuckDB processes..."

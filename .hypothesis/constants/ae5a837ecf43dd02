@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/comparison.py
-# hypothesis_version: 6.148.2
-
-[0.0, 0.5, 2.0, 'A', 'N/A', 'No models to compare', 'count', 'max', 'mean', 'median', 'min', 'range', 'std_dev']

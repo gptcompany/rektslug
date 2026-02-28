@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/trends/degradation_detector.py
-# hypothesis_version: 6.148.2
-
-[5.0, 10.0, 15.0, 25.0, 100, 'A', 'F', 'Insufficient data', 'baseline_a_percent', 'baseline_avg', 'baseline_count', 'baseline_f_percent', 'critical', 'degradation_detected', 'degradation_percent', 'lookback_days', 'message', 'minor', 'moderate', 'none', 'overall_grade', 'overall_score', 'recent_a_percent', 'recent_avg', 'recent_count', 'recent_distribution', 'recent_f_percent', 'severe', 'severity', 'summary', 'test_type', 'worst_severity']

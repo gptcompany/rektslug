@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/alerts/email_handler.py
-# hypothesis_version: 6.148.2
-
-[587, '#dc3545', '#ffc107', ', ', 'F', 'FAIL', 'From', 'N/A', 'PASS', 'Subject', 'To', 'Unknown', 'alternative', 'error', 'failed_test_names', 'failed_tests', 'grade', 'html', 'localhost', 'model_name', 'passed', 'run_id', 'score', 'test-failed', 'test-passed', 'test_details', 'total_tests', '⚠️', '✅', '❌', '🚨']

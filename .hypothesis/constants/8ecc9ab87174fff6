@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/api/main.py
-# hypothesis_version: 6.148.2
-
-[0.0, 1.0, 200.0, 500.0, 1500.0, 500000.0, 100, 3600, ' AND timestamp <= ?', ' AND timestamp >= ?', '*', '/frontend', '/health', '/liquidations/levels', '0', '0.1.0', '0.5', '100', '1d', 'BTCUSDT', 'Time bucket size', 'Timeframe in days', 'Trading pair symbol', 'agreement_percentage', 'avg_confidence', 'avg_price', 'binance_standard', 'buy', 'confidence', 'count', 'current_price', 'density', 'ensemble', 'frontend', 'levels', 'leverage', 'liq_price', 'liq_price_binned', 'liquidation-heatmap', 'model', 'models', 'name', 'num_levels', 'ok', 'openinterest', 'price', 'price_bucket', 'price_level', 'quantity', 'records', 'service', 'side', 'status', 'sum', 'symbol', 'time_bucket', 'timestamp', 'total_volume', 'volume']

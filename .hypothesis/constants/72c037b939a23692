@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/reports/json_reporter.py
-# hypothesis_version: 6.148.2
-
-[0.0, 100, '1.0', '80', 'C', 'F', 'average_score', 'completed_at', 'completeness', 'data_window', 'diagnostics', 'duration_ms', 'duration_seconds', 'end', 'error_message', 'failed_tests', 'format', 'funding_correlation', 'generated_at', 'json', 'model_name', 'oi_conservation', 'overall_grade', 'overall_score', 'pass_rate', 'passed', 'passed_tests', 'primary_metric', 'report_metadata', 'run_id', 'score', 'secondary_metric', 'start', 'started_at', 'statistics', 'status', 'summary', 'test_id', 'test_name', 'test_type', 'tests', 'total_tests', 'unknown', 'version', 'weight']

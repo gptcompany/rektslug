@@ -10,15 +10,16 @@ uv sync
 
 # Pre-flight checks (recommended for production)
 uv run python scripts/check_ingestion_ready.py \
-    --db data/processed/liquidations.duckdb \
-    --data-dir /path/to/binance-data
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
+    --data-dir /media/sam/3TB-WDC/binance-history-data-downloader/data
 
 # Ingest historical CSV data (example: Jan 2025)
 uv run python scripts/ingest_aggtrades.py \
     --symbol BTCUSDT \
     --start-date 2025-01-01 \
     --end-date 2025-01-31 \
-    --data-dir /path/to/binance-data
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
+    --data-dir /media/sam/3TB-WDC/binance-history-data-downloader/data
 
 # Validate data quality (after ingestion)
 uv run python scripts/validate_aggtrades.py
@@ -44,12 +45,14 @@ See `CLAUDE.md` for detailed architecture and development workflow.
 
 ## Data Sources
 
-- **Raw CSV**: `data/raw/BTCUSDT/` (symlinked to Binance historical data on 3TB-WDC)
-  - trades/, bookDepth/, fundingRate/, metrics/ (Open Interest)
-- **Processed**: `data/processed/*.duckdb` (analytics-optimized tables)
+- **Raw CSV**: `/media/sam/3TB-WDC/binance-history-data-downloader/data/` (HDD, read-only)
+  - BTCUSDT/, ETHUSDT/: aggTrades, bookDepth, fundingRate, metrics (Open Interest)
+- **Database**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` (NVMe, fast I/O)
+  - Tables: aggtrades_history (4.1B rows), klines_*_history, open_interest_history
+- **N8N Container**: `/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb`
 - **Cache**: `data/cache/` (Redis snapshots, temporary files)
 
-**Note**: Raw data is read-only (symlinked). All analytics use DuckDB as single source of truth.
+**Note**: Raw CSV is read-only on HDD. DuckDB database on NVMe is the single source of truth.
 
 ## Supported Trading Pairs
 
@@ -133,9 +136,9 @@ LiquidationHeatmap/
 │   ├── DATA_VALIDATION.md         # Validation guide
 │   └── PRODUCTION_CHECKLIST.md    # Production readiness
 ├── data/             # Data directory
-│   ├── raw/          # External data (symlink)
-│   ├── processed/    # DuckDB databases
+│   ├── raw/          # Symlink to 3TB-WDC (read-only)
 │   └── cache/        # Temporary cache
+# Database: /media/sam/2TB-NVMe/liquidationheatmap_db/ (external NVMe)
 ├── frontend/         # Visualization (if applicable)
 ├── CLAUDE.md         # Development guide for Claude Code
 ├── README.md         # This file

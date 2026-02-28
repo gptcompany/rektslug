@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/validation_report.py
-# hypothesis_version: 6.148.2
-
-['Alert recipients', 'Alert send timestamp', 'Full report content', 'html', 'json', 'text']

@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/trends/moving_averages.py
-# hypothesis_version: 6.148.2
-
-[0.3, 'alpha', 'ema', 'sma', 'window_size', 'wma']

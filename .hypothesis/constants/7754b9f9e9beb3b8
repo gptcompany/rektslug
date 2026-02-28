@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/storage.py
-# hypothesis_version: 6.148.2
-
-['alert_recipients', 'alert_sent', 'alert_sent_at', 'completed_at', 'created_at', 'data_completeness', 'data_end_date', 'data_start_date', 'diagnostics', 'duration_ms', 'duration_seconds', 'error_message', 'executed_at', 'format', 'generated_at', 'model_name', 'overall_grade', 'overall_score', 'passed', 'primary_metric', 'r', 'recommendations', 'report_content', 'report_id', 'run_id', 'score', 'secondary_metric', 'started_at', 'status', 'summary', 'test_id', 'test_name', 'test_type', 'trigger_type', 'triggered_by', 'updated_at', 'value', 'weight']

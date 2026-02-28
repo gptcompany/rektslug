@@ -15,7 +15,7 @@ from pathlib import Path
 
 import duckdb
 
-DB_PATH = "data/processed/liquidations.duckdb"
+DB_PATH = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 
 
 def create_schema(conn: duckdb.DuckDBPyConnection) -> None:

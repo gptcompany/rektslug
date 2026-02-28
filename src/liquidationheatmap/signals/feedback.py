@@ -53,7 +53,7 @@ class FeedbackDBService:
             # Use default path or create in-memory for tests
             import os
 
-            db_path = os.getenv("FEEDBACK_DB_PATH", "data/processed/liquidations.duckdb")
+            db_path = os.getenv("FEEDBACK_DB_PATH", "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb")
             self._conn = duckdb.connect(db_path, read_only=self._read_only)
         return self._conn
 

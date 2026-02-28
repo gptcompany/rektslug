@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/timeseries_storage.py
-# hypothesis_version: 6.148.2
-
-[0.0, '%Y-%m', '0', 'N/A', 'avg_score', 'count', 'cutoff_date', 'daily', 'date', 'grade_distribution', 'max_score', 'min_score', 'month', 'monthly', 'most_common_grade', 'old_runs', 'recent_runs', 'retention_days', 'total_runs', 'week', 'weekly']

@@ -1,0 +1,221 @@
+{
+  "generated_at": "2025-11-01T19:12:11.676115",
+  "statistics": {
+    "total_rows": 1210491578,
+    "date_range": {
+      "start": "2021-12-01 00:00:00.010000",
+      "end": "2025-10-30 23:59:59.978000"
+    },
+    "symbols": 1,
+    "price_range": {
+      "min": 16210.0,
+      "max": 126208.5
+    },
+    "total_volume_usd": 12791996023264.39,
+    "daily_count": 867,
+    "avg_rows_per_day": 1396184.057670127,
+    "gaps": [
+      {
+        "start": "2022-01-31",
+        "end": "2022-03-01",
+        "missing_days": 28
+      },
+      {
+        "start": "2022-03-31",
+        "end": "2022-05-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2022-05-31",
+        "end": "2022-07-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2022-08-31",
+        "end": "2022-10-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2022-10-31",
+        "end": "2022-12-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2023-01-31",
+        "end": "2023-03-01",
+        "missing_days": 28
+      },
+      {
+        "start": "2023-03-31",
+        "end": "2023-05-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2023-05-31",
+        "end": "2023-07-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2023-08-31",
+        "end": "2023-10-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2023-10-31",
+        "end": "2023-12-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2024-01-31",
+        "end": "2024-03-01",
+        "missing_days": 29
+      },
+      {
+        "start": "2024-03-31",
+        "end": "2024-05-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2024-05-31",
+        "end": "2024-07-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2024-08-31",
+        "end": "2024-10-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2024-10-31",
+        "end": "2024-12-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2025-01-31",
+        "end": "2025-03-01",
+        "missing_days": 28
+      },
+      {
+        "start": "2025-03-31",
+        "end": "2025-05-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2025-05-31",
+        "end": "2025-07-01",
+        "missing_days": 30
+      },
+      {
+        "start": "2025-08-31",
+        "end": "2025-10-01",
+        "missing_days": 30
+      }
+    ],
+    "gap_count": 19
+  },
+  "recommendations": [
+    {
+      "type": "gaps",
+      "severity": "warning",
+      "message": "Found 19 gap(s) in data. Consider re-running ingestion for missing dates.",
+      "gaps": [
+        {
+          "start": "2022-01-31",
+          "end": "2022-03-01",
+          "missing_days": 28
+        },
+        {
+          "start": "2022-03-31",
+          "end": "2022-05-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2022-05-31",
+          "end": "2022-07-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2022-08-31",
+          "end": "2022-10-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2022-10-31",
+          "end": "2022-12-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2023-01-31",
+          "end": "2023-03-01",
+          "missing_days": 28
+        },
+        {
+          "start": "2023-03-31",
+          "end": "2023-05-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2023-05-31",
+          "end": "2023-07-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2023-08-31",
+          "end": "2023-10-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2023-10-31",
+          "end": "2023-12-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2024-01-31",
+          "end": "2024-03-01",
+          "missing_days": 29
+        },
+        {
+          "start": "2024-03-31",
+          "end": "2024-05-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2024-05-31",
+          "end": "2024-07-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2024-08-31",
+          "end": "2024-10-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2024-10-31",
+          "end": "2024-12-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2025-01-31",
+          "end": "2025-03-01",
+          "missing_days": 28
+        },
+        {
+          "start": "2025-03-31",
+          "end": "2025-05-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2025-05-31",
+          "end": "2025-07-01",
+          "missing_days": 30
+        },
+        {
+          "start": "2025-08-31",
+          "end": "2025-10-01",
+          "missing_days": 30
+        }
+      ]
+    }
+  ],
+  "estimated_db_size_gb": 112.74
+}

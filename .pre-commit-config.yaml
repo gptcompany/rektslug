@@ -1,0 +1,60 @@
+# Enterprise Pre-commit Config v1.0
+# Maintained at: ~/.claude/templates/.pre-commit-config.yaml
+# Deploy: cp ~/.claude/templates/.pre-commit-config.yaml <repo>/
+# Install: cd <repo> && pre-commit install
+
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  # Bandit - Security linter
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml, -ll]
+        additional_dependencies: ["bandit[toml]"]
+
+  # Gitleaks - Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.23.3
+    hooks:
+      - id: gitleaks
+
+  # Local hooks (require local installation)
+  - repo: local
+    hooks:
+      # MyPy - Type checking
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        args: [--config-file=pyproject.toml]
+        pass_filenames: false
+
+      # Validate catalog-info.yaml if present
+      - id: validate-catalog
+        name: Validate catalog-info.yaml
+        entry: python -c "import yaml; yaml.safe_load(open('catalog-info.yaml'))"
+        language: system
+        files: catalog-info.yaml
+        pass_filenames: false

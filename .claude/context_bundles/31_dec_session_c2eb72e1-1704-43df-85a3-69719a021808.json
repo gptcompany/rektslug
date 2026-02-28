@@ -1,0 +1,19 @@
+{
+  "session_id": "c2eb72e1-1704-43df-85a3-69719a021808",
+  "created_at": "2025-12-31T15:40:17.450139",
+  "operations": [
+    {
+      "operation": "bash",
+      "timestamp": "2025-12-31T15:40:17.450155",
+      "command": "ps aux | grep -E \"ingest.*138271|138271.*ingest\" | grep -v grep || echo \"Process 138271 not running\"",
+      "description": "Check if ingestion still running"
+    },
+    {
+      "operation": "bash",
+      "timestamp": "2025-12-31T15:40:17.951265",
+      "command": "uv run python -c \"\nimport duckdb\nconn = duckdb.connect('data/processed/liquidations.duckdb', read_only=True)\ncount = conn.execute('SELECT COUNT(*) FROM liquidation_snapshots').fetchone()[0]\nprint(f'DB accessible! Rows: {count:,}')\nconn.close()\n\" 2>&1",
+      "description": "Test DuckDB access"
+    }
+  ],
+  "last_updated": "2025-12-31T15:40:17.951285"
+}

@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/models/ensemble.py
-# hypothesis_version: 6.148.2
-
-[100, '0', '0.05', '0.20', '0.30', '0.50', '0.70', '0.85', '100', 'BTCUSDT', 'binance_standard', 'ensemble', 'funding_adjusted', 'prices', 'py_liquidation_map', 'symbol', 'timestamp', 'volumes']

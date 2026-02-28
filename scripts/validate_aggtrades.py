@@ -215,7 +215,7 @@ def validate_sanity_checks(conn):
 
 def main():
     parser = argparse.ArgumentParser(description="Validate aggTrades data quality")
-    parser.add_argument("--db", default="data/processed/liquidations.duckdb", help="Database path")
+    parser.add_argument("--db", default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", help="Database path")
 
     args = parser.parse_args()
 

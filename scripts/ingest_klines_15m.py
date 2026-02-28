@@ -69,7 +69,7 @@ def create_klines_table(conn, interval="15m"):
     table_name = f"klines_{interval}_history"
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
-            open_time TIMESTAMP PRIMARY KEY,
+            open_time TIMESTAMP NOT NULL,
             symbol VARCHAR NOT NULL,
             open DECIMAL(18, 8) NOT NULL,
             high DECIMAL(18, 8) NOT NULL,
@@ -80,7 +80,8 @@ def create_klines_table(conn, interval="15m"):
             quote_volume DECIMAL(20, 8),
             count INTEGER,
             taker_buy_volume DECIMAL(18, 8),
-            taker_buy_quote_volume DECIMAL(20, 8)
+            taker_buy_quote_volume DECIMAL(20, 8),
+            PRIMARY KEY (open_time, symbol)
         )
     """)
     logger.info(f"✅ Table {table_name} ready")
@@ -225,7 +226,11 @@ def main():
     parser.add_argument("--start-date", required=True, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", required=True, help="End date (YYYY-MM-DD)")
     parser.add_argument("--data-dir", required=True, help="Data directory path")
-    parser.add_argument("--db", default="data/processed/liquidations.duckdb", help="Database path")
+    parser.add_argument(
+        "--db",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        help="Database path",
+    )
     parser.add_argument("--interval", default="15m", help="Kline interval (5m, 15m, 1m)")
     parser.add_argument("--throttle-ms", type=int, default=200, help="I/O throttle (ms)")
 

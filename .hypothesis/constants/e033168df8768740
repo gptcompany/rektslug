@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/ingestion/db_service.py
-# hypothesis_version: 6.148.2
-
-[0.004, 200.0, 500.0, 500000.0, '0.0001', '100000', '100000000.00', '67000.00', 'AND timestamp <= ?', 'AND timestamp >= ?', 'BTCUSDT', 'funding_rate', 'gross_value', 'leverage', 'liq_price', 'open_interest_value', 'price', 'price_bucket', 'quantity', 'side', 'timestamp', 'volume']

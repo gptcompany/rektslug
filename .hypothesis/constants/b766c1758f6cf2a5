@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/queue_config.py
-# hypothesis_version: 6.148.2
-
-[600, 3600, 'drop_newest', 'drop_oldest', 'reject']

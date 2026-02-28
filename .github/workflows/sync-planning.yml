@@ -1,0 +1,15 @@
+name: Sync Planning
+on:
+  push:
+    paths:
+      - '.planning/**'
+      - 'tasks.md'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    uses: gptcompany/.github/.github/workflows/_reusable-sync-planning.yml@main
+    secrets: inherit
+    with:
+      framework: 'auto'
+      create-project: true

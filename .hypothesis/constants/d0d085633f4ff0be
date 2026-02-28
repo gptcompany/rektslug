@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/services/tier_cache.py
-# hypothesis_version: 6.148.2
-
-[0.0, 300, 'cache_size', 'cached_symbols', 'hit_rate', 'hits', 'invalidations', 'misses', 'total_requests', 'ttl_seconds']

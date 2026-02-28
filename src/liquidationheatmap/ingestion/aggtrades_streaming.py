@@ -109,7 +109,16 @@ def get_aggtrades_files(data_dir, symbol, start_date, end_date):
     return sorted(files)
 
 
-def load_aggtrades_streaming(conn, data_dir, symbol, start_date, end_date, throttle_ms=THROTTLE_MS):
+def load_aggtrades_streaming(
+    conn,
+    data_dir,
+    symbol,
+    start_date,
+    end_date,
+    throttle_ms=THROTTLE_MS,
+    memory_limit_gb=32,
+    batch_checkpoint_files=50,
+):
     """Ingest aggTrades files one-by-one with dual-format support.
 
     Handles both old format (no header) and new format (with header).
@@ -123,6 +132,8 @@ def load_aggtrades_streaming(conn, data_dir, symbol, start_date, end_date, throt
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
         throttle_ms: Sleep time between files (ms) to prevent I/O overload
+        memory_limit_gb: DuckDB memory limit in GB (default: 32 GB)
+        batch_checkpoint_files: Checkpoint every N files to release memory (default: 50)
 
     Returns:
         Total number of rows inserted
@@ -133,9 +144,17 @@ def load_aggtrades_streaming(conn, data_dir, symbol, start_date, end_date, throt
     # Validate symbol to prevent SQL injection
     symbol = _validate_symbol(symbol)
 
+    # Configure DuckDB memory limits to prevent OOM
+    conn.execute(f"SET memory_limit = '{memory_limit_gb}GB'")
+    # Use NVMe for temp (338 GB free) instead of /tmp (51 GB free)
+    conn.execute("SET temp_directory = '/workspace/2TB-NVMe/duckdb_temp'")
+    conn.execute("SET threads = 4")  # Limit CPU threads
+    logger.info(f"DuckDB memory limit set to {memory_limit_gb}GB")
+
     logger.info(f"Starting streaming aggTrades ingestion for {symbol}")
     logger.info(f"Date range: {start_date} to {end_date}")
     logger.info(f"I/O throttle: {throttle_ms}ms between files")
+    logger.info(f"Batch checkpoint every {batch_checkpoint_files} files")
 
     files = get_aggtrades_files(data_dir, symbol, start_date, end_date)
 
@@ -233,6 +252,12 @@ def load_aggtrades_streaming(conn, data_dir, symbol, start_date, end_date, throt
             # I/O throttle to prevent HDD overload
             if throttle_ms > 0:
                 time.sleep(throttle_ms / 1000.0)
+
+            # Periodic checkpoint to release DuckDB memory
+            if idx % batch_checkpoint_files == 0:
+                logger.info(f"Checkpoint at file {idx}: forcing DuckDB to release memory...")
+                conn.execute("CHECKPOINT")
+                time.sleep(1)  # Brief pause to allow memory release
 
         except Exception as e:
             skip_count += 1

@@ -4,6 +4,7 @@ description: Quantitative analysis specialist for LiquidationHeatmap. Use for li
 tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch, mcp__serena__*, TodoWrite
 model: opus
 color: blue
+version: 1.0.0
 ---
 
 # Quant Analyst Agent

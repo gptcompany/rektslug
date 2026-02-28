@@ -104,7 +104,7 @@ cd /media/sam/1TB/LiquidationHeatmap
 ```
 🔍 Checking for stuck DuckDB processes...
 ==========================================
-📝 PID file found: /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb.pid (PID: 3871)
+📝 PID file found: /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb.pid (PID: 3871)
 ⚠️  Process 3871 is RUNNING
 
 Process details:
@@ -200,7 +200,7 @@ cd /media/sam/1TB/LiquidationHeatmap
 
 # 3. Oppure manuale
 docker exec n8n-n8n-1 kill -9 XXXX
-rm /media/sam/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb.pid
+rm /media/sam/1TB/LiquidationHeatmap//media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb.pid
 ```
 
 ### "DuckDB WAL file exists"
@@ -210,7 +210,7 @@ docker exec n8n-n8n-1 pgrep -f liquidations.duckdb
 
 # Se nessuno, il file è stale (da crash)
 # Prova connessione per forzare checkpoint
-docker exec n8n-n8n-1 python3 -c "import duckdb; duckdb.connect('/workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb').close()"
+docker exec n8n-n8n-1 python3 -c "import duckdb; duckdb.connect('/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb').close()"
 
 # WAL file dovrebbe sparire dopo connessione
 ```
@@ -263,7 +263,7 @@ cd /workspace/1TB/LiquidationHeatmap && \
 python3 ingest_full_history_safe.py \
   --symbol BTCUSDT \
   --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-  --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+  --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
   --mode full \
   --start-date "{{ $json.start_date }}" \
   --end-date "{{ $json.end_date }}" \
@@ -310,13 +310,13 @@ Lock rilasciato:
 # Terminal 1: Start long-running process
 docker exec n8n-n8n-1 python3 /workspace/1TB/LiquidationHeatmap/ingest_full_history_safe.py \
   --symbol BTCUSDT --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-  --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+  --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
   --mode full --start-date 2021-12-01 --end-date 2024-01-03 --timeout 240
 
 # Terminal 2: Try starting second process (should be blocked)
 docker exec n8n-n8n-1 python3 /workspace/1TB/LiquidationHeatmap/ingest_full_history_safe.py \
   --symbol BTCUSDT --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-  --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+  --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
   --mode auto --timeout 10
 
 # Expected output:
@@ -328,7 +328,7 @@ docker exec n8n-n8n-1 python3 /workspace/1TB/LiquidationHeatmap/ingest_full_hist
 # Start with short timeout (should timeout)
 docker exec n8n-n8n-1 python3 /workspace/1TB/LiquidationHeatmap/ingest_full_history_safe.py \
   --symbol BTCUSDT --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-  --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+  --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
   --mode full --start-date 2021-12-01 --end-date 2024-01-03 --timeout 1
 
 # Expected output after 1 minute:

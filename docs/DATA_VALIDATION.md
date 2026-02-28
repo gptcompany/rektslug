@@ -24,7 +24,7 @@ This document describes the data quality validation process for aggTrades ingest
 uv run python scripts/validate_aggtrades.py
 
 # Validate specific database
-uv run python scripts/validate_aggtrades.py --db data/processed/liquidations.duckdb
+uv run python scripts/validate_aggtrades.py --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
 ```
 
 ### Exit Codes
@@ -130,7 +130,7 @@ Validates realistic value ranges:
   aggTrades Data Validation Report
 ═══════════════════════════════════════════
 
-Database: data/processed/liquidations.duckdb
+Database: /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
 
 📊 Basic Statistics
 ┌────────────┬──────────────────────────────────┐

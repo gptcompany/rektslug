@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/models/requests.py
-# hypothesis_version: 6.148.2
-
-['Entry price', 'Position side', 'Response format', 'after', 'comparison', 'entry_price', 'leverage', 'long', 'notional', 'position_size', 'short', 'simple']

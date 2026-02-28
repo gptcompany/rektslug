@@ -1,0 +1,81 @@
+{
+  "generated_at": "2025-11-01T21:17:40.736486",
+  "statistics": {
+    "total_rows": 1853432533,
+    "date_range": {
+      "start": "2021-12-01 00:00:00.010000",
+      "end": "2025-10-30 23:59:59.978000"
+    },
+    "symbols": 1,
+    "price_range": {
+      "min": 15462.6,
+      "max": 126208.5
+    },
+    "total_volume_usd": 19794392149099.61,
+    "daily_count": 1324,
+    "avg_rows_per_day": 1399873.5143504532,
+    "gaps": [
+      {
+        "start": "2022-11-17",
+        "end": "2022-12-01",
+        "missing_days": 13
+      },
+      {
+        "start": "2023-02-13",
+        "end": "2023-03-01",
+        "missing_days": 15
+      },
+      {
+        "start": "2023-04-02",
+        "end": "2023-05-01",
+        "missing_days": 28
+      },
+      {
+        "start": "2023-06-06",
+        "end": "2023-07-01",
+        "missing_days": 24
+      },
+      {
+        "start": "2023-09-04",
+        "end": "2023-10-01",
+        "missing_days": 26
+      }
+    ],
+    "gap_count": 5
+  },
+  "recommendations": [
+    {
+      "type": "gaps",
+      "severity": "warning",
+      "message": "Found 5 gap(s) in data. Consider re-running ingestion for missing dates.",
+      "gaps": [
+        {
+          "start": "2022-11-17",
+          "end": "2022-12-01",
+          "missing_days": 13
+        },
+        {
+          "start": "2023-02-13",
+          "end": "2023-03-01",
+          "missing_days": 15
+        },
+        {
+          "start": "2023-04-02",
+          "end": "2023-05-01",
+          "missing_days": 28
+        },
+        {
+          "start": "2023-06-06",
+          "end": "2023-07-01",
+          "missing_days": 24
+        },
+        {
+          "start": "2023-09-04",
+          "end": "2023-10-01",
+          "missing_days": 26
+        }
+      ]
+    }
+  ],
+  "estimated_db_size_gb": 172.61
+}

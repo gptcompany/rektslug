@@ -10,7 +10,7 @@ Checks:
 KISS approach: Run this BEFORE starting ingestion.
 
 Usage:
-    python scripts/check_ingestion_ready.py --db data/processed/liquidations.duckdb --data-dir /path/to/data
+    python scripts/check_ingestion_ready.py --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb --data-dir /path/to/data
 """
 
 import argparse

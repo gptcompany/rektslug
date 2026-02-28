@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/logger.py
-# hypothesis_version: 6.148.2
-
-['%Y-%m-%d %H:%M:%S', 'validation']

@@ -8,7 +8,8 @@ END_DATE="$2"
 MODE="$3"
 
 PROJECT_DIR="/workspace/1TB/LiquidationHeatmap"
-DB_PATH="${PROJECT_DIR}/data/processed/liquidations.duckdb"
+# NVMe database for faster I/O (migrated from HDD 2025-01-01)
+DB_PATH="/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 API_URL="http://host.docker.internal:8000"
 MAX_RETRIES=3
 RETRY_DELAY=5
@@ -86,7 +87,7 @@ if [ "$MODE" = "PRODUCTION" ]; then
     python3 ingest_full_history_n8n.py \
         --symbol BTCUSDT \
         --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-        --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+        --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
         --mode full \
         --start-date "$START_DATE" \
         --end-date "$END_DATE" \
@@ -98,7 +99,7 @@ if [ "$MODE" = "PRODUCTION" ]; then
     python3 ingest_full_history_n8n.py \
         --symbol ETHUSDT \
         --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-        --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+        --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
         --mode full \
         --start-date "$START_DATE" \
         --end-date "$END_DATE" \
@@ -110,7 +111,7 @@ else
     python3 ingest_full_history_n8n.py \
         --symbol BTCUSDT \
         --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-        --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+        --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
         --mode auto \
         --throttle-ms 200
     BTCUSDT_STATUS=$?
@@ -120,7 +121,7 @@ else
     python3 ingest_full_history_n8n.py \
         --symbol ETHUSDT \
         --data-dir /workspace/3TB-WDC/binance-history-data-downloader/data \
-        --db /workspace/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb \
+        --db /workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
         --mode auto \
         --throttle-ms 200
     ETHUSDT_STATUS=$?

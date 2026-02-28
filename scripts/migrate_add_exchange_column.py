@@ -192,8 +192,8 @@ def main():
     parser = argparse.ArgumentParser(description="Add exchange column to liquidation tables")
     parser.add_argument(
         "--db-path",
-        default="data/processed/liquidations.duckdb",
-        help="Path to DuckDB database (default: data/processed/liquidations.duckdb)",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        help="Path to DuckDB database (default: /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb)",
     )
     args = parser.parse_args()
 

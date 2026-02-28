@@ -224,7 +224,7 @@ uv run pytest tests/test_smoke.py -v
 ls data/raw/BTCUSDT/trades/
 
 # Start DuckDB CLI
-uv run python -c "import duckdb; duckdb.connect('data/processed/liquidations.duckdb')"
+uv run python -c "import duckdb; duckdb.connect('/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb')"
 ```
 
 ### API (Future)

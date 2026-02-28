@@ -179,7 +179,7 @@ def save_json_report(stats, output_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate ingestion summary report")
-    parser.add_argument("--db", default="data/processed/liquidations.duckdb", help="Database path")
+    parser.add_argument("--db", default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", help="Database path")
     parser.add_argument(
         "--output", default="data/processed/ingestion_report.json", help="JSON output path"
     )

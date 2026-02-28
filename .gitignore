@@ -1,72 +1,43 @@
+# Environment
+.env
+.env.*
+.envrc
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+.venv/
 venv/
-ENV/
-env/
+*.egg-info/
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.hypothesis/
-
-# Data (IMPORTANT: Don't commit processed data)
-data/processed/
-data/cache/
-data/validation/*.jsonl
+# Data
 *.duckdb
 *.duckdb.wal
-*.rdb
 
-# Environment
-.env
-.env.local
+# IDE
+.idea/
+.vscode/
+*.swp
+.claude-flow/
 
-# Logs
-*.log
-logs/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Serena/Specify cache
-.serena/cache/
-.specify/memory/
-
-# Claude Code session data
-.claude/context_bundles/
-.claude/stats/
+# Cache & test artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 .hypothesis/
 
 # Backups
-*.backup
+*.backup*
 *.bak
+
+# Logs
+test_output.log
+logs/
+
+# Validation artifacts
+data/validation/liqmap/*.png
+data/validation/heatmap/*.png
+data/validation/manifests/*.json

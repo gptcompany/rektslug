@@ -1,0 +1,22 @@
+{
+  "generated_at": "2025-11-02T12:31:39.633395",
+  "statistics": {
+    "total_rows": 1982554380,
+    "date_range": {
+      "start": "2021-12-01 00:00:00.010000",
+      "end": "2025-10-30 23:59:59.978000"
+    },
+    "symbols": 1,
+    "price_range": {
+      "min": 15443.2,
+      "max": 126208.5
+    },
+    "total_volume_usd": 21120446902407.37,
+    "daily_count": 1430,
+    "avg_rows_per_day": 1386401.6643356644,
+    "gaps": [],
+    "gap_count": 0
+  },
+  "recommendations": [],
+  "estimated_db_size_gb": 184.64
+}

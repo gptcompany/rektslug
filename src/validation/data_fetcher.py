@@ -21,7 +21,7 @@ class ValidationDataFetcher:
     from the past 30 days for validation analysis.
     """
 
-    def __init__(self, db_path: str = "data/liquidations.duckdb"):
+    def __init__(self, db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"):
         """
         Initialize data fetcher.
 

@@ -129,7 +129,7 @@ def verify_constraint(conn):
 
 def main():
     parser = argparse.ArgumentParser(description="Add UNIQUE constraint to aggtrades_history")
-    parser.add_argument("--db", default="data/processed/liquidations.duckdb", help="Database path")
+    parser.add_argument("--db", default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", help="Database path")
     parser.add_argument("--skip-dedup", action="store_true", help="Skip duplicate removal")
 
     args = parser.parse_args()

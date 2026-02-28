@@ -39,10 +39,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **3-Layer Design** (KISS approach - no custom binary parsing):
 
 ### Layer 1: Data Ingestion (DuckDB)
-- **Raw Storage**: `data/raw/` (symlinked to Binance CSV - read-only)
-- **Processed Storage**: `data/processed/*.duckdb` (analytics-optimized tables)
+- **Raw Storage**: `data/raw/` (symlinked to Binance CSV on 3TB-WDC - read-only)
+- **Processed Storage**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` (NVMe for fast I/O)
+- **N8N Container Path**: `/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb`
 - **Pipeline**: Zero-copy CSV ingestion via `COPY FROM` (10GB in ~5 seconds)
-- **Schema**: trades, liquidations, heatmap_cache (pre-computed aggregations)
+- **Schema**: aggtrades_history, klines_*_history, open_interest_history, heatmap_cache
 - **Responsible Agent**: `data-engineer`
 
 ### Layer 2: Calculation & API (FastAPI + Redis)
@@ -92,9 +93,9 @@ LiquidationHeatmap/
 ├── tests/                 # Test suite (pytest)
 ├── scripts/               # Utilities and batch jobs
 ├── data/
-│   ├── raw/               # Symlink to external data (read-only)
-│   ├── processed/         # DuckDB databases (gitignored)
+│   ├── raw/               # Symlink to 3TB-WDC Binance CSV (read-only)
 │   └── cache/             # Temporary cache (gitignored)
+# Database: /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb (external, NVMe)
 ├── frontend/              # Lightweight visualization
 ├── .claude/               # Claude Code configuration
 │   ├── agents/            # Specialized subagents
@@ -122,7 +123,8 @@ LiquidationHeatmap/
 
 ### Immutable Patterns
 
-- **Never commit** `data/processed/` (DuckDB files are large)
+- **Database location**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` (NVMe, external)
+- **N8N container path**: `/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb`
 - **Never commit** `.env` (secrets)
 - **Always use** `uv` for dependency management (not `pip`)
 - **Always test** before committing (`uv run pytest`)

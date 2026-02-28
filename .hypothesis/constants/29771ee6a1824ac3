@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/alerts/alert_manager.py
-# hypothesis_version: 6.148.2
-
-[0.0, '=', 'Action Required:', 'Email alert failed', 'Failed Tests:', 'N/A', 'Score: N/A', 'completed_at', 'duration_seconds', 'error', 'error_message', 'failed_test_names', 'failed_tests', 'grade', 'model_name', 'name', 'passed', 'run_id', 'score', 'started_at', 'status', 'test_details', 'total_tests', 'type', 'unknown', 'weight', '🚨 VALIDATION ALERT 🚨']

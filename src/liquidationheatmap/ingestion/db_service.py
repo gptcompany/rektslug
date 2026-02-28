@@ -186,7 +186,7 @@ class DuckDBService:
             logger.error(f"Failed to release ingestion lock: {e}")
             return False
 
-    def __new__(cls, db_path: str = "data/processed/liquidations.duckdb", read_only: bool = False):
+    def __new__(cls, db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", read_only: bool = False):
         """Singleton pattern per (db_path, read_only) - reuse existing connection.
 
         Thread-safe: Uses lock for concurrent singleton creation.
@@ -241,7 +241,7 @@ class DuckDBService:
             return False
 
     def __init__(
-        self, db_path: str = "data/processed/liquidations.duckdb", read_only: bool = False
+        self, db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", read_only: bool = False
     ):
         """Initialize DuckDB service (only once per singleton).
 
@@ -724,6 +724,18 @@ class DuckDBService:
         logger.info(f"SQL aggregation complete: {len(df)} bins returned")
         return df
 
+    # Default leverage distribution (approximate, based on Coinglass tier visibility)
+    # Source: Observational analysis of Coinglass/Coinank liquidation maps
+    # showing ~5 tiers with inverse relationship between leverage and usage.
+    # These should be refined with actual Binance leverageBracket API data.
+    DEFAULT_LEVERAGE_WEIGHTS: dict[int, float] = {
+        5: 0.15,   # 15% - safer traders
+        10: 0.30,  # 30% - conservative (most popular)
+        25: 0.25,  # 25% - moderate
+        50: 0.20,  # 20% - aggressive
+        100: 0.10, # 10% - high risk
+    }
+
     def calculate_liquidations_oi_based(
         self,
         symbol: str = "BTCUSDT",
@@ -731,6 +743,7 @@ class DuckDBService:
         bin_size: float = 500.0,
         lookback_days: int = 30,
         whale_threshold: float = 500000.0,
+        leverage_weights: dict[int, float] | None = None,
     ):
         """Calculate liquidations using Open Interest-based volume profile scaling.
 
@@ -754,6 +767,9 @@ class DuckDBService:
             current_price: Current market price
             bin_size: Price bucket size for aggregation
             lookback_days: Days to look back for volume profile (default: 30)
+            whale_threshold: Whale trade threshold (currently non-functional, see warning)
+            leverage_weights: Override leverage distribution {leverage: weight}.
+                Defaults to DEFAULT_LEVERAGE_WEIGHTS. Weights must sum to 1.0.
 
         Returns:
             DataFrame with columns: price_bucket, leverage, side, volume, liq_price
@@ -774,8 +790,25 @@ class DuckDBService:
                 f"See /tmp/CRITICAL_WHALE_THRESHOLD_BUG_18NOV2025.md for details."
             )
 
-        # MMR (Maintenance Margin Rate) - conservative 0.4%
-        mmr = 0.004
+        # MMR (Maintenance Margin Rate) - dynamically computed per-bucket
+        # from official Binance BTC/USDT tiers via MMRTiers CTE in SQL.
+        # See src/liquidationheatmap/models/binance_standard.py lines 22-33.
+
+        # Build leverage distribution from parameter or defaults
+        if leverage_weights is None:
+            leverage_weights = self.DEFAULT_LEVERAGE_WEIGHTS
+        if not leverage_weights:
+            raise ValueError("leverage_weights cannot be empty")
+        if any(w <= 0 for w in leverage_weights.values()):
+            raise ValueError("All leverage_weights must be positive")
+        weight_sum = sum(leverage_weights.values())
+        if abs(weight_sum - 1.0) > 0.01:
+            raise ValueError(
+                f"leverage_weights must sum to 1.0 (got {weight_sum:.4f})"
+            )
+        leverage_values = ", ".join(
+            f"({lev}, {weight})" for lev, weight in leverage_weights.items()
+        )
 
         query = f"""
         WITH Params AS (
@@ -790,13 +823,11 @@ class DuckDBService:
         ),
 
         -- Leverage distribution weights (matching Coinglass 5 tiers)
+        -- Source: Observational analysis of Coinglass/Coinank liquidation maps.
+        -- Parameterized via leverage_weights argument (default: DEFAULT_LEVERAGE_WEIGHTS).
         LeverageDistribution AS (
             SELECT * FROM (VALUES
-                (5,   0.15),  -- 15% at 5x (safer traders)
-                (10,  0.30),  -- 30% at 10x (conservative)
-                (25,  0.25),  -- 25% at 25x (moderate)
-                (50,  0.20),  -- 20% at 50x (aggressive)
-                (100, 0.10)   -- 10% at 100x (degens)
+                {leverage_values}
             ) AS t (leverage, weight)
         ),
 
@@ -817,15 +848,15 @@ class DuckDBService:
               AND open_time >= (SELECT start_time FROM Params)
         ),
 
-        -- STEP 2: Get pre-calculated OI Delta (calculated during ingestion)
-        -- Uses oi_delta column populated by LAG() during CSV import
+        -- STEP 2: Compute OI Delta inline via LAG() window function
         OIDelta AS (
             SELECT
                 timestamp as candle_time,
-                oi_delta
+                open_interest_value - LAG(open_interest_value)
+                    OVER (ORDER BY timestamp) AS oi_delta
             FROM open_interest_history
             WHERE symbol = ?
-              AND timestamp >= (SELECT start_time FROM Params)
+              AND timestamp >= (SELECT start_time FROM Params) - INTERVAL '1 day'
         ),
 
         -- STEP 3: Infer position SIDE from candle direction + OI delta
@@ -877,24 +908,56 @@ class DuckDBService:
             GROUP BY price_bin, inferred_side
         ),
 
-        -- STEP 5: Calculate liquidation prices for ALL positions (NO FILTERING!)
-        -- Key fix: Don't filter by price_bin vs current (that was the bug!)
-        AllLiquidations AS (
+        -- Binance BTC/USDT MMR tiers (official, position-size based)
+        -- Source: https://www.binance.com/en/support/faq/liquidation
+        -- Mirrors BinanceStandardModel.MMR_TIERS in models/binance_standard.py
+        MMRTiers AS (
+            SELECT * FROM (VALUES
+                (50000.0,     0.004),
+                (250000.0,    0.005),
+                (1000000.0,   0.01),
+                (10000000.0,  0.025),
+                (20000000.0,  0.05),
+                (50000000.0,  0.10),
+                (100000000.0, 0.125),
+                (200000000.0, 0.15),
+                (300000000.0, 0.25),
+                (500000000.0, 0.50)
+            ) AS t (max_notional, mmr_rate)
+        ),
+
+        -- STEP 5a: Compute per-bucket notional and matching MMR tier
+        BucketMMR AS (
             SELECT
                 od.price_bin AS price_bucket,
                 ld.leverage,
                 od.side,
                 od.oi_at_price * ld.weight AS volume,
-                CASE
-                    WHEN od.side = 'buy' THEN  -- LONG positions
-                        od.price_bin * (1 - 1.0/ld.leverage + {mmr}/ld.leverage)
-                    WHEN od.side = 'sell' THEN  -- SHORT positions
-                        od.price_bin * (1 + 1.0/ld.leverage - {mmr}/ld.leverage)
-                END AS liq_price
+                COALESCE(
+                    (SELECT mmr_rate FROM MMRTiers
+                     WHERE max_notional >= od.oi_at_price * ld.weight
+                     ORDER BY max_notional LIMIT 1),
+                    0.50
+                ) AS mmr
             FROM OIDistribution od
             CROSS JOIN LeverageDistribution ld
-            -- ❌ REMOVED: WHERE od.price_bin > {current_price}  (WRONG logic!)
-            -- ❌ REMOVED: WHERE od.price_bin < {current_price}  (WRONG logic!)
+        ),
+
+        -- STEP 5b: Calculate liquidation prices using per-bucket MMR
+        -- Key fix: Don't filter by price_bin vs current (that was the bug!)
+        AllLiquidations AS (
+            SELECT
+                price_bucket,
+                leverage,
+                side,
+                volume,
+                CASE
+                    WHEN side = 'buy' THEN  -- LONG positions
+                        price_bucket * (1 - 1.0/leverage + mmr/leverage)
+                    WHEN side = 'sell' THEN  -- SHORT positions
+                        price_bucket * (1 + 1.0/leverage - mmr/leverage)
+                END AS liq_price
+            FROM BucketMMR
         )
 
         -- STEP 6: Filter ONLY liquidations "at risk" based on liquidation price vs current

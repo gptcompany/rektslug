@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 PROJECT_ROOT = Path("/media/sam/1TB/LiquidationHeatmap")
 DATA_DIR = Path("/media/sam/3TB-WDC/binance-history-data-downloader/data")
-DB_PATH = PROJECT_ROOT / "data/processed/liquidations.duckdb"
+DB_PATH = Path("/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb")
 SYMBOL = "BTCUSDT"
 
 

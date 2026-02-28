@@ -9,7 +9,7 @@ Before running aggTrades ingestion in production (especially with n8n workflows)
 ### Quick Check
 ```bash
 uv run python scripts/check_ingestion_ready.py \
-    --db data/processed/liquidations.duckdb \
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
     --data-dir /path/to/binance-data
 ```
 
@@ -110,7 +110,7 @@ find /path/to/data -name "*.csv" -size 0
 ```bash
 # 1. Pre-flight check
 uv run python scripts/check_ingestion_ready.py \
-    --db data/processed/liquidations.duckdb \
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
     --data-dir /media/sam/3TB-WDC/binance-data
 
 # 2. If passed, run ingestion
@@ -154,7 +154,7 @@ fi
 
 # Pre-flight check
 /path/to/uv run python scripts/check_ingestion_ready.py \
-    --db data/processed/liquidations.duckdb \
+    --db /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb \
     --data-dir /media/sam/3TB-WDC/binance-data
 
 if [ $? -ne 0 ]; then
@@ -236,7 +236,7 @@ ps aux | grep ingest_aggtrades
 **Diagnosis**:
 ```bash
 df -h
-du -sh data/processed/liquidations.duckdb
+du -sh /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb
 ```
 
 **Solution**:
@@ -252,7 +252,7 @@ du -sh data/processed/liquidations.duckdb
 **Diagnosis**:
 ```bash
 # Try read-only connection
-duckdb data/processed/liquidations.duckdb -readonly "SELECT COUNT(*) FROM aggtrades_history"
+duckdb /media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb -readonly "SELECT COUNT(*) FROM aggtrades_history"
 ```
 
 **Solution**:

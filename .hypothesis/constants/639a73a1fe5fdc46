@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/api/endpoints/trends.py
-# hypothesis_version: 6.148.2
-
-[0.3, 365, 404, 500, ',', '/api/validation', '/compare', '/dashboard', '/trends', 'A', 'Days of data', 'F', 'Model name', 'Model to analyze', 'alpha', 'completed_at', 'daily', 'days', 'ema', 'end_date', 'grade', 'grades', 'latest_run', 'liquidation_model_v1', 'model', 'model_name', 'reason', 'run_id', 'runs_with_grade_a', 'runs_with_grade_f', 'score', 'scores', 'sma', 'start_date', 'statistics', 'test_count', 'tests_passed', 'time_period', 'total_runs', 'trends', 'window_size', 'wma']

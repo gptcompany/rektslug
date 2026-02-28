@@ -40,7 +40,7 @@ import duckdb
 import httpx
 
 # Configuration
-DEFAULT_DB_PATH = "/media/sam/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb"
+DEFAULT_DB_PATH = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 DEFAULT_SYMBOL = "BTCUSDT"
 DEFAULT_POLL_INTERVAL = 60  # seconds (Binance updates OI every minute)
 BINANCE_API_BASE = "https://fapi.binance.com"

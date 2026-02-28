@@ -426,7 +426,7 @@ Examples:
     )
     parser.add_argument(
         "--db",
-        default="/media/sam/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         help="DuckDB database path",
     )
     parser.add_argument(

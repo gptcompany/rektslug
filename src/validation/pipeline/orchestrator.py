@@ -38,7 +38,7 @@ class PipelineOrchestrator:
 
     def __init__(
         self,
-        db_path: str = "data/processed/liquidations.duckdb",
+        db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         reports_dir: str = "reports",
     ):
         """Initialize orchestrator.
@@ -284,7 +284,7 @@ def run_pipeline(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     tolerance_pct: float = 2.0,
-    db_path: str = "data/processed/liquidations.duckdb",
+    db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
     verbose: bool = False,
 ) -> ValidationPipelineRun:
     """Convenience function to run validation pipeline.

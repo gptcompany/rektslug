@@ -43,7 +43,7 @@ class BacktestConfig:
     end_date: datetime
     tolerance_pct: float = 1.0  # Price tolerance for matching (1%)
     prediction_horizon_minutes: int = 60  # How far ahead predictions are valid
-    db_path: str = "data/processed/liquidations.duckdb"
+    db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""

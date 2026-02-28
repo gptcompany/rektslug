@@ -12,7 +12,7 @@ from urllib.request import urlopen
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -327,6 +327,18 @@ async def coinglass_redirect():
     return RedirectResponse(url="/frontend/coinglass_heatmap.html")
 
 
+@app.get("/heatmap_30d.html")
+async def heatmap_30d_page():
+    """Serve the single-timeframe validation page at a stable root URL."""
+    return FileResponse("frontend/heatmap_30d.html")
+
+
+@app.get("/liq_map_1w.html")
+async def liq_map_1w_page():
+    """Serve the 1-week liquidation map validation page."""
+    return FileResponse("frontend/liq_map_1w.html")
+
+
 class LiquidationResponse(BaseModel):
     """Response model for liquidations endpoint."""
 
@@ -443,6 +455,7 @@ async def get_exchange_health() -> dict:
 
     finally:
         db.close()
+
 
     # Update cache
     _exchange_health_cache = health_status
@@ -867,7 +880,12 @@ async def get_heatmap(
         ORDER BY timestamp, price_bucket
         """
 
-        df = db.conn.execute(query, [symbol]).df()
+        try:
+            df = db.conn.execute(query, [symbol]).df()
+        except Exception:
+            # Table may not exist yet (needs snapshot ingestion)
+            import pandas as pd
+            df = pd.DataFrame()
 
         if df.empty:
             # Return empty response if no data
@@ -941,6 +959,8 @@ async def get_heatmap(
 
     finally:
         db.close()
+
+
 
 
 @app.get("/liquidations/history")

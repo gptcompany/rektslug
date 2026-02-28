@@ -4,6 +4,7 @@ description: Data ingestion and pipeline specialist for LiquidationHeatmap. Use 
 tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, mcp__serena__*, TodoWrite
 model: opus
 color: teal
+version: 1.0.0
 ---
 
 # Data Engineer Agent

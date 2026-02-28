@@ -177,7 +177,7 @@ def main():
     )
     parser.add_argument(
         "--db",
-        default="/media/sam/1TB/LiquidationHeatmap/data/processed/liquidations.duckdb",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         help="Path to DuckDB database",
     )
     parser.add_argument(

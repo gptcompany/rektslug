@@ -105,7 +105,7 @@ Examples:
     )
     parser.add_argument(
         "--db-path",
-        default="data/processed/liquidations.duckdb",
+        default="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         help="Path to DuckDB database",
     )
     parser.add_argument(

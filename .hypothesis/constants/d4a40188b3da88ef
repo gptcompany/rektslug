@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/validation/visualization/cache.py
-# hypothesis_version: 6.148.2
-
-[100, 300, 1000, 'args', 'default_ttl', 'hit_rate_percent', 'hits', 'kwargs', 'max_size', 'misses', 'size', 'total_requests']

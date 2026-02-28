@@ -1,0 +1,37 @@
+{
+  "$schema": "validation-config-v1",
+  "domain": "crypto-liquidations",
+  "description": "Crypto liquidation heatmap visualization - Binance futures data",
+
+  "validators": ["/validate-plan"],
+
+  "anti_patterns": [
+    {"pattern": "hardcoded_api_keys", "severity": "critical", "fix": "Use SOPS-encrypted .env.enc"},
+    {"pattern": "float_for_money", "severity": "high", "fix": "Use Decimal for financial calculations"},
+    {"pattern": "missing_error_handling", "severity": "high", "fix": "Add try/except for API calls"},
+    {"pattern": "time\\.sleep", "severity": "medium", "fix": "Use asyncio.sleep for async code"},
+    {"pattern": "requests\\.", "severity": "low", "fix": "Use httpx for async support"}
+  ],
+
+  "research_keywords": {
+    "trigger": [
+      "liquidation", "heatmap", "binance", "futures", "leverage",
+      "order book", "depth", "volume", "price levels", "funding rate"
+    ],
+    "skip": [
+      "basic_python", "simple_fix", "config", "logging", "cli"
+    ]
+  },
+
+  "compatibility_check": {
+    "library": "ccxt",
+    "apis": ["binance", "futures"],
+    "rate_limits": true
+  },
+
+  "file_patterns": {
+    "source": ["src/**/*.py", "heatmap/**/*.py"],
+    "tests": ["tests/**/*.py"],
+    "config": ["config/**/*.yaml", "*.env*"]
+  }
+}

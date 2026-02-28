@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/ingestion/csv_loader.py
-# hypothesis_version: 6.148.2
-
-['-', ':memory:', 'BTCUSDT', 'No function matches', 'datetime64[ns]', 'funding_rate', 'gross_value', 'not found', 'open_interest_value', 'price', 'quantity', 'side', 'symbol', 'timestamp', 'transact_time']

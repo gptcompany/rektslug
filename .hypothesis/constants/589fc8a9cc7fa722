@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/models/margin_tier.py
-# hypothesis_version: 6.148.2
-
-['MarginTier', 'id', 'maintenance_amount', 'margin_rate', 'max_notional', 'min_notional', 'symbol', 'tier_number']

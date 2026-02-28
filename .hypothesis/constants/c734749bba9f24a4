@@ -1,4 +1,0 @@
-# file: /media/sam/1TB/LiquidationHeatmap/src/liquidationheatmap/ingestion/validators.py
-# hypothesis_version: 6.148.2
-
-[3.0, '0.0', '0.01', '10000.00', '500000.00', 'BTCUSDT', 'coerce', 'timestamp']
