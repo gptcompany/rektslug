@@ -22,6 +22,7 @@ set -euo pipefail
 PROJECT_DIR="/media/sam/1TB/LiquidationHeatmap"
 DB_PATH="/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
 DATA_DIR="/media/sam/3TB-WDC/binance-history-data-downloader/data"
+CCXT_CATALOG="/media/sam/1TB/ccxt-data-pipeline/data/catalog"
 API_URL="http://localhost:8000"
 LOG_DIR="${PROJECT_DIR}/logs/ingestion"
 SYMBOLS="BTCUSDT ETHUSDT"
@@ -337,6 +338,30 @@ ingest_metrics() {
     return $failed
 }
 
+fill_gap_from_ccxt() {
+    log_section "Gap Fill from ccxt-data-pipeline (T-2 -> T-0)"
+
+    if [ "$MODE" = "dry-run" ]; then
+        log "Running gap fill in dry-run mode"
+        uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
+            --symbols $SYMBOLS \
+            --ccxt-catalog "$CCXT_CATALOG" \
+            --db "$DB_PATH" \
+            --dry-run || { log "FAILED: Gap fill (dry-run)"; return 1; }
+        return 0
+    fi
+
+    if [ ! -d "$CCXT_CATALOG" ]; then
+        log "WARN: CCXT catalog not found at $CCXT_CATALOG, skipping gap fill"
+        return 0
+    fi
+
+    uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
+        --symbols $SYMBOLS \
+        --ccxt-catalog "$CCXT_CATALOG" \
+        --db "$DB_PATH" || { log "FAILED: Gap fill"; return 1; }
+}
+
 # =============================================================================
 # Main execution
 # =============================================================================
@@ -418,6 +443,15 @@ if [ $MT_FAILED -eq 0 ]; then
     RESULTS="${RESULTS}Metrics: OK\n"
 else
     RESULTS="${RESULTS}Metrics: ${MT_FAILED} failed\n"
+fi
+# Phase 6: Gap Fill from ccxt-data-pipeline
+fill_gap_from_ccxt
+GF_FAILED=$?
+TOTAL_FAILED=$((TOTAL_FAILED + GF_FAILED))
+if [ $GF_FAILED -eq 0 ]; then
+    RESULTS="${RESULTS}Gap Fill (ccxt): OK\n"
+else
+    RESULTS="${RESULTS}Gap Fill (ccxt): FAILED\n"
 fi
 set -e
 

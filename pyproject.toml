@@ -36,6 +36,7 @@ dev = [
     "hypothesis>=6.90.0",
     "mypy>=1.7.0",
     "ruff>=0.1.0",
+    "pyarrow>=14.0.0",
 ]
 
 [build-system]
