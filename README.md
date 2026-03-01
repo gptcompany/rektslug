@@ -56,12 +56,12 @@ See `CLAUDE.md` for detailed architecture and development workflow.
 
 ## Supported Trading Pairs
 
-| Symbol | Status | Data Coverage | Notes |
-|--------|--------|---------------|-------|
-| **BTC/USDT** | ✅ Production | 2021-12-01 to present | Primary pair, full validation |
-| **ETH/USDT** | ✅ Production | 2021-12-01 to present | Symbol-agnostic pipeline |
+| Symbol | Status | Validation (F1 @ 1%) | Data Coverage | Tier Config |
+|--------|--------|---------------------|---------------|-------------|
+| **BTC/USDT** | ✅ Production | 77.8% | 2021-12-01 to present | `config/tiers/binance.yaml` |
+| **ETH/USDT** | ✅ Production | 91.4% | 2021-12-01 to present | `config/tiers/ethusdt.yaml` |
 
-All pairs use identical liquidation formulas (Binance USDT-M perpetuals). The pipeline is fully symbol-agnostic - new pairs require only data ingestion, no code changes.
+All pairs use Binance USDT-M perpetual liquidation formulas. The pipeline is fully symbol-agnostic - new pairs require only data ingestion and tier config, no code changes. Each symbol has its own margin tier boundaries matching Binance's official tier structure.
 
 ## Development
 
@@ -277,11 +277,14 @@ GET /liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30
 
 **Examples**:
 ```bash
-# OpenInterest model (recommended) - 30 days
-curl "http://localhost:8888/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30"
+# OpenInterest model (recommended) - BTC 30 days
+curl "http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30"
+
+# ETH 7 days
+curl "http://localhost:8000/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7"
 
 # Binance Standard model (legacy)
-curl "http://localhost:8888/liquidations/levels?symbol=BTCUSDT&model=binance_standard&timeframe=30"
+curl "http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=binance_standard&timeframe=30"
 ```
 
 #### 3. Historical Liquidations
@@ -316,9 +319,10 @@ GET /liquidations/heatmap?symbol=BTCUSDT&model=binance_standard
 
 **Returns**: Pre-aggregated heatmap data with density and volume per time+price bucket.
 
-**Example**:
+**Examples**:
 ```bash
 curl "http://localhost:8000/liquidations/heatmap?symbol=BTCUSDT&model=ensemble"
+curl "http://localhost:8000/liquidations/heatmap?symbol=ETHUSDT&model=binance_standard"
 ```
 
 ## Frontend Visualizations
@@ -376,7 +380,7 @@ uv run pytest --cov=src --cov-report=html
 open htmlcov/index.html
 ```
 
-**Test Coverage**: 36% (target: ≥80%)
+**Test Suite**: 1215 tests passing
 
 ## Project Status
 
