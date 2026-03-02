@@ -97,9 +97,9 @@ Examples:
     parser.add_argument(
         "--interval",
         type=str,
-        default="15m",
+        default="5m",
         choices=["5m", "15m", "30m", "1h", "4h"],
-        help="Snapshot interval (default: 15m)",
+        help="Snapshot interval (default: 5m)",
     )
 
     parser.add_argument(
@@ -235,11 +235,11 @@ def precompute_heatmap(
         # Get database service
         db_service = DuckDBService(db_path)
 
-        # Determine kline table based on interval
+        # Determine kline table based on interval (with fallback to 15m)
         interval_table_map = {
             "5m": "klines_5m_history",
             "15m": "klines_15m_history",
-            "30m": "klines_5m_history",  # Aggregate from 5m
+            "30m": "klines_5m_history",
             "1h": "klines_5m_history",
             "4h": "klines_5m_history",
         }
@@ -262,11 +262,15 @@ def precompute_heatmap(
         candles_df = db_service.conn.execute(candle_query, [symbol, start_time, end_time]).df()
 
         if candles_df.empty:
-            logger.warning(f"No candle data found for {symbol} in range {start_time} to {end_time}")
-            stats["snapshots_generated"] = 0
-            return stats
+            raise RuntimeError(
+                f"No candle data in {kline_table} for {symbol} "
+                f"in range {start_time} to {end_time}. "
+                f"Run klines ingestion first: "
+                f"uv run python scripts/ingest_klines_15m.py "
+                f"--symbol {symbol} --interval {interval} ..."
+            )
 
-        logger.info(f"Loaded {len(candles_df)} candles")
+        logger.info(f"Loaded {len(candles_df)} candles from {kline_table}")
 
         # Query OI data with delta calculation
         logger.info("Fetching OI deltas...")
