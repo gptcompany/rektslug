@@ -244,7 +244,9 @@ class DuckDBService:
             return False
 
     def __init__(
-        self, db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb", read_only: bool = False
+        self,
+        db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        read_only: bool = False,
     ):
         """Initialize DuckDB service (only once per singleton).
 
@@ -732,11 +734,11 @@ class DuckDBService:
     # showing ~5 tiers with inverse relationship between leverage and usage.
     # These should be refined with actual Binance leverageBracket API data.
     DEFAULT_LEVERAGE_WEIGHTS: dict[int, float] = {
-        5: 0.15,   # 15% - safer traders
+        5: 0.15,  # 15% - safer traders
         10: 0.30,  # 30% - conservative (most popular)
         25: 0.25,  # 25% - moderate
         50: 0.20,  # 20% - aggressive
-        100: 0.10, # 10% - high risk
+        100: 0.10,  # 10% - high risk
     }
 
     def calculate_liquidations_oi_based(
@@ -806,9 +808,7 @@ class DuckDBService:
             raise ValueError("All leverage_weights must be positive")
         weight_sum = sum(leverage_weights.values())
         if abs(weight_sum - 1.0) > 0.01:
-            raise ValueError(
-                f"leverage_weights must sum to 1.0 (got {weight_sum:.4f})"
-            )
+            raise ValueError(f"leverage_weights must sum to 1.0 (got {weight_sum:.4f})")
         leverage_values = ", ".join(
             f"({lev}, {weight})" for lev, weight in leverage_weights.items()
         )

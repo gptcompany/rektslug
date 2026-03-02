@@ -361,8 +361,7 @@ async def liq_map_coinank_style(exchange: str, symbol: str, timeframe: str, requ
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Invalid exchange '{exchange}'. "
-                f"Supported exchanges: {sorted(SUPPORTED_EXCHANGES)}"
+                f"Invalid exchange '{exchange}'. Supported exchanges: {sorted(SUPPORTED_EXCHANGES)}"
             ),
         )
     normalized_timeframe = timeframe.lower()
@@ -523,7 +522,6 @@ async def get_exchange_health() -> dict:
 
     finally:
         db.close()
-
 
     # Update cache
     _exchange_health_cache = health_status
@@ -953,6 +951,7 @@ async def get_heatmap(
         except Exception:
             # Table may not exist yet (needs snapshot ingestion)
             import pandas as pd
+
             df = pd.DataFrame()
 
         if df.empty:
@@ -1027,8 +1026,6 @@ async def get_heatmap(
 
     finally:
         db.close()
-
-
 
 
 @app.get("/liquidations/history")
