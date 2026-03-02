@@ -261,7 +261,7 @@
                 const symbol = document.getElementById('symbolSelect').value;
                 const exchanges = getSelectedExchanges();
                 const exchangeParam = exchanges !== 'all' ? `&exchanges=${exchanges}` : '';
-                const response = await fetch(`http://localhost:8000/liquidations/heatmap?symbol=${symbol}&model=binance_standard${exchangeParam}`);
+                const response = await fetch(`/liquidations/heatmap?symbol=${symbol}&model=binance_standard${exchangeParam}`);
                 const data = await response.json();
 
                 if (!data.data || data.data.length === 0) {
@@ -391,7 +391,7 @@
         // T074/T075: Fetch and update exchange health badges
         async function updateExchangeHealth() {
             try {
-                const response = await fetch('http://localhost:8000/exchanges/health');
+                const response = await fetch('/exchanges/health');
                 const healthData = await response.json();
 
                 // Update badges for each exchange
@@ -494,7 +494,7 @@
         // T039: Refresh clusters and detect changes (diff)
         async function refreshClustersWithDiff() {
             try {
-                const response = await fetch(`http://localhost:8000/api/liquidations/clusters?symbol=${document.getElementById('symbolSelect').value}&timeframe_minutes=30&auto_tune=true`);
+                const response = await fetch(`/api/liquidations/clusters?symbol=${document.getElementById('symbolSelect').value}&timeframe_minutes=30&auto_tune=true`);
                 const newData = await response.json();
 
                 if (!clusterData) {
@@ -522,7 +522,7 @@
         // T030: Fetch clusters from API and display
         async function fetchAndShowClusters() {
             try {
-                const response = await fetch(`http://localhost:8000/api/liquidations/clusters?symbol=${document.getElementById('symbolSelect').value}&timeframe_minutes=30&auto_tune=true`);
+                const response = await fetch(`/api/liquidations/clusters?symbol=${document.getElementById('symbolSelect').value}&timeframe_minutes=30&auto_tune=true`);
                 const data = await response.json();
 
                 if (!data.clusters || data.clusters.length === 0) {

@@ -3,7 +3,7 @@
 
 Pipeline:
 1. Ensure local FastAPI is running
-2. Screenshot ``http://localhost:8000/liq_map_1w.html``
+2. Screenshot the local liq_map_1w.html page
 3. Screenshot Coinank ``liq-map/binance/btcusdt/1w``
 4. Save both files to ``data/validation/liqmap/`` with a shared timestamp
 """
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coinank_screenshot import capture_coinank_liqmap
 
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_PORT = int(os.environ.get("HEATMAP_PORT", 8001))
 DEFAULT_SYMBOL = "BTCUSDT"
 DEFAULT_MODEL = "openinterest"
 DEFAULT_TIMEFRAME = 7

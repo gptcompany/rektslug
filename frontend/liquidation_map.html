@@ -57,7 +57,7 @@
             document.getElementById('pageTitle').textContent = `Binance ${displaySymbol} Liquidation Map`;
 
             try {
-                const response = await fetch(`http://localhost:8000/liquidations/levels?symbol=${symbol}&model=${model}&timeframe=${timeframe}`);
+                const response = await fetch(`/liquidations/levels?symbol=${symbol}&model=${model}&timeframe=${timeframe}`);
                 const data = await response.json();
 
                 renderLiquidationMap(data);

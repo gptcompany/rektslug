@@ -46,7 +46,7 @@
     <script>
         async function loadComparison() {
             try {
-                const response = await fetch('http://localhost:8000/liquidations/compare-models?symbol=BTCUSDT');
+                const response = await fetch('/liquidations/compare-models?symbol=BTCUSDT');
                 const data = await response.json();
 
                 displayAgreement(data.agreement_percentage);

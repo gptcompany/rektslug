@@ -3,7 +3,7 @@
 
 Pipeline:
 1. Ensure local FastAPI is running
-2. Screenshot `http://localhost:8000/heatmap_30d.html`
+2. Screenshot the local heatmap_30d.html page
 3. Screenshot Coinank `btcusdt/1M`
 4. Save both files to `data/validation/` with a shared timestamp
 """
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coinank_screenshot import capture_coinank_heatmap
 
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_PORT = int(os.environ.get("HEATMAP_PORT", 8001))
 DEFAULT_SYMBOL = "BTCUSDT"
 DEFAULT_TIME_WINDOW = "30d"
 DEFAULT_PRICE_BIN_SIZE = 500

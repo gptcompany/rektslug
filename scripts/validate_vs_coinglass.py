@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -116,7 +117,8 @@ class PriceLevelValidation:
 
 def fetch_our_heatmap_data(symbol: str = "BTCUSDT", time_window: str = "48h") -> dict:
     """Fetch our heatmap data from local API."""
-    url = f"http://localhost:8000/liquidations/heatmap-timeseries?symbol={symbol}&time_window={time_window}"
+    api_base = os.environ.get("HEATMAP_API_URL", "http://localhost:8001")
+    url = f"{api_base}/liquidations/heatmap-timeseries?symbol={symbol}&time_window={time_window}"
     try:
         with urllib.request.urlopen(url, timeout=60) as resp:
             return json.loads(resp.read().decode())

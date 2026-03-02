@@ -9,7 +9,7 @@ Validate our liquidation map (`/liquidations/levels`) against Coinank `liq-map` 
 
 ## Repo Context
 
-- **Local page**: `http://localhost:8000/liq_map_1w.html`
+- **Local page**: `http://localhost:8001/liq_map_1w.html`
 - **Frontend source**: `frontend/liq_map_1w.html`
 - **Pipeline script**: `scripts/validate_liqmap_visual.py`
 - **Coinank reference dependency**: `scripts/coinank_screenshot.py --product map`

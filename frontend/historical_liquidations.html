@@ -37,7 +37,7 @@
             
             try {
                 // Fetch from real API endpoint (T047)
-                const response = await fetch(`http://localhost:8000/liquidations/history?symbol=BTCUSDT&aggregate=${aggregate}`);
+                const response = await fetch(`/liquidations/history?symbol=BTCUSDT&aggregate=${aggregate}`);
 
                 if (!response.ok) {
                     throw new Error(`API returned ${response.status}: ${response.statusText}`);

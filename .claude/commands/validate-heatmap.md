@@ -9,7 +9,7 @@ Validate the single-timeframe dashboard (`30d`) against Coinank (`1M`) using a r
 
 ## Repo Context
 
-- **Local page**: `http://localhost:8000/heatmap_30d.html`
+- **Local page**: `http://localhost:8001/heatmap_30d.html`
 - **Frontend source**: `frontend/heatmap_30d.html`
 - **Pipeline script**: `scripts/validate_heatmap_visual.py`
 - **Coinank reference script**: `scripts/coinank_screenshot.py`
@@ -22,7 +22,7 @@ Validate the single-timeframe dashboard (`30d`) against Coinank (`1M`) using a r
    `uv run python scripts/validate_heatmap_visual.py`
 2. The script will:
    - start FastAPI if not already running
-   - screenshot `http://localhost:8000/heatmap_30d.html`
+   - screenshot `http://localhost:8001/heatmap_30d.html`
    - screenshot Coinank `https://coinank.com/chart/derivatives/liq-heat-map/btcusdt/1M`
    - save both PNGs + manifest JSON in `data/validation/`
 3. Pass the two screenshot paths to `alpha-visual` for comparison/scoring

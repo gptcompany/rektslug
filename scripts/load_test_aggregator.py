@@ -11,6 +11,7 @@ Usage:
 import argparse
 import asyncio
 import logging
+import os
 import statistics
 import time
 from datetime import datetime, timezone
@@ -203,8 +204,8 @@ async def main():
     parser.add_argument(
         "--url",
         type=str,
-        default="http://localhost:8000",
-        help="Base URL of the API",
+        default=os.environ.get("HEATMAP_API_URL", "http://localhost:8001"),
+        help="Base URL of the API (default: HEATMAP_API_URL or http://localhost:8001)",
     )
     args = parser.parse_args()
 
