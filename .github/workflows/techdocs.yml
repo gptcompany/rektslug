@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs-techdocs-core mkdocs-material
+          pip install mkdocs-techdocs-core mkdocs-material pymdown-extensions
 
       - name: Build docs
         run: mkdocs build --strict

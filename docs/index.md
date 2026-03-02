@@ -4,11 +4,13 @@ Welcome to the LiquidationHeatmap documentation.
 
 ## Quick Start
 
-See [README](../README.md) for installation instructions.
+See the repository
+[README](https://github.com/gptcompany/rektaslug/blob/master/README.md)
+for installation instructions.
 
 ## Architecture
 
-See [ARCHITECTURE.md](../ARCHITECTURE.md) for system design.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
 ## API Reference
 
