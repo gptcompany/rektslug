@@ -1,4 +1,4 @@
-# LiquidationHeatmap
+# RektSlug
 
 <p align="center">
   <img src="logo.png" alt="rektaslug logo" width="800">
