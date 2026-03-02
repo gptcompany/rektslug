@@ -305,11 +305,18 @@ async def capture_coinank_liqmap(
     headless: bool = True,
     email: str | None = None,
     password: str | None = None,
+    capture_info: dict | None = None,
 ) -> Path:
     """Capture a Coinank liq-map screenshot and return the saved path.
 
     If email/password are provided, logs in first and attempts native chart
     download via camera button. Falls back to screenshot crop on failure.
+
+    If *capture_info* dict is provided, it is populated with metadata:
+      - method: "native_download" | "screenshot_crop"
+      - login_attempted: bool
+      - login_success: bool
+      - url: str
     """
     try:
         from playwright.async_api import async_playwright
@@ -321,6 +328,12 @@ async def capture_coinank_liqmap(
 
     url = build_coinank_liqmap_url(coin, timeframe, exchange)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    info: dict = capture_info if capture_info is not None else {}
+    info["url"] = url
+    info["login_attempted"] = bool(email and password)
+    info["login_success"] = False
+    info["method"] = "screenshot_crop"  # default, overwritten on native download
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -341,7 +354,10 @@ async def capture_coinank_liqmap(
             await dismiss_common_popups(page)
 
             if email and password:
-                await coinank_login(page, email, password)
+                login_ok = await coinank_login(page, email, password)
+                info["login_success"] = login_ok
+                if not login_ok:
+                    print("warning: coinank login failed, native download may not work")
 
             rendered = await wait_for_canvas_liqmap_colors(page, timeout_seconds=30)
             if not rendered:
@@ -351,6 +367,7 @@ async def capture_coinank_liqmap(
             if email and password:
                 downloaded = await download_chart(page, output_path)
                 if downloaded:
+                    info["method"] = "native_download"
                     return output_path
 
             await page.screenshot(
