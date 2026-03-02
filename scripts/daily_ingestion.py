@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """Daily data ingestion script - callable from n8n or cron.
 
-Ingests all recent data:
+Ingests all recent data per symbol:
 - klines (5m, 15m)
 - Open Interest
 - Funding Rate
 
 Usage:
-    python scripts/daily_ingestion.py --days 7  # Last 7 days
-    python scripts/daily_ingestion.py           # Last 3 days (default)
+    python scripts/daily_ingestion.py --days 7                    # All default symbols, last 7 days
+    python scripts/daily_ingestion.py --symbol BTCUSDT            # Single symbol
+    python scripts/daily_ingestion.py --symbol BTCUSDT --symbol ETHUSDT  # Multiple symbols
 """
 
 import argparse
 import logging
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -21,11 +23,19 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Configuration
-PROJECT_ROOT = Path("/media/sam/1TB/LiquidationHeatmap")
-DATA_DIR = Path("/media/sam/3TB-WDC/binance-history-data-downloader/data")
-DB_PATH = Path("/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb")
-SYMBOL = "BTCUSDT"
+# Configuration (overridable via env vars)
+PROJECT_ROOT = Path(os.environ.get("HEATMAP_PROJECT_ROOT", "/media/sam/1TB/LiquidationHeatmap"))
+DATA_DIR = Path(
+    os.environ.get(
+        "HEATMAP_DATA_DIR", "/media/sam/3TB-WDC/binance-history-data-downloader/data"
+    )
+)
+DB_PATH = Path(
+    os.environ.get(
+        "HEATMAP_DB_PATH", "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
+    )
+)
+DEFAULT_SYMBOLS = os.environ.get("HEATMAP_SYMBOLS", "BTCUSDT,ETHUSDT").split(",")
 
 
 def run_script(script_name: str, args: list) -> bool:
@@ -54,13 +64,13 @@ def run_script(script_name: str, args: list) -> bool:
         return False
 
 
-def ingest_klines(start_date: str, end_date: str, interval: str) -> bool:
-    """Ingest klines for a specific interval."""
+def ingest_klines(start_date: str, end_date: str, interval: str, symbol: str) -> bool:
+    """Ingest klines for a specific interval and symbol."""
     return run_script(
         "ingest_klines_15m.py",
         [
             "--symbol",
-            SYMBOL,
+            symbol,
             "--start-date",
             start_date,
             "--end-date",
@@ -73,13 +83,13 @@ def ingest_klines(start_date: str, end_date: str, interval: str) -> bool:
     )
 
 
-def ingest_oi(start_date: str, end_date: str) -> bool:
-    """Ingest Open Interest data."""
+def ingest_oi(start_date: str, end_date: str, symbol: str) -> bool:
+    """Ingest Open Interest data for a symbol."""
     return run_script(
         "ingest_oi.py",
         [
             "--symbol",
-            SYMBOL,
+            symbol,
             "--start-date",
             start_date,
             "--end-date",
@@ -92,9 +102,19 @@ def ingest_oi(start_date: str, end_date: str) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="Daily data ingestion")
-    parser.add_argument("--days", type=int, default=3, help="Number of days to ingest (default: 3)")
+    parser.add_argument(
+        "--days", type=int, default=3, help="Number of days to ingest (default: 3)"
+    )
+    parser.add_argument(
+        "--symbol",
+        action="append",
+        dest="symbols",
+        help="Symbol to ingest (repeatable, default: HEATMAP_SYMBOLS env or BTCUSDT,ETHUSDT)",
+    )
     parser.add_argument("--klines-only", action="store_true", help="Only ingest klines data")
     args = parser.parse_args()
+
+    symbols = args.symbols or DEFAULT_SYMBOLS
 
     end_date = datetime.now()
     start_date = end_date - timedelta(days=args.days)
@@ -104,22 +124,26 @@ def main():
 
     print(f"\n{'=' * 60}")
     print(f"Daily Ingestion: {start_str} to {end_str}")
+    print(f"Symbols: {', '.join(symbols)}")
     print(f"{'=' * 60}\n")
 
     results = {}
 
-    # Ingest klines (5m and 15m)
-    print("\n[1/3] Ingesting 5m klines...")
-    results["klines_5m"] = ingest_klines(start_str, end_str, "5m")
+    for symbol in symbols:
+        print(f"\n--- {symbol} ---")
 
-    print("\n[2/3] Ingesting 15m klines...")
-    results["klines_15m"] = ingest_klines(start_str, end_str, "15m")
+        # Ingest klines (5m and 15m) sequentially per symbol (DuckDB single-writer)
+        print(f"  [1/3] Ingesting 5m klines for {symbol}...")
+        results[f"{symbol}/klines_5m"] = ingest_klines(start_str, end_str, "5m", symbol)
 
-    if not args.klines_only:
-        print("\n[3/3] Ingesting Open Interest...")
-        results["oi"] = ingest_oi(start_str, end_str)
-    else:
-        results["oi"] = "skipped"
+        print(f"  [2/3] Ingesting 15m klines for {symbol}...")
+        results[f"{symbol}/klines_15m"] = ingest_klines(start_str, end_str, "15m", symbol)
+
+        if not args.klines_only:
+            print(f"  [3/3] Ingesting Open Interest for {symbol}...")
+            results[f"{symbol}/oi"] = ingest_oi(start_str, end_str, symbol)
+        else:
+            results[f"{symbol}/oi"] = "skipped"
 
     # Summary
     print(f"\n{'=' * 60}")
