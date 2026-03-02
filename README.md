@@ -1,11 +1,11 @@
 # LiquidationHeatmap
 
-![CI](https://github.com/gptcompany/LiquidationHeatmap/actions/workflows/ci.yml/badge.svg)
-![TechDocs](https://github.com/gptcompany/LiquidationHeatmap/actions/workflows/techdocs.yml/badge.svg)
-![Validation](https://github.com/gptcompany/LiquidationHeatmap/actions/workflows/validation.yml/badge.svg)
+![CI](https://github.com/gptcompany/liquidations/actions/workflows/ci.yml/badge.svg?branch=master)
+![TechDocs](https://github.com/gptcompany/liquidations/actions/workflows/techdocs.yml/badge.svg?branch=master)
+![Validation](https://github.com/gptcompany/liquidations/actions/workflows/validation.yml/badge.svg?branch=master)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python)
-![License](https://img.shields.io/github/license/gptcompany/LiquidationHeatmap?style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/gptcompany/LiquidationHeatmap?style=flat-square)
+![Issues](https://img.shields.io/github/issues/gptcompany/liquidations?style=flat-square)
+![Last Commit](https://img.shields.io/github/last-commit/gptcompany/liquidations?style=flat-square)
 
 Calculate and visualize cryptocurrency liquidation levels from Binance futures data using DuckDB analytics and FastAPI REST endpoints. Leverages open-source models (py-liquidation-map) for battle-tested algorithms.
 
@@ -36,9 +36,8 @@ uv run python scripts/validate_aggtrades.py
 # Run FastAPI server
 uv run uvicorn src.liquidationheatmap.api.main:app --host ${HEATMAP_HOST:-0.0.0.0} --port ${HEATMAP_PORT:-8002}
 
-# Open canonical chart routes
+# Open active chart route (phase 1)
 open http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1w
-open http://localhost:8002/chart/derivatives/liq-heat-map/btcusdt/1w
 
 # Run tests
 uv run pytest
@@ -46,10 +45,13 @@ uv run pytest
 
 ## Canonical Chart Routes
 
-Use these routes for validation, screenshots, and automation loops:
+Use these routes for validation, screenshots, and automation loops.
 
+Active baseline (phase 1, current validation target):
 - `http://localhost:8002/chart/derivatives/liq-map/<exchange>/<symbol>/1d`
 - `http://localhost:8002/chart/derivatives/liq-map/<exchange>/<symbol>/1w`
+
+Implemented but deferred until phase 2:
 - `http://localhost:8002/chart/derivatives/liq-heat-map/<symbol>/1d`
 - `http://localhost:8002/chart/derivatives/liq-heat-map/<symbol>/1w`
 
@@ -83,7 +85,7 @@ Legacy aliases still exist for compatibility (`/coinglass`, `/heatmap_30d.html`,
 2. **API**: FastAPI (REST endpoints) + Redis (pub/sub streaming)
 3. **Viz**: Plotly.js (interactive heatmaps)
 
-See `CLAUDE.md` for detailed architecture and development workflow.
+See `ARCHITECTURE.md` for the repo summary and `docs/ARCHITECTURE.md` for the canonical architecture reference.
 
 ## Data Sources
 
@@ -111,8 +113,8 @@ All pairs use Binance USDT-M perpetual liquidation formulas. The pipeline is ful
 
 ```bash
 # Clone repository
-git clone <repo-url>
-cd LiquidationHeatmap
+git clone https://github.com/gptcompany/liquidations.git
+cd liquidations
 
 # Install dependencies
 uv sync
@@ -146,7 +148,7 @@ This project uses Test-Driven Development (TDD):
 2. **GREEN**: Write minimal code to pass test
 3. **REFACTOR**: Clean up code while tests pass
 
-See `CLAUDE.md` for detailed TDD workflow.
+Follow the existing pytest suite and red-green-refactor discipline for TDD changes.
 
 ## Data Validation
 
@@ -284,31 +286,17 @@ tail -f /var/log/liquidationheatmap/cache-update.log
 
 ---
 
-## Key Features
-
-- ✅ **Zero-copy CSV ingestion**: DuckDB loads 10GB in ~5 seconds
-- ✅ **OpenInterest-based model**: Industry-accurate volumes (52s for 30-day)
-- ✅ **Persistent cache**: 99.9996% data reduction (1.9B → 7K rows)
-- ✅ **Binance liquidation formulas**: Leverage py-liquidation-map algorithms
-- ✅ **Real-time streaming**: Redis pub/sub (Nautilus pattern)
-- ✅ **Interactive heatmaps**: Plotly.js visualization (no build step)
-- ✅ **Test-Driven Development**: TDD guard enforces 80% coverage
-
 ## References
 
 - [py-liquidation-map](https://github.com/aoki-h-jp/py-liquidation-map) - Liquidation clustering
 - [binance-liquidation-tracker](https://github.com/hgnx/binance-liquidation-tracker) - Real-time tracking
 - [Binance Liquidation Guide](https://www.binance.com/en/support/faq/liquidation) - Official formulas
 
-## License
-
-MIT License
-
 ## API Endpoints
 
 ### Base URL
 ```
-http://localhost:8000
+http://localhost:8002
 ```
 
 ### Available Endpoints
@@ -333,13 +321,13 @@ GET /liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30
 **Examples**:
 ```bash
 # OpenInterest model (recommended) - BTC 30 days
-curl "http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30"
+curl "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30"
 
 # ETH 7 days
-curl "http://localhost:8000/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7"
+curl "http://localhost:8002/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7"
 
 # Binance Standard model (legacy)
-curl "http://localhost:8000/liquidations/levels?symbol=BTCUSDT&model=binance_standard&timeframe=30"
+curl "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=binance_standard&timeframe=30"
 ```
 
 #### 3. Historical Liquidations
@@ -382,12 +370,15 @@ curl "http://localhost:8002/liquidations/heatmap?symbol=ETHUSDT&model=binance_st
 
 ## Frontend Entry Points
 
-Active UI targets:
+Active UI targets (current workstream: `liq-map`):
 
 - `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1d`
 - `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1w`
 - `http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1d`
 - `http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1w`
+
+Deferred until phase 2 (`liq-heat-map` routes are implemented but not the active validation target):
+
 - `http://localhost:8002/chart/derivatives/liq-heat-map/btcusdt/1d`
 - `http://localhost:8002/chart/derivatives/liq-heat-map/btcusdt/1w`
 - `http://localhost:8002/chart/derivatives/liq-heat-map/ethusdt/1d`
@@ -430,23 +421,13 @@ uv run pytest --cov=src --cov-report=html
 open htmlcov/index.html
 ```
 
-**Test Suite**: 1215 tests passing
+## Current Scope
 
-## Project Status
+The active delivery scope is tracked in `CURRENT_SCOPE.md`.
 
-**Completed** (37/51 tasks, 73%):
-- ✅ Phase 1: Setup
-- ✅ Phase 2: Data Layer  
-- ✅ Phase 3: Liquidation Calculation (MVP)
-- ✅ Phase 4: Visualization (88%)
-- ✅ Phase 7: Polish (retry, logging, tests)
+- Phase 1: `liq-map` only
+- Active baseline: Binance `BTCUSDT` and `ETHUSDT`
+- Supported chart timeframes: `1d`, `1w`
+- `liq-heat-map` remains implemented but deferred until the `liq-map` workstream is stable
 
-**Pending**:
-- ⏳ Phase 5: Model Comparison (US3)
-- 🔮 Phase 6: Nautilus Integration (US4, future)
-
-See `.specify/tasks.md` for detailed task list.
-
-## License
-
-MIT License
+Use `tasks.md` for the current task list and `CURRENT_SCOPE.md` for the operational boundary.

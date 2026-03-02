@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**📘 For Skill Implementation in Other Projects**: See `.claude/SKILLS_FRAMEWORK_BLUEPRINT.md` - Portable meta-framework for implementing Skills in ANY repository.
-
 ## Project Overview
 
 **LiquidationHeatmap** calculates and visualizes cryptocurrency liquidation levels from Binance futures historical data. Uses DuckDB for fast CSV analytics, FastAPI for REST endpoints, and Redis pub/sub for real-time streaming. Leverages open-source models (py-liquidation-map) instead of reinventing algorithms.
@@ -28,13 +26,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Canonical Source**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 >
-> ARCHITECTURE.md is the single source of truth for:
+> `docs/ARCHITECTURE.md` is the single source of truth for:
 > - System architecture and component diagrams
 > - Data flow and pipeline documentation
 > - Technical decisions and rationale
 >
 > **Auto-validated** by architecture-validator hook on each commit.
-> Below is a summary - see ARCHITECTURE.md for complete details.
+> Below is a summary - see `docs/ARCHITECTURE.md` for complete details.
 
 **3-Layer Design** (KISS approach - no custom binary parsing):
 
@@ -392,9 +390,3 @@ Lightweight templates for repetitive operations with 60-83% token savings.
    - Maintenance margin rates (varies by leverage)
 
 **Strategy**: Use py-liquidation-map formulas as reference implementation, adapt for DuckDB vectorized calculations.
-
----
-
-## License
-
-MIT License (or specify alternative)

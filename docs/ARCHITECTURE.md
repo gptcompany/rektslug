@@ -102,12 +102,12 @@ LiquidationHeatmap/
 │   ├── daily_ingestion.py           # Automated daily updates
 │   ├── init_database.py             # Database initialization
 │   └── calculate_liquidations.py    # Manual calculation runner
-├── frontend/                        # Visualization (no build step)
-│   ├── liquidation_map.html         # Bar chart (Coinglass-style)
-│   ├── heatmap.html                 # 2D time×price heatmap
-│   ├── historical_liquidations.html # Time-series chart
-│   ├── coinglass_heatmap.html       # Full-featured heatmap
-│   └── styles.css                   # Shared CSS
+├── frontend/                        # Active UI + compatibility wrappers
+│   ├── liq_map_1w.html              # Active liq-map renderer (1d/1w via query params)
+│   ├── coinglass_heatmap.html       # Heatmap renderer (implemented, phase 2 scope)
+│   ├── validation_dashboard.html    # Screenshot/review support UI
+│   ├── styles.css                   # Shared CSS
+│   └── legacy/                      # Archived legacy implementations
 ├── data/                            # Data directory (gitignored)
 │   ├── raw/                         # Symlink to 3TB-WDC Binance CSV
 │   └── cache/                       # Temporary cache
@@ -303,10 +303,10 @@ GET  /api/margin/tiers/{symbol}        # Tier configuration
 **Purpose**: Interactive charts for liquidation analysis (no build step).
 
 **Visualizations**:
-1. **Liquidation Map** (`liquidation_map.html`) - Bar chart by leverage tier (Coinglass-style)
-2. **Heatmap** (`heatmap.html`) - 2D time×price density heatmap
-3. **Historical Liquidations** (`historical_liquidations.html`) - Time-series dual-axis chart
-4. **Coinglass Heatmap** (`coinglass_heatmap.html`) - Full-featured heatmap with controls
+1. **Liq-Map Renderer** (`liq_map_1w.html`) - Active canonical liq-map surface for `/chart/derivatives/liq-map/...` (`1d` and `1w` only)
+2. **Heatmap Renderer** (`coinglass_heatmap.html`) - Canonical liq-heat-map surface, implemented but deferred from the current phase-1 validation scope
+3. **Compatibility Wrappers** (`heatmap.html`, `heatmap_30d.html`, `liquidation_map.html`, `historical_liquidations.html`, `compare.html`) - Stable legacy entrypoints retained only for backwards compatibility
+4. **Archived Legacy UIs** (`frontend/legacy/`) - Historical reference implementations kept for comparison, not active delivery
 
 **Tech Stack**:
 - Plotly.js for interactive charts
@@ -663,12 +663,12 @@ logger.info("Processing liquidations", extra={
 
 ## Related Documentation
 
-- **Development Guide**: See `/media/sam/1TB/LiquidationHeatmap/CLAUDE.md`
-- **API Reference**: See `/media/sam/1TB/LiquidationHeatmap/docs/api_guide.md`
-- **Data Validation**: See `/media/sam/1TB/LiquidationHeatmap/docs/DATA_VALIDATION.md`
-- **Mathematical Foundation**: See `/media/sam/1TB/LiquidationHeatmap/docs/mathematical_foundation.md`
-- **Production Checklist**: See `/media/sam/1TB/LiquidationHeatmap/docs/PRODUCTION_CHECKLIST.md`
-- **Model Accuracy**: See `/media/sam/1TB/LiquidationHeatmap/docs/model_accuracy.md`
+- **Development Guide**: See `CLAUDE.md`
+- **API Reference**: See `docs/api_guide.md`
+- **Data Validation**: See `docs/DATA_VALIDATION.md`
+- **Mathematical Foundation**: See `docs/mathematical_foundation.md`
+- **Production Checklist**: See `docs/PRODUCTION_CHECKLIST.md`
+- **Model Accuracy**: See `docs/model_accuracy.md`
 
 ---
 
