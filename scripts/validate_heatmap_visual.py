@@ -46,6 +46,18 @@ ROUTE_TIMEFRAME_BY_TIME_WINDOW = {
     "7d": "1w",
 }
 
+SUPPORTED_HEATMAP_WINDOWS = {
+    "48h",
+    "3d",
+    "7d",
+    "14d",
+    "30d",
+    "60d",
+    "90d",
+    "180d",
+    "1y",
+}
+
 
 def http_get_json(url: str, timeout: float = 3.0) -> dict[str, Any]:
     with urlopen(url, timeout=timeout) as resp:
@@ -146,14 +158,21 @@ def stop_local_server(proc: subprocess.Popen | None) -> None:
             try:
                 proc.kill()
             except Exception:
-            pass
+                pass
 
 
 def build_heatmap_page_url(api_base: str, symbol: str, time_window: str) -> str:
-    route_timeframe = ROUTE_TIMEFRAME_BY_TIME_WINDOW.get(time_window)
+    normalized_time_window = time_window.strip().lower()
+    route_timeframe = ROUTE_TIMEFRAME_BY_TIME_WINDOW.get(normalized_time_window)
     if route_timeframe is None:
+        if normalized_time_window in SUPPORTED_HEATMAP_WINDOWS:
+            return (
+                f"{api_base}/frontend/coinglass_heatmap.html"
+                f"?symbol={symbol.upper()}&window={normalized_time_window}&ui=minimal"
+            )
         raise ValueError(
-            f"Unsupported liq-heat-map time_window '{time_window}'. Use 48h or 7d only."
+            f"Unsupported liq-heat-map time_window '{time_window}'. "
+            f"Use one of: {sorted(SUPPORTED_HEATMAP_WINDOWS)}"
         )
     return f"{api_base}/chart/derivatives/liq-heat-map/{symbol.lower()}/{route_timeframe}"
 
@@ -225,7 +244,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--time-window",
         default=DEFAULT_TIME_WINDOW,
-        help="API time_window (supported: 48h or 7d, default 7d)",
+        help="API time_window (supported: 48h, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 1y; default 7d)",
     )
     parser.add_argument("--price-bin-size", type=int, default=DEFAULT_PRICE_BIN_SIZE, help="API price_bin_size")
     parser.add_argument("--coin", default="BTC", help="Coin symbol for Coinank screenshot")
