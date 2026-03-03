@@ -12,7 +12,13 @@ log() { echo "[$(date -Iseconds)] $1"; }
 
 log "Triggering gap-fill via API at ${API_URL}"
 
+token_header=""
+if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
+    token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
+fi
+
 response=$(curl -s -w "\n%{http_code}" --max-time 120 \
+    $token_header \
     -X POST "${API_URL}/api/v1/gap-fill")
 
 http_code=$(echo "$response" | tail -1)

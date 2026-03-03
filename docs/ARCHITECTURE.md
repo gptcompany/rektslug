@@ -463,15 +463,19 @@ Near-real-time bridge from ccxt-data-pipeline Parquet catalog into DuckDB (T-2 â
 | **Schedule** | `OnCalendar=*:0/5` (every 5 minutes) |
 | **Jitter** | `RandomizedDelaySec=30` |
 | **Timeout** | 300 seconds |
-| **Data source** | ccxt-data-pipeline Parquet files (`$CCXT_CATALOG`) |
-| **Symbols** | `$SYMBOLS` (default: BTCUSDT ETHUSDT) |
+| **Data source** | ccxt-data-pipeline Parquet files (`$HEATMAP_CCXT_CATALOG`) |
+| **Symbols** | `$HEATMAP_SYMBOLS` (default: BTCUSDT,ETHUSDT) |
 
-**Flow**:
-1. `POST /api/v1/prepare-for-ingestion` (API releases DuckDB read lock)
-2. `cleanup_duckdb_locks.py` (clear stale WAL/lock files)
-3. Test DuckDB write access (skip if busy)
-4. `fill_gap_from_ccxt.py` (ingest latest Parquet into DuckDB)
-5. `POST /api/v1/refresh-connections` (API reconnects read-only)
+**Flow** (in-process, no cross-process lock):
+1. `scripts/run-ccxt-gap-fill.sh` calls `POST /api/v1/gap-fill`
+2. API acquires ingestion lock (new DB-backed routes get 503)
+3. API closes read-only singletons, waits 1s for in-flight query drain
+4. API opens read-write DuckDB connection in-process
+5. `src/liquidationheatmap/ingestion/gap_fill.py` fills klines, OI, funding
+6. API releases lock and restores read-only connections
+
+**Authentication**: `X-Internal-Token` header (env: `REKTSLUG_INTERNAL_TOKEN`).
+If unset, the gate is open (backward compat / dev).
 
 **Alternative**: `scripts/run-gapfill-daemon.sh` runs as continuous loop with `REKTSLUG_GAP_FILL_INTERVAL_SECONDS` (default: 300s).
 

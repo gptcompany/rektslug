@@ -31,6 +31,7 @@ class TestGapFillEndpoint:
             mock_settings.ccxt_catalog = Path("/nonexistent/catalog")
             mock_settings.db_path = Path("/nonexistent/db")
             mock_settings.symbols = ("BTCUSDT",)
+            mock_settings.internal_api_token = ""
             response = client.post("/api/v1/gap-fill")
 
         assert response.status_code == 400
@@ -40,7 +41,6 @@ class TestGapFillEndpoint:
 
     def test_returns_409_when_already_running(self, client):
         """Gap-fill should 409 when another gap-fill is in progress."""
-        # Acquire the lock externally to simulate an in-progress gap-fill
         loop = asyncio.new_event_loop()
         loop.run_until_complete(_gap_fill_lock.acquire())
         try:
@@ -65,7 +65,6 @@ class TestGapFillEndpoint:
         """Routes should return 503 when ingestion lock is active."""
         DuckDBService.set_ingestion_lock()
         try:
-            # Any DB-backed route should trigger IngestionLockError -> 503
             response = client.get("/data/date-range?symbol=BTCUSDT")
             assert response.status_code == 503
             data = response.json()
@@ -114,6 +113,88 @@ class TestGapFillEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["total_inserted"] == 0
+
+
+class TestInternalTokenAuth:
+    """Test X-Internal-Token auth on ingestion endpoints."""
+
+    def test_gap_fill_rejects_without_token_when_configured(self, client):
+        """Gap-fill should 403 when token is configured but not provided."""
+        with patch("src.liquidationheatmap.api.main._settings") as mock_settings:
+            mock_settings.internal_api_token = "test-secret-123"
+            response = client.post("/api/v1/gap-fill")
+
+        assert response.status_code == 403
+
+    def test_gap_fill_accepts_correct_token(self, client):
+        """Gap-fill should pass auth when correct token is provided."""
+        mock_result = {
+            "symbols": {"BTCUSDT": {"klines": {"inserted": 0, "skipped": "up_to_date"}}},
+            "total_inserted": 0,
+        }
+        with (
+            patch("src.liquidationheatmap.api.main._settings") as mock_settings,
+            patch("src.liquidationheatmap.api.main.run_gap_fill", return_value=mock_result),
+        ):
+            mock_settings.internal_api_token = "test-secret-123"
+            mock_settings.ccxt_catalog = Path("/media/sam/1TB/ccxt-data-pipeline/data/catalog")
+            mock_settings.db_path = Path(
+                "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
+            )
+            mock_settings.symbols = ("BTCUSDT",)
+            response = client.post(
+                "/api/v1/gap-fill",
+                headers={"X-Internal-Token": "test-secret-123"},
+            )
+
+        assert response.status_code == 200
+
+    def test_gap_fill_rejects_wrong_token(self, client):
+        """Gap-fill should 403 when wrong token is provided."""
+        with patch("src.liquidationheatmap.api.main._settings") as mock_settings:
+            mock_settings.internal_api_token = "test-secret-123"
+            response = client.post(
+                "/api/v1/gap-fill",
+                headers={"X-Internal-Token": "wrong-token"},
+            )
+
+        assert response.status_code == 403
+
+    def test_gap_fill_open_when_no_token_configured(self, client):
+        """Gap-fill should allow access when no token is configured (dev mode)."""
+        mock_result = {
+            "symbols": {},
+            "total_inserted": 0,
+        }
+        with (
+            patch("src.liquidationheatmap.api.main._settings") as mock_settings,
+            patch("src.liquidationheatmap.api.main.run_gap_fill", return_value=mock_result),
+        ):
+            mock_settings.internal_api_token = ""
+            mock_settings.ccxt_catalog = Path("/media/sam/1TB/ccxt-data-pipeline/data/catalog")
+            mock_settings.db_path = Path(
+                "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
+            )
+            mock_settings.symbols = ()
+            response = client.post("/api/v1/gap-fill")
+
+        assert response.status_code == 200
+
+    def test_prepare_for_ingestion_rejects_without_token(self, client):
+        """prepare-for-ingestion should 403 when token configured but missing."""
+        with patch("src.liquidationheatmap.api.main._settings") as mock_settings:
+            mock_settings.internal_api_token = "test-secret-123"
+            response = client.post("/api/v1/prepare-for-ingestion")
+
+        assert response.status_code == 403
+
+    def test_refresh_connections_rejects_without_token(self, client):
+        """refresh-connections should 403 when token configured but missing."""
+        with patch("src.liquidationheatmap.api.main._settings") as mock_settings:
+            mock_settings.internal_api_token = "test-secret-123"
+            response = client.post("/api/v1/refresh-connections")
+
+        assert response.status_code == 403
 
 
 class TestRunGapFillModule:

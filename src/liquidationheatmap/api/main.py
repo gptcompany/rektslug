@@ -10,7 +10,7 @@ from typing import Literal, Optional
 from urllib.request import urlopen
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -330,6 +330,23 @@ async def ingestion_lock_handler(request: Request, exc: IngestionLockError):
 # Serialization lock for in-process gap-fill (one execution at a time)
 _gap_fill_lock = asyncio.Lock()
 
+
+def _require_internal_token(
+    x_internal_token: Optional[str] = Header(None),
+):
+    """FastAPI dependency: reject requests without a valid internal token.
+
+    The token is checked against REKTSLUG_INTERNAL_TOKEN env var.
+    If the env var is empty/unset, the gate is disabled (open access).
+    Callers pass the token via the ``X-Internal-Token`` header.
+    """
+    token = _settings.internal_api_token
+    if not token:
+        # No token configured — gate disabled (backward compat / dev)
+        return
+    if not x_internal_token or x_internal_token != token:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid or missing internal token")
+
 # Register API routers
 from src.liquidationheatmap.api.routers import signals_router
 
@@ -592,7 +609,7 @@ async def get_exchanges_health():
     }
 
 
-@app.post("/api/v1/prepare-for-ingestion")
+@app.post("/api/v1/prepare-for-ingestion", dependencies=[Depends(_require_internal_token)])
 async def prepare_for_ingestion():
     """Prepare database for external ingestion by closing all read connections.
 
@@ -637,7 +654,7 @@ async def prepare_for_ingestion():
         return result
 
 
-@app.post("/api/v1/refresh-connections")
+@app.post("/api/v1/refresh-connections", dependencies=[Depends(_require_internal_token)])
 async def refresh_connections():
     """Re-establish database connections after ingestion completes.
 
@@ -676,7 +693,7 @@ async def refresh_connections():
         return result
 
 
-@app.post("/api/v1/gap-fill")
+@app.post("/api/v1/gap-fill", dependencies=[Depends(_require_internal_token)])
 async def gap_fill(
     dry_run: bool = Query(False, description="Count available data without writing"),
 ):
@@ -689,6 +706,8 @@ async def gap_fill(
     Serialized: only one gap-fill runs at a time.
     During execution: DB-backed routes return 503.
     """
+    # In asyncio single-threaded event loop, check + acquire is atomic
+    # (no preemption between check and acquire — no yield point in between)
     if _gap_fill_lock.locked():
         return JSONResponse(
             status_code=409,
@@ -698,58 +717,68 @@ async def gap_fill(
             },
         )
 
-    async with _gap_fill_lock:
-        import gc
+    await _gap_fill_lock.acquire()
 
-        t0 = time.time()
-        catalog = str(_settings.ccxt_catalog)
-        db_path = str(_settings.db_path)
-        symbols = list(_settings.symbols)
+    import gc
 
-        logger.info("Gap-fill started: symbols=%s dry_run=%s", symbols, dry_run)
+    t0 = time.time()
+    catalog = str(_settings.ccxt_catalog)
+    db_path = str(_settings.db_path)
+    symbols = list(_settings.symbols)
 
+    logger.info("Gap-fill started: symbols=%s dry_run=%s", symbols, dry_run)
+
+    try:
+        # 1. Set ingestion lock to block new read connections
+        DuckDBService.set_ingestion_lock()
+
+        # 2. Close all read-only singletons so DuckDB file lock is released
+        closed = DuckDBService.close_all_instances()
+        gc.collect()
+        logger.info("Gap-fill: closed %d DB singletons", closed)
+
+        # 3. Drain: let in-flight requests finish before opening write connection.
+        #    The ingestion lock (step 1) blocks NEW requests from getting a DB
+        #    connection (they get 503), but requests already mid-query may still
+        #    hold a reference.  A short sleep gives the event loop time to finish
+        #    them so we don't pull the connection from under active queries.
+        await asyncio.sleep(1.0)
+
+        # 4. Run the fill in-process (opens its own read-write connection)
+        result = await asyncio.to_thread(
+            run_gap_fill, db_path, catalog, symbols, dry_run
+        )
+
+        elapsed = round(time.time() - t0, 2)
+        result["duration_seconds"] = elapsed
+        result["status"] = "success"
+        logger.info("Gap-fill complete: %d rows in %ss", result["total_inserted"], elapsed)
+
+        return result
+
+    except FileNotFoundError as e:
+        logger.error("Gap-fill path error: %s", e)
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": str(e)},
+        )
+    except Exception as e:
+        logger.error("Gap-fill failed: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)},
+        )
+    finally:
+        # 4. Always release ingestion lock and warm up read connections
+        DuckDBService.release_ingestion_lock()
         try:
-            # 1. Set ingestion lock to block new read connections
-            DuckDBService.set_ingestion_lock()
-
-            # 2. Close all read-only singletons so DuckDB file lock is released
-            closed = DuckDBService.close_all_instances()
-            gc.collect()
-            logger.info("Gap-fill: closed %d DB singletons", closed)
-
-            # 3. Run the fill in-process (opens its own read-write connection)
-            result = await asyncio.to_thread(
-                run_gap_fill, db_path, catalog, symbols, dry_run
-            )
-
-            elapsed = round(time.time() - t0, 2)
-            result["duration_seconds"] = elapsed
-            result["status"] = "success"
-            logger.info("Gap-fill complete: %d rows in %ss", result["total_inserted"], elapsed)
-
-            return result
-
-        except FileNotFoundError as e:
-            logger.error("Gap-fill path error: %s", e)
-            return JSONResponse(
-                status_code=400,
-                content={"status": "error", "message": str(e)},
-            )
+            db = DuckDBService(read_only=True)
+            db.conn.execute("SELECT 1").fetchone()
+            logger.info("Gap-fill: read connections restored")
         except Exception as e:
-            logger.error("Gap-fill failed: %s", e, exc_info=True)
-            return JSONResponse(
-                status_code=500,
-                content={"status": "error", "message": str(e)},
-            )
-        finally:
-            # 4. Always release lock and warm up read connections
-            DuckDBService.release_ingestion_lock()
-            try:
-                db = DuckDBService(read_only=True)
-                db.conn.execute("SELECT 1").fetchone()
-                logger.info("Gap-fill: read connections restored")
-            except Exception as e:
-                logger.warning("Gap-fill: failed to restore read connections: %s", e)
+            logger.warning("Gap-fill: failed to restore read connections: %s", e)
+        # 5. Release serialization lock
+        _gap_fill_lock.release()
 
 
 @app.get("/data/date-range")

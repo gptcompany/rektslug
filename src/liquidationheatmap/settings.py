@@ -40,6 +40,7 @@ class AppSettings:
     rate_limit_rpm: int
     cache_ttl: int
     cache_max_size: int
+    internal_api_token: str
 
     @classmethod
     def from_env(cls) -> "AppSettings":
@@ -76,6 +77,7 @@ class AppSettings:
             rate_limit_rpm=int(os.getenv("RATE_LIMIT_RPM", "120")),
             cache_ttl=int(os.getenv("LH_CACHE_TTL", "300")),
             cache_max_size=int(os.getenv("LH_CACHE_MAX_SIZE", "100")),
+            internal_api_token=os.getenv("REKTSLUG_INTERNAL_TOKEN", ""),
         )
 
 

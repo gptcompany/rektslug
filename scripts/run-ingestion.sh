@@ -337,25 +337,37 @@ ingest_metrics() {
 fill_gap_from_ccxt() {
     log_section "Gap Fill from ccxt-data-pipeline (T-2 -> T-0)"
 
+    local dry_run_param=""
     if [ "$MODE" = "dry-run" ]; then
+        dry_run_param="?dry_run=true"
         log "Running gap fill in dry-run mode"
-        uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
-            --symbols $SYMBOLS \
-            --ccxt-catalog "$CCXT_CATALOG" \
-            --db "$DB_PATH" \
-            --dry-run || { log "FAILED: Gap fill (dry-run)"; return 1; }
-        return 0
     fi
 
-    if [ ! -d "$CCXT_CATALOG" ]; then
-        log "WARN: CCXT catalog not found at $CCXT_CATALOG, skipping gap fill"
-        return 0
+    # Delegate to in-process API endpoint (avoids DuckDB cross-process lock)
+    local token_header=""
+    if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
+        token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
     fi
 
-    uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
-        --symbols $SYMBOLS \
-        --ccxt-catalog "$CCXT_CATALOG" \
-        --db "$DB_PATH" || { log "FAILED: Gap fill"; return 1; }
+    local response
+    response=$(curl -s -w "\n%{http_code}" --max-time 120 \
+        $token_header \
+        -X POST "${API_URL}/api/v1/gap-fill${dry_run_param}")
+
+    local http_code body
+    http_code=$(echo "$response" | tail -1)
+    body=$(echo "$response" | sed '$d')
+
+    if [ "$http_code" = "200" ]; then
+        log "Gap fill via API: $body"
+        return 0
+    elif [ "$http_code" = "409" ]; then
+        log "Gap fill already in progress, skipping"
+        return 0
+    else
+        log "FAILED: Gap fill (HTTP ${http_code}): $body"
+        return 1
+    fi
 }
 
 # =============================================================================
