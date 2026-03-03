@@ -265,7 +265,7 @@ class DuckDBService:
 
     def __init__(
         self,
-        db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        db_path: str = None,
         read_only: bool = False,
     ):
         """Initialize DuckDB service (only once per singleton).
@@ -277,6 +277,9 @@ class DuckDBService:
         # Skip if already initialized (singleton)
         if getattr(self, "_initialized", False):
             return
+
+        if db_path is None:
+            db_path = get_settings().db_path
 
         self.db_path = Path(db_path)
         self.read_only = read_only
