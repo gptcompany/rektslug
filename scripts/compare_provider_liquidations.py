@@ -1132,7 +1132,7 @@ def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
 
     values_raw = data[exchange_key]
     current_price = safe_float(data.get("lastPrice"))
-    all_prices: list[float] = []
+    active_prices: list[float] = []
     long_values: list[float] = []
     short_values: list[float] = []
     active_bins = 0
@@ -1142,10 +1142,10 @@ def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         value = safe_float(raw_value) or 0.0
         if price is None:
             continue
-        all_prices.append(price)
         if value <= 0:
             continue
         active_bins += 1
+        active_prices.append(price)
         if current_price is not None and price <= current_price:
             long_values.append(value)
         elif current_price is not None and price > current_price:
@@ -1179,7 +1179,7 @@ def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         peak_long=max(long_values, default=0.0),
         peak_short=max(short_values, default=0.0),
         current_price=current_price,
-        price_step_median=median_step([price for price in all_prices if price is not None]),
+        price_step_median=median_step(active_prices),
         time_step_median_ms=None,
         notes=notes,
         parse_score=95,
@@ -1219,7 +1219,7 @@ def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         if math.isfinite(numeric_last_index) and numeric_last_index.is_integer():
             last_index = int(numeric_last_index)
 
-    all_prices: list[float] = []
+    active_prices: list[float] = []
     long_values: list[float] = []
     short_values: list[float] = []
     active_bins = 0
@@ -1228,7 +1228,6 @@ def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         price = safe_float(raw_price)
         if price is None:
             continue
-        all_prices.append(price)
 
         value = 0.0
         for leverage_key in leverage_keys:
@@ -1237,6 +1236,7 @@ def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         if value <= 0:
             continue
         active_bins += 1
+        active_prices.append(price)
 
         if last_index is not None:
             if idx <= last_index:
@@ -1279,7 +1279,7 @@ def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         peak_long=max(long_values, default=0.0),
         peak_short=max(short_values, default=0.0),
         current_price=current_price,
-        price_step_median=median_step(all_prices),
+        price_step_median=median_step(active_prices),
         time_step_median_ms=None,
         notes=notes,
         parse_score=98,

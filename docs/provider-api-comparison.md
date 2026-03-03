@@ -18,6 +18,7 @@ Two scripts now cover the workflow:
 
 - `scripts/capture_provider_api.py`
 - `scripts/compare_provider_liquidations.py`
+- `scripts/provider_gap_analysis.py`
 - `scripts/coinglass_decode_payload.js`
 
 The first script captures raw JSON responses during page load with Playwright.
@@ -31,6 +32,8 @@ A third script now orchestrates the full workflow:
 For SQL-backed review of historical runs, there is also:
 
 - `scripts/provider_comparison_sql_report.py`
+- `scripts/provider_gap_sql_report.py`
+- `scripts/coinglass_bundle_report.py`
 
 This wrapper performs capture, normalization, comparison, report writing, and
 optional DuckDB persistence in one command.
@@ -42,6 +45,7 @@ files follow that convention intentionally:
 
 - `capture_provider_api.py`
 - `compare_provider_liquidations.py`
+- `provider_gap_analysis.py`
 
 Do not rename these to kebab-case unless the whole script naming convention in
 the repo changes. Kebab-case is acceptable for Markdown docs, so this file uses
@@ -128,6 +132,47 @@ python3 scripts/provider_comparison_sql_report.py
 
 Use `--json` for machine-readable output or `--db-path` to point at a
 non-default DuckDB.
+
+For the residual-gap scenarios:
+
+```bash
+python3 scripts/provider_gap_sql_report.py
+```
+
+This reads `provider_gap_analysis_*` and shows the latest scenario ratios plus
+the latest leverage composition snapshots.
+
+For the local CoinGlass frontend bundle health:
+
+```bash
+python3 scripts/coinglass_bundle_report.py --persist-db
+```
+
+This computes the local `_app-*.js` bundle SHA-256, checks whether the current
+TOTP/AES constants are still present verbatim, and stores the observation in
+DuckDB for drift tracking.
+
+### 2c. Quantify the residual provider gap
+
+```bash
+python3 scripts/provider_gap_analysis.py \
+  --manifest data/validation/raw_provider_api/<timestamp>/manifest.json \
+  --persist-db
+```
+
+This script reuses the exact `getLiqMap` / `liqMap` payloads already captured by
+the workflow, then persists scenario-level normalization metrics into DuckDB.
+
+The current scenario set is:
+
+- `raw`
+- `coinank_common_tiers`
+- `coinank_rebinned_to_coinglass_step`
+- `coinank_common_tiers_rebinned`
+
+The last scenario is the most defensible apples-to-apples basis currently
+available because it aligns leverage coverage first and price granularity
+second.
 
 ### 3. Run the full workflow in one command
 
@@ -312,17 +357,15 @@ The real question here is narrower:
 - should the provider-comparison workflow stay file-based for now
 - or should it also persist normalized comparison data into the existing DuckDB
 
-At the current stage, a **new DuckDB-backed comparison layer is not required
-yet**.
+That decision has now been split in two:
 
-JSON files plus a normalized comparison report are enough while:
+- the base comparison workflow can still be used file-first during discovery
+- the residual-gap workflow now has a targeted DuckDB-backed layer because the
+  CoinAnk vs CoinGlass `liqMap` schema is stable enough for repeatable
+  scenario analysis
 
-- the provider payload shapes are still being discovered
-- the number of runs is low
-- the main task is reverse engineering endpoints and units
-
-The existing validation DuckDB becomes a good next step when you start doing
-repeated, cross-run analysis such as:
+JSON files are still the source of truth for raw payloads, but the validation
+DuckDB is now the right place for repeated, cross-run questions such as:
 
 - comparing many days of captures
 - joining provider snapshots by rounded timestamp
@@ -340,12 +383,15 @@ validation DuckDB instead of introducing a separate storage system.
 
 ## DuckDB Tables
 
-When DuckDB persistence is enabled, the comparison workflow creates and updates
-these tables in the validation DuckDB:
+When DuckDB persistence is enabled, the workflow now creates and updates these
+tables in the validation DuckDB:
 
 - `provider_comparison_runs`
 - `provider_comparison_datasets`
 - `provider_comparison_pairs`
+- `provider_gap_analysis_runs`
+- `provider_gap_analysis_scenarios`
+- `provider_gap_analysis_leverage`
 
 These tables are intended for normalized provider-comparison metadata only.
 They do not replace the raw JSON capture artifacts stored on disk.
@@ -356,8 +402,8 @@ They do not replace the raw JSON capture artifacts stored on disk.
    dataset for drift analysis.
 2. Use `scripts/provider_comparison_sql_report.py` to watch drift across runs
    in `provider_comparison_*`.
-3. Investigate the ~14x total volume difference between CoinAnk and CoinGlass
-   (`getLiqMap` vs `liqMapV2`). Likely caused by different leverage tier
-   inclusion and aggregation methods.
-4. Consider extracting the CoinGlass auth token from the obfuscated axios
-   interceptor for a fully browserless replay approach.
+3. Use `scripts/provider_gap_analysis.py` to track how much of the remaining
+   CoinAnk vs CoinGlass gap is explained by leverage-tier coverage vs
+   provider-side scaling.
+4. Monitor bundle hash changes on CoinGlass because the REST replay still
+   depends on constants reverse-engineered from the frontend bundle.
