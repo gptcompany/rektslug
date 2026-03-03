@@ -19,17 +19,26 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
 import re
+import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.validation.constants import VALIDATION_DB_PATH
+
 RAW_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
 DEFAULT_OUTPUT_DIR = Path("data/validation/provider_comparisons")
+DEFAULT_COMPARISON_DB_PATH = Path(VALIDATION_DB_PATH)
 
 LONG_VALUE_KEYS = (
     "long_value",
@@ -156,6 +165,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Optional explicit output path for the JSON report.",
     )
+    parser.add_argument(
+        "--persist-db",
+        action="store_true",
+        help="Persist normalized datasets and pairwise comparisons into the existing DuckDB.",
+    )
+    parser.add_argument(
+        "--db-path",
+        type=Path,
+        help="Override DuckDB path. Defaults to the validation DuckDB.",
+    )
     return parser.parse_args()
 
 
@@ -280,6 +299,88 @@ def parse_query_params(url: str) -> dict[str, str]:
     return {key: values[0] for key, values in params.items() if values}
 
 
+def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
+    """Parse CoinAnk's aggregated liquidation map endpoint."""
+    if "/api/liqMap/getAggLiqMap" not in capture.source_url:
+        return None
+
+    root = capture.payload
+    data = root.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    prices_raw = data.get("prices")
+    if not isinstance(prices_raw, list) or not prices_raw:
+        return None
+
+    exchange_order = ("Binance", "Bybit", "Hyperliquid", "Okex", "Aster", "Lighter")
+    exchange_key = next(
+        (
+            candidate
+            for candidate in exchange_order
+            if isinstance(data.get(candidate), list) and len(data[candidate]) == len(prices_raw)
+        ),
+        None,
+    )
+    if exchange_key is None:
+        return None
+
+    values_raw = data[exchange_key]
+    current_price = safe_float(data.get("lastPrice"))
+    all_prices: list[float] = []
+    long_values: list[float] = []
+    short_values: list[float] = []
+    active_bins = 0
+
+    for raw_price, raw_value in zip(prices_raw, values_raw):
+        price = safe_float(raw_price)
+        value = safe_float(raw_value) or 0.0
+        if price is None:
+            continue
+        all_prices.append(price)
+        if value <= 0:
+            continue
+        active_bins += 1
+        if current_price is not None and price <= current_price:
+            long_values.append(value)
+        elif current_price is not None and price > current_price:
+            short_values.append(value)
+        else:
+            long_values.append(value)
+
+    params = parse_query_params(capture.source_url)
+    symbol = params.get("baseCoin")
+    if symbol:
+        symbol = f"{symbol.upper()}USDT"
+
+    notes = [
+        "CoinAnk getAggLiqMap returns one magnitude array per exchange plus a shared price grid.",
+        "Long and short totals are inferred by splitting bins around lastPrice.",
+    ]
+
+    return NormalizedDataset(
+        provider=capture.provider,
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        dataset_kind="liquidation_heatmap",
+        structure="price_bins",
+        unit="usd_notional",
+        symbol=symbol,
+        exchange=exchange_key,
+        timeframe=params.get("interval"),
+        bucket_count=active_bins,
+        total_long=sum(long_values),
+        total_short=sum(short_values),
+        peak_long=max(long_values, default=0.0),
+        peak_short=max(short_values, default=0.0),
+        current_price=current_price,
+        price_step_median=median_step([price for price in all_prices if price is not None]),
+        time_step_median_ms=None,
+        notes=notes,
+        parse_score=95,
+    )
+
+
 def parse_bitcoincounterflow_liquidations(capture: CaptureFile) -> NormalizedDataset | None:
     """Parse the known Bitcoin CounterFlow /api/liquidations shape."""
     if "/api/liquidations" not in capture.source_url:
@@ -341,6 +442,65 @@ def parse_bitcoincounterflow_liquidations(capture: CaptureFile) -> NormalizedDat
         time_step_median_ms=median_step(timestamps),
         notes=notes,
         parse_score=100,
+    )
+
+
+def parse_coinglass_encrypted_liquidations(capture: CaptureFile) -> NormalizedDataset | None:
+    """Recognize Coinglass liquidation endpoints that currently return encoded payloads."""
+    lowered_url = capture.source_url.lower()
+    if "coinglass.com" not in lowered_url:
+        return None
+    if not re.search(r"liq|liquidat|heatmap", lowered_url):
+        return None
+
+    root = capture.payload
+    encoded = root.get("data")
+    if not isinstance(encoded, str) or not encoded:
+        return None
+
+    decoded_size = None
+    try:
+        decoded_size = len(base64.b64decode(encoded))
+    except Exception:
+        decoded_size = None
+
+    dataset_kind = "encrypted_liquidation_payload"
+    parse_score = 40
+    if "heatmap" in lowered_url:
+        dataset_kind = "encrypted_liquidation_heatmap"
+        parse_score = 55
+    elif "liquidation/chart" in lowered_url:
+        dataset_kind = "encrypted_liquidations_chart"
+        parse_score = 50
+
+    params = parse_query_params(capture.source_url)
+    notes = [
+        "Coinglass currently returns an encoded string in data; numeric decoding is not implemented yet.",
+        f"Encoded chars: {len(encoded)}",
+    ]
+    if decoded_size is not None:
+        notes.append(f"Base64-decoded bytes: {decoded_size}")
+
+    return NormalizedDataset(
+        provider=capture.provider,
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        dataset_kind=dataset_kind,
+        structure="encrypted_base64",
+        unit="encrypted_payload",
+        symbol=params.get("symbol"),
+        exchange=params.get("exName"),
+        timeframe=params.get("time") or params.get("range") or params.get("timeType"),
+        bucket_count=0,
+        total_long=0.0,
+        total_short=0.0,
+        peak_long=0.0,
+        peak_short=0.0,
+        current_price=None,
+        price_step_median=None,
+        time_step_median_ms=None,
+        notes=notes,
+        parse_score=parse_score,
     )
 
 
@@ -540,7 +700,9 @@ def parse_parallel_price_arrays(capture: CaptureFile) -> NormalizedDataset | Non
 def parse_capture(capture: CaptureFile) -> NormalizedDataset | None:
     """Try all known parsers in priority order."""
     for parser in (
+        parse_coinank_agg_liq_map,
         parse_bitcoincounterflow_liquidations,
+        parse_coinglass_encrypted_liquidations,
         parse_record_series,
         parse_parallel_price_arrays,
     ):
@@ -646,27 +808,232 @@ def default_output_path() -> Path:
     return DEFAULT_OUTPUT_DIR / f"{utc_timestamp_slug()}_provider_liquidations.json"
 
 
-def main() -> int:
-    """CLI entry point."""
-    args = parse_args()
-    manifest_paths = resolve_manifest_paths(args.manifest)
+def resolve_db_path(explicit_path: Path | None) -> Path:
+    """Resolve the DuckDB path used for provider-comparison persistence."""
+    if explicit_path is not None:
+        return explicit_path
+    return DEFAULT_COMPARISON_DB_PATH
+
+
+def ensure_comparison_tables(conn) -> None:
+    """Create the provider comparison tables if they do not exist."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS provider_comparison_runs (
+            run_id VARCHAR PRIMARY KEY,
+            created_at TIMESTAMP,
+            report_path VARCHAR,
+            manifests_json VARCHAR,
+            notes_json VARCHAR
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS provider_comparison_datasets (
+            run_id VARCHAR,
+            provider VARCHAR,
+            source_url VARCHAR,
+            saved_file VARCHAR,
+            dataset_kind VARCHAR,
+            structure VARCHAR,
+            unit VARCHAR,
+            symbol VARCHAR,
+            exchange VARCHAR,
+            timeframe VARCHAR,
+            bucket_count INTEGER,
+            total_long DOUBLE,
+            total_short DOUBLE,
+            peak_long DOUBLE,
+            peak_short DOUBLE,
+            current_price DOUBLE,
+            price_step_median DOUBLE,
+            time_step_median_ms DOUBLE,
+            notes_json VARCHAR,
+            PRIMARY KEY (run_id, provider)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS provider_comparison_pairs (
+            run_id VARCHAR,
+            left_provider VARCHAR,
+            right_provider VARCHAR,
+            dataset_kind_match BOOLEAN,
+            structure_match BOOLEAN,
+            unit_match BOOLEAN,
+            symbol_match BOOLEAN,
+            timeframe_match BOOLEAN,
+            bucket_count_ratio DOUBLE,
+            long_total_ratio DOUBLE,
+            short_total_ratio DOUBLE,
+            long_peak_ratio DOUBLE,
+            short_peak_ratio DOUBLE,
+            details_json VARCHAR,
+            PRIMARY KEY (run_id, left_provider, right_provider)
+        )
+        """
+    )
+
+
+def persist_report_to_duckdb(report: dict[str, Any], output_path: Path, db_path: Path) -> None:
+    """Persist the normalized comparison report into the existing DuckDB."""
+    try:
+        import duckdb
+    except ImportError as exc:
+        raise RuntimeError("duckdb is required for --persist-db") from exc
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    run_id = output_path.stem
+
+    conn = duckdb.connect(str(db_path))
+    try:
+        ensure_comparison_tables(conn)
+
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO provider_comparison_runs
+            (run_id, created_at, report_path, manifests_json, notes_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                run_id,
+                report["timestamp_utc"],
+                str(output_path),
+                json.dumps(report.get("manifests", []), ensure_ascii=True),
+                json.dumps(report.get("notes", []), ensure_ascii=True),
+            ],
+        )
+
+        conn.execute("DELETE FROM provider_comparison_datasets WHERE run_id = ?", [run_id])
+        for provider, dataset in report.get("providers", {}).items():
+            conn.execute(
+                """
+                INSERT INTO provider_comparison_datasets
+                (
+                    run_id, provider, source_url, saved_file, dataset_kind, structure, unit,
+                    symbol, exchange, timeframe, bucket_count, total_long, total_short,
+                    peak_long, peak_short, current_price, price_step_median,
+                    time_step_median_ms, notes_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    run_id,
+                    provider,
+                    dataset.get("source_url"),
+                    dataset.get("saved_file"),
+                    dataset.get("dataset_kind"),
+                    dataset.get("structure"),
+                    dataset.get("unit"),
+                    dataset.get("symbol"),
+                    dataset.get("exchange"),
+                    dataset.get("timeframe"),
+                    dataset.get("bucket_count"),
+                    dataset.get("total_long"),
+                    dataset.get("total_short"),
+                    dataset.get("peak_long"),
+                    dataset.get("peak_short"),
+                    dataset.get("current_price"),
+                    dataset.get("price_step_median"),
+                    dataset.get("time_step_median_ms"),
+                    json.dumps(dataset.get("notes", []), ensure_ascii=True),
+                ],
+            )
+
+        conn.execute("DELETE FROM provider_comparison_pairs WHERE run_id = ?", [run_id])
+        for comparison in report.get("pairwise_comparisons", []):
+            providers = comparison.get("providers", [])
+            if len(providers) != 2:
+                continue
+            conn.execute(
+                """
+                INSERT INTO provider_comparison_pairs
+                (
+                    run_id, left_provider, right_provider, dataset_kind_match, structure_match,
+                    unit_match, symbol_match, timeframe_match, bucket_count_ratio,
+                    long_total_ratio, short_total_ratio, long_peak_ratio, short_peak_ratio,
+                    details_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    run_id,
+                    providers[0],
+                    providers[1],
+                    comparison.get("dataset_kind_match"),
+                    comparison.get("structure_match"),
+                    comparison.get("unit_match"),
+                    comparison.get("symbol_match"),
+                    comparison.get("timeframe_match"),
+                    comparison.get("bucket_count_ratio"),
+                    comparison.get("long_total_ratio"),
+                    comparison.get("short_total_ratio"),
+                    comparison.get("long_peak_ratio"),
+                    comparison.get("short_peak_ratio"),
+                    json.dumps(comparison, ensure_ascii=True),
+                ],
+            )
+    finally:
+        conn.close()
+
+
+def generate_report(
+    manifest_paths: list[Path],
+    output_path: Path | None = None,
+    persist_db: bool = False,
+    db_path: Path | None = None,
+) -> tuple[dict[str, Any], Path]:
+    """Generate the comparison report and optionally persist it to DuckDB."""
     captures = load_capture_files(manifest_paths)
     datasets, skipped_by_provider = choose_best_datasets(captures)
 
     if not datasets:
-        print("No parseable liquidation datasets found in the supplied manifests.")
-        return 1
+        raise RuntimeError("No parseable liquidation datasets found in the supplied manifests.")
 
     report = build_report(manifest_paths, datasets, skipped_by_provider)
-    output_path = args.output or default_output_path()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=True), encoding="utf-8")
+    resolved_output_path = output_path or default_output_path()
+    resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_output_path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=True),
+        encoding="utf-8",
+    )
+
+    if persist_db:
+        persist_report_to_duckdb(
+            report=report,
+            output_path=resolved_output_path,
+            db_path=resolve_db_path(db_path),
+        )
+
+    return report, resolved_output_path
+
+
+def main() -> int:
+    """CLI entry point."""
+    args = parse_args()
+    manifest_paths = resolve_manifest_paths(args.manifest)
+    try:
+        report, output_path = generate_report(
+            manifest_paths=manifest_paths,
+            output_path=args.output,
+            persist_db=args.persist_db,
+            db_path=args.db_path,
+        )
+    except RuntimeError as exc:
+        print(str(exc))
+        return 1
+
+    datasets = report["providers"]
 
     print(f"providers parsed: {', '.join(sorted(datasets))}")
     if len(datasets) < 2:
         print("pairwise comparisons: none (need at least two parsed providers)")
     else:
         print(f"pairwise comparisons: {len(report['pairwise_comparisons'])}")
+    if args.persist_db:
+        print(f"duckdb: {resolve_db_path(args.db_path)}")
     print(f"report: {output_path}")
     return 0
 

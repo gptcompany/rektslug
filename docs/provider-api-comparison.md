@@ -23,6 +23,13 @@ The first script captures raw JSON responses during page load with Playwright.
 The second script reads one or more capture manifests, normalizes the most
 relevant liquidation dataset per provider, and emits a comparison report.
 
+A third script now orchestrates the full workflow:
+
+- `scripts/run_provider_api_comparison.py`
+
+This wrapper performs capture, normalization, comparison, report writing, and
+optional DuckDB persistence in one command.
+
 ## Naming Convention
 
 The repository uses `snake_case` for Python scripts under `scripts/`. The new
@@ -85,6 +92,19 @@ Reports are written under:
 
 `data/validation/provider_comparisons/`
 
+### 3. Run the full workflow in one command
+
+```bash
+python3 scripts/run_provider_api_comparison.py \
+  --provider all \
+  --coin BTC \
+  --timeframe 1w
+```
+
+By default, this command also persists normalized comparison rows into the
+validation DuckDB (`data/validation/validation_results.duckdb`). Use
+`--no-persist-db` if you want a file-only run.
+
 ## Provider-Specific Notes
 
 ### CoinAnk
@@ -134,7 +154,15 @@ The main missing pieces are:
    liquidation endpoints
 4. Optional historical aggregation across many capture runs
 
-Today, Bitcoin CounterFlow is the only provider with an explicit parser.
+Today, Bitcoin CounterFlow and CoinAnk have provider-specific parsers.
+
+CoinAnk now also has a provider-specific parser for `getAggLiqMap`, but its
+long/short split is still inferred by dividing bins around `lastPrice` because
+the endpoint exposes one magnitude array per exchange rather than separate long
+and short arrays.
+
+Coinglass now has a provider-specific parser for the current encoded response
+envelope, but numeric decoding of its encrypted payload is still missing.
 
 ## DuckDB: Needed or Not?
 
@@ -155,8 +183,8 @@ JSON files plus a normalized comparison report are enough while:
 - the number of runs is low
 - the main task is reverse engineering endpoints and units
 
-The existing DuckDB becomes a good next step when you start doing repeated,
-cross-run analysis such as:
+The existing validation DuckDB becomes a good next step when you start doing
+repeated, cross-run analysis such as:
 
 - comparing many days of captures
 - joining provider snapshots by rounded timestamp
@@ -166,11 +194,23 @@ cross-run analysis such as:
 Recommended rule:
 
 - Use JSON first for discovery and parser development
-- Reuse the existing DuckDB only after provider schemas are stable enough to
-  justify a tabular model
+- Reuse the existing validation DuckDB after provider schemas are stable enough
+  to justify a tabular model
 
 When that threshold is reached, prefer adding comparison tables to the current
-DuckDB database instead of introducing a separate storage system.
+validation DuckDB instead of introducing a separate storage system.
+
+## DuckDB Tables
+
+When DuckDB persistence is enabled, the comparison workflow creates and updates
+these tables in the validation DuckDB:
+
+- `provider_comparison_runs`
+- `provider_comparison_datasets`
+- `provider_comparison_pairs`
+
+These tables are intended for normalized provider-comparison metadata only.
+They do not replace the raw JSON capture artifacts stored on disk.
 
 ## Recommended Next Steps
 

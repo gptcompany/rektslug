@@ -42,6 +42,7 @@ DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
+DEFAULT_COINGLASS_URL = "https://www.coinglass.com/LiquidationData"
 BITCOINCOUNTERFLOW_DEFAULT_URL = "https://bitcoincounterflow.com/liquidation-heatmap/"
 BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
     "https://api.bitcoincounterflow.com/api/liquidations"
@@ -108,7 +109,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--coinglass-url",
-        help="Coinglass page URL to open. Required when provider includes coinglass.",
+        default=DEFAULT_COINGLASS_URL,
+        help="Coinglass page URL to open. Defaults to the public LiquidationData page.",
     )
     parser.add_argument(
         "--bitcoincounterflow-url",
@@ -159,15 +161,11 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
         )
 
     if args.provider in {"coinglass", "both", "all"}:
-        if not args.coinglass_url:
-            raise SystemExit(
-                "--coinglass-url is required when provider includes coinglass. "
-                "Pass the exact Coinglass page you want to compare."
-            )
+        coinglass_url = args.coinglass_url or DEFAULT_COINGLASS_URL
         targets.append(
             CaptureTarget(
                 provider="coinglass",
-                url=args.coinglass_url,
+                url=coinglass_url,
                 email=os.environ.get("COINGLASS_USER_LOGIN"),
                 password=os.environ.get("COINGLASS_USER_PASSWORD"),
             )
@@ -367,69 +365,71 @@ async def capture_target(
     captured: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
     capture_tasks: set[asyncio.Task[Any]] = set()
+    capture_lock = asyncio.Lock()
     counter = 0
 
     async def handle_response(response) -> None:
         nonlocal counter
 
-        if len(captured) >= max_responses:
-            return
+        async with capture_lock:
+            if len(captured) >= max_responses:
+                return
 
-        url = response.url
-        if not response_matches_target(target, url):
-            return
+            url = response.url
+            if not response_matches_target(target, url):
+                return
 
-        if response.status >= 400:
-            return
+            if response.status >= 400:
+                return
 
-        request_post_data = response.request.post_data or ""
-        request_fingerprint = hashlib.sha1(request_post_data.encode("utf-8")).hexdigest()[:12]
-        key = f"{response.request.method}:{url}:{request_fingerprint}"
-        if key in seen_urls:
-            return
+            request_post_data = response.request.post_data or ""
+            request_fingerprint = hashlib.sha1(request_post_data.encode("utf-8")).hexdigest()[:12]
+            key = f"{response.request.method}:{url}:{request_fingerprint}"
+            if key in seen_urls:
+                return
 
-        try:
-            body = await response.text()
-        except Exception:
-            return
+            try:
+                body = await response.text()
+            except Exception:
+                return
 
-        content_type = response.headers.get("content-type", "")
-        if not looks_like_json_body(content_type, url, body):
-            return
+            content_type = response.headers.get("content-type", "")
+            if not looks_like_json_body(content_type, url, body):
+                return
 
-        seen_urls.add(key)
-        counter += 1
+            seen_urls.add(key)
+            counter += 1
 
-        parsed_payload: Any = None
-        file_ext = "txt"
-        body_to_write = body
-        summary: dict[str, Any]
-        try:
-            parsed_payload = json.loads(body)
-            file_ext = "json"
-            body_to_write = json.dumps(parsed_payload, indent=2, ensure_ascii=True)
-            summary = summarize_json_payload(parsed_payload)
-        except Exception:
-            summary = {"kind": "text", "preview": body[:200]}
+            parsed_payload: Any = None
+            file_ext = "txt"
+            body_to_write = body
+            summary: dict[str, Any]
+            try:
+                parsed_payload = json.loads(body)
+                file_ext = "json"
+                body_to_write = json.dumps(parsed_payload, indent=2, ensure_ascii=True)
+                summary = summarize_json_payload(parsed_payload)
+            except Exception:
+                summary = {"kind": "text", "preview": body[:200]}
 
-        parsed_url = urlparse(url)
-        stem = safe_slug(Path(parsed_url.path).name or parsed_url.path or "response")
-        file_name = f"{counter:02d}_{stem}.{file_ext}"
-        output_path = provider_dir / file_name
-        output_path.write_text(body_to_write, encoding="utf-8")
+            parsed_url = urlparse(url)
+            stem = safe_slug(Path(parsed_url.path).name or parsed_url.path or "response")
+            file_name = f"{counter:02d}_{stem}.{file_ext}"
+            output_path = provider_dir / file_name
+            output_path.write_text(body_to_write, encoding="utf-8")
 
-        captured.append(
-            {
-                "provider": target.provider,
-                "source_url": url,
-                "status": response.status,
-                "method": response.request.method,
-                "content_type": content_type,
-                "request_post_data": request_post_data[:5000],
-                "saved_file": str(output_path),
-                "summary": summary,
-            }
-        )
+            captured.append(
+                {
+                    "provider": target.provider,
+                    "source_url": url,
+                    "status": response.status,
+                    "method": response.request.method,
+                    "content_type": content_type,
+                    "request_post_data": request_post_data[:5000],
+                    "saved_file": str(output_path),
+                    "summary": summary,
+                }
+            )
 
     def schedule_response(response) -> None:
         task = asyncio.create_task(handle_response(response))
@@ -504,15 +504,16 @@ def build_run_comparison(provider_summaries: list[dict[str, Any]]) -> dict[str, 
     }
 
 
-async def async_main(args: argparse.Namespace) -> int:
-    """Async CLI entry point."""
+async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> Path:
+    """Execute the capture workflow and return the manifest path."""
     targets = build_targets(args)
     run_dir = args.output_dir / utc_timestamp_slug()
     run_dir.mkdir(parents=True, exist_ok=True)
 
     provider_summaries: list[dict[str, Any]] = []
     for target in targets:
-        print(f"capturing {target.provider}: {target.url}")
+        if emit_progress:
+            print(f"capturing {target.provider}: {target.url}")
         summary = await capture_target(
             target=target,
             run_dir=run_dir,
@@ -521,7 +522,8 @@ async def async_main(args: argparse.Namespace) -> int:
             headless=not args.headed,
         )
         provider_summaries.append(summary)
-        print(f"saved {summary['capture_count']} JSON responses for {target.provider}")
+        if emit_progress:
+            print(f"saved {summary['capture_count']} JSON responses for {target.provider}")
 
     manifest = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -539,8 +541,15 @@ async def async_main(args: argparse.Namespace) -> int:
     }
     manifest_path = run_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=True), encoding="utf-8")
+    if emit_progress:
+        print(f"manifest: {manifest_path}")
+    return manifest_path
 
-    print(f"manifest: {manifest_path}")
+
+async def async_main(args: argparse.Namespace) -> int:
+    """Async CLI entry point."""
+    await run_capture(args, emit_progress=True)
+
     return 0
 
 
