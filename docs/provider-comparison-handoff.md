@@ -11,6 +11,8 @@ It does **not** cover the separate `ingestion-lock` / `gap-fill` track.
 The provider-comparison work is captured in:
 
 - `621b542` `feat: add provider gap analysis and bundle drift reporting`
+- `172352e` `feat: add internal provider benchmark comparisons`
+- `b18a3e6` `fix: restore wrappers and prioritize shape-first benchmarks`
 
 The current branch head already includes that commit.
 
@@ -35,6 +37,8 @@ Main additions:
 - scenario-based gap analysis
 - SQL report over gap-analysis tables
 - local CoinGlass bundle hash / marker drift report
+- internal-vs-vendor benchmark scenarios
+- shape-first benchmark summary (`internal_alignment`)
 
 ## DuckDB Tables
 
@@ -53,25 +57,24 @@ New tables:
 
 Use this report as the current baseline:
 
-- `data/validation/provider_comparisons/20260303T181518Z_provider_gap_analysis.json`
+- `data/validation/provider_comparisons/20260303T203530Z_provider_gap_analysis.json`
 
-Key numbers from that run:
+Current method:
 
-- `raw` total ratio: `13.4318x`
-- `coinank_common_tiers` total ratio: `5.2566x`
-- `coinank_rebinned_to_coinglass_step` total ratio: `13.4318x`
-- `coinank_common_tiers_rebinned` total ratio: `5.2566x`
+- primary metrics: `shape_cosine`, `distribution_overlap`, `matched_bucket_ratio`
+- secondary metrics: `vendor_scale_factor`, `total_ratio`
 
-Current best comparison basis:
+Current best internal benchmark basis:
 
-- `coinank_common_tiers_rebinned`
+- internal `time_window=48h`
+- internal `price_bin_size=57`
 
 Interpretation:
 
-- leverage-tier coverage explains most of the raw gap
-- price-bin granularity changes shape, not scale
-- residual gap (`~5.26x`) likely comes from provider-side aggregation /
-  persistence / scaling differences
+- shape is currently closer to `Coinglass` than `CoinAnk`
+- `internal -> Coinglass`: `shape_cosine=0.3545`, `overlap=0.2187`, `scale_factor=13.47`
+- `internal -> CoinAnk`: `shape_cosine=0.1832`, `overlap=0.1338`, `scale_factor=180.99`
+- vendor totals are treated as scaling profiles, not as directly equivalent ground truth
 
 ## Useful Commands
 
@@ -80,6 +83,7 @@ Rebuild the scenario analysis from a capture manifest:
 ```bash
 python3 scripts/provider_gap_analysis.py \
   --manifest data/validation/raw_provider_api/<timestamp>/manifest.json \
+  --internal-time-window 48h \
   --persist-db
 ```
 
@@ -108,12 +112,25 @@ At that checkpoint:
 - AES key marker present
 - liqMap endpoint marker present
 
+Quick sanity check:
+
+```bash
+python3 scripts/provider_gap_analysis.py \
+  --manifest data/validation/raw_provider_api/20260303T174430Z/manifest.json \
+  --internal-time-window 48h \
+  --output /tmp/check.json
+```
+
+```bash
+jq '.internal_alignment' /tmp/check.json
+```
+
 ## Next Useful Step
 
 If this track is resumed, the next useful step is not more capture plumbing.
 
 The useful next step is:
 
-1. Compare multiple runs over time with `provider_gap_sql_report.py`
-2. Check whether the `~5.26x` residual gap is stable across timeframes/runs
-3. Only then decide whether an extra normalization layer is justified
+1. Tune the internal model for better shape vs `Coinglass` first
+2. Keep scale as a separate vendor-specific multiplier
+3. Only after shape improves, revisit absolute totals
