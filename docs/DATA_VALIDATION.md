@@ -4,6 +4,9 @@
 
 This document describes the data quality validation process for aggTrades ingestion. Validation is performed **AFTER** ingestion completes to verify data integrity without impacting ingestion performance.
 
+For external provider capture and comparison (CoinAnk, Coinglass, Bitcoin
+CounterFlow), see `docs/provider-api-comparison.md`.
+
 ## Philosophy: Separation of Concerns
 
 **Ingestion** (speed) ≠ **Validation** (quality)
