@@ -234,60 +234,60 @@ class TestCalculateLiqPrice:
     """Tests for calculate_liq_price function (T006)."""
 
     def test_long_liquidation_10x(self):
-        """10x long position should liquidate ~9.04% below entry (with 0.4% MMR)."""
+        """10x long position should liquidate ~9.6% below entry (with 0.4% MMR)."""
         from src.liquidationheatmap.models.position import calculate_liq_price
 
         # Entry: $100,000, Leverage: 10x, Side: long, MMR: 0.4%
-        # Formula: entry * (1 - 1/10 + 0.004/10) = entry * (1 - 0.1 + 0.0004) = entry * 0.9004
+        # Formula: entry * (1 - 1/10 + 0.004) = entry * (1 - 0.1 + 0.004) = entry * 0.904
         liq_price = calculate_liq_price(
             entry_price=Decimal("100000"),
             leverage=10,
             side="long",
         )
 
-        expected = Decimal("100000") * Decimal("0.9004")
+        expected = Decimal("100000") * Decimal("0.904")
         assert liq_price == expected
 
     def test_short_liquidation_10x(self):
-        """10x short position should liquidate ~9.96% above entry (with 0.4% MMR)."""
+        """10x short position should liquidate ~9.6% above entry (with 0.4% MMR)."""
         from src.liquidationheatmap.models.position import calculate_liq_price
 
-        # Formula: entry * (1 + 1/10 - 0.004/10) = entry * (1 + 0.1 - 0.0004) = entry * 1.0996
+        # Formula: entry * (1 + 1/10 - 0.004) = entry * (1 + 0.1 - 0.004) = entry * 1.096
         liq_price = calculate_liq_price(
             entry_price=Decimal("100000"),
             leverage=10,
             side="short",
         )
 
-        expected = Decimal("100000") * Decimal("1.0996")
+        expected = Decimal("100000") * Decimal("1.096")
         assert liq_price == expected
 
     def test_long_liquidation_100x(self):
-        """100x long position should liquidate ~0.96% below entry."""
+        """100x long position should liquidate ~0.6% below entry."""
         from src.liquidationheatmap.models.position import calculate_liq_price
 
-        # Formula: entry * (1 - 1/100 + 0.004/100) = entry * (1 - 0.01 + 0.00004) = entry * 0.99004
+        # Formula: entry * (1 - 1/100 + 0.004) = entry * (1 - 0.01 + 0.004) = entry * 0.994
         liq_price = calculate_liq_price(
             entry_price=Decimal("100000"),
             leverage=100,
             side="long",
         )
 
-        expected = Decimal("100000") * Decimal("0.99004")
+        expected = Decimal("100000") * Decimal("0.994")
         assert liq_price == expected
 
     def test_short_liquidation_5x(self):
-        """5x short position should liquidate ~19.92% above entry."""
+        """5x short position should liquidate ~19.6% above entry."""
         from src.liquidationheatmap.models.position import calculate_liq_price
 
-        # Formula: entry * (1 + 1/5 - 0.004/5) = entry * (1 + 0.2 - 0.0008) = entry * 1.1992
+        # Formula: entry * (1 + 1/5 - 0.004) = entry * (1 + 0.2 - 0.004) = entry * 1.196
         liq_price = calculate_liq_price(
             entry_price=Decimal("100000"),
             leverage=5,
             side="short",
         )
 
-        expected = Decimal("100000") * Decimal("1.1992")
+        expected = Decimal("100000") * Decimal("1.196")
         assert liq_price == expected
 
     def test_custom_mmr(self):
@@ -302,6 +302,6 @@ class TestCalculateLiqPrice:
             mmr=Decimal("0.01"),
         )
 
-        # Formula: entry * (1 - 1/10 + 0.01/10) = entry * (1 - 0.1 + 0.001) = entry * 0.901
-        expected = Decimal("100000") * Decimal("0.901")
+        # Formula: entry * (1 - 1/10 + 0.01) = entry * (1 - 0.1 + 0.01) = entry * 0.91
+        expected = Decimal("100000") * Decimal("0.91")
         assert liq_price == expected

@@ -9,10 +9,10 @@ class TestBinanceStandardModel:
     """Tests for BinanceStandardModel liquidation calculations."""
 
     def test_long_10x_liquidation_at_90_percent_of_entry(self):
-        """Test that 10x long position liquidates at ~90% of entry price.
+        """Test that 10x long position liquidates at ~90.4% of entry price.
 
-        Formula: long_liq = entry * (1 - 1/leverage + mmr/leverage)
-        For 10x with 0.4% MMR: entry * (1 - 0.1 + 0.0004) = entry * 0.9004
+        Formula: long_liq = entry * (1 - 1/leverage + mmr)
+        For 10x with 0.4% MMR: entry * (1 - 0.1 + 0.004) = entry * 0.904
         """
         model = BinanceStandardModel()
 
@@ -26,15 +26,15 @@ class TestBinanceStandardModel:
         # Calculate liquidation price
         liq_price = model._calculate_long_liquidation(entry_price, leverage, mmr)
 
-        # Should liquidate at ~90% (with MMR adjustment ~90.04%)
-        expected_liq = entry_price * Decimal("0.9004")
+        # Should liquidate at ~90.4% (with MMR adjustment)
+        expected_liq = entry_price * Decimal("0.904")
         assert abs(liq_price - expected_liq) < Decimal("1.00")  # ±$1 tolerance
 
     def test_short_100x_liquidation_at_101_percent_of_entry(self):
-        """Test that 100x short position liquidates at ~101% of entry price.
+        """Test that 100x short position liquidates at ~100.6% of entry price.
 
-        Formula: short_liq = entry * (1 + 1/leverage - mmr/leverage)
-        For 100x with 0.4% MMR: entry * (1 + 0.01 - 0.00004) = entry * 1.00996
+        Formula: short_liq = entry * (1 + 1/leverage - mmr)
+        For 100x with 0.4% MMR: entry * (1 + 0.01 - 0.004) = entry * 1.006
         """
         model = BinanceStandardModel()
 
@@ -48,8 +48,8 @@ class TestBinanceStandardModel:
         # Calculate liquidation price
         liq_price = model._calculate_short_liquidation(entry_price, leverage, mmr)
 
-        # Should liquidate at ~101% (with MMR adjustment ~100.996%)
-        expected_liq = entry_price * Decimal("1.00996")
+        # Should liquidate at ~100.6% (with MMR adjustment)
+        expected_liq = entry_price * Decimal("1.006")
         assert abs(liq_price - expected_liq) < Decimal("1.00")  # ±$1 tolerance
 
     def test_mmr_tier_changes_with_position_size(self):

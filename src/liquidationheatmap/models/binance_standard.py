@@ -12,8 +12,8 @@ class BinanceStandardModel(AbstractLiquidationModel):
     """Calculate liquidations using official Binance formula with MMR tiers.
 
     Formula:
-        Long:  liq_price = entry * (1 - 1/leverage + mmr/leverage)
-        Short: liq_price = entry * (1 + 1/leverage - mmr/leverage)
+        Long:  liq_price = entry * (1 - 1/leverage + mmr)
+        Short: liq_price = entry * (1 + 1/leverage - mmr)
 
     MMR (Maintenance Margin Rate) varies by position size.
     """
