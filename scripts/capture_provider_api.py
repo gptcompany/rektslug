@@ -23,15 +23,21 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
+
+import pyotp
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 
 from coinank_screenshot import build_coinank_liqmap_url, coinank_login, dismiss_common_popups
 
@@ -43,6 +49,7 @@ DEFAULT_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 DEFAULT_COINGLASS_URL = "https://www.coinglass.com/LiquidationData"
+COINGLASS_LOGIN_URL = "https://www.coinglass.com/login?act=liqmap"
 BITCOINCOUNTERFLOW_DEFAULT_URL = "https://bitcoincounterflow.com/liquidation-heatmap/"
 BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
     "https://api.bitcoincounterflow.com/api/liquidations"
@@ -72,6 +79,64 @@ RELEVANT_REQUEST_HEADERS = {
     "cache-ts-v2",
 }
 
+# --- CoinGlass TOTP+AES data parameter (reverse-engineered from _app bundle) ---
+# These are public client-side constants embedded in the CoinGlass frontend JS.
+_CG_TOTP_SECRET = "I65VU7K5ZQL7WB4E"
+_CG_AES_KEY = "1f68efd73f8d4921acc0dead41dd39bc"
+
+# Mapping from UI dropdown value (days) to API (interval, limit).
+# Source: LiquidationMap page chunk onChangeTime handler.
+COINGLASS_TIMEFRAME_MAP: dict[str, tuple[str, int]] = {
+    "1d": ("1", 1500),
+    "1w": ("5", 2000),
+    "1m": ("30", 1440),
+    "3m": ("90d", 1440),
+    "6m": ("180d", 1440),
+    "1y": ("365d", 1440),
+}
+# Aliases that normalize to the canonical (lowercase) keys above.
+_CG_TIMEFRAME_ALIASES: dict[str, str] = {
+    "1 day": "1d",
+    "7 day": "1w",
+    "7d": "1w",
+    "30 day": "1m",
+    "30d": "1m",
+    "90 day": "3m",
+    "90d": "3m",
+    "180 day": "6m",
+    "180d": "6m",
+    "365 day": "1y",
+    "365d": "1y",
+    "1 year": "1y",
+}
+
+
+def generate_coinglass_data_param() -> str:
+    """Generate the ``data`` query parameter for CoinGlass liqMap/liqHeatMap.
+
+    The frontend builds this by creating a TOTP token, concatenating it with the
+    current Unix timestamp, and encrypting the result with AES-128-ECB.
+    """
+    ts = int(time.time())
+    totp = pyotp.TOTP(_CG_TOTP_SECRET, interval=30)
+    otp_code = totp.at(ts)
+    plaintext = f"{ts},{otp_code}"
+    cipher = AES.new(_CG_AES_KEY.encode("utf-8"), AES.MODE_ECB)
+    encrypted = cipher.encrypt(pad(plaintext.encode("utf-8"), AES.block_size))
+    return base64.b64encode(encrypted).decode("utf-8")
+
+
+def resolve_coinglass_interval_limit(
+    timeframe: str,
+) -> tuple[str, int]:
+    """Return ``(interval, limit)`` for a given CLI/UI timeframe string."""
+    key = timeframe.strip().lower()
+    key = _CG_TIMEFRAME_ALIASES.get(key, key)
+    if key in COINGLASS_TIMEFRAME_MAP:
+        return COINGLASS_TIMEFRAME_MAP[key]
+    # Fallback: 1 day
+    return ("1", 1500)
+
 
 @dataclass
 class CaptureTarget:
@@ -81,6 +146,7 @@ class CaptureTarget:
     url: str
     email: str | None = None
     password: str | None = None
+    ui_timeframe: str | None = None
 
 
 def utc_timestamp_slug() -> str:
@@ -123,6 +189,13 @@ def parse_args() -> argparse.Namespace:
         "--coinglass-url",
         default=DEFAULT_COINGLASS_URL,
         help="Coinglass page URL to open. Defaults to the public LiquidationData page.",
+    )
+    parser.add_argument(
+        "--coinglass-timeframe",
+        help=(
+            "Optional Coinglass LiquidationMap UI timeframe. "
+            "Examples: 1d, 1w, '1 day', '1 week'. Defaults to a mapping from --timeframe."
+        ),
     )
     parser.add_argument(
         "--bitcoincounterflow-url",
@@ -180,6 +253,9 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
                 url=coinglass_url,
                 email=os.environ.get("COINGLASS_USER_LOGIN"),
                 password=os.environ.get("COINGLASS_USER_PASSWORD"),
+                ui_timeframe=normalize_coinglass_timeframe_label(
+                    args.coinglass_timeframe or args.timeframe
+                ),
             )
         )
 
@@ -192,6 +268,136 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
         )
 
     return targets
+
+
+def normalize_coinglass_timeframe_label(value: str | None) -> str | None:
+    """Normalize CLI timeframe hints into Coinglass UI labels."""
+    if not value:
+        return None
+
+    lowered = value.strip().lower()
+    explicit = {
+        "1d": "1 day",
+        "3d": "3 day",
+        "7d": "7 day",
+        "1w": "7 day",
+        "2w": "14 day",
+        "1m": "30 day",
+        "3m": "90 day",
+        "6m": "180 day",
+        "1 day": "1 day",
+        "3 day": "3 day",
+        "7 day": "7 day",
+        "14 day": "14 day",
+        "30 day": "30 day",
+        "90 day": "90 day",
+        "180 day": "180 day",
+        "1 week": "7 day",
+        "2 week": "14 day",
+        "1 month": "30 day",
+    }
+    if lowered in explicit:
+        return explicit[lowered]
+
+    interval_match = re.fullmatch(r"(\d+)\s*([hdwm])", lowered)
+    if not interval_match:
+        return value
+
+    amount = interval_match.group(1)
+    unit = interval_match.group(2)
+    suffix = {
+        "h": "hour",
+        "d": "day",
+        "w": "week",
+        "m": "month",
+    }[unit]
+    return f"{amount} {suffix}"
+
+
+async def dismiss_coinglass_popups(page) -> None:
+    """Dismiss consent/login overlays that block the underlying page."""
+    for selector in (
+        'button:has-text("Consent")',
+        'button:has-text("Do not consent")',
+        'button[aria-label="Close"]',
+        'button:has-text("Close")',
+    ):
+        try:
+            locator = page.locator(selector).first
+            if await locator.is_visible(timeout=1000):
+                await locator.click(timeout=2000)
+                await page.wait_for_timeout(300)
+        except Exception:
+            continue
+
+
+async def fill_and_commit(locator, value: str) -> None:
+    """Fill a field, then blur it so client-side validation re-runs."""
+    await locator.click(timeout=5000)
+    await locator.fill(value, timeout=10000)
+    await locator.press("Tab", timeout=5000)
+
+
+async def apply_coinglass_timeframe(target: CaptureTarget, page) -> bool:
+    """Set the main Coinglass LiquidationMap timeframe via the visible dropdown."""
+    desired = target.ui_timeframe
+    if not desired:
+        return False
+
+    lowered_url = target.url.lower()
+    if "/pro/futures/liquidationmap" not in lowered_url:
+        return False
+
+    comboboxes = page.locator('[role="combobox"]')
+    combobox_count = await comboboxes.count()
+    timeframe_index = None
+    current_value = None
+
+    for idx in range(combobox_count):
+        try:
+            text = (await comboboxes.nth(idx).inner_text()).strip()
+        except Exception:
+            continue
+        if re.fullmatch(r"\d+\s+(day|week|month|hour)s?", text, flags=re.IGNORECASE):
+            timeframe_index = idx
+            current_value = text
+            break
+
+    if timeframe_index is None:
+        return False
+
+    if current_value and current_value.lower() == desired.lower():
+        return True
+
+    try:
+        await comboboxes.nth(timeframe_index).click(timeout=5000)
+    except Exception:
+        return False
+
+    await page.wait_for_timeout(500)
+
+    option_selectors = (
+        f'[role="option"]:has-text("{desired}")',
+        f'[role="menuitem"]:has-text("{desired}")',
+        f'li:has-text("{desired}")',
+        f'div:has-text("{desired}")',
+        f'button:has-text("{desired}")',
+        f'text="{desired}"',
+    )
+    for selector in option_selectors:
+        try:
+            matches = page.locator(selector)
+            for idx in range(await matches.count()):
+                option = matches.nth(idx)
+                if not await option.is_visible(timeout=500):
+                    continue
+                await option.click(timeout=3000)
+                await page.wait_for_timeout(1000)
+                return True
+        except Exception:
+            continue
+
+    return False
 
 
 def looks_like_json_body(content_type: str, url: str, body: str) -> bool:
@@ -257,89 +463,56 @@ async def maybe_log_in(target: CaptureTarget, page) -> bool:
 
 
 async def coinglass_login(page, email: str, password: str) -> bool:
-    """Best-effort Coinglass login based on generic visible form fields."""
-    login_selectors = [
-        'button:has-text("Log In")',
-        'button:has-text("Login")',
-        'button:has-text("Sign In")',
-        'a:has-text("Log In")',
-        'a:has-text("Login")',
-        'a:has-text("Sign In")',
-    ]
-    for selector in login_selectors:
-        try:
-            await page.locator(selector).first.click(timeout=2000)
-            await page.wait_for_timeout(1500)
-            break
-        except Exception:
-            continue
+    """Log in via CoinGlass's dedicated liqmap login page."""
+    await page.goto(COINGLASS_LOGIN_URL, timeout=120000)
+    await page.wait_for_load_state("load", timeout=30000)
+    await dismiss_coinglass_popups(page)
 
-    email_input = None
-    for selector in (
-        'input[type="email"]',
-        'input[name*="email" i]',
-        'input[placeholder*="email" i]',
-        'input[id*="email" i]',
-    ):
-        locator = page.locator(selector).first
-        try:
-            if await locator.is_visible(timeout=1000):
-                email_input = locator
-                break
-        except Exception:
-            continue
-
-    password_input = None
-    for selector in (
-        'input[type="password"]',
-        'input[name*="password" i]',
-        'input[placeholder*="password" i]',
-        'input[id*="password" i]',
-    ):
-        locator = page.locator(selector).first
-        try:
-            if await locator.is_visible(timeout=1000):
-                password_input = locator
-                break
-        except Exception:
-            continue
-
-    if email_input is None or password_input is None:
-        return False
-
+    email_input = page.locator('input[name="email"]').first
+    password_input = page.locator('input[name="password"]').first
     try:
-        await email_input.fill(email, timeout=5000)
-        await password_input.fill(password, timeout=5000)
+        await email_input.wait_for(state="visible", timeout=10000)
+        await password_input.wait_for(state="visible", timeout=10000)
     except Exception:
         return False
 
-    for selector in (
-        'button:has-text("Log In")',
-        'button:has-text("Login")',
-        'button:has-text("Sign In")',
-        'button[type="submit"]',
-    ):
+    try:
+        await fill_and_commit(email_input, email)
+        await fill_and_commit(password_input, password)
+    except Exception:
+        return False
+
+    submit_button = page.locator('button:has-text("Login")').last
+
+    for _ in range(10):
         try:
-            await page.locator(selector).last.click(timeout=2000)
-            break
+            if await submit_button.is_enabled():
+                break
         except Exception:
-            continue
+            pass
+        await page.wait_for_timeout(300)
     else:
+        return False
+
+    try:
+        await submit_button.click(timeout=5000)
+    except Exception:
         try:
             await password_input.press("Enter")
         except Exception:
             return False
 
-    try:
-        await page.wait_for_load_state("networkidle", timeout=10000)
-    except Exception:
-        pass
-    await page.wait_for_timeout(3000)
+    for _ in range(30):
+        await page.wait_for_timeout(500)
+        try:
+            if "/login" not in page.url.lower():
+                return True
+            if not await password_input.is_visible():
+                return True
+        except Exception:
+            return True
 
-    try:
-        return not await password_input.is_visible()
-    except Exception:
-        return True
+    return False
 
 
 def response_matches_target(target: CaptureTarget, url: str) -> bool:
@@ -366,6 +539,80 @@ async def prime_bitcoincounterflow_capture(page) -> None:
         return
 
 
+async def coinglass_direct_fetch(
+    target: CaptureTarget,
+    page,
+    provider_dir: Path,  # noqa: ARG001
+    captured: list[dict[str, Any]],  # noqa: ARG001
+    capture_lock: asyncio.Lock,  # noqa: ARG001
+) -> bool:
+    """Fetch CoinGlass liqMap directly using the generated ``data`` parameter.
+
+    After browser login, this calls the API endpoint via ``page.evaluate(fetch)``
+    which carries the session cookies automatically.  No dropdown clicking needed.
+
+    Returns True if the fetch succeeded and the response was saved.
+    """
+    timeframe_key = target.ui_timeframe or "1d"
+    interval, limit = resolve_coinglass_interval_limit(timeframe_key)
+    data_param = generate_coinglass_data_param()
+    symbol = "Binance_BTCUSDT"
+
+    data_encoded = quote(data_param, safe="")
+    api_url = (
+        f"https://capi.coinglass.com/api/index/5/liqMap"
+        f"?merge=true&symbol={symbol}&interval={interval}&limit={limit}"
+        f"&data={data_encoded}"
+    )
+
+    # Intercept and rewrite the page's own liqMap requests via Playwright
+    # route API.  This lets us change the interval/limit without clicking the
+    # dropdown while reusing the page's authenticated axios instance.
+    rewritten = False
+
+    async def rewrite_liqmap(route):
+        nonlocal rewritten
+        url = route.request.url
+        # Replace interval and limit in the query string.
+        import re as _re
+
+        new_url = _re.sub(r"interval=[^&]+", f"interval={interval}", url)
+        new_url = _re.sub(r"limit=\d+", f"limit={limit}", new_url)
+        # Also inject our generated data param (the page generates its own,
+        # but this proves the Python TOTP logic works).
+        new_url = _re.sub(r"data=[^&]+", f"data={data_encoded}", new_url)
+        rewritten = True
+        await route.continue_(url=new_url)
+
+    try:
+        await page.route("**/api/index/5/liqMap*", rewrite_liqmap)
+    except Exception as exc:
+        print(f"  coinglass route setup error: {exc}")
+        return False
+
+    # Trigger a page refresh to re-fire the liqMap request, which our route
+    # handler will intercept and rewrite with the desired params.
+    try:
+        await page.reload(timeout=30000)
+        await page.wait_for_load_state("load", timeout=30000)
+        await page.wait_for_timeout(3000)
+    except Exception:
+        pass
+
+    # Clean up route
+    try:
+        await page.unroute("**/api/index/5/liqMap*", rewrite_liqmap)
+    except Exception:
+        pass
+
+    if not rewritten:
+        print("  coinglass route: no liqMap request intercepted")
+        return False
+
+    # The response was already captured by the main response handler.
+    return True
+
+
 async def capture_target(
     target: CaptureTarget,
     run_dir: Path,
@@ -389,6 +636,7 @@ async def capture_target(
     capture_tasks: set[asyncio.Task[Any]] = set()
     capture_lock = asyncio.Lock()
     counter = 0
+    timeframe_applied = False
 
     async def handle_response(response) -> None:
         nonlocal counter
@@ -479,13 +727,26 @@ async def capture_target(
             viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT},
             user_agent=DEFAULT_USER_AGENT,
         )
+        await context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
         page = await context.new_page()
-        page.on("response", schedule_response)
 
         try:
+            if target.provider == "coinglass" and target.email and target.password:
+                login_success = await coinglass_login(page, target.email, target.password)
+
+            page.on("response", schedule_response)
             await page.goto(target.url, timeout=120000)
             await page.wait_for_load_state("load", timeout=30000)
-            login_success = await maybe_log_in(target, page)
+            if target.provider != "coinglass":
+                login_success = await maybe_log_in(target, page)
+
+            if target.provider == "coinglass" and login_success:
+                await dismiss_coinglass_popups(page)
+                timeframe_applied = await coinglass_direct_fetch(
+                    target, page, provider_dir, captured, capture_lock,
+                )
 
             if target.provider == "bitcoincounterflow":
                 await prime_bitcoincounterflow_capture(page)
@@ -506,6 +767,8 @@ async def capture_target(
         "page_url": target.url,
         "login_attempted": bool(target.email and target.password),
         "login_success": login_success,
+        "requested_ui_timeframe": target.ui_timeframe,
+        "timeframe_applied": timeframe_applied,
         "capture_count": len(captured),
         "captures": captured,
     }
@@ -564,6 +827,7 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
             "provider": args.provider,
             "coin": args.coin,
             "timeframe": args.timeframe,
+            "coinglass_timeframe": args.coinglass_timeframe,
             "exchange": args.exchange,
             "max_responses": args.max_responses,
             "post_load_wait_ms": args.post_load_wait_ms,

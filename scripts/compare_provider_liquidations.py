@@ -26,6 +26,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -150,6 +151,15 @@ class NormalizedDataset:
         data = asdict(self)
         data.pop("parse_score", None)
         return data
+
+
+@dataclass
+class ProviderHints:
+    """Auxiliary per-provider metadata derived from non-liquidation captures."""
+
+    current_price: float | None = None
+    current_price_source_url: str | None = None
+    current_price_note: str | None = None
 
 
 def utc_timestamp_slug() -> str:
@@ -319,6 +329,19 @@ def parse_query_params(url: str) -> dict[str, str]:
     return {key: values[0] for key, values in params.items() if values}
 
 
+def normalize_coinglass_symbol(raw_symbol: str | None) -> tuple[str | None, str | None]:
+    """Extract symbol/exchange from Coinglass params like Binance_BTCUSDT#heatmap."""
+    if not raw_symbol:
+        return None, None
+
+    cleaned = raw_symbol.split("#", 1)[0]
+    if "_" not in cleaned:
+        return cleaned, None
+
+    exchange, symbol = cleaned.split("_", 1)
+    return symbol or None, exchange or None
+
+
 def resolve_coinglass_bundle_path() -> Path | None:
     """Find a local Coinglass frontend bundle that contains CryptoJS and pako."""
     env_path = os.environ.get("COINGLASS_APP_BUNDLE")
@@ -354,16 +377,26 @@ def decode_coinglass_ciphertext(
     if not COINGLASS_DECODER_SCRIPT.exists():
         return None, f"Decoder helper missing: {COINGLASS_DECODER_SCRIPT}"
 
-    ciphertext_b64 = base64.b64encode(ciphertext.encode("utf-8")).decode("ascii")
+    temp_path: Path | None = None
     try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            delete=False,
+            prefix="coinglass-ciphertext-",
+            suffix=".txt",
+        ) as handle:
+            handle.write(ciphertext)
+            temp_path = Path(handle.name)
+
         result = subprocess.run(
             [
                 "node",
                 str(COINGLASS_DECODER_SCRIPT),
                 "--bundle",
                 str(bundle_path),
-                "--ciphertext-b64",
-                ciphertext_b64,
+                "--ciphertext-file",
+                str(temp_path),
                 "--key",
                 key,
             ],
@@ -375,6 +408,12 @@ def decode_coinglass_ciphertext(
         return None, "node is not installed"
     except Exception as exc:
         return None, str(exc)
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
     if result.returncode != 0:
         stderr = result.stderr.strip()
@@ -403,6 +442,130 @@ def derive_coinglass_seed_key(capture: CaptureFile) -> tuple[str | None, str]:
 
     derived = base64.b64encode(seed_source.encode("utf-8")).decode("ascii")[:16]
     return derived, f"Derived seed key from Coinglass header/path flow (v={version})."
+
+
+def decode_coinglass_json_payload(
+    capture: CaptureFile,
+) -> tuple[Any | None, list[str]]:
+    """Decode a Coinglass encrypted payload into JSON when headers are available."""
+    root = capture.payload
+    if not isinstance(root, dict):
+        return None, ["Coinglass capture payload root is not a JSON object."]
+
+    encoded = root.get("data")
+    if not isinstance(encoded, str) or not encoded:
+        return None, ["Coinglass capture does not expose an encoded string in `data`."]
+
+    bundle_path = resolve_coinglass_bundle_path()
+    notes: list[str] = []
+
+    if capture.response_headers.get("user") and bundle_path is not None:
+        seed_key, seed_note = derive_coinglass_seed_key(capture)
+        notes.append(seed_note)
+        if seed_key is None:
+            return None, notes
+
+        payload_key, key_error = decode_coinglass_ciphertext(
+            ciphertext=capture.response_headers["user"],
+            key=seed_key,
+            bundle_path=bundle_path,
+        )
+        if payload_key is None:
+            notes.append(f"User-key decode failed: {key_error}")
+            return None, notes
+
+        decoded_text, decoded_error = decode_coinglass_ciphertext(
+            ciphertext=encoded,
+            key=payload_key.strip(),
+            bundle_path=bundle_path,
+        )
+        if decoded_text is None:
+            notes.append(f"Payload decode failed: {decoded_error}")
+            return None, notes
+
+        try:
+            decoded_payload = json.loads(decoded_text)
+        except Exception as exc:
+            notes.append(f"Decoded text was not JSON: {exc}")
+            return None, notes
+
+        notes.insert(
+            0,
+            (
+                "Decoded from Coinglass encrypted payload using captured response headers "
+                "plus bundled frontend CryptoJS/pako."
+            ),
+        )
+        return decoded_payload, notes
+
+    if capture.response_headers.get("user") and bundle_path is None:
+        notes.append(
+            "Coinglass response headers include `user`, but no local `_app-*.js` bundle was "
+            "found to load the site decoder. Set COINGLASS_APP_BUNDLE or keep the bundle in /tmp."
+        )
+    elif bundle_path is not None:
+        notes.append(
+            "A local Coinglass bundle is available, but this capture has no `user` response "
+            "header, so the two-stage decrypt key cannot be derived."
+        )
+    else:
+        notes.append(
+            "No Coinglass response headers or local bundle are available for numeric decode."
+        )
+
+    return None, notes
+
+
+def extract_coinglass_price_hint(capture: CaptureFile) -> tuple[float | None, str | None, int]:
+    """Extract a current-price hint from Coinglass ticker/kline endpoints."""
+    lowered_url = capture.source_url.lower()
+    if "coinglass.com" not in lowered_url:
+        return None, None, 0
+    if "/api/ticker" not in lowered_url and "/api/v2/kline" not in lowered_url:
+        return None, None, 0
+
+    decoded_payload, _ = decode_coinglass_json_payload(capture)
+    if decoded_payload is None:
+        return None, None, 0
+
+    if "/api/ticker" in lowered_url and isinstance(decoded_payload, dict):
+        price = safe_float(decoded_payload.get("price"))
+        if price is not None:
+            return price, "Coinglass /api/ticker price", 100
+
+    if "/api/v2/kline" in lowered_url and isinstance(decoded_payload, list) and decoded_payload:
+        last_row = decoded_payload[-1]
+        if isinstance(last_row, list) and len(last_row) >= 5:
+            price = safe_float(last_row[4])
+            if price is not None:
+                return price, "Coinglass /api/v2/kline close", 90
+
+    return None, None, 0
+
+
+def build_provider_hints(captures: list[CaptureFile]) -> dict[str, ProviderHints]:
+    """Derive auxiliary provider hints from the full capture set."""
+    hints_by_provider: dict[str, ProviderHints] = {}
+    score_by_provider: dict[str, int] = {}
+
+    for capture in captures:
+        price, note, score = extract_coinglass_price_hint(capture)
+        if price is None or score <= 0:
+            continue
+
+        provider = capture.provider
+        existing_score = score_by_provider.get(provider, -1)
+        if score < existing_score:
+            continue
+
+        score_by_provider[provider] = score
+        hints_by_provider[provider] = ProviderHints(
+            current_price=price,
+            current_price_source_url=capture.source_url,
+            current_price_note=note,
+        )
+
+    return hints_by_provider
 
 
 def try_parse_coinglass_decoded_payload(
@@ -445,6 +608,257 @@ def parse_coinglass_decoded_payload(
     """Parse known decoded Coinglass payload shapes into numeric summaries."""
     lowered_url = capture.source_url.lower()
     params = parse_query_params(capture.source_url)
+
+    if (
+        "/api/index/v5/liqmap" in lowered_url
+        or "/api/index/5/liqmap" in lowered_url
+    ) and isinstance(payload, dict):
+        instrument = payload.get("instrument")
+        current_price = safe_float(payload.get("lastPrice"))
+        liq_map_v2 = payload.get("liqMapV2")
+
+        if isinstance(liq_map_v2, dict) and liq_map_v2:
+            price_totals: dict[float, float] = {}
+            cluster_count = 0
+
+            for raw_bucket_price, raw_rows in liq_map_v2.items():
+                bucket_price = safe_float(raw_bucket_price)
+                if bucket_price is None or not isinstance(raw_rows, list):
+                    continue
+
+                bucket_total = 0.0
+                for row in raw_rows:
+                    if not isinstance(row, list) or len(row) < 2:
+                        continue
+                    cluster_value = safe_float(row[1]) or 0.0
+                    if cluster_value <= 0:
+                        continue
+                    bucket_total += cluster_value
+                    cluster_count += 1
+
+                if bucket_total > 0:
+                    price_totals[bucket_price] = bucket_total
+
+            if price_totals:
+                symbol, exchange = normalize_coinglass_symbol(params.get("symbol"))
+                if isinstance(instrument, dict):
+                    symbol = (
+                        instrument.get("instrumentId")
+                        or instrument.get("baseAsset")
+                        or symbol
+                    )
+                    exchange = instrument.get("exName") or exchange
+
+                split_note: str
+                if current_price is None:
+                    observed_prices = sorted(price_totals)
+                    current_price = (observed_prices[0] + observed_prices[-1]) / 2
+                    split_note = (
+                        "No lastPrice was present in the decoded payload; below/above-price "
+                        "totals were split around the midpoint of the visible price range."
+                    )
+                else:
+                    split_note = (
+                        f"Below/above-price totals were split around decoded lastPrice "
+                        f"{current_price:.4f}."
+                    )
+
+                below_price_values = [
+                    value for price, value in price_totals.items() if price <= current_price
+                ]
+                above_price_values = [
+                    value for price, value in price_totals.items() if price > current_price
+                ]
+
+                interval = params.get("interval")
+                limit = params.get("limit")
+                timeframe = None
+                if interval and limit:
+                    liqmap_window_labels = {
+                        ("1", "1500"): "1 day",
+                        ("5", "2000"): "7 day",
+                    }
+                    timeframe = liqmap_window_labels.get((interval, limit), f"{interval}_x{limit}")
+                elif interval:
+                    timeframe = interval
+
+                notes = [
+                    decode_note,
+                    "Coinglass pro /api/index/v5/liqMap returns a price-bucket liquidation map under `liqMapV2`.",
+                    "Each `liqMapV2[price]` entry is a list of clusters shaped like [price, value, leverage, heat_band].",
+                    (
+                        f"This normalization sums cluster values inside each top-level bucket; "
+                        f"{len(price_totals)} active buckets and {cluster_count} clusters were present."
+                    ),
+                    split_note,
+                    "Values are treated as USD-notional based on endpoint semantics and magnitude.",
+                ]
+
+                return NormalizedDataset(
+                    provider=capture.provider,
+                    source_url=capture.source_url,
+                    saved_file=str(capture.saved_file),
+                    dataset_kind="liquidation_heatmap",
+                    structure="price_bins",
+                    unit="usd_notional",
+                    symbol=symbol,
+                    exchange=exchange,
+                    timeframe=timeframe,
+                    bucket_count=len(price_totals),
+                    total_long=sum(below_price_values),
+                    total_short=sum(above_price_values),
+                    peak_long=max(below_price_values, default=0.0),
+                    peak_short=max(above_price_values, default=0.0),
+                    current_price=current_price,
+                    price_step_median=median_step(list(price_totals)),
+                    time_step_median_ms=None,
+                    notes=notes,
+                    parse_score=103,
+                )
+
+    if "/api/index/v5/liqheatmap" in lowered_url and isinstance(payload, dict):
+        instrument = payload.get("instrument")
+        price_rows = payload.get("prices")
+        y_axis = payload.get("y")
+        liq_rows = payload.get("liq")
+
+        if (
+            isinstance(price_rows, list)
+            and isinstance(y_axis, list)
+            and isinstance(liq_rows, list)
+            and price_rows
+            and y_axis
+            and liq_rows
+        ):
+            latest_x_index: int | None = None
+            for row in liq_rows:
+                if not isinstance(row, list) or len(row) < 3:
+                    continue
+                x_idx = safe_float(row[0])
+                if x_idx is None or not x_idx.is_integer():
+                    continue
+                candidate = int(x_idx)
+                if latest_x_index is None or candidate > latest_x_index:
+                    latest_x_index = candidate
+
+            if latest_x_index is not None:
+                timestamps: list[float] = []
+                current_price = None
+                for row in price_rows:
+                    if not isinstance(row, list) or len(row) < 5:
+                        continue
+                    timestamp = safe_float(row[0])
+                    if timestamp is not None:
+                        timestamps.append(timestamp)
+                    close_price = safe_float(row[4])
+                    if close_price is not None:
+                        current_price = close_price
+
+                price_totals: dict[float, float] = {}
+                active_cells = 0
+                for row in liq_rows:
+                    if not isinstance(row, list) or len(row) < 3:
+                        continue
+                    x_idx = safe_float(row[0])
+                    y_idx = safe_float(row[1])
+                    value = safe_float(row[2]) or 0.0
+                    if (
+                        x_idx is None
+                        or y_idx is None
+                        or not x_idx.is_integer()
+                        or not y_idx.is_integer()
+                        or int(x_idx) != latest_x_index
+                        or value <= 0
+                    ):
+                        continue
+
+                    y_position = int(y_idx)
+                    if y_position < 0 or y_position >= len(y_axis):
+                        continue
+
+                    price = safe_float(y_axis[y_position])
+                    if price is None:
+                        continue
+
+                    price_totals[price] = price_totals.get(price, 0.0) + value
+                    active_cells += 1
+
+                if price_totals:
+                    symbol, exchange = normalize_coinglass_symbol(params.get("symbol"))
+                    if isinstance(instrument, dict):
+                        symbol = (
+                            instrument.get("instrumentId")
+                            or instrument.get("baseAsset")
+                            or symbol
+                        )
+                        exchange = instrument.get("exName") or exchange
+
+                    split_note: str
+                    if current_price is None:
+                        observed_prices = sorted(price_totals)
+                        current_price = (observed_prices[0] + observed_prices[-1]) / 2
+                        split_note = (
+                            "No close price was available from the companion price rows; "
+                            "below/above-price totals were split around the midpoint of "
+                            "the visible price range."
+                        )
+                    else:
+                        split_note = (
+                            f"Below/above-price totals were split around the latest visible "
+                            f"close price {current_price:.4f}."
+                        )
+
+                    below_price_values = [
+                        value for price, value in price_totals.items() if price <= current_price
+                    ]
+                    above_price_values = [
+                        value for price, value in price_totals.items() if price > current_price
+                    ]
+
+                    interval = params.get("interval")
+                    limit = params.get("limit")
+                    timeframe = None
+                    if interval and limit:
+                        timeframe = f"{interval}m_x{limit}"
+                    elif interval:
+                        timeframe = interval
+
+                    notes = [
+                        decode_note,
+                        "Coinglass pro /api/index/v5/liqHeatMap returns a sparse liquidation grid as [x_index, y_index, value].",
+                        "This normalization uses the latest visible x-column only, which best approximates the current heatmap state.",
+                        (
+                            f"Visible grid in this capture: {len(price_rows)} time columns x "
+                            f"{len(y_axis)} price rows; latest x index {latest_x_index} "
+                            f"contributed {active_cells} active cells."
+                        ),
+                        split_note,
+                        "Values are treated as USD-notional based on endpoint semantics and magnitude.",
+                    ]
+
+                    return NormalizedDataset(
+                        provider=capture.provider,
+                        source_url=capture.source_url,
+                        saved_file=str(capture.saved_file),
+                        dataset_kind="liquidation_heatmap",
+                        structure="price_bins",
+                        unit="usd_notional",
+                        symbol=symbol,
+                        exchange=exchange,
+                        timeframe=timeframe,
+                        bucket_count=len(price_totals),
+                        total_long=sum(below_price_values),
+                        total_short=sum(above_price_values),
+                        peak_long=max(below_price_values, default=0.0),
+                        peak_short=max(above_price_values, default=0.0),
+                        current_price=current_price,
+                        price_step_median=median_step(list(price_totals)),
+                        time_step_median_ms=(
+                            median_step(timestamps) * 1000 if timestamps else None
+                        ),
+                        notes=notes,
+                        parse_score=101,
+                    )
 
     if "/api/futures/liquidation/chart" in lowered_url and isinstance(payload, list):
         long_values: list[float] = []
@@ -569,6 +983,127 @@ def parse_coinglass_decoded_payload(
     return None
 
 
+def parse_coinglass_liquidity_heatmap(
+    capture: CaptureFile,
+    hints: ProviderHints | None = None,
+) -> NormalizedDataset | None:
+    """Parse Coinglass's public /LiquidityHeatmap 2D liquidity grid."""
+    lowered_url = capture.source_url.lower()
+    if "/liquidity-heatmap/api/liquidity/v4/heatmap" not in lowered_url:
+        return None
+
+    root = capture.payload
+    if not isinstance(root, dict):
+        return None
+
+    data = root.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    grid = data.get("data")
+    if not isinstance(grid, list) or not grid:
+        return None
+
+    price_totals: dict[float, float] = {}
+    timestamps_seconds: list[float] = []
+    point_count = 0
+
+    for row in grid:
+        if not isinstance(row, list) or len(row) < 2:
+            continue
+
+        timestamp = safe_float(row[0])
+        if timestamp is not None:
+            timestamps_seconds.append(timestamp)
+
+        points = row[1]
+        if not isinstance(points, list):
+            continue
+
+        for point in points:
+            if not isinstance(point, list) or len(point) < 2:
+                continue
+            price = safe_float(point[0])
+            value = safe_float(point[1]) or 0.0
+            if price is None or value <= 0:
+                continue
+            price_totals[price] = price_totals.get(price, 0.0) + value
+            point_count += 1
+
+    if not price_totals:
+        return None
+
+    params = parse_query_params(capture.source_url)
+    symbol, exchange = normalize_coinglass_symbol(params.get("symbol"))
+    if exchange is None:
+        exchange = params.get("exName")
+
+    current_price = hints.current_price if hints is not None else None
+    split_note: str
+    if current_price is None:
+        observed_prices = sorted(price_totals)
+        current_price = (observed_prices[0] + observed_prices[-1]) / 2
+        split_note = (
+            "No companion ticker/kline price was available; below/above-price totals were "
+            "split around the midpoint of the observed price range."
+        )
+    else:
+        source_label = (
+            hints.current_price_note or "a companion Coinglass ticker/kline capture"
+        )
+        split_note = (
+            f"Below/above-price totals were split around current price {current_price:.4f} "
+            f"from {source_label}."
+        )
+
+    below_price_values = [
+        value for price, value in price_totals.items() if price <= current_price
+    ]
+    above_price_values = [
+        value for price, value in price_totals.items() if price > current_price
+    ]
+
+    time_step_seconds = median_step(timestamps_seconds)
+    notes = [
+        "Coinglass /LiquidityHeatmap returns a 2D [timestamp, [[price, intensity], ...]] liquidity grid.",
+        "This is a liquidity heatmap, not a liquidation heatmap; it should not be compared 1:1 with liquidation maps.",
+        "Values were collapsed across time into one aggregate per price bin for cross-provider shape comparison.",
+        split_note,
+    ]
+    if hints is not None and hints.current_price_source_url:
+        notes.append(f"Current-price hint source: {hints.current_price_source_url}")
+    if data.get("size") is not None:
+        notes.append(f"Provider heatmap size metadata: {data.get('size')}")
+    if safe_float(data.get("max")) is not None:
+        notes.append(f"Provider max cell intensity: {safe_float(data.get('max')):.3f}")
+
+    base_score = 92
+    if "startTime" in params:
+        base_score += 1
+
+    return NormalizedDataset(
+        provider=capture.provider,
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        dataset_kind="liquidity_heatmap",
+        structure="time_price_grid",
+        unit="relative_density",
+        symbol=symbol,
+        exchange=exchange,
+        timeframe=params.get("interval"),
+        bucket_count=len(price_totals),
+        total_long=sum(below_price_values),
+        total_short=sum(above_price_values),
+        peak_long=max(below_price_values, default=0.0),
+        peak_short=max(above_price_values, default=0.0),
+        current_price=current_price,
+        price_step_median=median_step(list(price_totals)),
+        time_step_median_ms=(time_step_seconds * 1000) if time_step_seconds is not None else None,
+        notes=notes,
+        parse_score=base_score,
+    )
+
+
 def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
     """Parse CoinAnk's aggregated liquidation map endpoint."""
     if "/api/liqMap/getAggLiqMap" not in capture.source_url:
@@ -651,6 +1186,106 @@ def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
     )
 
 
+def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
+    """Parse CoinAnk's symbol-specific liquidation map with explicit leverage ladders."""
+    if "/api/liqMap/getLiqMap" not in capture.source_url:
+        return None
+
+    root = capture.payload
+    data = root.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    prices_raw = data.get("prices")
+    if not isinstance(prices_raw, list) or not prices_raw:
+        return None
+
+    leverage_keys = sorted(
+        [
+            key
+            for key, value in data.items()
+            if re.fullmatch(r"x\d+", key) and isinstance(value, list) and len(value) == len(prices_raw)
+        ],
+        key=lambda key: int(key[1:]),
+    )
+    if not leverage_keys:
+        return None
+
+    current_price = safe_float(data.get("lastPrice"))
+    last_index_raw = data.get("lastIndex")
+    last_index = None
+    if isinstance(last_index_raw, (int, float)):
+        numeric_last_index = float(last_index_raw)
+        if math.isfinite(numeric_last_index) and numeric_last_index.is_integer():
+            last_index = int(numeric_last_index)
+
+    all_prices: list[float] = []
+    long_values: list[float] = []
+    short_values: list[float] = []
+    active_bins = 0
+
+    for idx, raw_price in enumerate(prices_raw):
+        price = safe_float(raw_price)
+        if price is None:
+            continue
+        all_prices.append(price)
+
+        value = 0.0
+        for leverage_key in leverage_keys:
+            value += safe_float(data[leverage_key][idx]) or 0.0
+
+        if value <= 0:
+            continue
+        active_bins += 1
+
+        if last_index is not None:
+            if idx <= last_index:
+                long_values.append(value)
+            else:
+                short_values.append(value)
+        elif current_price is not None and price <= current_price:
+            long_values.append(value)
+        elif current_price is not None and price > current_price:
+            short_values.append(value)
+        else:
+            long_values.append(value)
+
+    params = parse_query_params(capture.source_url)
+    notes = [
+        (
+            "CoinAnk getLiqMap returns a symbol-specific price grid plus leverage ladders "
+            f"({', '.join(leverage_keys)})."
+        ),
+        "The public payload starts at x25 and omits x5/x10, so low-leverage tiers are not part of this series.",
+    ]
+    if last_index is not None:
+        notes.append("Long and short totals are split using CoinAnk's `lastIndex` pivot.")
+    else:
+        notes.append("Long and short totals are inferred by splitting bins around `lastPrice`.")
+
+    return NormalizedDataset(
+        provider=capture.provider,
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        dataset_kind="liquidation_heatmap",
+        structure="price_bins",
+        unit="usd_notional",
+        symbol=data.get("symbol") or params.get("symbol"),
+        exchange=params.get("exchange"),
+        timeframe=params.get("interval"),
+        bucket_count=active_bins,
+        total_long=sum(long_values),
+        total_short=sum(short_values),
+        peak_long=max(long_values, default=0.0),
+        peak_short=max(short_values, default=0.0),
+        current_price=current_price,
+        price_step_median=median_step(all_prices),
+        time_step_median_ms=None,
+        notes=notes,
+        parse_score=98,
+    )
+
+
 def parse_bitcoincounterflow_liquidations(capture: CaptureFile) -> NormalizedDataset | None:
     """Parse the known Bitcoin CounterFlow /api/liquidations shape."""
     if "/api/liquidations" not in capture.source_url:
@@ -728,60 +1363,21 @@ def parse_coinglass_encrypted_liquidations(capture: CaptureFile) -> NormalizedDa
     if not isinstance(encoded, str) or not encoded:
         return None
 
-    bundle_path = resolve_coinglass_bundle_path()
-    decode_notes: list[str] = []
-    if capture.response_headers.get("user") and bundle_path is not None:
-        seed_key, seed_note = derive_coinglass_seed_key(capture)
-        decode_notes.append(seed_note)
-        if seed_key is not None:
-            payload_key, key_error = decode_coinglass_ciphertext(
-                ciphertext=capture.response_headers["user"],
-                key=seed_key,
-                bundle_path=bundle_path,
-            )
-            if payload_key is None:
-                decode_notes.append(f"User-key decode failed: {key_error}")
-            else:
-                decoded_text, decoded_error = decode_coinglass_ciphertext(
-                    ciphertext=encoded,
-                    key=payload_key.strip(),
-                    bundle_path=bundle_path,
-                )
-                if decoded_text is None:
-                    decode_notes.append(f"Payload decode failed: {decoded_error}")
-                else:
-                    try:
-                        decoded_payload = json.loads(decoded_text)
-                    except Exception as exc:
-                        decode_notes.append(f"Decoded text was not JSON: {exc}")
-                    else:
-                        parsed = try_parse_coinglass_decoded_payload(
-                            capture=capture,
-                            payload=decoded_payload,
-                            decode_note=(
-                                "Decoded from Coinglass encrypted payload using captured "
-                                "response headers plus bundled frontend CryptoJS/pako."
-                            ),
-                        )
-                        if parsed is not None:
-                            return parsed
-                        decode_notes.append(
-                            "Decoded Coinglass JSON was captured, but it did not match a known "
-                            "numeric liquidation schema yet."
-                        )
-    elif capture.response_headers.get("user") and bundle_path is None:
-        decode_notes.append(
-            "Coinglass response headers include `user`, but no local `_app-*.js` bundle was "
-            "found to load the site decoder. Set COINGLASS_APP_BUNDLE or keep the bundle in /tmp."
+    decoded_payload, decode_notes = decode_coinglass_json_payload(capture)
+    if decoded_payload is not None:
+        decode_note = decode_notes[0] if decode_notes else "Decoded Coinglass payload."
+        parsed = try_parse_coinglass_decoded_payload(
+            capture=capture,
+            payload=decoded_payload,
+            decode_note=decode_note,
         )
-    elif bundle_path is not None:
+        if parsed is not None:
+            if len(decode_notes) > 1:
+                parsed.notes[1:1] = decode_notes[1:]
+            return parsed
         decode_notes.append(
-            "A local Coinglass bundle is available, but this capture has no `user` response "
-            "header, so the two-stage decrypt key cannot be derived."
-        )
-    else:
-        decode_notes.append(
-            "No Coinglass response headers or local bundle are available for numeric decode."
+            "Decoded Coinglass JSON was captured, but it did not match a known "
+            "numeric liquidation schema yet."
         )
 
     decoded_size = None
@@ -1029,15 +1625,22 @@ def parse_parallel_price_arrays(capture: CaptureFile) -> NormalizedDataset | Non
     )
 
 
-def parse_capture(capture: CaptureFile) -> NormalizedDataset | None:
+def parse_capture(
+    capture: CaptureFile,
+    hints: ProviderHints | None = None,
+) -> NormalizedDataset | None:
     """Try all known parsers in priority order."""
-    for parser in (
-        parse_coinank_agg_liq_map,
-        parse_bitcoincounterflow_liquidations,
-        parse_coinglass_encrypted_liquidations,
-        parse_record_series,
-        parse_parallel_price_arrays,
-    ):
+    parser_chain = (
+        lambda current: parse_coinank_liq_map(current),
+        lambda current: parse_coinank_agg_liq_map(current),
+        lambda current: parse_bitcoincounterflow_liquidations(current),
+        lambda current: parse_coinglass_liquidity_heatmap(current, hints),
+        lambda current: parse_coinglass_encrypted_liquidations(current),
+        lambda current: parse_record_series(current),
+        lambda current: parse_parallel_price_arrays(current),
+    )
+
+    for parser in parser_chain:
         parsed = parser(capture)
         if parsed is not None:
             return parsed
@@ -1048,9 +1651,10 @@ def choose_best_datasets(captures: list[CaptureFile]) -> tuple[dict[str, Normali
     """Pick the strongest normalized dataset per provider."""
     best_by_provider: dict[str, NormalizedDataset] = {}
     skipped_by_provider: dict[str, list[str]] = {}
+    hints_by_provider = build_provider_hints(captures)
 
     for capture in captures:
-        parsed = parse_capture(capture)
+        parsed = parse_capture(capture, hints_by_provider.get(capture.provider))
         if parsed is None:
             if re.search(r"liq|liquidat|heatmap", capture.source_url, re.IGNORECASE):
                 skipped_by_provider.setdefault(capture.provider, []).append(capture.source_url)
@@ -1078,15 +1682,44 @@ def ratio(numerator: float, denominator: float) -> float | None:
     return numerator / denominator
 
 
+def canonicalize_timeframe(value: str | None) -> str | None:
+    """Normalize common timeframe aliases before pairwise comparison."""
+    if not value:
+        return None
+
+    lowered = value.strip().lower()
+    alias_map = {
+        "1d": "1d",
+        "1 day": "1d",
+        "24h": "1d",
+        "7d": "1w",
+        "1w": "1w",
+        "7 day": "1w",
+        "1m": "1m",
+        "30d": "1m",
+        "30 day": "1m",
+        "1 month": "1m",
+        "3m": "3m",
+        "90d": "3m",
+        "90 day": "3m",
+        "6m": "6m",
+        "180d": "6m",
+        "180 day": "6m",
+    }
+    return alias_map.get(lowered, lowered)
+
+
 def compare_pair(left: NormalizedDataset, right: NormalizedDataset) -> dict[str, Any]:
     """Compare two normalized datasets."""
+    left_timeframe = canonicalize_timeframe(left.timeframe)
+    right_timeframe = canonicalize_timeframe(right.timeframe)
     return {
         "providers": [left.provider, right.provider],
         "dataset_kind_match": left.dataset_kind == right.dataset_kind,
         "structure_match": left.structure == right.structure,
         "unit_match": left.unit == right.unit,
         "symbol_match": (left.symbol or "").upper() == (right.symbol or "").upper(),
-        "timeframe_match": left.timeframe == right.timeframe,
+        "timeframe_match": left_timeframe == right_timeframe,
         "bucket_count_ratio": ratio(float(left.bucket_count), float(right.bucket_count)),
         "long_total_ratio": ratio(left.total_long, right.total_long),
         "short_total_ratio": ratio(left.total_short, right.total_short),

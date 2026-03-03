@@ -130,18 +130,86 @@ validation DuckDB (`data/validation/validation_results.duckdb`). Use
 ### CoinAnk
 
 - Capture is page-driven and reuses the existing CoinAnk login flow.
-- `getAggLiqMap` is parsed explicitly.
-- The remaining limitation is semantic, not structural: the endpoint exposes
-  one magnitude array per exchange, so long/short are still inferred by
-  splitting around `lastPrice`.
-- A better CoinAnk source is still worth finding if it exposes separate
-  long/short ladders.
+- The public page now shows two relevant liq-map endpoints:
+  - `getLiqMap?exchange=...&symbol=...&interval=...`
+  - `getAggLiqMap?baseCoin=...&interval=...`
+- `getLiqMap` is now the preferred parser because it is symbol-specific and
+  exposes explicit leverage ladders on the public payload (`x25` through `x100`).
+- Those public ladders do **not** include `x5` or `x10`, which is a concrete
+  explanation for why CoinAnk can look materially smaller than a model that
+  includes low-leverage tiers.
+- Even on `getLiqMap`, long/short are still inferred structurally by splitting
+  the shared price grid at `lastIndex` (or `lastPrice` as fallback), because the
+  payload does not expose separate long and short arrays.
+- `getAggLiqMap` remains useful as a fallback, but it is now secondary.
 
 ### Coinglass
 
 - Capture requires an explicit `--coinglass-url`.
-- Login support is best-effort.
-- The current public endpoints often return an encoded string in `data`.
+- The project now supports authenticated Coinglass capture via
+  `dotenvx run -f /media/sam/1TB/.env -- ...` using:
+  - `COINGLASS_USER_LOGIN`
+  - `COINGLASS_USER_PASSWORD`
+- Headless capture must mask `navigator.webdriver`; otherwise Coinglass can
+  return a misleading `404 Not Found` instead of the real page.
+- The default capture target remains the public
+  `https://www.coinglass.com/LiquidationData` page.
+- The apples-to-apples route for CoinAnk `liq-map` is now:
+  - `https://www.coinglass.com/pro/futures/LiquidationMap`
+- That route does **not** encode the timeframe in the URL.
+- The script now applies the timeframe via the first visible timeframe dropdown
+  on the page and records the result in the manifest as:
+  - `requested_ui_timeframe`
+  - `timeframe_applied`
+- Current CLI-to-UI mapping for `LiquidationMap`:
+  - `1d -> 1 day`
+  - `1w -> 7 day`
+  - `1M -> 30 day`
+  - `3M -> 90 day`
+  - `6M -> 180 day`
+- On `1w`, the page first loads the default `1 day` request, then emits a
+  second authenticated request after the dropdown changes. The comparison
+  script keeps the later, higher-priority capture because it appears later in
+  the manifest with the same parse score.
+- The provider-specific BTCUSDT liquidation map endpoint is:
+  - `capi.coinglass.com/api/index/5/liqMap?...`
+- Once decoded, the payload exposes:
+  - `lastPrice`
+  - `instrument`
+  - `liqMapV2`
+- `liqMapV2` is a dictionary keyed by top-level price bucket, where each value
+  is a list of clusters shaped like `[price, value, leverage, heat_band]`.
+- The comparison script now parses this endpoint explicitly as
+  `liquidation_heatmap / price_bins` by summing the cluster values inside each
+  top-level bucket.
+- For the public BTCUSDT heatmap-style grid, use this explicit override:
+  - `--coinglass-url https://www.coinglass.com/LiquidityHeatmap`
+- That page exposes a direct 2D endpoint:
+  - `capi.coinglass.com/liquidity-heatmap/api/liquidity/v4/heatmap`
+- The endpoint shape is:
+  - `[timestamp_seconds, [[price, intensity], ...]]`
+- This route is a **liquidity** heatmap, not a liquidation heatmap. It is useful for
+  shape analysis and reverse engineering, but it is not a 1:1 substitute for a
+  liquidation map.
+- The comparison script now parses that 2D payload explicitly and collapses it
+  into aggregate per-price bins for rough cross-provider shape comparison.
+- It also derives `current_price` from companion Coinglass `ticker` or `kline`
+  captures in the same manifest, so the below-price / above-price split is not
+  guessed blindly.
+- The more relevant Coinglass route for heatmap-vs-heatmap work remains:
+  - `https://www.coinglass.com/pro/futures/LiquidationHeatMapNew`
+- That page calls:
+  - `capi.coinglass.com/api/index/v5/liqHeatMap?...`
+- The endpoint is encrypted, but the decoder now handles payloads large enough
+  for this route by passing ciphertext through a temp file instead of a CLI arg.
+- Once decoded, the payload exposes:
+  - `prices`: visible time columns
+  - `y`: price rows
+  - `liq`: sparse `[x_index, y_index, value]` cells
+- The comparison script now normalizes this endpoint by taking the latest
+  visible x-column only, which gives a current-state `price_bins` view that is
+  much closer to CoinAnk's `getLiqMap` than the public routes.
+- Other public Coinglass endpoints often return an encoded string in `data`.
 - `scripts/compare_provider_liquidations.py` now has a header-aware decode path
   for Coinglass, but it only works when the capture includes the required
   response headers and a local `_app-*.js` bundle is available.
@@ -179,22 +247,33 @@ The main missing pieces are:
 
 1. A better CoinAnk endpoint with explicit long/short separation
 2. Stable Coinglass captures that include whatever headers are required for
-   full numeric decode
-3. Schema-level comparison once at least two providers have stable captured
-   liquidation endpoints
+   full numeric decode on secondary endpoints such as `exLiqMap`
+3. A more precise understanding of Coinglass timeframe semantics on the pro
+   routes. `LiquidationMap` is now captured through the UI dropdown, but the
+   exact backend meaning of `interval/limit` still needs tighter documentation.
+   `LiquidationHeatMapNew` still uses the latest visible column, which is the
+   best current approximation of "current state", but the UI semantics may
+   still involve additional persistence rules.
 4. Optional historical aggregation across many capture runs
 
 Today, Bitcoin CounterFlow, CoinAnk, and Coinglass all have provider-specific
 parsers.
 
-CoinAnk now also has a provider-specific parser for `getAggLiqMap`, but its
-long/short split is still inferred by dividing bins around `lastPrice` because
-the endpoint exposes one magnitude array per exchange rather than separate long
-and short arrays.
+CoinAnk now has provider-specific parsers for both `getLiqMap` and
+`getAggLiqMap`.
 
-Coinglass now has a provider-specific parser for the current encoded response
-envelope plus a header-aware decode path, but numeric decoding still depends on
-capturing the provider headers that drive the site's decrypt flow.
+`getLiqMap` is preferred because it exposes symbol-level leverage ladders, but
+its long/short split is still inferred from the shared price grid because the
+payload does not expose separate long and short arrays.
+
+Coinglass now has:
+
+- a provider-specific parser for the public 2D `liquidity/v4/heatmap` payload
+- a provider-specific parser for the current encoded response envelope
+- a header-aware decode path for encrypted responses
+
+Numeric decoding of the encrypted responses still depends on capturing the
+provider headers that drive the site's decrypt flow.
 
 ## DuckDB: Needed or Not?
 

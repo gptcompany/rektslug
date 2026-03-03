@@ -8,6 +8,7 @@ function parseArgs(argv) {
   const parsed = {
     bundle: "",
     ciphertextB64: "",
+    ciphertextFile: "",
     key: "",
   };
 
@@ -27,15 +28,24 @@ function parseArgs(argv) {
       idx += 1;
       continue;
     }
+    if (current === "--ciphertext-file") {
+      parsed.ciphertextFile = next;
+      idx += 1;
+      continue;
+    }
     if (current === "--key") {
       parsed.key = next;
       idx += 1;
     }
   }
 
-  if (!parsed.bundle || !parsed.ciphertextB64 || !parsed.key) {
+  if (
+    !parsed.bundle ||
+    (!parsed.ciphertextB64 && !parsed.ciphertextFile) ||
+    !parsed.key
+  ) {
     throw new Error(
-      "Usage: coinglass_decode_payload.js --bundle <_app.js> --ciphertext-b64 <base64> --key <key>"
+      "Usage: coinglass_decode_payload.js --bundle <_app.js> (--ciphertext-b64 <base64> | --ciphertext-file <path>) --key <key>"
     );
   }
 
@@ -150,7 +160,12 @@ function decodePayload(bundlePath, ciphertext, key) {
 function main() {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const ciphertext = Buffer.from(args.ciphertextB64, "base64").toString("utf8");
+    let ciphertext = "";
+    if (args.ciphertextFile) {
+      ciphertext = fs.readFileSync(args.ciphertextFile, "utf8");
+    } else {
+      ciphertext = Buffer.from(args.ciphertextB64, "base64").toString("utf8");
+    }
     const text = decodePayload(args.bundle, ciphertext, args.key);
     process.stdout.write(text);
     return 0;
