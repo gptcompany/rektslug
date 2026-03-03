@@ -48,6 +48,19 @@ def fetch_rows(conn, query: str, params: list[object]) -> list[dict[str, object]
     return [dict(zip(columns, row)) for row in rows]
 
 
+def reciprocal_ratio(value: object) -> float | None:
+    """Return 1/value for non-zero numeric values."""
+    if value in (None, 0):
+        return None
+    try:
+        numeric = float(value)
+    except Exception:
+        return None
+    if numeric == 0:
+        return None
+    return 1.0 / numeric
+
+
 def build_report(conn, db_path: Path, limit: int) -> dict[str, object]:
     """Build the SQL-backed summary report."""
     recent_runs = fetch_rows(
@@ -236,11 +249,12 @@ def render_text(report: dict[str, object]) -> str:
     lines.append("")
     lines.append("Latest internal alignment")
     for row in report["latest_internal_alignment"]:
+        scale_factor = reciprocal_ratio(row["total_ratio"])
         lines.append(
             f"- {row['scenario_name']} | {row['run_id']} | "
             f"{row['left_provider']} vs {row['right_provider']} | "
-            f"total_ratio={row['total_ratio']} long_ratio={row['long_ratio']} "
-            f"short_ratio={row['short_ratio']}"
+            f"cosine={row['shape_cosine']} overlap={row['distribution_overlap']} "
+            f"scale_factor={scale_factor} total_ratio={row['total_ratio']}"
         )
 
     lines.append("")

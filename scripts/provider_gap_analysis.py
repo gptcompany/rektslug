@@ -951,6 +951,99 @@ def build_summary_findings(
     return findings
 
 
+def find_scenario(
+    scenarios: list[ScenarioMetrics],
+    scenario_name: str,
+) -> ScenarioMetrics | None:
+    """Return one scenario by name."""
+    for scenario in scenarios:
+        if scenario.scenario_name == scenario_name:
+            return scenario
+    return None
+
+
+def vendor_scale_factor_for_internal(scenario: ScenarioMetrics) -> float | None:
+    """Return the multiplicative factor that scales internal totals to the vendor total."""
+    if scenario.left_provider == "internal":
+        return ratio(scenario.right_total, scenario.left_total)
+    if scenario.right_provider == "internal":
+        return ratio(scenario.left_total, scenario.right_total)
+    return None
+
+
+def build_internal_alignment_summary(
+    scenarios: list[ScenarioMetrics],
+) -> dict[str, Any]:
+    """Build shape-first benchmark summary for internal vs vendor scenarios."""
+    internal_scenarios = [
+        scenario
+        for scenario in scenarios
+        if scenario.left_provider == "internal" or scenario.right_provider == "internal"
+    ]
+    if not internal_scenarios:
+        return {}
+
+    targets: dict[str, Any] = {}
+    best_shape_scenario: ScenarioMetrics | None = None
+    best_shape_score = -1.0
+
+    for scenario in internal_scenarios:
+        vendor = (
+            scenario.right_provider
+            if scenario.left_provider == "internal"
+            else scenario.left_provider
+        )
+        shape_cosine = scenario.shape_cosine
+        overlap = scenario.distribution_overlap
+        matched_ratio = scenario.matched_bucket_ratio
+        scale_factor = vendor_scale_factor_for_internal(scenario)
+
+        shape_components = [value for value in (shape_cosine, overlap) if value is not None]
+        shape_score = (
+            sum(shape_components) / len(shape_components)
+            if shape_components
+            else -1.0
+        )
+        if shape_score > best_shape_score:
+            best_shape_score = shape_score
+            best_shape_scenario = scenario
+
+        targets[vendor] = {
+            "scenario_name": scenario.scenario_name,
+            "primary_metrics": {
+                "shape_cosine": shape_cosine,
+                "distribution_overlap": overlap,
+                "matched_bucket_ratio": matched_ratio,
+            },
+            "secondary_metrics": {
+                "total_ratio": scenario.total_ratio,
+                "vendor_scale_factor": scale_factor,
+                "long_ratio": scenario.long_ratio,
+                "short_ratio": scenario.short_ratio,
+            },
+        }
+
+    best_vendor = None
+    if best_shape_scenario is not None:
+        best_vendor = (
+            best_shape_scenario.right_provider
+            if best_shape_scenario.left_provider == "internal"
+            else best_shape_scenario.left_provider
+        )
+
+    return {
+        "method": {
+            "primary": "shape_cosine + distribution_overlap",
+            "secondary": "vendor_scale_factor (derived from total_ratio)",
+            "note": (
+                "Vendor totals are treated as scaling profiles, not as directly equivalent ground truth."
+            ),
+        },
+        "best_shape_target": best_vendor,
+        "targets": targets,
+    }
+
+
 def ensure_gap_tables(conn) -> None:
     """Create gap-analysis tables if they do not exist."""
     conn.execute(
@@ -1150,6 +1243,9 @@ def build_report(
     common_tier_metrics = scenarios[1]
     rebinned_metrics = scenarios[2]
     combined_metrics = scenarios[3]
+    internal_alignment = build_internal_alignment_summary(scenarios)
+    internal_vs_coinank = find_scenario(scenarios, "internal_vs_coinank")
+    internal_vs_coinglass = find_scenario(scenarios, "internal_vs_coinglass")
 
     providers = {
         coinank_state.provider: {
@@ -1210,6 +1306,7 @@ def build_report(
         "common_leverage_tiers": common_tiers,
         "leverage_composition": leverage_composition,
         "scenarios": [scenario.to_public_dict() for scenario in scenarios],
+        "internal_alignment": internal_alignment,
         "findings": build_summary_findings(
             raw_metrics=raw_metrics,
             common_tier_metrics=common_tier_metrics,
@@ -1230,6 +1327,14 @@ def build_report(
             "This analysis uses the exact CoinAnk getLiqMap and Coinglass liqMap captures referenced by the input manifest.",
             "The residual gap after common-tier filtering and shared-grid rebinning is the strongest estimate of provider-side scaling/persistence differences.",
             "CoinAnk and Coinglass do not expose the same leverage ladder coverage in their public/private map payloads, so raw totals are not directly comparable.",
+            "For internal-vs-vendor comparisons, shape metrics are primary; total ratios are secondary and only inform a vendor-specific scale factor.",
+            (
+                "Current internal benchmark ratios: "
+                f"CoinAnk={internal_vs_coinank.total_ratio:.8g}x, "
+                f"Coinglass={internal_vs_coinglass.total_ratio:.8g}x."
+            )
+            if internal_vs_coinank and internal_vs_coinglass
+            else "Internal-vs-vendor scenarios were not available in this run.",
         ],
     }
 
