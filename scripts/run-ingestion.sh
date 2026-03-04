@@ -127,8 +127,12 @@ prepare_database() {
 
     # Step 1: Notify API to release connections (non-blocking if API is down)
     log "Notifying API to release DuckDB connections..."
+    local token_header=""
+    if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
+        token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
+    fi
     local prep_result
-    prep_result=$(curl -s --max-time 10 -X POST "${API_URL}/api/v1/prepare-for-ingestion" 2>/dev/null || echo '{"status":"api_unavailable"}')
+    prep_result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/prepare-for-ingestion" 2>/dev/null || echo '{"status":"api_unavailable"}')
     log "API preparation: ${prep_result}"
 
     # Step 2: Clean stale locks
@@ -157,8 +161,12 @@ prepare_database() {
 
 refresh_api_connections() {
     log "Refreshing API connections..."
+    local token_header=""
+    if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
+        token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
+    fi
     local result
-    result=$(curl -s --max-time 10 -X POST "${API_URL}/api/v1/refresh-connections" 2>/dev/null || echo '{"status":"api_unavailable"}')
+    result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/refresh-connections" 2>/dev/null || echo '{"status":"api_unavailable"}')
     log "API refresh: ${result}"
 }
 

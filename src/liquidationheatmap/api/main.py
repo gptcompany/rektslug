@@ -634,6 +634,10 @@ async def prepare_for_ingestion():
         else:
             result["details"].append("Warning: Failed to acquire ingestion lock")
 
+        # Drain: let in-flight requests finish before closing connections
+        await asyncio.sleep(1.0)
+        result["details"].append("Drain wait completed")
+
         # Close all read-only singleton instances
         closed = DuckDBService.close_all_instances()
         result["connections_closed"] = closed
@@ -732,17 +736,17 @@ async def gap_fill(
         # 1. Set ingestion lock to block new read connections
         DuckDBService.set_ingestion_lock()
 
-        # 2. Close all read-only singletons so DuckDB file lock is released
+        # 2. Drain: let in-flight requests finish before closing connections.
+        #    The ingestion lock (step 1) blocks NEW requests from getting a DB
+        #    connection (they get 503), but requests already mid-query may still
+        #    hold a reference.  Sleep gives the event loop time to finish them
+        #    so we don't pull the connection from under active queries.
+        await asyncio.sleep(1.0)
+
+        # 3. Close all read-only singletons so DuckDB file lock is released
         closed = DuckDBService.close_all_instances()
         gc.collect()
         logger.info("Gap-fill: closed %d DB singletons", closed)
-
-        # 3. Drain: let in-flight requests finish before opening write connection.
-        #    The ingestion lock (step 1) blocks NEW requests from getting a DB
-        #    connection (they get 503), but requests already mid-query may still
-        #    hold a reference.  A short sleep gives the event loop time to finish
-        #    them so we don't pull the connection from under active queries.
-        await asyncio.sleep(1.0)
 
         # 4. Run the fill in-process (opens its own read-write connection)
         result = await asyncio.to_thread(
