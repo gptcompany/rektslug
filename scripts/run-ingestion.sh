@@ -502,9 +502,9 @@ fill_gap_from_ccxt
 GF_FAILED=$?
 TOTAL_FAILED=$((TOTAL_FAILED + GF_FAILED))
 if [ $GF_FAILED -eq 0 ]; then
-    RESULTS="${RESULTS}Gap Fill (ccxt): OK\n"
+    RESULTS="${RESULTS}Gap Fill (ccxt, 5m+1m+OI+FR): OK\n"
 else
-    RESULTS="${RESULTS}Gap Fill (ccxt): FAILED\n"
+    RESULTS="${RESULTS}Gap Fill (ccxt, 5m+1m+OI+FR): FAILED\n"
 fi
 set -e
 
