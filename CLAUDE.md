@@ -146,7 +146,21 @@ Il PC è spesso sotto stress (DuckDB su 6B+ righe, multi-agent, build parallele)
 
 ---
 
-## Development Principles
+## 🛡️ Robustness & Error Handling
+
+### DuckDB Lock & Fallback (rektaslug)
+- **Lock Contention**: Il sistema gestisce i lock DuckDB tramite file (`.ingestion_lock`). Se occupato, l'API restituisce `503 Service Unavailable` con `Retry-After`.
+- **Shell Fallback**: Gli script `run-ingestion.sh` e `run-ccxt-gap-fill.sh` riprovano l'accesso e passano alla CLI (`uv run`) se l'API è offline (404/000).
+- **Non-fatal Skip**: Errori di lock durante i cicli di 5 minuti sono trattati come non fatali (exit 0) per evitare falsi allarmi.
+
+### Parquet Storage (ccxt-data-pipeline)
+- **Corruption Resilience**: La lettura dei file Parquet è isolata; file corrotti vengono loggati e saltati senza interrompere l'intera pipeline.
+- **Schema Evolution**: Supporta l'unione di file con colonne aggiuntive tramite `promote_options="permissive"` in PyArrow.
+- **Compatibility**: Il codice è mantenuto compatibile con **Python 3.10** (Workstation reference) gestendo manualmente `datetime.UTC` e `StrEnum`.
+
+---
+
+## 🔧 Development Workflow
 
 ### 🎯 KISS & YAGNI Blueprint (ALWAYS REMEMBER!)
 
