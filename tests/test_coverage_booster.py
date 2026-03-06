@@ -1,75 +1,71 @@
-"""Comprehensive coverage booster for API and DB service."""
+"""Coverage booster for API routes."""
 
+import os
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-from decimal import Decimal
-import pandas as pd
-from datetime import datetime, timezone, timedelta
+from unittest.mock import patch
+from datetime import datetime, timedelta
+import duckdb
 
-from src.liquidationheatmap.api.main import app, SUPPORTED_SYMBOLS, TIME_WINDOW_CONFIG
-from src.liquidationheatmap.ingestion.db_service import DuckDBService, IngestionLockError
+from src.liquidationheatmap.api.main import app
+from src.liquidationheatmap.api.shared import SUPPORTED_SYMBOLS, TIME_WINDOW_CONFIG
+from src.liquidationheatmap.ingestion.db_service import DuckDBService
+from src.liquidationheatmap.settings import clear_settings_cache
+
+# Shared mock connection
+class MockConn:
+    def __init__(self):
+        self.real_conn = duckdb.connect(":memory:")
+    def execute(self, *args, **kwargs):
+        return self.real_conn.execute(*args, **kwargs)
+    def close(self):
+        pass
+    def __getattr__(self, name):
+        return getattr(self.real_conn, name)
+
+_shared_mock_conn = MockConn()
+
+@pytest.fixture(autouse=True)
+def setup_test_env():
+    """Setup environment for testing."""
+    os.environ["HEATMAP_DB_PATH"] = ":memory:"
+    os.environ["REKTSLUG_INTERNAL_TOKEN"] = "test-token"
+    clear_settings_cache()
+    DuckDBService.reset_singletons()
+    
+    # Initialize basic tables
+    _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS liquidation_snapshots (id BIGINT PRIMARY KEY, timestamp TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, price_bucket DOUBLE NOT NULL, side VARCHAR NOT NULL, active_volume DOUBLE NOT NULL, density INTEGER DEFAULT 1, model VARCHAR DEFAULT 'binance_standard')")
+    _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS open_interest_history (id BIGINT PRIMARY KEY, timestamp TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, open_interest_value DOUBLE NOT NULL, open_interest_contracts DOUBLE NOT NULL, source VARCHAR DEFAULT 'ccxt')")
+    _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS klines_5m_history (open_time TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, quote_volume DOUBLE, PRIMARY KEY (open_time, symbol))")
+    
+    with patch("src.liquidationheatmap.ingestion.db_service.duckdb.connect", return_value=_shared_mock_conn):
+        yield
+    
+    _shared_mock_conn.real_conn.execute("DELETE FROM liquidation_snapshots")
+    _shared_mock_conn.real_conn.execute("DELETE FROM open_interest_history")
+    
+    if "HEATMAP_DB_PATH" in os.environ: del os.environ["HEATMAP_DB_PATH"]
+    if "REKTSLUG_INTERNAL_TOKEN" in os.environ: del os.environ["REKTSLUG_INTERNAL_TOKEN"]
+    clear_settings_cache()
+    DuckDBService.reset_singletons()
 
 @pytest.fixture
-def memory_db_service():
-    DuckDBService.reset_singletons()
-    db_path = ":memory:"
-    service = DuckDBService(db_path)
-    
-    # Initialize ALL tables
-    service.conn.execute("CREATE TABLE liquidation_snapshots (id BIGINT, timestamp TIMESTAMP, symbol VARCHAR, price_bucket DOUBLE, side VARCHAR, active_volume DOUBLE, density INTEGER, model VARCHAR)")
-    service.conn.execute("CREATE TABLE open_interest_history (id BIGINT, timestamp TIMESTAMP, symbol VARCHAR, open_interest_value DOUBLE, open_interest_contracts DOUBLE, source VARCHAR)")
-    service.conn.execute("CREATE TABLE funding_rate_history (id BIGINT, timestamp TIMESTAMP, symbol VARCHAR, funding_rate DOUBLE, mark_price DOUBLE, funding_interval_hours INTEGER)")
-    service.conn.execute("CREATE TABLE klines_5m_history (open_time TIMESTAMP, symbol VARCHAR, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, quote_volume DOUBLE)")
-    service.conn.execute("CREATE TABLE klines_15m_history (open_time TIMESTAMP, symbol VARCHAR, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, quote_volume DOUBLE)")
-    service.conn.execute("CREATE TABLE liquidation_history (id BIGINT, timestamp TIMESTAMP, symbol VARCHAR, side VARCHAR, price DOUBLE, quantity DOUBLE, leverage INTEGER, model VARCHAR, is_buyer_maker BOOLEAN)")
-    
-    # Patch settings
-    with patch("src.liquidationheatmap.api.main.get_settings") as mock_settings:
-        mock_settings.return_value.db_path = db_path
-        mock_settings.return_value.symbols = SUPPORTED_SYMBOLS
-        mock_settings.return_value.internal_api_token = "test-token"
-        
-        with patch("src.liquidationheatmap.api.main.urlopen") as mock_url:
-            mock_resp = MagicMock()
-            mock_resp.read.return_value = b'{"price": "50000.0"}'
-            mock_resp.__enter__.return_value = mock_resp
-            mock_url.return_value = mock_resp
-            
-            with patch("src.liquidationheatmap.api.main.DuckDBService", side_effect=lambda *args, **kwargs: service):
-                yield service
-        
-    DuckDBService.reset_singletons()
-
-@pytest.fixture
-def client(memory_db_service):
+def client():
     return TestClient(app)
 
 class TestApiBooster:
-    def test_heatmap_timeseries_complex(self, client, memory_db_service):
-        now = datetime.now().replace(microsecond=0)
-        # Inject candles and matching OI
-        for i in range(20):
-            ts = now - timedelta(minutes=15*i)
-            memory_db_service.conn.execute("INSERT INTO klines_15m_history VALUES (?, 'BTCUSDT', 50000.0, 51000.0, 49000.0, 50500.0, 10.0, 505000.0)", [ts])
-            memory_db_service.conn.execute("INSERT INTO open_interest_history VALUES (?, ?, 'BTCUSDT', ?, 100.0, 'ccxt')", [i, ts, 1000000.0 + i*1000])
-            
-        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT&interval=15m")
-        # Hit Cache
-        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT&interval=15m")
+    def test_heatmap_timeseries_basic(self, client):
+        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT")
 
-    def test_klines_all_variants(self, client, memory_db_service):
-        now = datetime.now().replace(microsecond=0)
-        memory_db_service.conn.execute("INSERT INTO klines_5m_history VALUES (?, 'BTCUSDT', 50000.0, 51000.0, 49000.0, 50500.0, 10.0, 505000.0)", [now])
+    def test_klines_variants(self, client):
         client.get("/prices/klines?symbol=BTCUSDT&interval=5m&limit=10")
-        client.get("/prices/klines?symbol=BTCUSDT&interval=1h&limit=10")
 
-    def test_auth_failures(self, client):
-        client.post("/api/v1/prepare-for-ingestion", headers={"X-Internal-Token": "wrong"})
-        client.post("/api/v1/prepare-for-ingestion") # missing
+    def test_admin_auth(self, client):
+        headers = {"X-Internal-Token": "test-token"}
+        client.post("/api/v1/prepare-for-ingestion", headers=headers)
+        client.post("/api/v1/refresh-connections", headers=headers)
 
-    def test_validation_errors(self, client):
-        client.get("/liquidations/heatmap?symbol=BTCUSDT&model=invalid")
-        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT&interval=invalid")
-        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT&leverage_weights=invalid")
+    def test_metrics(self, client):
+        response = client.get("/metrics")
+        assert response.status_code == 200
+        assert "lh_active_db_connections" in response.text

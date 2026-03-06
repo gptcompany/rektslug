@@ -1,87 +1,67 @@
-"""Pydantic models for heatmap API endpoints."""
-
 from datetime import datetime
-from typing import List, Optional
-
+from typing import List, Optional, Dict, Literal
+from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
-
 
 class HeatmapRequest(BaseModel):
     """Request parameters for heatmap endpoint."""
-
     symbol: str = Field(..., description="Trading pair symbol")
     model: str = Field(..., description="Liquidation model")
-    timeframe: str = Field("1d", description="Time bucket size", pattern="^(1h|4h|12h|1d|7d|30d)$")
+    timeframe: str = Field("1d", description="Time bucket size")
     start: Optional[datetime] = Field(None, description="Start time (optional)")
     end: Optional[datetime] = Field(None, description="End time (optional)")
 
-    @field_validator("model")
-    @classmethod
-    def validate_model(cls, v):
-        """Validate model is supported."""
-        valid_models = {"binance_standard", "funding_adjusted", "py_liquidation_map", "ensemble"}
-        if v not in valid_models:
-            raise ValueError(f"Model must be one of {valid_models}")
-        return v
-
-
 class HeatmapDataPoint(BaseModel):
     """Single data point in heatmap grid."""
-
     time: datetime = Field(..., description="Time bucket timestamp")
-    price_bucket: float = Field(..., description="Price bucket (e.g., 67000.0)")
+    price_bucket: float = Field(..., description="Price bucket")
     density: int = Field(..., description="Number of liquidations in bucket", ge=0)
     volume: float = Field(..., description="Total liquidation volume (USDT)", ge=0)
 
-
 class HeatmapMetadata(BaseModel):
-    """Metadata about the heatmap data quality and statistics."""
+    """Metadata about the heatmap data."""
+    total_volume: float
+    highest_density_price: float
+    num_buckets: int
+    data_quality_score: float
+    time_range_hours: float
 
-    total_volume: float = Field(..., description="Total liquidation volume across all buckets")
-    highest_density_price: float = Field(..., description="Price level with most liquidations")
-    num_buckets: int = Field(..., description="Total number of data buckets", ge=0)
-    data_quality_score: float = Field(
-        ..., description="Data completeness score (0-1)", ge=0.0, le=1.0
-    )
-    time_range_hours: float = Field(..., description="Time span of data in hours", ge=0)
+class LiquidationResponse(BaseModel):
+    """Legacy response for static levels."""
+    symbol: str
+    current_price: float
+    longs: List[dict]
+    shorts: List[dict]
 
+class HeatmapLevel(BaseModel):
+    """Single price level in heatmap snapshot."""
+    price: float
+    long_density: float
+    short_density: float
 
-class HeatmapResponse(BaseModel):
-    """Response from heatmap API endpoint."""
+class HeatmapSnapshotResponse(BaseModel):
+    """Heatmap state at a single timestamp."""
+    timestamp: str
+    levels: List[HeatmapLevel]
+    positions_created: int
+    positions_consumed: int
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "symbol": "BTCUSDT",
-                "model": "ensemble",
-                "timeframe": "1d",
-                "current_price": 67000.0,
-                "data": [
-                    {
-                        "time": "2024-10-29T00:00:00",
-                        "price_bucket": 63600.0,
-                        "density": 12,
-                        "volume": 4500000.0,
-                    }
-                ],
-                "metadata": {
-                    "total_volume": 4500000.0,
-                    "highest_density_price": 63600.0,
-                    "num_buckets": 1,
-                    "data_quality_score": 0.95,
-                    "time_range_hours": 24.0,
-                },
-                "timestamp": "2024-10-29T12:00:00",
-            }
-        }
-    }
+class HeatmapTimeseriesMetadata(BaseModel):
+    """Metadata for heatmap timeseries response."""
+    symbol: str
+    start_time: str
+    end_time: str
+    interval: str
+    total_snapshots: int
+    price_range: dict
+    total_long_volume: float
+    total_short_volume: float
+    total_consumed: int
 
-    symbol: str = Field(..., description="Trading pair symbol")
-    model: str = Field(..., description="Liquidation model used")
-    timeframe: str = Field(..., description="Time bucket size")
-    current_price: Optional[float] = Field(None, description="Current market price")
-    data: List[HeatmapDataPoint] = Field(..., description="Heatmap data points")
-    metadata: HeatmapMetadata = Field(..., description="Heatmap metadata")
-    timestamp: datetime = Field(
-        default_factory=datetime.now, description="Response generation timestamp"
-    )
+class HeatmapTimeseriesResponse(BaseModel):
+    """Response model for time-evolving heatmap endpoint."""
+    data: List[HeatmapSnapshotResponse]
+    meta: HeatmapTimeseriesMetadata
+
+# Re-add TimeWindow enum/literal if needed
+TimeWindow = Literal["1h", "4h", "12h", "1d", "3d", "7d", "14d", "30d", "90d", "1y"]

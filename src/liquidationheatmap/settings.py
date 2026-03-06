@@ -100,3 +100,8 @@ def get_settings() -> AppSettings:
     """Return the cached runtime settings singleton."""
 
     return AppSettings.from_env()
+
+
+def clear_settings_cache() -> None:
+    """Clear the settings cache (used for testing)."""
+    get_settings.cache_clear()
