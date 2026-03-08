@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   dispatch:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, shared]
     steps:
       - name: Send repository_dispatch to progressive-deploy
         env:
@@ -35,4 +35,4 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: token ${TOKEN}" \
             https://api.github.com/repos/gptcompany/progressive-deploy/dispatches \
-            -d "{\"event_type\":\"rektaslug-build\",\"client_payload\":{\"ref\":\"${REF}\",\"source_repo\":\"${GITHUB_REPOSITORY}\"}}"
+            -d "{\"event_type\":\"rektslug-build\",\"client_payload\":{\"ref\":\"${REF}\",\"source_repo\":\"${GITHUB_REPOSITORY}\"}}"
