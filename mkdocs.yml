@@ -6,7 +6,7 @@
 
 site_name: LiquidationHeatmap Documentation
 site_description: Technical documentation for LiquidationHeatmap
-repo_url: https://github.com/gptcompany/rektaslug
+repo_url: https://github.com/gptcompany/rektslug
 
 nav:
   - Home: index.md

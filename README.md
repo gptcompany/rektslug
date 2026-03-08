@@ -1,16 +1,16 @@
 # RektSlug
 
 <p align="center">
-  <img src="logo.png" alt="rektaslug logo" width="800">
+  <img src="logo.png" alt="rektslug logo" width="800">
 </p>
 
-![CI](https://github.com/gptcompany/rektaslug/actions/workflows/ci.yml/badge.svg?branch=master)
-![Core Deploy](https://github.com/gptcompany/rektaslug/actions/workflows/core-deploy.yml/badge.svg?branch=master)
-![TechDocs](https://github.com/gptcompany/rektaslug/actions/workflows/techdocs.yml/badge.svg?branch=master)
-![Validation](https://github.com/gptcompany/rektaslug/actions/workflows/validation.yml/badge.svg?branch=master)
+![CI](https://github.com/gptcompany/rektslug/actions/workflows/ci.yml/badge.svg?branch=master)
+![Core Deploy](https://github.com/gptcompany/rektslug/actions/workflows/core-deploy.yml/badge.svg?branch=master)
+![TechDocs](https://github.com/gptcompany/rektslug/actions/workflows/techdocs.yml/badge.svg?branch=master)
+![Validation](https://github.com/gptcompany/rektslug/actions/workflows/validation.yml/badge.svg?branch=master)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python)
-![Issues](https://img.shields.io/github/issues/gptcompany/rektaslug?style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/gptcompany/rektaslug?style=flat-square)
+![Issues](https://img.shields.io/github/issues/gptcompany/rektslug?style=flat-square)
+![Last Commit](https://img.shields.io/github/last-commit/gptcompany/rektslug?style=flat-square)
 
 Calculate and visualize cryptocurrency liquidation levels from Binance futures data using DuckDB analytics and FastAPI REST endpoints. Leverages open-source models (py-liquidation-map) for battle-tested algorithms.
 
@@ -143,8 +143,8 @@ All pairs use Binance USDT-M perpetual liquidation formulas. The pipeline is ful
 
 ```bash
 # Clone repository
-git clone https://github.com/gptcompany/rektaslug.git
-cd rektaslug
+git clone https://github.com/gptcompany/rektslug.git
+cd rektslug
 
 # Install dependencies
 uv sync

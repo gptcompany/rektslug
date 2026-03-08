@@ -171,7 +171,7 @@ L'API è stata rifattorizzata per modularità e manutenibilità:
 
 ## 🛡️ Robustness & Error Handling
 
-### DuckDB Lock & Fallback (rektaslug)
+### DuckDB Lock & Fallback (rektslug)
 - **Lock Contention**: Il sistema gestisce i lock DuckDB tramite file (`.ingestion_lock`). Se occupato, l'API restituisce `503 Service Unavailable` con `Retry-After`.
 - **Shell Fallback**: Gli script `run-ingestion.sh` e `run-ccxt-gap-fill.sh` riprovano l'accesso e passano alla CLI (`uv run`) se l'API è offline (404/000).
 - **Non-fatal Skip**: Errori di lock durante i cicli di 5 minuti sono trattati come non fatali (exit 0, prefisso `SKIPPED_LOCK_CONTENTION:`) per evitare falsi allarmi.

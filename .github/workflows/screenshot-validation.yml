@@ -18,7 +18,7 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, muletto]
     timeout-minutes: 360  # 6 hours for full validation
 
     steps:
