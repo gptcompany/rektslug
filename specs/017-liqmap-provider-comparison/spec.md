@@ -15,7 +15,7 @@ This spec is intentionally narrow:
 - timeframes: `1d`, `1w`
 
 `liq-heat-map`, `LiquidityHeatmap`, and any heatmap-style 2D grid are explicitly
-out of scope for this spec and should be handled by a future `spec-018`.
+out of scope for this spec and should be handled by follow-up heatmap-oriented specs.
 
 ## Goals
 
