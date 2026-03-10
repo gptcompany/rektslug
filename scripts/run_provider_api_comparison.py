@@ -151,13 +151,25 @@ def parse_args() -> argparse.Namespace:
         default="rest",
         help="CoinGlass capture method. Default: 'rest'.",
     )
+    parser.add_argument(
+        "--profile",
+        default="rektslug-default",
+        help="Calibration profile for the local rektslug model (default: rektslug-default).",
+    )
+    parser.add_argument(
+        "--skip-gap-analysis",
+        action="store_true",
+        help="Skip the post-comparison gap-analysis step.",
+    )
     return parser.parse_args()
 
 
 def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
     """Translate combined CLI args into the capture script's expected namespace."""
     matrix_locked = args.matrix_preset == "spec-017"
-    include_rektslug = matrix_locked and args.provider in {"both", "all"}
+    # Include rektslug when: matrix locked + (all/both OR any profile specified)
+    has_profile = bool(getattr(args, "profile", None))
+    include_rektslug = matrix_locked and (args.provider in {"both", "all"} or has_profile)
     include_bitcoincounterflow = not matrix_locked
 
     return argparse.Namespace(
@@ -176,6 +188,7 @@ def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
         coinglass_timeframe=None,
         include_rektslug=include_rektslug,
         include_bitcoincounterflow=include_bitcoincounterflow,
+        profile=getattr(args, "profile", "rektslug-default"),
     )
 
 
@@ -200,6 +213,7 @@ def main() -> int:
         persist_db=not args.no_persist_db,
         db_path=args.db_path,
         product_filter=args.product,
+        profile=getattr(args, "profile", "rektslug-default"),
     )
 
     providers = sorted(report["providers"])
@@ -210,6 +224,10 @@ def main() -> int:
     else:
         print("duckdb persistence: skipped")
     print(f"comparison report: {report_path}")
+
+    if args.skip_gap_analysis:
+        print("gap analysis: skipped")
+        return 0
 
     # Run gap analysis on the same manifest (T027).
     gap_cmd = [

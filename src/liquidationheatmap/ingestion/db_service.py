@@ -931,6 +931,7 @@ class DuckDBService:
         lookback_days: int = 30,
         whale_threshold: float = 500000.0,
         leverage_weights: dict[int, float] | None = None,
+        side_weights: dict[str, float] | None = None,
         kline_interval: str = "auto",
     ):
         """Calculate liquidations using Open Interest-based volume profile scaling.
@@ -958,6 +959,8 @@ class DuckDBService:
             whale_threshold: Whale trade threshold (currently non-functional, see warning)
             leverage_weights: Override leverage distribution {leverage: weight}.
                 Defaults to DEFAULT_LEVERAGE_WEIGHTS. Weights must sum to 1.0.
+            side_weights: Override side weighting {"buy": weight, "sell": weight}.
+                Defaults to neutral weighting for both sides.
             kline_interval: Candle source for OI model ("auto", "1m", or "5m").
                 "auto" prefers 1m for short windows (<=7d) when coverage is healthy,
                 otherwise falls back to 5m for better stability and OI alignment.
@@ -994,6 +997,13 @@ class DuckDBService:
         leverage_values = ", ".join(
             f"({lev}, {weight})" for lev, weight in leverage_weights.items()
         )
+
+        if side_weights is None:
+            side_weights = {"buy": 1.0, "sell": 1.0}
+        buy_weight = float(side_weights.get("buy", 1.0))
+        sell_weight = float(side_weights.get("sell", 1.0))
+        if buy_weight <= 0 or sell_weight <= 0:
+            raise ValueError("side_weights must be positive")
 
         kline_table, kline_interval_used = self._resolve_oi_kline_source(
             symbol=symbol,
@@ -1107,7 +1117,19 @@ class DuckDBService:
         -- STEP 4: Distribute OI across price bins and sides
         -- Scale volume shape to match latest OI magnitude
         TotalVolume AS (
-            SELECT CAST(COALESCE(SUM(volume), 1.0) AS DOUBLE) as total_volume
+            SELECT
+                CAST(
+                    COALESCE(
+                        SUM(
+                            volume * CASE
+                                WHEN inferred_side = 'buy' THEN {buy_weight}
+                                WHEN inferred_side = 'sell' THEN {sell_weight}
+                                ELSE 1.0
+                            END
+                        ),
+                        1.0
+                    ) AS DOUBLE
+                ) as total_volume
             FROM CandleWithSide
         ),
 
@@ -1115,10 +1137,26 @@ class DuckDBService:
             SELECT
                 price_bin,
                 inferred_side as side,
-                CAST(SUM(volume) AS DOUBLE) as volume_at_price,
+                CAST(
+                    SUM(
+                        volume * CASE
+                            WHEN inferred_side = 'buy' THEN {buy_weight}
+                            WHEN inferred_side = 'sell' THEN {sell_weight}
+                            ELSE 1.0
+                        END
+                    ) AS DOUBLE
+                ) as volume_at_price,
                 -- Scale volume shape with latest OI. Force DOUBLE math to avoid
                 -- DECIMAL overflow on large OI-volume multiplications.
-                CAST(SUM(volume) AS DOUBLE) * CAST((SELECT latest_oi FROM Params) AS DOUBLE) /
+                CAST(
+                    SUM(
+                        volume * CASE
+                            WHEN inferred_side = 'buy' THEN {buy_weight}
+                            WHEN inferred_side = 'sell' THEN {sell_weight}
+                            ELSE 1.0
+                        END
+                    ) AS DOUBLE
+                ) * CAST((SELECT latest_oi FROM Params) AS DOUBLE) /
                 CAST((SELECT total_volume FROM TotalVolume) AS DOUBLE) as oi_at_price
             FROM CandleWithSide
             GROUP BY price_bin, inferred_side

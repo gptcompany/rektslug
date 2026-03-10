@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from src.liquidationheatmap.ingestion.db_service import DuckDBService
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
+from src.liquidationheatmap.models.profiles import get_profile
 from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
 from src.liquidationheatmap.settings import get_settings
 from src.liquidationheatmap.api.shared import SUPPORTED_SYMBOLS, SUPPORTED_EXCHANGES, TIME_WINDOW_CONFIG
@@ -76,6 +77,7 @@ async def get_liquidation_levels(
     timeframe: int = Query(..., ge=1, le=365),
     whale_threshold: float = Query(500000.0, ge=0.0),
     kline_interval: Optional[str] = Query(None, pattern="^(auto|1m|5m)$"),
+    profile: Optional[str] = Query(None, description="Calibration profile name (e.g. rektslug-ank)."),
 ):
     """Return static liquidation levels grouped by side and leverage tier."""
     response.headers["Deprecation"] = "true"
@@ -88,6 +90,14 @@ async def get_liquidation_levels(
             detail=f"Invalid symbol '{symbol}'. Supported symbols: {sorted(SUPPORTED_SYMBOLS)}",
         )
 
+    # Resolve calibration profile (if provided)
+    cal_profile = None
+    if profile:
+        try:
+            cal_profile = get_profile(profile)
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Unknown profile: {profile!r}")
+
     try:
         with urlopen(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", timeout=5) as resp:
             current_price = float(json.loads(resp.read().decode())["price"])
@@ -97,12 +107,23 @@ async def get_liquidation_levels(
             price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
             current_price = float(price_decimal)
 
-    if timeframe <= 7:
-        bin_size = 100.0
-    elif timeframe <= 30:
-        bin_size = 250.0
+    if cal_profile:
+        bin_size = cal_profile.get_bin_size(
+            timeframe,
+            current_price=current_price,
+            symbol=symbol,
+        )
+        leverage_weights = cal_profile.leverage_weights
+        side_weights = cal_profile.get_side_weights(symbol, timeframe)
     else:
-        bin_size = 500.0
+        if timeframe <= 7:
+            bin_size = 100.0
+        elif timeframe <= 30:
+            bin_size = 250.0
+        else:
+            bin_size = 500.0
+        leverage_weights = None
+        side_weights = None
 
     with DuckDBService(read_only=True) as db:
         effective_kline_interval = kline_interval or _SETTINGS.oi_kline_interval
@@ -112,6 +133,8 @@ async def get_liquidation_levels(
             bin_size=bin_size,
             lookback_days=timeframe,
             whale_threshold=whale_threshold,
+            leverage_weights=leverage_weights,
+            side_weights=side_weights,
             kline_interval=effective_kline_interval,
         )
 

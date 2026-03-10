@@ -548,6 +548,7 @@ class TestRunnerGapAnalysisFailureHandling:
             product="liq-map",
             matrix_preset="spec-017",
             coinglass_mode="rest",
+            skip_gap_analysis=False,
         )
 
     def test_runner_returns_non_zero_when_gap_analysis_fails(self, monkeypatch):
@@ -599,6 +600,33 @@ class TestRunnerGapAnalysisFailureHandling:
             stderr = ""
 
         monkeypatch.setattr(runner.subprocess, "run", lambda *args, **kwargs: Result())
+
+        assert runner.main() == 0
+
+    def test_runner_can_skip_gap_analysis(self, monkeypatch):
+        from scripts import run_provider_api_comparison as runner
+
+        async def fake_run_capture(*args, **kwargs):
+            return Path("/tmp/manifest.json")
+
+        args = self._args()
+        args.skip_gap_analysis = True
+
+        monkeypatch.setattr(runner, "parse_args", lambda: args)
+        monkeypatch.setattr(runner, "run_capture", fake_run_capture)
+        monkeypatch.setattr(
+            runner,
+            "generate_report",
+            lambda **kwargs: (
+                {"providers": {"coinank": {}, "rektslug": {}}, "pairwise_comparisons": []},
+                Path("/tmp/report.json"),
+            ),
+        )
+
+        def should_not_run(*args, **kwargs):
+            raise AssertionError("gap analysis should be skipped")
+
+        monkeypatch.setattr(runner.subprocess, "run", should_not_run)
 
         assert runner.main() == 0
 

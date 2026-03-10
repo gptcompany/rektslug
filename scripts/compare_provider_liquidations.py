@@ -2098,6 +2098,7 @@ def generate_report(
     persist_db: bool = False,
     db_path: Path | None = None,
     product_filter: str | None = None,
+    profile: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Generate the comparison report and optionally persist it to DuckDB."""
     captures = load_capture_files(manifest_paths)
@@ -2107,6 +2108,9 @@ def generate_report(
         raise RuntimeError("No parseable liquidation datasets found in the supplied manifests.")
 
     report = build_report(manifest_paths, datasets, skipped_by_provider)
+    # Inject profile metadata (spec-018: FR-007)
+    if profile:
+        report["profile"] = profile
     resolved_output_path = output_path or default_output_path()
     resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
     resolved_output_path.write_text(

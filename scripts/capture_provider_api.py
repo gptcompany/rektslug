@@ -55,7 +55,7 @@ BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
     "https://api.bitcoincounterflow.com/api/liquidations"
     "?exchange=BinanceUSDM&symbol=BTCUSDT&timeframe=15m&days=7"
 )
-REKTSLUG_DEFAULT_API_BASE = "http://localhost:8002"
+REKTSLUG_DEFAULT_API_BASE = os.environ.get("REKTSLUG_API_BASE", "http://localhost:8002")
 
 PROVIDER_DOMAINS = {
     "coinank": ("coinank.com",),
@@ -387,6 +387,10 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
             f"{rektslug_base}/liquidations/levels"
             f"?symbol={symbol}&model=openinterest&timeframe={tf_days}"
         )
+        # Append calibration profile if not default (spec-018)
+        rektslug_profile = getattr(args, "profile", "rektslug-default")
+        if rektslug_profile and rektslug_profile != "rektslug-default":
+            rektslug_url += f"&profile={rektslug_profile}"
         targets.append(
             CaptureTarget(
                 provider="rektslug",
@@ -1192,6 +1196,7 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "run_dir": str(run_dir),
         "product": getattr(args, "product", "liq-map"),
+        "profile": getattr(args, "profile", "rektslug-default"),
         "args": {
             "provider": args.provider,
             "coin": args.coin,
@@ -1201,6 +1206,7 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
             "exchange": args.exchange,
             "max_responses": args.max_responses,
             "post_load_wait_ms": args.post_load_wait_ms,
+            "profile": getattr(args, "profile", "rektslug-default"),
         },
         "providers": provider_summaries,
         "comparison": build_run_comparison(provider_summaries),
