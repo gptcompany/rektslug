@@ -1062,11 +1062,12 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
     manifest = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "run_dir": str(run_dir),
+        "product": getattr(args, "product", "liq-map"),
         "args": {
             "provider": args.provider,
             "coin": args.coin,
             "timeframe": args.timeframe,
-            "coinglass_timeframe": args.coinglass_timeframe,
+            "coinglass_timeframe": getattr(args, "coinglass_timeframe", None),
             "coinglass_mode": cg_mode,
             "exchange": args.exchange,
             "max_responses": args.max_responses,

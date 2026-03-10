@@ -396,6 +396,56 @@ tables in the validation DuckDB:
 These tables are intended for normalized provider-comparison metadata only.
 They do not replace the raw JSON capture artifacts stored on disk.
 
+## spec-017: Liq-Map-Only Comparison
+
+`spec-017` narrows the comparison workflow to **liq-map only** across BTC/ETH and 1d/1w.
+
+### New CLI flags
+
+```bash
+# Constrain to spec-017 matrix (BTC/ETH x 1d/1w)
+--matrix-preset spec-017
+
+# Filter comparison output to liq-map only (default)
+--product liq-map
+
+# Use REST replay for Coinglass (now default in orchestrator)
+--coinglass-mode rest
+```
+
+### Quick run (single entry)
+
+```bash
+dotenvx run -f /media/sam/1TB/.env -- uv run python scripts/run_provider_api_comparison.py \
+  --provider both --coin BTC --timeframe 1w --exchange binance \
+  --coinglass-mode rest \
+  --coinglass-url "https://www.coinglass.com/pro/futures/LiquidationMap" \
+  --product liq-map --matrix-preset spec-017
+```
+
+### Full matrix run
+
+```bash
+for coin in BTC ETH; do
+  for tf in 1d 1w; do
+    dotenvx run -f /media/sam/1TB/.env -- uv run python scripts/run_provider_api_comparison.py \
+      --provider both --coin "$coin" --timeframe "$tf" --exchange binance \
+      --coinglass-mode rest \
+      --coinglass-url "https://www.coinglass.com/pro/futures/LiquidationMap" \
+      --product liq-map --matrix-preset spec-017
+    sleep 10
+  done
+done
+```
+
+### Artifact checklist
+
+After a run, verify:
+- [ ] `manifest.json` contains `"product": "liq-map"`
+- [ ] No capture URLs contain `heatmap`, `heat-map`, or `liqHeatMap`
+- [ ] CoinAnk page_url uses `/liq-map/` path (not `/liq-heat-map/`)
+- [ ] Coinglass source_url uses `/liqMap` endpoint (not `/liqHeatMap`)
+
 ## Recommended Next Steps
 
 1. Run periodic `both` captures across multiple timeframes to build a baseline

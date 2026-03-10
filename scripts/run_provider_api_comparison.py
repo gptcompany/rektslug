@@ -20,6 +20,38 @@ from scripts.capture_provider_api import (
 )
 from scripts.compare_provider_liquidations import generate_report
 
+# spec-017 matrix: only these (symbol, timeframe) pairs are valid.
+SPEC_017_SUPPORTED_SYMBOLS = {"BTC", "ETH"}
+SPEC_017_SUPPORTED_TIMEFRAMES = {"1d", "1w"}
+SPEC_017_SUPPORTED_PRODUCTS = {"liq-map"}
+
+
+def validate_spec017_matrix(symbol: str, timeframe: str) -> None:
+    """Fail fast if (symbol, timeframe) is outside the spec-017 matrix."""
+    norm_symbol = symbol.strip().upper()
+    norm_tf = timeframe.strip().lower()
+    if norm_symbol not in SPEC_017_SUPPORTED_SYMBOLS:
+        raise ValueError(
+            f"Unsupported symbol: {symbol!r}. "
+            f"Supported: {', '.join(sorted(SPEC_017_SUPPORTED_SYMBOLS))}"
+        )
+    if norm_tf not in SPEC_017_SUPPORTED_TIMEFRAMES:
+        raise ValueError(
+            f"Unsupported timeframe: {timeframe!r}. "
+            f"Supported: {', '.join(sorted(SPEC_017_SUPPORTED_TIMEFRAMES))}"
+        )
+
+
+def validate_product_filter(product: str | None) -> None:
+    """Fail fast if the product is not liq-map."""
+    if product is None:
+        return  # defaults to liq-map
+    if product not in SPEC_017_SUPPORTED_PRODUCTS:
+        raise ValueError(
+            f"Unsupported product: {product!r}. "
+            f"Only liq-map is supported by spec-017."
+        )
+
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the combined workflow."""
@@ -91,6 +123,23 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Override DuckDB path. Defaults to the validation DuckDB.",
     )
+    parser.add_argument(
+        "--product",
+        default="liq-map",
+        help="Product filter for comparison output. Only 'liq-map' is supported.",
+    )
+    parser.add_argument(
+        "--matrix-preset",
+        choices=["spec-017", "none"],
+        default="none",
+        help="Constrain coin/timeframe to a preset matrix. 'spec-017' = BTC/ETH x 1d/1w.",
+    )
+    parser.add_argument(
+        "--coinglass-mode",
+        choices=["browser", "rest", "auto"],
+        default="rest",
+        help="CoinGlass capture method. Default: 'rest'.",
+    )
     return parser.parse_args()
 
 
@@ -103,17 +152,27 @@ def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
         exchange=args.exchange,
         coinank_url=args.coinank_url,
         coinglass_url=args.coinglass_url,
-        bitcoincounterflow_url=args.bitcoincounterflow_url,
+        bitcoincounterflow_url=getattr(args, "bitcoincounterflow_url", BITCOINCOUNTERFLOW_DEFAULT_URL),
         output_dir=args.capture_output_dir,
         max_responses=args.max_responses,
         post_load_wait_ms=args.post_load_wait_ms,
         headed=args.headed,
+        coinglass_mode=getattr(args, "coinglass_mode", "rest"),
+        coinglass_timeframe=None,
     )
 
 
 def main() -> int:
     """CLI entry point."""
     args = parse_args()
+
+    # Validate product filter (T005, T010)
+    validate_product_filter(args.product)
+
+    # Validate matrix preset (T006, T009, T011)
+    if args.matrix_preset == "spec-017":
+        validate_spec017_matrix(args.coin, args.timeframe)
+
     capture_args = build_capture_namespace(args)
 
     manifest_path = asyncio.run(run_capture(capture_args, emit_progress=True))
