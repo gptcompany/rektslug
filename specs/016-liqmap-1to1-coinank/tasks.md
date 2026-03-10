@@ -85,14 +85,35 @@
   - Adjust `margin.b` if slider gets clipped
   - Checklist: T2-20
 
+## Phase 6: Runtime & Freshness Gate
+
+- [ ] T011 [Gate] Verify `rektslug-api` and `rektslug-sync` are up before visual validation
+  - Check `docker ps` shows both containers running
+  - Check `rektslug-api` is healthy on port `8002`
+  - Check recent `rektslug-sync` logs show 5-minute gap-fill cycles completing successfully
+  - If either service is down, stop visual validation and fix runtime first
+
+- [ ] T012 [Gate] Verify DuckDB is caught up to the latest upstream values for BTCUSDT and ETHUSDT
+  - Check `GET /data/date-range?symbol=BTCUSDT` and `GET /data/date-range?symbol=ETHUSDT`
+  - Confirm latest Open Interest timestamps in DuckDB match the latest values made available by the ccxt -> DuckDB bridge
+  - Confirm `klines_1m` / `klines_5m` are aligned to the latest closed candles available upstream
+  - Treat OI/funding provider latency as acceptable if DuckDB already reflects the latest upstream timestamps
+  - If freshness gate fails, run ccxt -> DuckDB bridge and re-check before comparing with providers
+
+- [ ] T013 [Gate] Verify `/liquidations/levels` preflight is non-empty for BTC and ETH 1W
+  - Call `/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7`
+  - Call `/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7`
+  - Confirm both responses return current price plus non-empty long/short liquidation arrays
+  - If either symbol returns empty arrays, stop visual validation and fix API/data pipeline first
+
 ## Validation
 
-- [ ] T011 Visual verification: BTC/USDT 1W
+- [ ] T014 Visual verification: BTC/USDT 1W
   - Run `scripts/validate_liqmap_visual.py --exchange binance --coin BTC --coinank-timeframe 1w`
   - Run `/validate-liqmap`
   - Target: >= 95% score
 
-- [ ] T012 Visual verification: ETH/USDT 1W
+- [ ] T015 Visual verification: ETH/USDT 1W
   - Same page with `?symbol=ETHUSDT`
   - Run validation with `--coin ETH --symbol ETHUSDT`
   - Target: >= 95% score
@@ -104,7 +125,7 @@
 ```
 T001 ──┐
        ├── T003 ── T004 ── T005 ──┐
-T002 ──┘                           ├── T008 ── T009 ── T010 ── T011 ── T012
+T002 ──┘                           ├── T008 ── T009 ── T010 ── T011 ── T012 ── T013 ── T014 ── T015
                     T006 ──────────┤
                     T007 ──────────┘
 ```
@@ -116,4 +137,5 @@ T002 ──┘                           ├── T008 ── T009 ── T010 
 3. T006 + T007 (parallel, cumulative fills)
 4. T008 (current price annotation)
 5. T009 + T010 (parallel, legend + slider)
-6. T011 → T012 (sequential validation)
+6. T011 → T012 → T013 (runtime/freshness/preflight gates)
+7. T014 → T015 (sequential validation)

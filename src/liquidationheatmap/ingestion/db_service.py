@@ -79,6 +79,32 @@ def _get_fallback_price(symbol: str) -> Decimal:
     return _SYMBOL_FALLBACK_PRICES.get(symbol, Decimal("1000.00"))
 
 
+def _get_latest_local_price(conn: duckdb.DuckDBPyConnection, symbol: str) -> Decimal | None:
+    """Best-effort current price fallback from the freshest local klines table."""
+    for table_name in ("klines_1m_history", "klines_5m_history", "klines_15m_history"):
+        try:
+            row = conn.execute(
+                f"""
+                SELECT close
+                FROM {table_name}
+                WHERE symbol = ?
+                ORDER BY open_time DESC
+                LIMIT 1
+                """,
+                [symbol],
+            ).fetchone()
+        except duckdb.CatalogException:
+            continue
+        except Exception as exc:
+            logger.debug("Local price fallback failed on %s for %s: %s", table_name, symbol, exc)
+            continue
+
+        if row and row[0] is not None:
+            return Decimal(str(row[0]))
+
+    return None
+
+
 class DuckDBService:
     """Service for managing DuckDB connection and queries.
 
@@ -293,12 +319,20 @@ class DuckDBService:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Open connection with appropriate mode
-        if read_only:
-            self.conn = duckdb.connect(str(self.db_path), read_only=True)
-            logger.info(f"DuckDB singleton (read-only) connected: {self.db_path}")
-        else:
-            self.conn = duckdb.connect(str(self.db_path))
-            logger.info(f"DuckDB singleton (read-write) connected: {self.db_path}")
+        try:
+            if read_only:
+                self.conn = duckdb.connect(str(self.db_path), read_only=True)
+                logger.info(f"DuckDB singleton (read-only) connected: {self.db_path}")
+            else:
+                self.conn = duckdb.connect(str(self.db_path))
+                logger.info(f"DuckDB singleton (read-write) connected: {self.db_path}")
+        except duckdb.IOException as exc:
+            message = str(exc)
+            if "Could not set lock on file" in message or "Conflicting lock" in message:
+                raise IngestionLockError(
+                    "Database locked by another DuckDB process. Retry shortly."
+                ) from exc
+            raise
 
         self._initialized = True
 
@@ -333,8 +367,7 @@ class DuckDBService:
                     current_price = _fetch_binance_price(symbol)
                 except Exception as e:
                     logger.warning(f"Binance API price fetch failed for {symbol}: {e}")
-                    # Fallback: symbol-aware estimate when API fails
-                    current_price = _get_fallback_price(symbol)
+                    current_price = _get_latest_local_price(self.conn, symbol) or _get_fallback_price(symbol)
                 return current_price, oi_value
         except duckdb.CatalogException as e:
             # Table doesn't exist, load from CSV
@@ -347,7 +380,7 @@ class DuckDBService:
             try:
                 current_price = _fetch_binance_price(symbol)
             except Exception:
-                current_price = _get_fallback_price(symbol)
+                current_price = _get_latest_local_price(self.conn, symbol) or _get_fallback_price(symbol)
             return current_price, Decimal("0")
 
         return self._load_and_cache_data(symbol)
@@ -983,8 +1016,10 @@ class DuckDBService:
             -- Get latest Open Interest and calculate lookback period
             -- Use MAX timestamp from data (not CURRENT_TIMESTAMP) to handle historical data
             SELECT
-                (SELECT open_interest_value FROM open_interest_history
-                 WHERE symbol = ? ORDER BY timestamp DESC LIMIT 1) AS latest_oi,
+                CAST(
+                    (SELECT open_interest_value FROM open_interest_history
+                     WHERE symbol = ? ORDER BY timestamp DESC LIMIT 1) AS DOUBLE
+                ) AS latest_oi,
                 (SELECT MAX(open_time) FROM {kline_table} WHERE symbol = ?)
                     - INTERVAL '{lookback_days} days' AS start_time,
                 {bin_size} AS price_bin_size
@@ -1005,26 +1040,38 @@ class DuckDBService:
             SELECT
                 open_time as candle_time,
                 time_bucket(INTERVAL '5 minutes', open_time) AS oi_bucket_time,
-                FLOOR(close / {bin_size}) * {bin_size} AS price_bin,
+                CAST(FLOOR(CAST(close AS DOUBLE) / {bin_size}) * {bin_size} AS DOUBLE) AS price_bin,
                 open,
                 high,
                 low,
                 close,
-                COALESCE(quote_volume, close * volume) AS volume
+                COALESCE(CAST(quote_volume AS DOUBLE), CAST(close AS DOUBLE) * CAST(volume AS DOUBLE)) AS volume
             FROM {kline_table}
             WHERE symbol = ?
               AND open_time >= (SELECT start_time FROM Params)
         ),
 
-        -- STEP 2: Compute OI Delta inline via LAG() window function
-        OIDelta AS (
+        -- STEP 2: Align OI samples to the same 5m buckets used by candles.
+        -- Keep only the latest OI value per bucket before computing deltas.
+        OIBucketed AS (
             SELECT
-                timestamp as oi_bucket_time,
-                open_interest_value - LAG(open_interest_value)
-                    OVER (ORDER BY timestamp) AS oi_delta
+                time_bucket(INTERVAL '5 minutes', timestamp) AS oi_bucket_time,
+                CAST(open_interest_value AS DOUBLE) AS open_interest_value,
+                ROW_NUMBER() OVER (
+                    PARTITION BY time_bucket(INTERVAL '5 minutes', timestamp)
+                    ORDER BY timestamp DESC
+                ) AS bucket_rank
             FROM open_interest_history
             WHERE symbol = ?
               AND timestamp >= (SELECT start_time FROM Params) - INTERVAL '1 day'
+        ),
+
+        OIDelta AS (
+            SELECT
+                oi_bucket_time,
+                open_interest_value - LAG(open_interest_value) OVER (ORDER BY oi_bucket_time) AS oi_delta
+            FROM OIBucketed
+            WHERE bucket_rank = 1
         ),
 
         -- STEP 3: Infer position SIDE from candle direction + OI delta
@@ -1060,7 +1107,7 @@ class DuckDBService:
         -- STEP 4: Distribute OI across price bins and sides
         -- Scale volume shape to match latest OI magnitude
         TotalVolume AS (
-            SELECT COALESCE(SUM(volume), 1.0) as total_volume
+            SELECT CAST(COALESCE(SUM(volume), 1.0) AS DOUBLE) as total_volume
             FROM CandleWithSide
         ),
 
@@ -1068,10 +1115,11 @@ class DuckDBService:
             SELECT
                 price_bin,
                 inferred_side as side,
-                SUM(volume) as volume_at_price,
-                -- Scale volume shape with latest OI
-                SUM(volume) * (SELECT latest_oi FROM Params) /
-                (SELECT total_volume FROM TotalVolume) as oi_at_price
+                CAST(SUM(volume) AS DOUBLE) as volume_at_price,
+                -- Scale volume shape with latest OI. Force DOUBLE math to avoid
+                -- DECIMAL overflow on large OI-volume multiplications.
+                CAST(SUM(volume) AS DOUBLE) * CAST((SELECT latest_oi FROM Params) AS DOUBLE) /
+                CAST((SELECT total_volume FROM TotalVolume) AS DOUBLE) as oi_at_price
             FROM CandleWithSide
             GROUP BY price_bin, inferred_side
         ),
@@ -1095,20 +1143,29 @@ class DuckDBService:
         ),
 
         -- STEP 5a: Compute per-bucket notional and matching MMR tier
-        BucketMMR AS (
+        WeightedBuckets AS (
             SELECT
-                od.price_bin AS price_bucket,
+                od.price_bin,
                 ld.leverage,
                 od.side,
-                od.oi_at_price * ld.weight AS volume,
+                CAST(od.oi_at_price AS DOUBLE) * CAST(ld.weight AS DOUBLE) AS bucket_notional
+            FROM OIDistribution od
+            CROSS JOIN LeverageDistribution ld
+        ),
+
+        BucketMMR AS (
+            SELECT
+                wb.price_bin AS price_bucket,
+                wb.leverage,
+                wb.side,
+                wb.bucket_notional AS volume,
                 COALESCE(
                     (SELECT mmr_rate FROM MMRTiers
-                     WHERE max_notional >= od.oi_at_price * ld.weight
+                     WHERE max_notional >= wb.bucket_notional
                      ORDER BY max_notional LIMIT 1),
                     0.50
                 ) AS mmr
-            FROM OIDistribution od
-            CROSS JOIN LeverageDistribution ld
+            FROM WeightedBuckets wb
         ),
 
         -- STEP 5: Calculate liquidation prices

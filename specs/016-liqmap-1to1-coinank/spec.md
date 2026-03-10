@@ -166,15 +166,19 @@ xaxis: {
 
 ## Validazione
 
-### Pre-requisito: Freshness dati (< 5 minuti, gate operativo)
+### Pre-requisito: Freshness dati allineata all'ultimo valore upstream disponibile
 
-Prima di OGNI validazione, i dati DuckDB devono essere aggiornati agli ultimi 5 minuti.
-Senza questo, le discrepanze di volume/price range rispetto a Coinank (che usa dati live)
-sono inevitabili e falsano il TIER 3.
+Prima di OGNI validazione, DuckDB deve essere allineato all'ultimo valore disponibile dal
+bridge `ccxt-data-pipeline -> DuckDB`.
 
-Nota importante: questo vincolo e oggi un requisito di processo, NON un blocco automatico
+Per i `klines` 1m/5m questo significa essere vicini all'ultima candela CHIUSA disponibile.
+Per `open interest` e `funding` una latenza intrinseca maggiore e normale: il gate corretto
+non e "< 5 min" assoluto, ma che DuckDB esponga l'ultimo timestamp realmente disponibile
+upstream per quel dataset.
+
+Nota importante: questo vincolo resta un requisito di processo, NON un blocco automatico
 di `scripts/validate_liqmap_visual.py`. Il validator attuale segnala solo staleness molto piu
-ampia (>24h), quindi la verifica "< 5 min" va confermata manualmente prima del confronto.
+ampia (>24h), quindi la verifica va confermata manualmente prima del confronto.
 
 Nota architetturale: `ccxt-data-pipeline` e una sorgente upstream che mantiene aggiornato il
 catalogo Parquet. Non scrive direttamente in DuckDB. Il passaggio Parquet -> DuckDB avviene
@@ -188,7 +192,8 @@ dotenvx run -f /media/sam/1TB/.env -- \
 
 # 2. Verificare freshness
 curl -s http://localhost:8002/data/date-range?symbol=BTCUSDT | python -m json.tool
-# end_date deve essere < 5 min fa
+# end_date deve coincidere con l'ultimo OI disponibile upstream
+# (non necessariamente < 5 min)
 
 # 3. Rigenerare cache heatmap/levels se necessario
 # /refresh-heatmap --symbol BTCUSDT --validate
@@ -201,6 +206,11 @@ dal catalogo ccxt verso DuckDB:
 dotenvx run -f /media/sam/1TB/.env -- \
   uv run python scripts/fill_gap_from_ccxt.py --symbols BTCUSDT ETHUSDT
 ```
+
+Gate pratico prima del confronto:
+- `klines_1m` / `klines_5m` allineati all'ultima candela chiusa disponibile
+- `open_interest_history` e `funding_rate_history` allineati all'ultimo valore upstream disponibile
+- `/liquidations/levels` restituisce array long/short non vuoti per BTC ed ETH
 
 ### Dopo ogni step, verificare visivamente:
 

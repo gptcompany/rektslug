@@ -1,15 +1,20 @@
+import json
 import logging
-import time
 from decimal import Decimal
-from typing import List, Optional, Literal
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Optional
+from urllib.request import urlopen
+
+import numpy as np
 from fastapi import APIRouter, Query, HTTPException, Response
+from pydantic import BaseModel
 
 from src.liquidationheatmap.ingestion.db_service import DuckDBService
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
+from src.liquidationheatmap.settings import get_settings
 from src.liquidationheatmap.api.shared import SUPPORTED_SYMBOLS, SUPPORTED_EXCHANGES, TIME_WINDOW_CONFIG
 from src.liquidationheatmap.api.cache import heatmap_cache
 from src.liquidationheatmap.api.heatmap_models import (
@@ -23,8 +28,19 @@ from src.liquidationheatmap.api.heatmap_models import (
 
 router = APIRouter(prefix="/liquidations", tags=["Liquidations"])
 logger = logging.getLogger(__name__)
+_SETTINGS = get_settings()
 
 VALID_LEVERAGE_TIERS = {5, 10, 25, 50, 100}
+
+
+class LiquidationLevelsResponse(BaseModel):
+    """Legacy static liquidation levels contract consumed by the liq-map frontend."""
+
+    symbol: str
+    model: str
+    current_price: str
+    long_liquidations: list[dict]
+    short_liquidations: list[dict]
 
 def parse_leverage_weights(weights_str: str | None) -> list[tuple[int, Decimal]] | None:
     if not weights_str:
@@ -45,6 +61,101 @@ def parse_leverage_weights(weights_str: str | None) -> list[tuple[int, Decimal]]
         return None
     except Exception:
         return None
+
+
+@router.get(
+    "/levels",
+    response_model=LiquidationLevelsResponse,
+    deprecated=True,
+    description="Legacy static levels endpoint kept for the liq-map frontend and validation.",
+)
+async def get_liquidation_levels(
+    response: Response,
+    symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
+    model: str = Query("openinterest"),
+    timeframe: int = Query(..., ge=1, le=365),
+    whale_threshold: float = Query(500000.0, ge=0.0),
+    kline_interval: Optional[str] = Query(None, pattern="^(auto|1m|5m)$"),
+):
+    """Return static liquidation levels grouped by side and leverage tier."""
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "2025-06-01"
+    response.headers["Link"] = '</liquidations/heatmap-timeseries>; rel="successor-version"'
+
+    if symbol not in SUPPORTED_SYMBOLS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid symbol '{symbol}'. Supported symbols: {sorted(SUPPORTED_SYMBOLS)}",
+        )
+
+    try:
+        with urlopen(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", timeout=5) as resp:
+            current_price = float(json.loads(resp.read().decode())["price"])
+    except Exception as e:
+        logger.warning("Binance API price fetch failed for %s: %s", symbol, e)
+        with DuckDBService(read_only=True) as db_fallback:
+            price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
+            current_price = float(price_decimal)
+
+    if timeframe <= 7:
+        bin_size = 100.0
+    elif timeframe <= 30:
+        bin_size = 250.0
+    else:
+        bin_size = 500.0
+
+    with DuckDBService(read_only=True) as db:
+        effective_kline_interval = kline_interval or _SETTINGS.oi_kline_interval
+        bins_df = db.calculate_liquidations_oi_based(
+            symbol=symbol,
+            current_price=current_price,
+            bin_size=bin_size,
+            lookback_days=timeframe,
+            whale_threshold=whale_threshold,
+            kline_interval=effective_kline_interval,
+        )
+
+        if not bins_df.empty and "liq_price" in bins_df.columns:
+            bins_df["liq_price_binned"] = (
+                np.round(bins_df["liq_price"] / bin_size) * bin_size
+            ).astype(int)
+            bins_df = (
+                bins_df.groupby(["liq_price_binned", "leverage", "side"])
+                .agg({"volume": "sum"})
+                .reset_index()
+            )
+            bins_df["count"] = 1
+            bins_df.rename(
+                columns={"volume": "total_volume", "liq_price_binned": "price_bucket"},
+                inplace=True,
+            )
+
+    logger.info("Static levels returned %d aggregated bins", len(bins_df))
+
+    long_liqs: list[dict] = []
+    short_liqs: list[dict] = []
+    for _, row in bins_df.iterrows():
+        liq_entry = {
+            "price_level": str(row["price_bucket"]),
+            "volume": str(row["total_volume"]),
+            "count": int(row["count"]),
+            "leverage": f"{int(row['leverage'])}x",
+        }
+        if row["side"] == "buy":
+            long_liqs.append(liq_entry)
+        else:
+            short_liqs.append(liq_entry)
+
+    long_liqs = sorted(long_liqs, key=lambda x: float(x["price_level"]), reverse=True)
+    short_liqs = sorted(short_liqs, key=lambda x: float(x["price_level"]))
+
+    return LiquidationLevelsResponse(
+        symbol=symbol,
+        model=model,
+        current_price=str(current_price),
+        long_liquidations=long_liqs,
+        short_liquidations=short_liqs,
+    )
 
 @router.get("/heatmap", response_model=LiquidationResponse)
 async def get_heatmap(

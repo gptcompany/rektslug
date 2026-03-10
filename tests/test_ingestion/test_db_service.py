@@ -1,5 +1,6 @@
 """Tests for DuckDB service."""
 
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -140,3 +141,73 @@ class TestAggTradesLoading:
             if not df.empty:
                 # All trades should have gross_value >= min threshold
                 assert all(df["gross_value"] >= 100000)
+
+
+class TestOIBasedLiquidationsRegression:
+    """Regression coverage for OI-based liquidation calculations."""
+
+    def test_calculate_liquidations_oi_based_handles_large_decimal_values(self, tmp_path):
+        """Large DECIMAL inputs must not overflow into an empty result set."""
+        db_path = tmp_path / "overflow_regression.duckdb"
+        symbol = "BTCUSDT"
+        now = datetime.now(timezone.utc).replace(second=0, microsecond=0, tzinfo=None)
+        previous_bucket = now - timedelta(minutes=5)
+
+        with DuckDBService(str(db_path)) as db:
+            db.conn.execute("""
+                CREATE TABLE open_interest_history (
+                    id BIGINT,
+                    timestamp TIMESTAMP NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    open_interest_value DECIMAL(20, 8) NOT NULL,
+                    open_interest_contracts DECIMAL(20, 8),
+                    source VARCHAR DEFAULT 'ccxt'
+                )
+            """)
+            db.conn.execute("""
+                CREATE TABLE klines_5m_history (
+                    open_time TIMESTAMP NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    open DECIMAL(18, 8) NOT NULL,
+                    high DECIMAL(18, 8) NOT NULL,
+                    low DECIMAL(18, 8) NOT NULL,
+                    close DECIMAL(18, 8) NOT NULL,
+                    volume DECIMAL(18, 8) NOT NULL,
+                    quote_volume DECIMAL(20, 8),
+                    PRIMARY KEY (open_time, symbol)
+                )
+            """)
+
+            db.conn.execute(
+                """
+                INSERT INTO open_interest_history
+                    (id, timestamp, symbol, open_interest_value, open_interest_contracts, source)
+                VALUES
+                    (1, ?, ?, 800000000000.00000000, 1000000.00000000, 'test'),
+                    (2, ?, ?, 950000000000.00000000, 1000000.00000000, 'test')
+                """,
+                [previous_bucket, symbol, now, symbol],
+            )
+            db.conn.execute(
+                """
+                INSERT INTO klines_5m_history
+                    (open_time, symbol, open, high, low, close, volume, quote_volume)
+                VALUES
+                    (?, ?, 100000.00000000, 100250.00000000, 99950.00000000,
+                     100100.00000000, 9000000.00000000, 900000000000.00000000)
+                """,
+                [now, symbol],
+            )
+
+            df = db.calculate_liquidations_oi_based(
+                symbol=symbol,
+                current_price=105000.0,
+                bin_size=100.0,
+                lookback_days=0,
+                leverage_weights={10: 1.0},
+                kline_interval="5m",
+            )
+
+        assert not df.empty
+        assert set(df["side"]) == {"buy"}
+        assert all(df["volume"] > 0)
