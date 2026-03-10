@@ -81,14 +81,35 @@ rerun spec-017 matrix against CoinAnK
 2. versioned calibration parameter storage
 3. acceptance thresholds for provider-specific parity
 4. regression tests proving default profile isolation
+5. explicit fallback behavior when no candidate clears the acceptance rule
+6. explicit validation of runtime/report-size budgets from the spec NFRs
+
+## Acceptance & Operational Gates
+
+The implementation should follow the calibrated-profile acceptance rule from the
+spec, not an informal "looks better" judgment:
+
+- improve at least `3/5` core metrics
+- on at least `3/4` matrix entries
+- with no critical regression (`> 30%` degradation) on any remaining entry
+
+Operational gates that must be checked during validation:
+
+- full calibration matrix run completes in `< 10 minutes`
+- emitted calibration report stays `< 1 MB`
+- reports remain JSON and preserve profile/timestamp metadata
+- if no candidate clears the rule, fall back to `rektslug-default` and write a
+  machine-readable failure report
 
 ## Phases
 
 1. Audit `spec-017` CoinAnK gaps and define target metrics.
 2. Add explicit profile-selection plumbing.
-3. Run calibration loops and keep only improving candidates.
+3. Run calibration loops per matrix entry, keep only improving candidates, and
+   invoke the explicit no-improvement fallback when needed.
 4. Freeze one provider-specific profile and rerun the matrix.
-5. Document commands, profile identity, and acceptance metrics.
+5. Validate acceptance rule plus NFR budgets, then document commands, profile
+   identity, and final metrics.
 
 ## Risks
 
@@ -96,6 +117,8 @@ rerun spec-017 matrix against CoinAnK
 - improving totals while worsening bucket overlap
 - regressing the default local profile if profile selection is not isolated
 - tuning too much to CoinAnK visual quirks instead of stable liq-map semantics
+- candidate churn without a clean fallback decision
+- underestimating runtime/report-size budgets during repeated calibration loops
 
 ## Quickstart
 
