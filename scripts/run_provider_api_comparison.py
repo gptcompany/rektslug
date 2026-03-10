@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import subprocess
 import sys
 from pathlib import Path
 
@@ -58,7 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--provider",
-        choices=["coinank", "coinglass", "bitcoincounterflow", "both", "all"],
+        choices=["coinank", "coinglass", "bitcoincounterflow", "rektslug", "both", "all"],
         default="all",
         help="Which provider(s) to capture before comparing.",
     )
@@ -181,6 +182,7 @@ def main() -> int:
         output_path=args.comparison_output,
         persist_db=not args.no_persist_db,
         db_path=args.db_path,
+        product_filter=args.product,
     )
 
     providers = sorted(report["providers"])
@@ -191,6 +193,24 @@ def main() -> int:
     else:
         print("duckdb persistence: skipped")
     print(f"comparison report: {report_path}")
+
+    # Run gap analysis on the same manifest (T027).
+    gap_cmd = [
+        sys.executable, str(REPO_ROOT / "scripts" / "provider_gap_analysis.py"),
+        "--manifest", str(manifest_path),
+    ]
+    if not args.no_persist_db:
+        gap_cmd.append("--persist-db")
+    if args.db_path:
+        gap_cmd.extend(["--db-path", str(args.db_path)])
+    print("running gap analysis...")
+    gap_result = subprocess.run(gap_cmd, capture_output=True, text=True)
+    if gap_result.returncode == 0:
+        gap_output = gap_result.stdout.strip()
+        print(f"gap analysis: {gap_output}")
+    else:
+        print(f"gap analysis failed (exit {gap_result.returncode}): {gap_result.stderr.strip()}")
+
     return 0
 
 

@@ -1104,6 +1104,99 @@ def parse_coinglass_liquidity_heatmap(
     )
 
 
+def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
+    """Parse the local rektslug /liquidations/levels payload.
+
+    Expected shape:
+        {
+            "symbol": "BTCUSDT",
+            "model": "openinterest",
+            "current_price": "85000.0",
+            "long_liquidations": [{"price_level": "80000", "volume": "1234.5", ...}],
+            "short_liquidations": [{"price_level": "90000", "volume": "5678.9", ...}]
+        }
+    """
+    if capture.provider != "rektslug":
+        return None
+
+    lowered_url = capture.source_url.lower()
+    if "/liquidations/levels" not in lowered_url:
+        return None
+
+    root = capture.payload
+    if not isinstance(root, dict):
+        return None
+
+    long_liqs = root.get("long_liquidations")
+    short_liqs = root.get("short_liquidations")
+    if not isinstance(long_liqs, list) or not isinstance(short_liqs, list):
+        return None
+
+    current_price = safe_float(root.get("current_price"))
+    symbol = root.get("symbol")
+
+    long_values: list[float] = []
+    short_values: list[float] = []
+    all_prices: list[float] = []
+
+    for entry in long_liqs:
+        if not isinstance(entry, dict):
+            continue
+        price = safe_float(entry.get("price_level"))
+        volume = safe_float(entry.get("volume")) or 0.0
+        if price is not None:
+            all_prices.append(price)
+        if volume > 0:
+            long_values.append(volume)
+
+    for entry in short_liqs:
+        if not isinstance(entry, dict):
+            continue
+        price = safe_float(entry.get("price_level"))
+        volume = safe_float(entry.get("volume")) or 0.0
+        if price is not None:
+            all_prices.append(price)
+        if volume > 0:
+            short_values.append(volume)
+
+    bucket_count = len(long_values) + len(short_values)
+    if bucket_count == 0:
+        return None
+
+    # Derive timeframe from URL query param.
+    params = parse_query_params(capture.source_url)
+    raw_tf = params.get("timeframe")
+    timeframe = None
+    if raw_tf:
+        tf_labels = {"1": "1d", "7": "1w"}
+        timeframe = tf_labels.get(raw_tf, f"{raw_tf}d")
+
+    return NormalizedDataset(
+        provider=capture.provider,
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        dataset_kind="liquidation_heatmap",
+        structure="price_bins",
+        unit="usd_notional",
+        symbol=symbol,
+        exchange="binance",
+        timeframe=timeframe,
+        bucket_count=bucket_count,
+        total_long=sum(long_values),
+        total_short=sum(short_values),
+        peak_long=max(long_values, default=0.0),
+        peak_short=max(short_values, default=0.0),
+        current_price=current_price,
+        price_step_median=median_step(all_prices),
+        time_step_median_ms=None,
+        notes=[
+            "Local rektslug /liquidations/levels endpoint (OI-based liquidation model).",
+            f"Parsed {len(long_values)} long bins and {len(short_values)} short bins.",
+        ],
+        parse_score=100,
+    )
+
+
 def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
     """Parse CoinAnk's aggregated liquidation map endpoint."""
     if "/api/liqMap/getAggLiqMap" not in capture.source_url:
@@ -1631,6 +1724,7 @@ def parse_capture(
 ) -> NormalizedDataset | None:
     """Try all known parsers in priority order."""
     parser_chain = (
+        lambda current: parse_rektslug_levels(current),
         lambda current: parse_coinank_liq_map(current),
         lambda current: parse_coinank_agg_liq_map(current),
         lambda current: parse_bitcoincounterflow_liquidations(current),
@@ -1647,7 +1741,31 @@ def parse_capture(
     return None
 
 
-def choose_best_datasets(captures: list[CaptureFile]) -> tuple[dict[str, NormalizedDataset], dict[str, list[str]]]:
+# dataset_kind values considered valid for each product filter.
+_PRODUCT_DATASET_KINDS: dict[str, set[str]] = {
+    "liq-map": {
+        "liquidation_heatmap",
+        "encrypted_liquidation_heatmap",
+        "encrypted_liquidation_payload",
+        "encrypted_liquidations_chart",
+    },
+}
+
+
+def _dataset_matches_product(dataset: "NormalizedDataset", product_filter: str | None) -> bool:
+    """Return True if the dataset's kind is compatible with the product filter."""
+    if not product_filter:
+        return True
+    allowed = _PRODUCT_DATASET_KINDS.get(product_filter)
+    if allowed is None:
+        return True
+    return dataset.dataset_kind in allowed
+
+
+def choose_best_datasets(
+    captures: list[CaptureFile],
+    product_filter: str | None = None,
+) -> tuple[dict[str, NormalizedDataset], dict[str, list[str]]]:
     """Pick the strongest normalized dataset per provider."""
     best_by_provider: dict[str, NormalizedDataset] = {}
     skipped_by_provider: dict[str, list[str]] = {}
@@ -1658,6 +1776,10 @@ def choose_best_datasets(captures: list[CaptureFile]) -> tuple[dict[str, Normali
         if parsed is None:
             if re.search(r"liq|liquidat|heatmap", capture.source_url, re.IGNORECASE):
                 skipped_by_provider.setdefault(capture.provider, []).append(capture.source_url)
+            continue
+
+        if not _dataset_matches_product(parsed, product_filter):
+            skipped_by_provider.setdefault(parsed.provider, []).append(capture.source_url)
             continue
 
         existing = best_by_provider.get(parsed.provider)
@@ -1950,10 +2072,11 @@ def generate_report(
     output_path: Path | None = None,
     persist_db: bool = False,
     db_path: Path | None = None,
+    product_filter: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Generate the comparison report and optionally persist it to DuckDB."""
     captures = load_capture_files(manifest_paths)
-    datasets, skipped_by_provider = choose_best_datasets(captures)
+    datasets, skipped_by_provider = choose_best_datasets(captures, product_filter=product_filter)
 
     if not datasets:
         raise RuntimeError("No parseable liquidation datasets found in the supplied manifests.")

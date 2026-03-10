@@ -55,6 +55,7 @@ BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
     "https://api.bitcoincounterflow.com/api/liquidations"
     "?exchange=BinanceUSDM&symbol=BTCUSDT&timeframe=15m&days=7"
 )
+REKTSLUG_DEFAULT_API_BASE = "http://localhost:8002"
 
 PROVIDER_DOMAINS = {
     "coinank": ("coinank.com",),
@@ -65,6 +66,14 @@ PROVIDER_DOMAINS = {
         "proxy.bitcoincounterflow.com",
         "serverless-vercel-nine.vercel.app",
     ),
+    "rektslug": ("localhost",),
+}
+
+# Mapping from chart-route timeframe to /liquidations/levels integer days.
+# From docs/runbooks/chart-routes.md: 1d -> 48h (temporary), 1w -> 7d.
+REKTSLUG_TIMEFRAME_DAYS: dict[str, int] = {
+    "1d": 1,
+    "1w": 7,
 }
 
 RELEVANT_RESPONSE_HEADERS = {
@@ -232,6 +241,7 @@ class CaptureTarget:
     email: str | None = None
     password: str | None = None
     ui_timeframe: str | None = None
+    coin: str = "BTC"
 
 
 def utc_timestamp_slug() -> str:
@@ -250,9 +260,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--provider",
-        choices=["coinank", "coinglass", "bitcoincounterflow", "both", "all"],
+        choices=["coinank", "coinglass", "bitcoincounterflow", "rektslug", "both", "all"],
         default="both",
-        help="Which provider(s) to capture. 'both' = CoinAnk + Coinglass; 'all' adds Bitcoin CounterFlow.",
+        help="Which provider(s) to capture. 'both' = CoinAnk + Coinglass; 'all' adds Bitcoin CounterFlow + rektslug.",
     )
     parser.add_argument("--coin", default="BTC", help="Base coin, e.g. BTC or ETH.")
     parser.add_argument(
@@ -328,9 +338,11 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
     """Build the provider targets requested by the user."""
     targets: list[CaptureTarget] = []
 
+    coin = getattr(args, "coin", "BTC")
+
     if args.provider in {"coinank", "both", "all"}:
         coinank_url = args.coinank_url or build_coinank_liqmap_url(
-            args.coin, args.timeframe, args.exchange
+            coin, args.timeframe, args.exchange
         )
         targets.append(
             CaptureTarget(
@@ -338,6 +350,7 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
                 url=coinank_url,
                 email=os.environ.get("COINANK_USER"),
                 password=os.environ.get("COINANK_PASSWORD"),
+                coin=coin,
             )
         )
 
@@ -352,6 +365,7 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
                 ui_timeframe=normalize_coinglass_timeframe_label(
                     args.coinglass_timeframe or args.timeframe
                 ),
+                coin=coin,
             )
         )
 
@@ -360,6 +374,22 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
             CaptureTarget(
                 provider="bitcoincounterflow",
                 url=args.bitcoincounterflow_url,
+            )
+        )
+
+    if args.provider in {"rektslug", "all"}:
+        rektslug_base = getattr(args, "rektslug_api_base", None) or REKTSLUG_DEFAULT_API_BASE
+        symbol = f"{coin.upper()}USDT"
+        tf_days = REKTSLUG_TIMEFRAME_DAYS.get(args.timeframe.lower(), 7)
+        rektslug_url = (
+            f"{rektslug_base}/liquidations/levels"
+            f"?symbol={symbol}&model=openinterest&timeframe={tf_days}"
+        )
+        targets.append(
+            CaptureTarget(
+                provider="rektslug",
+                url=rektslug_url,
+                coin=coin,
             )
         )
 
@@ -814,13 +844,13 @@ async def capture_target(
             captured.append(
                 {
                     "provider": target.provider,
-                    "source_url": url,
+                    "source_url": _redact_url(url),
                     "status": response.status,
                     "method": response.request.method,
                     "content_type": content_type,
                     "response_headers": response_headers,
                     "request_headers": request_headers,
-                    "request_post_data": request_post_data[:5000],
+                    "request_post_data": _redact_post_data(request_post_data[:5000]),
                     "saved_file": str(output_path),
                     "summary": summary,
                 }
@@ -879,7 +909,7 @@ async def capture_target(
 
     summary = {
         "provider": target.provider,
-        "page_url": target.url,
+        "page_url": _redact_url(target.url),
         "login_attempted": bool(target.email and target.password),
         "login_success": login_success,
         "requested_ui_timeframe": target.ui_timeframe,
@@ -915,8 +945,31 @@ def build_run_comparison(provider_summaries: list[dict[str, Any]]) -> dict[str, 
 
 
 def _redact_url(url: str) -> str:
-    """Strip the ``data`` query parameter from a CoinGlass URL for safe logging."""
-    return re.sub(r"data=[^&]+", "data=REDACTED", url)
+    """Strip sensitive query parameters from provider URLs for safe persistence."""
+    url = re.sub(r"data=[^&]+", "data=REDACTED", url)
+    url = re.sub(r"(userName|passWord|password|email|token|accessToken)=[^&]+", r"\1=REDACTED", url, flags=re.IGNORECASE)
+    return url
+
+
+def _redact_post_data(post_data: str) -> str:
+    """Strip sensitive fields from POST data before persisting."""
+    if not post_data:
+        return post_data
+    sensitive = ("userName", "passWord", "password", "email", "accessToken", "token")
+    for field in sensitive:
+        post_data = re.sub(
+            rf'"{field}"\s*:\s*"[^"]*"',
+            f'"{field}":"REDACTED"',
+            post_data,
+            flags=re.IGNORECASE,
+        )
+        post_data = re.sub(
+            rf"(?<=[?&])({field})=[^&]+",
+            r"\1=REDACTED",
+            post_data,
+            flags=re.IGNORECASE,
+        )
+    return post_data
 
 
 def capture_coinglass_rest(
@@ -944,7 +997,8 @@ def capture_coinglass_rest(
     access_token = token_info["accessToken"]
 
     timeframe_key = target.ui_timeframe or "1d"
-    result = coinglass_rest_fetch_liqmap(access_token, timeframe_key)
+    cg_symbol = f"Binance_{target.coin.upper()}USDT"
+    result = coinglass_rest_fetch_liqmap(access_token, timeframe_key, symbol=cg_symbol)
 
     body = result["body"]
     body_text = json.dumps(body, indent=2, ensure_ascii=True)
@@ -1006,6 +1060,65 @@ def capture_coinglass_rest(
     return summary
 
 
+def capture_rektslug_rest(
+    target: CaptureTarget,
+    run_dir: Path,
+) -> dict[str, Any]:
+    """Capture local rektslug /liquidations/levels via REST (no browser).
+
+    Produces the same summary shape as ``capture_target()`` so downstream
+    consumers (manifest, comparator) work unchanged.
+    """
+    import urllib.request
+
+    provider_dir = run_dir / target.provider
+    provider_dir.mkdir(parents=True, exist_ok=True)
+
+    req = urllib.request.Request(target.url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        body = json.loads(resp.read().decode())
+        status_code = resp.status
+
+    body_text = json.dumps(body, indent=2, ensure_ascii=True)
+    output_path = provider_dir / "01_levels.json"
+    output_path.write_text(body_text, encoding="utf-8")
+
+    payload_summary = summarize_json_payload(body)
+
+    captured = [
+        {
+            "provider": target.provider,
+            "source_url": target.url,
+            "status": status_code,
+            "method": "GET",
+            "content_type": "application/json",
+            "response_headers": {},
+            "request_headers": {},
+            "request_post_data": "",
+            "saved_file": str(output_path),
+            "summary": payload_summary,
+        }
+    ]
+
+    summary = {
+        "provider": target.provider,
+        "page_url": target.url,
+        "login_attempted": False,
+        "login_success": False,
+        "requested_ui_timeframe": None,
+        "timeframe_applied": True,
+        "capture_count": len(captured),
+        "captures": captured,
+        "capture_mode": "rest",
+    }
+
+    summary_path = provider_dir / "summary.json"
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=True), encoding="utf-8"
+    )
+    return summary
+
+
 async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> Path:
     """Execute the capture workflow and return the manifest path."""
     targets = build_targets(args)
@@ -1021,6 +1134,20 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
             print(f"capturing {target.provider}{mode_label}: {target.url}")
 
         summary: dict[str, Any] | None = None
+
+        # Rektslug local REST path (no browser needed)
+        if target.provider == "rektslug":
+            try:
+                summary = capture_rektslug_rest(target, run_dir)
+                if emit_progress:
+                    print(
+                        f"saved {summary['capture_count']} JSON responses "
+                        f"for {target.provider} [rest]"
+                    )
+            except Exception as exc:
+                if emit_progress:
+                    print(f"  rektslug REST failed: {exc}")
+                raise
 
         # CoinGlass REST or auto path
         if target.provider == "coinglass" and cg_mode in ("rest", "auto"):

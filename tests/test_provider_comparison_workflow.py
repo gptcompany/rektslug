@@ -264,8 +264,245 @@ class TestGapAnalysisLiqmapOnly:
 
 
 # ============================================================================
+# Rektslug local provider (Step 1)
+# ============================================================================
+
+
+class TestRektslugProviderInTargets:
+    """Validate that 'rektslug' is included in build_targets when requested."""
+
+    def test_rektslug_target_included_when_all(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="all",
+            coin="BTC",
+            timeframe="1w",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            coinglass_timeframe=None,
+        )
+        targets = build_targets(args)
+        providers = [t.provider for t in targets]
+        assert "rektslug" in providers
+
+    def test_rektslug_target_url_contains_levels(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="rektslug",
+            coin="BTC",
+            timeframe="1w",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url=None,
+            coinglass_timeframe=None,
+        )
+        targets = build_targets(args)
+        assert len(targets) == 1
+        assert targets[0].provider == "rektslug"
+        assert "/liquidations/levels" in targets[0].url
+        assert "BTCUSDT" in targets[0].url
+        assert "timeframe=7" in targets[0].url
+
+    def test_rektslug_target_1d_maps_to_timeframe_1(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="rektslug",
+            coin="ETH",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url=None,
+            coinglass_timeframe=None,
+        )
+        targets = build_targets(args)
+        assert "ETHUSDT" in targets[0].url
+        assert "timeframe=1" in targets[0].url
+
+
+class TestRektslugParser:
+    """Validate the rektslug /liquidations/levels parser."""
+
+    def test_parses_valid_levels_payload(self):
+        from scripts.compare_provider_liquidations import (
+            CaptureFile,
+            parse_rektslug_levels,
+        )
+
+        payload = _build_rektslug_levels_payload()
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url="http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+            saved_file=Path("/tmp/fake.json"),
+            content_type="application/json",
+            payload=payload,
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+        result = parse_rektslug_levels(capture)
+        assert result is not None
+        assert result.provider == "rektslug"
+        assert result.dataset_kind == "liquidation_heatmap"
+        assert result.structure == "price_bins"
+        assert result.symbol == "BTCUSDT"
+        assert result.timeframe == "1w"
+        assert result.total_long > 0
+        assert result.total_short > 0
+        assert result.bucket_count > 0
+        assert result.current_price == 85000.0
+
+    def test_rejects_non_rektslug_provider(self):
+        from scripts.compare_provider_liquidations import (
+            CaptureFile,
+            parse_rektslug_levels,
+        )
+
+        payload = _build_rektslug_levels_payload()
+        capture = CaptureFile(
+            provider="coinank",
+            source_url="http://localhost:8002/liquidations/levels?symbol=BTCUSDT&timeframe=7",
+            saved_file=Path("/tmp/fake.json"),
+            content_type="application/json",
+            payload=payload,
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+        assert parse_rektslug_levels(capture) is None
+
+    def test_timeframe_1d_parsed(self):
+        from scripts.compare_provider_liquidations import (
+            CaptureFile,
+            parse_rektslug_levels,
+        )
+
+        payload = _build_rektslug_levels_payload()
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url="http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=1",
+            saved_file=Path("/tmp/fake.json"),
+            content_type="application/json",
+            payload=payload,
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+        result = parse_rektslug_levels(capture)
+        assert result is not None
+        assert result.timeframe == "1d"
+
+
+class TestRektslugInManifest:
+    """Validate that rektslug appears in manifest and report structures."""
+
+    def test_manifest_includes_rektslug_provider(self, tmp_path):
+        manifest = _build_test_manifest_with_rektslug(tmp_path)
+        providers = [p["provider"] for p in manifest["providers"]]
+        assert "rektslug" in providers
+        assert "coinank" in providers
+        assert "coinglass" in providers
+
+    def test_report_includes_rektslug(self):
+        report = _build_test_report_with_rektslug()
+        assert "rektslug" in report["providers"]
+        assert "coinank" in report["providers"]
+        assert "coinglass" in report["providers"]
+
+
+# ============================================================================
 # Helpers
 # ============================================================================
+
+
+def _build_rektslug_levels_payload() -> dict:
+    """Build a realistic /liquidations/levels response payload."""
+    return {
+        "symbol": "BTCUSDT",
+        "model": "openinterest",
+        "current_price": "85000.0",
+        "long_liquidations": [
+            {"price_level": "84000", "volume": "5000000.0", "count": 1, "leverage": "10x"},
+            {"price_level": "83000", "volume": "3500000.0", "count": 1, "leverage": "25x"},
+            {"price_level": "82000", "volume": "2000000.0", "count": 1, "leverage": "50x"},
+            {"price_level": "80000", "volume": "1500000.0", "count": 1, "leverage": "100x"},
+        ],
+        "short_liquidations": [
+            {"price_level": "86000", "volume": "4500000.0", "count": 1, "leverage": "10x"},
+            {"price_level": "87000", "volume": "3000000.0", "count": 1, "leverage": "25x"},
+            {"price_level": "88000", "volume": "2500000.0", "count": 1, "leverage": "50x"},
+            {"price_level": "90000", "volume": "1000000.0", "count": 1, "leverage": "100x"},
+        ],
+    }
+
+
+def _build_test_manifest_with_rektslug(tmp_path: Path) -> dict:
+    """Build a test manifest with all 3 providers including rektslug."""
+    return {
+        "timestamp_utc": "2026-03-10T12:00:00+00:00",
+        "run_dir": str(tmp_path),
+        "product": "liq-map",
+        "args": {
+            "provider": "all",
+            "coin": "BTC",
+            "timeframe": "1w",
+            "exchange": "binance",
+        },
+        "providers": [
+            {
+                "provider": "rektslug",
+                "page_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+                "login_attempted": False,
+                "login_success": False,
+                "timeframe_applied": True,
+                "capture_count": 1,
+                "capture_mode": "rest",
+                "captures": [],
+            },
+            {
+                "provider": "coinank",
+                "page_url": "https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1w",
+                "login_success": True,
+                "timeframe_applied": True,
+                "capture_count": 3,
+                "capture_mode": "browser",
+                "captures": [],
+            },
+            {
+                "provider": "coinglass",
+                "page_url": "https://www.coinglass.com/pro/futures/LiquidationMap",
+                "login_success": True,
+                "timeframe_applied": True,
+                "capture_count": 1,
+                "capture_mode": "rest",
+                "captures": [],
+            },
+        ],
+    }
+
+
+def _build_test_report_with_rektslug() -> dict:
+    """Build a comparison report with all 3 providers."""
+    base = _build_test_report()
+    base["providers"]["rektslug"] = {
+        "provider": "rektslug",
+        "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "symbol": "BTCUSDT",
+        "exchange": "binance",
+        "timeframe": "1w",
+        "bucket_count": 80,
+        "total_long": 12000000.0,
+        "total_short": 11000000.0,
+        "peak_long": 5000000.0,
+        "peak_short": 4500000.0,
+    }
+    return base
 
 
 def _build_test_manifest(
