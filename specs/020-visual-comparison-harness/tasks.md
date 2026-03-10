@@ -4,6 +4,12 @@
 **Dependencies**: `spec-016`, `spec-017`, future calibration specs
 **Feature Type**: Shared validation infrastructure
 
+## Execution Order Note
+
+- Phase 1-2 can start immediately and run in parallel with `spec-018` / `spec-019`
+- Phase 3+ should begin only after at least the `spec-018` profile surface exists
+- `spec-021` should consume the renderer-adapter seams from this spec, not bypass them
+
 ## Phase 1: Inventory
 
 - [ ] T001 Inventory current screenshot/validation scripts and manifest formats

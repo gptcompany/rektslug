@@ -12,3 +12,4 @@ The implementation goal is unchanged:
 - calibrate local `liq-map` output specifically against Coinglass
 - keep BTC/ETH and `1d/1w` scope
 - preserve separate local profiles
+- reuse the profile-surface mechanism introduced by `spec-018`

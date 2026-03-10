@@ -14,7 +14,7 @@
 
 - [ ] T004 Define manifest/provider metadata for Counterflow
 - [ ] T005 Define how Counterflow should appear in comparison reports
-- [ ] T006 Define whether Counterflow is data-source, visual-reference, or both
+- [ ] T006 Record the architectural decision that Counterflow is both data-source and visual-reference, with an asymmetrical role
 - [ ] T007 Define the expected `renderer_adapter=lightweight` contract for Counterflow
 
 ## Phase 3: Harness Alignment

@@ -71,5 +71,6 @@ the CoinAnK-oriented profile.
 
 ## Notes
 
-- `spec-018` and `spec-019` are parallel by concept but should be executed independently.
+- `spec-018` should introduce the reusable local profile-surface mechanism first.
+- `spec-019` should reuse that mechanism rather than reinventing profile plumbing.
 - `spec-020` will standardize visual comparison on top of these profiles.

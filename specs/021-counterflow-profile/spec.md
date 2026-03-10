@@ -45,6 +45,22 @@ This spec is not a copy of `spec-017`:
 - Counterflow should be treated as a TradingView Lightweight Charts provider until proven otherwise by implementation-level validation.
 - If a local Lightweight smoke page is needed later, it should be validated separately from the current Plotly pages rather than assumed interchangeable.
 
+## Architectural Decision
+
+Counterflow should be treated as **both**:
+
+- a data-source, because raw Counterflow payload capture/parsing already exists in repo
+- a visual-reference, because its Lightweight renderer behavior is part of what makes it distinct
+
+The roles are not symmetrical:
+
+- near-term primary value: visual/reference profile plus explicit provider identity
+- secondary value: data comparison where the existing raw feed is meaningful
+
+Counterflow is therefore not a parity target identical to CoinAnK or Coinglass. It is
+a mixed provider case that must still enter the harness through
+`renderer_adapter=lightweight`.
+
 ## Functional Requirements
 
 - **FR-001**: The repo MUST define Counterflow as an explicit provider/profile, not an unnamed extra endpoint.

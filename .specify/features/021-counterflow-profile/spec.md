@@ -13,3 +13,4 @@ The implementation goal is unchanged:
 - document Lightweight Charts constraints
 - align future integration with the shared visual harness
 - treat Counterflow as a separate `lightweight` renderer adapter
+- treat Counterflow as both data-source and visual-reference, with an asymmetrical role

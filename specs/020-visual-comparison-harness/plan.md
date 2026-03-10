@@ -97,6 +97,12 @@ visual comparison report
 4. Integrate liq-map on `plotly` first.
 5. Leave clean seams for `liq-heat-map` and Counterflow/`lightweight`.
 
+## Execution Order
+
+- Phase 1-2 can run immediately in parallel with `spec-018` / `spec-019`
+- Phase 3-5 should assume at least one concrete calibrated local profile path exists, starting with `spec-018`
+- Counterflow integration should wait for these seams rather than adding a parallel special-case path
+
 ## Risks
 
 - over-abstracting too early

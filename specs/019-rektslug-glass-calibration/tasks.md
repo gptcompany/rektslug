@@ -1,7 +1,7 @@
 # Tasks: Rektslug-Glass Calibration
 
 **Input**: `specs/019-rektslug-glass-calibration/spec.md`
-**Dependencies**: `spec-017` comparison artifacts and workflow
+**Dependencies**: `spec-017` comparison artifacts/workflow and the reusable profile-surface mechanism introduced by `spec-018`
 **Feature Type**: Model calibration profile
 
 ## Phase 1: Baseline Audit
@@ -12,7 +12,7 @@
 
 ## Phase 2: Profile Surface
 
-- [ ] T004 Introduce an explicit `rektslug-glass` profile/config surface
+- [ ] T004 Reuse the explicit profile/config surface introduced by `spec-018` to add `rektslug-glass`
 - [ ] T005 Record the active local profile in manifests/reports
 - [ ] T006 Add tests covering profile selection and isolation from `rektslug-default` and `rektslug-ank`
 
