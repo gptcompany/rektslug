@@ -414,8 +414,239 @@ class TestRektslugInManifest:
 
 
 # ============================================================================
+# Step 2: Real product filtering and spec-017 scope lock
+# ============================================================================
+
+
+class TestSpec017ProviderScope:
+    """Validate provider scope enforcement for spec-017."""
+
+    def test_spec017_rejects_bitcoincounterflow_provider(self):
+        from scripts.run_provider_api_comparison import validate_spec017_provider
+
+        with pytest.raises(ValueError, match="Unsupported provider"):
+            validate_spec017_provider("bitcoincounterflow")
+
+    def test_build_targets_can_exclude_bitcoincounterflow(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="all",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            coinglass_timeframe=None,
+            include_bitcoincounterflow=False,
+            include_rektslug=True,
+        )
+        targets = build_targets(args)
+        providers = [t.provider for t in targets]
+        assert "bitcoincounterflow" not in providers
+        assert providers == ["coinank", "coinglass", "rektslug"]
+
+
+class TestRealProductFiltering:
+    """Validate real liq-map filtering against heatmap-like Coinglass captures."""
+
+    def test_liqheatmap_capture_is_excluded_by_liqmap_filter(self, monkeypatch):
+        from scripts.compare_provider_liquidations import choose_best_datasets
+
+        monkeypatch.setattr(
+            "scripts.compare_provider_liquidations.decode_coinglass_json_payload",
+            lambda capture: (_build_coinglass_liqheatmap_decoded_payload(), ["decoded"]),
+        )
+
+        captures = [
+            _build_coinglass_encoded_capture(
+                "https://capi.coinglass.com/api/index/5/liqHeatMap"
+                "?symbol=Binance_BTCUSDT&interval=1&limit=1500"
+            )
+        ]
+        datasets, skipped = choose_best_datasets(captures, product_filter="liq-map")
+
+        assert datasets == {}
+        assert skipped["coinglass"] == [captures[0].source_url]
+
+    def test_liqmap_capture_is_retained_by_liqmap_filter(self, monkeypatch):
+        from scripts.compare_provider_liquidations import choose_best_datasets
+
+        monkeypatch.setattr(
+            "scripts.compare_provider_liquidations.decode_coinglass_json_payload",
+            lambda capture: (_build_coinglass_liqmap_decoded_payload(), ["decoded"]),
+        )
+
+        captures = [
+            _build_coinglass_encoded_capture(
+                "https://capi.coinglass.com/api/index/5/liqMap"
+                "?symbol=Binance_BTCUSDT&interval=1&limit=1500"
+            )
+        ]
+        datasets, skipped = choose_best_datasets(captures, product_filter="liq-map")
+
+        assert list(datasets) == ["coinglass"]
+        assert datasets["coinglass"].product == "liq-map"
+        assert skipped["coinglass"] == []
+
+
+# ============================================================================
+# Step 3: Gap analysis alignment and runner fail-fast
+# ============================================================================
+
+
+class TestGapAnalysisLocalRektslug:
+    """Validate gap analysis uses the local rektslug capture path."""
+
+    def test_extract_rektslug_state_preserves_leverage_and_timeframe(self):
+        from scripts.compare_provider_liquidations import CaptureFile
+        from scripts.provider_gap_analysis import extract_rektslug_state
+
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url="http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+            saved_file=Path("/tmp/rektslug.json"),
+            content_type="application/json",
+            payload=_build_rektslug_levels_payload(),
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+
+        state = extract_rektslug_state(capture)
+
+        assert state.provider == "rektslug"
+        assert state.timeframe == "1w"
+        assert state.current_price == 85000.0
+        assert sorted(state.leverage_totals) == [10, 25, 50, 100]
+        assert state.total_value > 0
+        assert state.long_map
+        assert state.short_map
+
+
+class TestRunnerGapAnalysisFailureHandling:
+    """Validate the combined runner fails when gap analysis fails."""
+
+    def _args(self):
+        import argparse
+
+        return argparse.Namespace(
+            provider="all",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url="https://www.coinglass.com/LiquidationData",
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            capture_output_dir=Path("/tmp/captures"),
+            comparison_output=None,
+            max_responses=5,
+            post_load_wait_ms=1000,
+            headed=False,
+            no_persist_db=True,
+            db_path=None,
+            product="liq-map",
+            matrix_preset="spec-017",
+            coinglass_mode="rest",
+        )
+
+    def test_runner_returns_non_zero_when_gap_analysis_fails(self, monkeypatch):
+        from scripts import run_provider_api_comparison as runner
+
+        async def fake_run_capture(*args, **kwargs):
+            return Path("/tmp/manifest.json")
+
+        monkeypatch.setattr(runner, "parse_args", lambda: self._args())
+        monkeypatch.setattr(runner, "run_capture", fake_run_capture)
+        monkeypatch.setattr(
+            runner,
+            "generate_report",
+            lambda **kwargs: (
+                {"providers": {"coinank": {}, "coinglass": {}, "rektslug": {}}, "pairwise_comparisons": []},
+                Path("/tmp/report.json"),
+            ),
+        )
+
+        class Result:
+            returncode = 1
+            stdout = ""
+            stderr = "gap boom"
+
+        monkeypatch.setattr(runner.subprocess, "run", lambda *args, **kwargs: Result())
+
+        assert runner.main() == 1
+
+    def test_runner_returns_zero_when_gap_analysis_succeeds(self, monkeypatch):
+        from scripts import run_provider_api_comparison as runner
+
+        async def fake_run_capture(*args, **kwargs):
+            return Path("/tmp/manifest.json")
+
+        monkeypatch.setattr(runner, "parse_args", lambda: self._args())
+        monkeypatch.setattr(runner, "run_capture", fake_run_capture)
+        monkeypatch.setattr(
+            runner,
+            "generate_report",
+            lambda **kwargs: (
+                {"providers": {"coinank": {}, "coinglass": {}, "rektslug": {}}, "pairwise_comparisons": []},
+                Path("/tmp/report.json"),
+            ),
+        )
+
+        class Result:
+            returncode = 0
+            stdout = "/tmp/gap.json"
+            stderr = ""
+
+        monkeypatch.setattr(runner.subprocess, "run", lambda *args, **kwargs: Result())
+
+        assert runner.main() == 0
+
+
+# ============================================================================
 # Helpers
 # ============================================================================
+
+
+def _build_coinglass_encoded_capture(source_url: str):
+    from scripts.compare_provider_liquidations import CaptureFile
+
+    return CaptureFile(
+        provider="coinglass",
+        source_url=source_url,
+        saved_file=Path("/tmp/coinglass.json"),
+        content_type="application/json",
+        payload={"data": "ZmFrZQ=="},
+        manifest_path=Path("/tmp/manifest.json"),
+        response_headers={"user": "seed", "v": "1"},
+        request_headers={},
+    )
+
+
+def _build_coinglass_liqmap_decoded_payload() -> dict:
+    return {
+        "instrument": {"instrumentId": "BTCUSDT", "exName": "Binance"},
+        "lastPrice": "85000",
+        "liqMapV2": {
+            "84000": [[84000, 1200, 25, 1]],
+            "86000": [[86000, 900, 50, 2]],
+        },
+    }
+
+
+def _build_coinglass_liqheatmap_decoded_payload() -> dict:
+    return {
+        "instrument": {"instrumentId": "BTCUSDT", "exName": "Binance"},
+        "prices": [
+            [1710000000000, 0, 0, 0, 84900],
+            [1710000060000, 0, 0, 0, 85000],
+        ],
+        "y": [84000, 86000],
+        "liq": [
+            [1, 0, 1200],
+            [1, 1, 900],
+        ],
+    }
 
 
 def _build_rektslug_levels_payload() -> dict:

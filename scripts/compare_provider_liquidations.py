@@ -132,6 +132,7 @@ class NormalizedDataset:
     dataset_kind: str
     structure: str
     unit: str
+    product: str | None
     symbol: str | None
     exchange: str | None
     timeframe: str | None
@@ -327,6 +328,31 @@ def parse_query_params(url: str) -> dict[str, str]:
     parsed = urlparse(url)
     params = parse_qs(parsed.query)
     return {key: values[0] for key, values in params.items() if values}
+
+
+def infer_product_from_source_url(url: str) -> str | None:
+    """Infer the product family from a captured source URL."""
+    lowered_path = urlparse(url).path.lower()
+
+    if "/liquidations/levels" in lowered_path:
+        return "liq-map"
+    if "/api/liqmap/" in lowered_path or lowered_path.endswith("/liqmap"):
+        return "liq-map"
+    if "/api/index/v5/liqmap" in lowered_path or "/api/index/5/liqmap" in lowered_path:
+        return "liq-map"
+    if "/api/index/v5/liqheatmap" in lowered_path or "/api/index/5/liqheatmap" in lowered_path:
+        return "liq-heat-map"
+    if "/api/coin/liq/heatmap" in lowered_path:
+        return "liq-heat-map"
+    if "/liquidity-heatmap/" in lowered_path:
+        return "liquidity-heatmap"
+    if "/api/futures/liquidation/chart" in lowered_path:
+        return "liquidations-chart"
+    if "/api/coin/liquidation" in lowered_path:
+        return "liquidation-summary"
+    if "/api/liquidations" in lowered_path:
+        return "liquidations-timeseries"
+    return None
 
 
 def normalize_coinglass_symbol(raw_symbol: str | None) -> tuple[str | None, str | None]:
@@ -701,6 +727,7 @@ def parse_coinglass_decoded_payload(
                     dataset_kind="liquidation_heatmap",
                     structure="price_bins",
                     unit="usd_notional",
+                    product="liq-map",
                     symbol=symbol,
                     exchange=exchange,
                     timeframe=timeframe,
@@ -843,6 +870,7 @@ def parse_coinglass_decoded_payload(
                         dataset_kind="liquidation_heatmap",
                         structure="price_bins",
                         unit="usd_notional",
+                        product="liq-heat-map",
                         symbol=symbol,
                         exchange=exchange,
                         timeframe=timeframe,
@@ -884,6 +912,7 @@ def parse_coinglass_decoded_payload(
                 dataset_kind="liquidations_timeseries",
                 structure="time_candles",
                 unit="usd_notional",
+                product="liquidations-chart",
                 symbol=params.get("symbol") or None,
                 exchange=params.get("exName") or "All",
                 timeframe=params.get("range") or params.get("timeType"),
@@ -919,6 +948,7 @@ def parse_coinglass_decoded_payload(
                 dataset_kind="liquidation_summary",
                 structure="time_buckets_summary",
                 unit="usd_notional",
+                product="liquidation-summary",
                 symbol=None,
                 exchange="All",
                 timeframe="multi_window",
@@ -965,6 +995,7 @@ def parse_coinglass_decoded_payload(
                 dataset_kind="liquidation_leaderboard",
                 structure="asset_rows",
                 unit="usd_notional",
+                product="liq-heat-map",
                 symbol=params.get("symbol") or None,
                 exchange="All",
                 timeframe=params.get("time"),
@@ -1088,6 +1119,7 @@ def parse_coinglass_liquidity_heatmap(
         dataset_kind="liquidity_heatmap",
         structure="time_price_grid",
         unit="relative_density",
+        product="liquidity-heatmap",
         symbol=symbol,
         exchange=exchange,
         timeframe=params.get("interval"),
@@ -1178,6 +1210,7 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         dataset_kind="liquidation_heatmap",
         structure="price_bins",
         unit="usd_notional",
+        product="liq-map",
         symbol=symbol,
         exchange="binance",
         timeframe=timeframe,
@@ -1263,6 +1296,7 @@ def parse_coinank_agg_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         dataset_kind="liquidation_heatmap",
         structure="price_bins",
         unit="usd_notional",
+        product="liq-map",
         symbol=symbol,
         exchange=exchange_key,
         timeframe=params.get("interval"),
@@ -1363,6 +1397,7 @@ def parse_coinank_liq_map(capture: CaptureFile) -> NormalizedDataset | None:
         dataset_kind="liquidation_heatmap",
         structure="price_bins",
         unit="usd_notional",
+        product="liq-map",
         symbol=data.get("symbol") or params.get("symbol"),
         exchange=params.get("exchange"),
         timeframe=params.get("interval"),
@@ -1427,6 +1462,7 @@ def parse_bitcoincounterflow_liquidations(capture: CaptureFile) -> NormalizedDat
         dataset_kind="liquidations_timeseries",
         structure="time_candles",
         unit="usd_notional",
+        product="liquidations-timeseries",
         symbol=data.get("symbol"),
         exchange=data.get("exchange"),
         timeframe=data.get("timeframe"),
@@ -1509,6 +1545,7 @@ def parse_coinglass_encrypted_liquidations(capture: CaptureFile) -> NormalizedDa
         dataset_kind=dataset_kind,
         structure="encrypted_base64",
         unit="encrypted_payload",
+        product=infer_product_from_source_url(capture.source_url),
         symbol=params.get("symbol"),
         exchange=params.get("exName"),
         timeframe=params.get("time") or params.get("range") or params.get("timeType"),
@@ -1611,6 +1648,7 @@ def parse_record_series(capture: CaptureFile) -> NormalizedDataset | None:
         dataset_kind=dataset_kind,
         structure=structure,
         unit=infer_unit(capture.source_url, field_names),
+        product=infer_product_from_source_url(capture.source_url),
         symbol=params.get("symbol") or params.get("coin"),
         exchange=params.get("exchange"),
         timeframe=params.get("timeframe") or params.get("interval"),
@@ -1702,6 +1740,7 @@ def parse_parallel_price_arrays(capture: CaptureFile) -> NormalizedDataset | Non
         dataset_kind="liquidation_heatmap",
         structure="price_bins",
         unit=infer_unit(capture.source_url, field_names),
+        product=infer_product_from_source_url(capture.source_url),
         symbol=params.get("symbol") or params.get("coin"),
         exchange=params.get("exchange"),
         timeframe=params.get("timeframe") or params.get("interval"),
@@ -1741,25 +1780,11 @@ def parse_capture(
     return None
 
 
-# dataset_kind values considered valid for each product filter.
-_PRODUCT_DATASET_KINDS: dict[str, set[str]] = {
-    "liq-map": {
-        "liquidation_heatmap",
-        "encrypted_liquidation_heatmap",
-        "encrypted_liquidation_payload",
-        "encrypted_liquidations_chart",
-    },
-}
-
-
 def _dataset_matches_product(dataset: "NormalizedDataset", product_filter: str | None) -> bool:
-    """Return True if the dataset's kind is compatible with the product filter."""
+    """Return True if the dataset matches the requested product."""
     if not product_filter:
         return True
-    allowed = _PRODUCT_DATASET_KINDS.get(product_filter)
-    if allowed is None:
-        return True
-    return dataset.dataset_kind in allowed
+    return dataset.product == product_filter
 
 
 def choose_best_datasets(

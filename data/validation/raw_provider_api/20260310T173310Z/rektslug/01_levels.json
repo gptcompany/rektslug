@@ -1,0 +1,93 @@
+{
+  "symbol": "ETHUSDT",
+  "model": "openinterest",
+  "current_price": "2076.51",
+  "long_liquidations": [
+    {
+      "price_level": "2000",
+      "volume": "534683066.19101995",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "2000",
+      "volume": "267341533.09550998",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "668353832.7387749",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "18120717.608985554",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "9060358.804492777",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "1800",
+      "volume": "802024599.2865299",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "1800",
+      "volume": "22650897.011231944",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "1700",
+      "volume": "27181076.413478334",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "1600",
+      "volume": "401012299.64326495",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "1500",
+      "volume": "13590538.206739167",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ],
+  "short_liquidations": [
+    {
+      "price_level": "2100",
+      "volume": "8302235.093304844",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "2200",
+      "volume": "487009473.0463855",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "2300",
+      "volume": "4151117.546652422",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "2400",
+      "volume": "243504736.52319276",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ]
+}

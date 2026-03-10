@@ -1,0 +1,303 @@
+{
+  "timestamp_utc": "2026-03-10T17:33:02.157178+00:00",
+  "manifests": [
+    "/media/sam/1TB/rektslug/data/validation/raw_provider_api/20260310T173221Z/manifest.json"
+  ],
+  "providers": {
+    "coinank": {
+      "provider": "coinank",
+      "source_url": "https://api.coinank.com/api/liqMap/getLiqMap?exchange=Binance&symbol=BTCUSDT&interval=1w",
+      "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinank/07_getliqmap.json",
+      "dataset_kind": "liquidation_heatmap",
+      "structure": "price_bins",
+      "unit": "usd_notional",
+      "product": "liq-map",
+      "symbol": "BTCUSDT",
+      "exchange": "Binance",
+      "timeframe": "1w",
+      "bucket_count": 654,
+      "total_long": 17930596265.0,
+      "total_short": 16192337693.0,
+      "peak_long": 148729215.0,
+      "peak_short": 279574066.0,
+      "current_price": 70980.0,
+      "price_step_median": 20.0,
+      "time_step_median_ms": null,
+      "notes": [
+        "CoinAnk getLiqMap returns a symbol-specific price grid plus leverage ladders (x25, x30, x40, x50, x60, x70, x80, x90, x100).",
+        "The public payload starts at x25 and omits x5/x10, so low-leverage tiers are not part of this series.",
+        "Long and short totals are split using CoinAnk's `lastIndex` pivot."
+      ]
+    },
+    "coinglass": {
+      "provider": "coinglass",
+      "source_url": "https://capi.coinglass.com/api/index/5/liqMap?merge=true&symbol=Binance_BTCUSDT&interval=5&limit=2000&data=REDACTED",
+      "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinglass/01_liqmap.json",
+      "dataset_kind": "liquidation_heatmap",
+      "structure": "price_bins",
+      "unit": "usd_notional",
+      "product": "liq-map",
+      "symbol": "BTCUSDT",
+      "exchange": "Binance",
+      "timeframe": "7 day",
+      "bucket_count": 233,
+      "total_long": 1176081942.0600002,
+      "total_short": 1147898315.9399998,
+      "peak_long": 38281084.45,
+      "peak_short": 39119167.17,
+      "current_price": 71188.0,
+      "price_step_median": 58.0,
+      "time_step_median_ms": null,
+      "notes": [
+        "Decoded from Coinglass encrypted payload using captured response headers plus bundled frontend CryptoJS/pako.",
+        "Derived seed key from Coinglass header/path flow (v=2).",
+        "Coinglass pro /api/index/v5/liqMap returns a price-bucket liquidation map under `liqMapV2`.",
+        "Each `liqMapV2[price]` entry is a list of clusters shaped like [price, value, leverage, heat_band].",
+        "This normalization sums cluster values inside each top-level bucket; 233 active buckets and 386 clusters were present.",
+        "Below/above-price totals were split around decoded lastPrice 71188.0000.",
+        "Values are treated as USD-notional based on endpoint semantics and magnitude."
+      ]
+    },
+    "rektslug": {
+      "provider": "rektslug",
+      "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+      "saved_file": "data/validation/raw_provider_api/20260310T173221Z/rektslug/01_levels.json",
+      "dataset_kind": "liquidation_heatmap",
+      "structure": "price_bins",
+      "unit": "usd_notional",
+      "product": "liq-map",
+      "symbol": "BTCUSDT",
+      "exchange": "binance",
+      "timeframe": "1w",
+      "bucket_count": 433,
+      "total_long": 3636912413.1621084,
+      "total_short": 1488782192.6423235,
+      "peak_long": 89799216.74555252,
+      "peak_short": 29308570.99042359,
+      "current_price": 71227.15,
+      "price_step_median": 100.0,
+      "time_step_median_ms": null,
+      "notes": [
+        "Local rektslug /liquidations/levels endpoint (OI-based liquidation model).",
+        "Parsed 271 long bins and 162 short bins."
+      ]
+    }
+  },
+  "unparsed_liquidation_like_endpoints": {
+    "coinank": [
+      "https://api.coinank.com/api/liqMap/getLiqMapSymbolV1?exchange=Binance"
+    ]
+  },
+  "pairwise_comparisons": [
+    {
+      "providers": [
+        "coinank",
+        "coinglass"
+      ],
+      "dataset_kind_match": true,
+      "structure_match": true,
+      "unit_match": true,
+      "symbol_match": true,
+      "timeframe_match": true,
+      "bucket_count_ratio": 2.8068669527896994,
+      "long_total_ratio": 15.246043344218982,
+      "short_total_ratio": 14.106073219334148,
+      "long_peak_ratio": 3.8851881323858364,
+      "short_peak_ratio": 7.146728476735104,
+      "left": {
+        "provider": "coinank",
+        "source_url": "https://api.coinank.com/api/liqMap/getLiqMap?exchange=Binance&symbol=BTCUSDT&interval=1w",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinank/07_getliqmap.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "Binance",
+        "timeframe": "1w",
+        "bucket_count": 654,
+        "total_long": 17930596265.0,
+        "total_short": 16192337693.0,
+        "peak_long": 148729215.0,
+        "peak_short": 279574066.0,
+        "current_price": 70980.0,
+        "price_step_median": 20.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "CoinAnk getLiqMap returns a symbol-specific price grid plus leverage ladders (x25, x30, x40, x50, x60, x70, x80, x90, x100).",
+          "The public payload starts at x25 and omits x5/x10, so low-leverage tiers are not part of this series.",
+          "Long and short totals are split using CoinAnk's `lastIndex` pivot."
+        ]
+      },
+      "right": {
+        "provider": "coinglass",
+        "source_url": "https://capi.coinglass.com/api/index/5/liqMap?merge=true&symbol=Binance_BTCUSDT&interval=5&limit=2000&data=REDACTED",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinglass/01_liqmap.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "Binance",
+        "timeframe": "7 day",
+        "bucket_count": 233,
+        "total_long": 1176081942.0600002,
+        "total_short": 1147898315.9399998,
+        "peak_long": 38281084.45,
+        "peak_short": 39119167.17,
+        "current_price": 71188.0,
+        "price_step_median": 58.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "Decoded from Coinglass encrypted payload using captured response headers plus bundled frontend CryptoJS/pako.",
+          "Derived seed key from Coinglass header/path flow (v=2).",
+          "Coinglass pro /api/index/v5/liqMap returns a price-bucket liquidation map under `liqMapV2`.",
+          "Each `liqMapV2[price]` entry is a list of clusters shaped like [price, value, leverage, heat_band].",
+          "This normalization sums cluster values inside each top-level bucket; 233 active buckets and 386 clusters were present.",
+          "Below/above-price totals were split around decoded lastPrice 71188.0000.",
+          "Values are treated as USD-notional based on endpoint semantics and magnitude."
+        ]
+      }
+    },
+    {
+      "providers": [
+        "coinank",
+        "rektslug"
+      ],
+      "dataset_kind_match": true,
+      "structure_match": true,
+      "unit_match": true,
+      "symbol_match": true,
+      "timeframe_match": true,
+      "bucket_count_ratio": 1.510392609699769,
+      "long_total_ratio": 4.930169943083746,
+      "short_total_ratio": 10.876230098011504,
+      "long_peak_ratio": 1.656241784618529,
+      "short_peak_ratio": 9.53898660195167,
+      "left": {
+        "provider": "coinank",
+        "source_url": "https://api.coinank.com/api/liqMap/getLiqMap?exchange=Binance&symbol=BTCUSDT&interval=1w",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinank/07_getliqmap.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "Binance",
+        "timeframe": "1w",
+        "bucket_count": 654,
+        "total_long": 17930596265.0,
+        "total_short": 16192337693.0,
+        "peak_long": 148729215.0,
+        "peak_short": 279574066.0,
+        "current_price": 70980.0,
+        "price_step_median": 20.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "CoinAnk getLiqMap returns a symbol-specific price grid plus leverage ladders (x25, x30, x40, x50, x60, x70, x80, x90, x100).",
+          "The public payload starts at x25 and omits x5/x10, so low-leverage tiers are not part of this series.",
+          "Long and short totals are split using CoinAnk's `lastIndex` pivot."
+        ]
+      },
+      "right": {
+        "provider": "rektslug",
+        "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/rektslug/01_levels.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "binance",
+        "timeframe": "1w",
+        "bucket_count": 433,
+        "total_long": 3636912413.1621084,
+        "total_short": 1488782192.6423235,
+        "peak_long": 89799216.74555252,
+        "peak_short": 29308570.99042359,
+        "current_price": 71227.15,
+        "price_step_median": 100.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "Local rektslug /liquidations/levels endpoint (OI-based liquidation model).",
+          "Parsed 271 long bins and 162 short bins."
+        ]
+      }
+    },
+    {
+      "providers": [
+        "coinglass",
+        "rektslug"
+      ],
+      "dataset_kind_match": true,
+      "structure_match": true,
+      "unit_match": true,
+      "symbol_match": true,
+      "timeframe_match": true,
+      "bucket_count_ratio": 0.5381062355658198,
+      "long_total_ratio": 0.32337373256604146,
+      "short_total_ratio": 0.7710317342677807,
+      "long_peak_ratio": 0.4262964181354727,
+      "short_peak_ratio": 1.3347347157519884,
+      "left": {
+        "provider": "coinglass",
+        "source_url": "https://capi.coinglass.com/api/index/5/liqMap?merge=true&symbol=Binance_BTCUSDT&interval=5&limit=2000&data=REDACTED",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/coinglass/01_liqmap.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "Binance",
+        "timeframe": "7 day",
+        "bucket_count": 233,
+        "total_long": 1176081942.0600002,
+        "total_short": 1147898315.9399998,
+        "peak_long": 38281084.45,
+        "peak_short": 39119167.17,
+        "current_price": 71188.0,
+        "price_step_median": 58.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "Decoded from Coinglass encrypted payload using captured response headers plus bundled frontend CryptoJS/pako.",
+          "Derived seed key from Coinglass header/path flow (v=2).",
+          "Coinglass pro /api/index/v5/liqMap returns a price-bucket liquidation map under `liqMapV2`.",
+          "Each `liqMapV2[price]` entry is a list of clusters shaped like [price, value, leverage, heat_band].",
+          "This normalization sums cluster values inside each top-level bucket; 233 active buckets and 386 clusters were present.",
+          "Below/above-price totals were split around decoded lastPrice 71188.0000.",
+          "Values are treated as USD-notional based on endpoint semantics and magnitude."
+        ]
+      },
+      "right": {
+        "provider": "rektslug",
+        "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+        "saved_file": "data/validation/raw_provider_api/20260310T173221Z/rektslug/01_levels.json",
+        "dataset_kind": "liquidation_heatmap",
+        "structure": "price_bins",
+        "unit": "usd_notional",
+        "product": "liq-map",
+        "symbol": "BTCUSDT",
+        "exchange": "binance",
+        "timeframe": "1w",
+        "bucket_count": 433,
+        "total_long": 3636912413.1621084,
+        "total_short": 1488782192.6423235,
+        "peak_long": 89799216.74555252,
+        "peak_short": 29308570.99042359,
+        "current_price": 71227.15,
+        "price_step_median": 100.0,
+        "time_step_median_ms": null,
+        "notes": [
+          "Local rektslug /liquidations/levels endpoint (OI-based liquidation model).",
+          "Parsed 271 long bins and 162 short bins."
+        ]
+      }
+    }
+  ],
+  "notes": [
+    "Ratios are left/right, in the provider order shown in each comparison entry.",
+    "CoinAnk getAggLiqMap is parsed explicitly, but long/short are still inferred by splitting around lastPrice.",
+    "Coinglass will decode encrypted payloads only when the capture includes the required response headers and a local `_app-*.js` bundle is available.",
+    "Bitcoin CounterFlow /api/liquidations is parsed explicitly and treated as USD-notional time-series liquidations."
+  ]
+}

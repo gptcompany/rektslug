@@ -1,0 +1,99 @@
+{
+  "symbol": "ETHUSDT",
+  "model": "openinterest",
+  "current_price": "2070.91",
+  "long_liquidations": [
+    {
+      "price_level": "2000",
+      "volume": "234168884.6717335",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "2000",
+      "volume": "117084442.33586675",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "292711105.83966684",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "316210450.0196194",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "1900",
+      "volume": "158105225.0098097",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "1800",
+      "volume": "351253327.0076002",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "1800",
+      "volume": "395263062.5245242",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "1700",
+      "volume": "474315675.029429",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "1600",
+      "volume": "175626663.5038001",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "1500",
+      "volume": "237157837.5147145",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ],
+  "short_liquidations": [
+    {
+      "price_level": "2100",
+      "volume": "277493378.20903",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "2100",
+      "volume": "184545836.32803503",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "2200",
+      "volume": "221455003.59364203",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "2300",
+      "volume": "138746689.104515",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "2400",
+      "volume": "110727501.79682101",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ]
+}

@@ -1,0 +1,468 @@
+{
+  "timestamp_utc": "2026-03-10T17:32:11.882627+00:00",
+  "manifests": [
+    "/media/sam/1TB/rektslug/data/validation/raw_provider_api/20260310T173131Z/manifest.json"
+  ],
+  "providers": {
+    "coinank": {
+      "source_url": "https://api.coinank.com/api/liqMap/getLiqMap?exchange=Binance&symbol=BTCUSDT&interval=1d",
+      "saved_file": "data/validation/raw_provider_api/20260310T173131Z/coinank/12_getliqmap.json",
+      "symbol": "BTCUSDT",
+      "exchange": "Binance",
+      "timeframe": "1d",
+      "bucket_count": 817,
+      "total_value": 23393251145.0,
+      "total_long": 16609928477.0,
+      "total_short": 6783322668.0,
+      "peak_long": 136420297.0,
+      "peak_short": 107414959.0,
+      "current_price": 70968.0,
+      "price_step_median": 10.0,
+      "notes": [
+        "CoinAnk getLiqMap exposes price buckets plus leverage ladders x25, x30, x40, x50, x60, x70, x80, x90, x100.",
+        "Long/short buckets are split with CoinAnk `lastIndex` when present.",
+        "The public CoinAnk payload starts at x25 and omits x5/x10."
+      ]
+    },
+    "coinglass": {
+      "source_url": "https://capi.coinglass.com/api/index/5/liqMap?merge=true&symbol=Binance_BTCUSDT&interval=1&limit=1500&data=REDACTED",
+      "saved_file": "data/validation/raw_provider_api/20260310T173131Z/coinglass/01_liqmap.json",
+      "symbol": "BTCUSDT",
+      "exchange": "Binance",
+      "timeframe": "1 day",
+      "bucket_count": 207,
+      "total_value": 1069178078.9200002,
+      "total_long": 673251234.88,
+      "total_short": 395926844.0400001,
+      "peak_long": 20935324.02,
+      "peak_short": 28254937.57,
+      "current_price": 71070.0,
+      "price_step_median": 51.0,
+      "notes": [
+        "Decoded from Coinglass encrypted payload using captured response headers plus bundled frontend CryptoJS/pako.",
+        "Derived seed key from Coinglass header/path flow (v=2).",
+        "Coinglass liqMapV2 groups clusters under top-level price buckets; this capture contains 207 active buckets and 300 clusters.",
+        "Long/short buckets are split around decoded `lastPrice`."
+      ]
+    },
+    "rektslug": {
+      "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=1",
+      "saved_file": "data/validation/raw_provider_api/20260310T173131Z/rektslug/01_levels.json",
+      "symbol": "BTCUSDT",
+      "exchange": "binance",
+      "timeframe": "1d",
+      "bucket_count": 185,
+      "total_value": 5590227275.0820465,
+      "total_long": 3346579353.0371737,
+      "total_short": 2243647922.044872,
+      "peak_long": 96537697.58843821,
+      "peak_short": 98144823.99739866,
+      "current_price": 71115.4,
+      "price_step_median": 100.0,
+      "notes": [
+        "Local rektslug state uses the captured /liquidations/levels payload from the same manifest.",
+        "Long/short buckets come directly from the local OI-based liq-map contract."
+      ]
+    }
+  },
+  "common_leverage_tiers": [
+    25,
+    50,
+    100
+  ],
+  "leverage_composition": {
+    "coinank": [
+      {
+        "leverage": 25,
+        "total_value": 2708733269.0,
+        "share_ratio": 0.11579122765836489
+      },
+      {
+        "leverage": 30,
+        "total_value": 2588802348.0,
+        "share_ratio": 0.11066449601013763
+      },
+      {
+        "leverage": 40,
+        "total_value": 1971218586.0,
+        "share_ratio": 0.08426441343196207
+      },
+      {
+        "leverage": 50,
+        "total_value": 3255029024.0,
+        "share_ratio": 0.1391439353095527
+      },
+      {
+        "leverage": 60,
+        "total_value": 2654429324.0,
+        "share_ratio": 0.11346987674123908
+      },
+      {
+        "leverage": 70,
+        "total_value": 2171756463.0,
+        "share_ratio": 0.09283688058314991
+      },
+      {
+        "leverage": 80,
+        "total_value": 2872126846.0,
+        "share_ratio": 0.1227758736140393
+      },
+      {
+        "leverage": 90,
+        "total_value": 2509610448.0,
+        "share_ratio": 0.10727925043186638
+      },
+      {
+        "leverage": 100,
+        "total_value": 2661544837.0,
+        "share_ratio": 0.11377404621968804
+      }
+    ],
+    "coinglass": [
+      {
+        "leverage": 10,
+        "total_value": 46321033.30999998,
+        "share_ratio": 0.04332396466338879
+      },
+      {
+        "leverage": 25,
+        "total_value": 244698715.98999998,
+        "share_ratio": 0.22886619246550163
+      },
+      {
+        "leverage": 50,
+        "total_value": 344328898.63999987,
+        "share_ratio": 0.3220500919620556
+      },
+      {
+        "leverage": 100,
+        "total_value": 433829430.98,
+        "share_ratio": 0.40575975090905403
+      }
+    ],
+    "rektslug": [
+      {
+        "leverage": 5,
+        "total_value": 893234664.920805,
+        "share_ratio": 0.15978503573590308
+      },
+      {
+        "leverage": 10,
+        "total_value": 1786469329.84161,
+        "share_ratio": 0.31957007147180616
+      },
+      {
+        "leverage": 25,
+        "total_value": 1473882757.179002,
+        "share_ratio": 0.26365345891189546
+      },
+      {
+        "leverage": 50,
+        "total_value": 1026004112.4858465,
+        "share_ratio": 0.18353531296646394
+      },
+      {
+        "leverage": 100,
+        "total_value": 410636410.6547841,
+        "share_ratio": 0.07345612091393139
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "scenario_name": "raw",
+      "description": "Direct comparison of the captured provider maps without normalization.",
+      "providers": [
+        "coinank",
+        "coinglass"
+      ],
+      "left_bucket_count": 817,
+      "right_bucket_count": 207,
+      "left_total": 23393251145.0,
+      "right_total": 1069178078.9200002,
+      "total_ratio": 21.879658408849934,
+      "left_long_total": 16609928477.0,
+      "right_long_total": 673251234.88,
+      "long_ratio": 24.671218731534218,
+      "left_short_total": 6783322668.0,
+      "right_short_total": 395926844.0400001,
+      "short_ratio": 17.13276775775953,
+      "left_peak_long": 136420297.0,
+      "right_peak_long": 20935324.02,
+      "left_peak_short": 107414959.0,
+      "right_peak_short": 28254937.57,
+      "long_peak_ratio": 6.516273494008239,
+      "short_peak_ratio": 3.8016349791566713,
+      "left_price_step": 10.0,
+      "right_price_step": 51.0,
+      "comparison_step": 51.0,
+      "shape_pearson": 0.7172218054026787,
+      "shape_cosine": 0.8262108629381645,
+      "distribution_overlap": 0.7007337029828572,
+      "matched_bucket_ratio": 21.324883323912417,
+      "common_tiers": [
+        25,
+        50,
+        100
+      ],
+      "notes": [
+        "This preserves each provider's native leverage coverage and native price grid."
+      ]
+    },
+    {
+      "scenario_name": "coinank_common_tiers",
+      "description": "CoinAnk restricted to the leverage tiers shared with Coinglass.",
+      "providers": [
+        "coinank",
+        "coinglass"
+      ],
+      "left_bucket_count": 817,
+      "right_bucket_count": 207,
+      "left_total": 8625307130.0,
+      "right_total": 1069178078.9200002,
+      "total_ratio": 8.067231549222004,
+      "left_long_total": 5891139443.0,
+      "right_long_total": 673251234.88,
+      "long_ratio": 8.750283902635594,
+      "left_short_total": 2734167687.0,
+      "right_short_total": 395926844.0400001,
+      "short_ratio": 6.905739603561131,
+      "left_peak_long": 82539428.0,
+      "right_peak_long": 20935324.02,
+      "left_peak_short": 48612254.0,
+      "right_peak_short": 28254937.57,
+      "long_peak_ratio": 3.9425913791039573,
+      "short_peak_ratio": 1.720487043355375,
+      "left_price_step": 10.0,
+      "right_price_step": 51.0,
+      "comparison_step": 51.0,
+      "shape_pearson": 0.6833732575514978,
+      "shape_cosine": 0.8116491472333031,
+      "distribution_overlap": 0.6890082515421825,
+      "matched_bucket_ratio": 7.866220799544099,
+      "common_tiers": [
+        25,
+        50,
+        100
+      ],
+      "notes": [
+        "This isolates how much of the raw gap is explained by leverage-tier coverage alone."
+      ]
+    },
+    {
+      "scenario_name": "coinank_rebinned_to_coinglass_step",
+      "description": "CoinAnk re-binned onto the Coinglass active price step.",
+      "providers": [
+        "coinank",
+        "coinglass"
+      ],
+      "left_bucket_count": 162,
+      "right_bucket_count": 207,
+      "left_total": 23393251145.0,
+      "right_total": 1069178078.9200002,
+      "total_ratio": 21.879658408849934,
+      "left_long_total": 16609928477.0,
+      "right_long_total": 673251234.88,
+      "long_ratio": 24.671218731534218,
+      "left_short_total": 6783322668.0,
+      "right_short_total": 395926844.0400001,
+      "short_ratio": 17.13276775775953,
+      "left_peak_long": 505931281.0,
+      "right_peak_long": 20935324.02,
+      "left_peak_short": 545822570.0,
+      "right_peak_short": 28254937.57,
+      "long_peak_ratio": 24.16639362814123,
+      "short_peak_ratio": 19.31777653543759,
+      "left_price_step": 51.0,
+      "right_price_step": 51.0,
+      "comparison_step": 51.0,
+      "shape_pearson": 0.7172218054026787,
+      "shape_cosine": 0.8262108629381645,
+      "distribution_overlap": 0.7007337029828572,
+      "matched_bucket_ratio": 21.324883323912417,
+      "common_tiers": [
+        25,
+        50,
+        100
+      ],
+      "notes": [
+        "This isolates shape changes caused by price granularity without changing leverage coverage."
+      ]
+    },
+    {
+      "scenario_name": "coinank_common_tiers_rebinned",
+      "description": "CoinAnk restricted to common tiers, then re-binned onto the Coinglass active price step.",
+      "providers": [
+        "coinank",
+        "coinglass"
+      ],
+      "left_bucket_count": 162,
+      "right_bucket_count": 207,
+      "left_total": 8625307130.0,
+      "right_total": 1069178078.9200002,
+      "total_ratio": 8.067231549222004,
+      "left_long_total": 5891139443.0,
+      "right_long_total": 673251234.88,
+      "long_ratio": 8.750283902635594,
+      "left_short_total": 2734167687.0,
+      "right_short_total": 395926844.0400001,
+      "short_ratio": 6.905739603561131,
+      "left_peak_long": 182567649.0,
+      "right_peak_long": 20935324.02,
+      "left_peak_short": 199433583.0,
+      "right_peak_short": 28254937.57,
+      "long_peak_ratio": 8.72055521211847,
+      "short_peak_ratio": 7.0583621891187915,
+      "left_price_step": 51.0,
+      "right_price_step": 51.0,
+      "comparison_step": 51.0,
+      "shape_pearson": 0.6833732575514978,
+      "shape_cosine": 0.8116491472333031,
+      "distribution_overlap": 0.6890082515421825,
+      "matched_bucket_ratio": 7.866220799544099,
+      "common_tiers": [
+        25,
+        50,
+        100
+      ],
+      "notes": [
+        "This is the best apples-to-apples comparison available from the current payloads."
+      ]
+    },
+    {
+      "scenario_name": "rektslug_vs_coinank",
+      "description": "Local rektslug liq-map levels versus CoinAnk price-map.",
+      "providers": [
+        "rektslug",
+        "coinank"
+      ],
+      "left_bucket_count": 185,
+      "right_bucket_count": 817,
+      "left_total": 5590227275.0820465,
+      "right_total": 23393251145.0,
+      "total_ratio": 0.2389675227454173,
+      "left_long_total": 3346579353.0371737,
+      "right_long_total": 16609928477.0,
+      "long_ratio": 0.20148066005649748,
+      "left_short_total": 2243647922.044872,
+      "right_short_total": 6783322668.0,
+      "short_ratio": 0.33075942747485293,
+      "left_peak_long": 96537697.58843821,
+      "right_peak_long": 136420297.0,
+      "left_peak_short": 98144823.99739866,
+      "right_peak_short": 107414959.0,
+      "long_peak_ratio": 0.7076490794360183,
+      "short_peak_ratio": 0.9136979142485979,
+      "left_price_step": 100.0,
+      "right_price_step": 10.0,
+      "comparison_step": 100.0,
+      "shape_pearson": 0.30070532663087307,
+      "shape_cosine": 0.5422865640728497,
+      "distribution_overlap": 0.4119055534484127,
+      "matched_bucket_ratio": 0.12370729302205388,
+      "common_tiers": [],
+      "notes": [
+        "rektslug uses the captured /liquidations/levels payload from the same run. Shape metrics are aligned on a shared grid; totals stay native."
+      ]
+    },
+    {
+      "scenario_name": "rektslug_vs_coinglass",
+      "description": "Local rektslug liq-map levels versus Coinglass price-map.",
+      "providers": [
+        "rektslug",
+        "coinglass"
+      ],
+      "left_bucket_count": 185,
+      "right_bucket_count": 207,
+      "left_total": 5590227275.0820465,
+      "right_total": 1069178078.9200002,
+      "total_ratio": 5.228527768478807,
+      "left_long_total": 3346579353.0371737,
+      "right_long_total": 673251234.88,
+      "long_ratio": 4.970773434427739,
+      "left_short_total": 2243647922.044872,
+      "right_short_total": 395926844.0400001,
+      "short_ratio": 5.666824454616163,
+      "left_peak_long": 96537697.58843821,
+      "right_peak_long": 20935324.02,
+      "left_peak_short": 98144823.99739866,
+      "right_peak_short": 28254937.57,
+      "long_peak_ratio": 4.611234939388257,
+      "short_peak_ratio": 3.4735459511899625,
+      "left_price_step": 100.0,
+      "right_price_step": 51.0,
+      "comparison_step": 100.0,
+      "shape_pearson": 0.21133677833870781,
+      "shape_cosine": 0.4945102141102798,
+      "distribution_overlap": 0.39186361533732683,
+      "matched_bucket_ratio": 3.55278795757914,
+      "common_tiers": [
+        25,
+        50,
+        100
+      ],
+      "notes": [
+        "rektslug uses the captured /liquidations/levels payload from the same run. This is the direct benchmark path for our local model vs Coinglass."
+      ]
+    }
+  ],
+  "local_alignment": {
+    "method": {
+      "primary": "shape_cosine + distribution_overlap",
+      "secondary": "vendor_scale_factor (derived from total_ratio)",
+      "note": "Vendor totals are treated as scaling profiles, not as directly equivalent ground truth."
+    },
+    "anchor_provider": "rektslug",
+    "best_shape_target": "coinank",
+    "targets": {
+      "coinank": {
+        "scenario_name": "rektslug_vs_coinank",
+        "primary_metrics": {
+          "shape_cosine": 0.5422865640728497,
+          "distribution_overlap": 0.4119055534484127,
+          "matched_bucket_ratio": 0.12370729302205388
+        },
+        "secondary_metrics": {
+          "total_ratio": 0.2389675227454173,
+          "vendor_scale_factor": 4.184669065115365,
+          "long_ratio": 0.20148066005649748,
+          "short_ratio": 0.33075942747485293
+        }
+      },
+      "coinglass": {
+        "scenario_name": "rektslug_vs_coinglass",
+        "primary_metrics": {
+          "shape_cosine": 0.4945102141102798,
+          "distribution_overlap": 0.39186361533732683,
+          "matched_bucket_ratio": 3.55278795757914
+        },
+        "secondary_metrics": {
+          "total_ratio": 5.228527768478807,
+          "vendor_scale_factor": 0.19125842766460835,
+          "long_ratio": 4.970773434427739,
+          "short_ratio": 5.666824454616163
+        }
+      }
+    }
+  },
+  "findings": [
+    "Restricting CoinAnk to the leverage tiers shared with Coinglass reduces the left/right total ratio from 21.8797x to 8.0672x (63.1% of the original gap removed).",
+    "Re-binning CoinAnk onto the Coinglass price step changes shape but not scale: raw ratio 21.8797x vs rebinned 21.8797x.",
+    "After both common-tier filtering and shared-grid rebinning, the residual total gap is still 8.0672x, which points to provider-side scaling/persistence differences beyond leverage coverage and bin size.",
+    "On a shared coarse grid the maps are directionally similar but not identical (cosine 0.8116, overlap 0.6890)."
+  ],
+  "recommendation": {
+    "most_defensible_basis": "coinank_common_tiers_rebinned",
+    "why": "It aligns leverage coverage first, then aligns price granularity, which removes the two largest structural mismatches without inventing a new scale factor.",
+    "residual_ratio": 8.067231549222004,
+    "residual_shape_cosine": 0.8116491472333031,
+    "residual_overlap": 0.6890082515421825
+  },
+  "notes": [
+    "This analysis uses the exact CoinAnk getLiqMap and Coinglass liqMap captures referenced by the input manifest.",
+    "The residual gap after common-tier filtering and shared-grid rebinning is the strongest estimate of provider-side scaling/persistence differences.",
+    "CoinAnk and Coinglass do not expose the same leverage ladder coverage in their public/private map payloads, so raw totals are not directly comparable.",
+    "For rektslug-vs-vendor comparisons, shape metrics are primary; total ratios are secondary and only inform a vendor-specific scale factor.",
+    "Current rektslug benchmark ratios: CoinAnk=0.23896752x, Coinglass=5.2285278x."
+  ]
+}

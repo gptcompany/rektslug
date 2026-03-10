@@ -142,6 +142,27 @@
 
 **Checkpoint**: The repo has a clean first baseline for all 4 supported matrix entries.
 
+**Completion Notes**:
+
+- Baseline BTC 1D:
+  - `data/validation/raw_provider_api/20260310T173131Z/manifest.json`
+  - `data/validation/provider_comparisons/20260310T173211Z_provider_liquidations.json`
+  - `data/validation/provider_comparisons/20260310T173211Z_provider_gap_analysis.json`
+- Baseline BTC 1W:
+  - `data/validation/raw_provider_api/20260310T173221Z/manifest.json`
+  - `data/validation/provider_comparisons/20260310T173302Z_provider_liquidations.json`
+  - `data/validation/provider_comparisons/20260310T173302Z_provider_gap_analysis.json`
+- Baseline ETH 1D:
+  - `data/validation/raw_provider_api/20260310T173310Z/manifest.json`
+  - `data/validation/provider_comparisons/20260310T173350Z_provider_liquidations.json`
+  - `data/validation/provider_comparisons/20260310T173351Z_provider_gap_analysis.json`
+- Baseline ETH 1W:
+  - `data/validation/raw_provider_api/20260310T173509Z/manifest.json`
+  - `data/validation/provider_comparisons/20260310T173550Z_provider_liquidations.json`
+  - `data/validation/provider_comparisons/20260310T173550Z_provider_gap_analysis.json`
+- All 4 regenerated baselines normalize exactly `coinank`, `coinglass`, and `rektslug`.
+- Under `matrix-preset spec-017`, the workflow now excludes `bitcoincounterflow` and rejects non-`liq-map` product drift.
+
 ---
 
 ## Phase 8: Polish & Documentation

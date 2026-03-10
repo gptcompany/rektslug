@@ -339,6 +339,8 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
     targets: list[CaptureTarget] = []
 
     coin = getattr(args, "coin", "BTC")
+    include_rektslug = getattr(args, "include_rektslug", False)
+    include_bitcoincounterflow = getattr(args, "include_bitcoincounterflow", True)
 
     if args.provider in {"coinank", "both", "all"}:
         coinank_url = args.coinank_url or build_coinank_liqmap_url(
@@ -369,7 +371,7 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
             )
         )
 
-    if args.provider in {"bitcoincounterflow", "all"}:
+    if include_bitcoincounterflow and args.provider in {"bitcoincounterflow", "all"}:
         targets.append(
             CaptureTarget(
                 provider="bitcoincounterflow",
@@ -377,7 +379,7 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
             )
         )
 
-    if args.provider in {"rektslug", "all"}:
+    if args.provider in {"rektslug", "all"} or include_rektslug:
         rektslug_base = getattr(args, "rektslug_api_base", None) or REKTSLUG_DEFAULT_API_BASE
         symbol = f"{coin.upper()}USDT"
         tf_days = REKTSLUG_TIMEFRAME_DAYS.get(args.timeframe.lower(), 7)

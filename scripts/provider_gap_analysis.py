@@ -33,8 +33,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import compare_provider_liquidations as provider_compare
-from src.liquidationheatmap.settings import get_settings
-
 RAW_CAPTURE_ROOT = provider_compare.RAW_CAPTURE_ROOT
 DEFAULT_OUTPUT_DIR = provider_compare.DEFAULT_OUTPUT_DIR
 DEFAULT_ANALYSIS_DB_PATH = provider_compare.DEFAULT_COMPARISON_DB_PATH
@@ -546,68 +544,77 @@ def extract_coinglass_state(
     )
 
 
-def extract_internal_state(
-    payload: dict[str, Any],
-    *,
-    source_url: str,
+def extract_rektslug_state(
+    capture: provider_compare.CaptureFile,
 ) -> ProviderMapState:
-    """Extract the latest internal heatmap snapshot into the provider map schema."""
-    meta = payload.get("meta")
-    snapshots = payload.get("data")
-    if not isinstance(meta, dict) or not isinstance(snapshots, list):
-        raise SystemExit("Internal heatmap payload is missing usable `meta`/`data`.")
-    if not snapshots:
-        raise SystemExit("Internal heatmap payload has no snapshots.")
+    """Extract the local rektslug /liquidations/levels payload into the map schema."""
+    root = capture.payload
+    if not isinstance(root, dict):
+        raise SystemExit("rektslug capture payload is not an object.")
 
-    latest_snapshot = snapshots[-1]
-    if not isinstance(latest_snapshot, dict):
-        raise SystemExit("Internal heatmap latest snapshot is invalid.")
-    levels = latest_snapshot.get("levels")
-    if not isinstance(levels, list):
-        raise SystemExit("Internal heatmap latest snapshot has no `levels` array.")
+    long_liqs = root.get("long_liquidations")
+    short_liqs = root.get("short_liquidations")
+    if not isinstance(long_liqs, list) or not isinstance(short_liqs, list):
+        raise SystemExit("rektslug capture payload has no long/short liquidation arrays.")
+
+    params = provider_compare.parse_query_params(capture.source_url)
+    timeframe_labels = {"1": "1d", "7": "1w"}
+    timeframe = timeframe_labels.get(params.get("timeframe", ""), params.get("timeframe"))
+    current_price = provider_compare.safe_float(root.get("current_price"))
 
     total_map: dict[float, float] = {}
     long_map: dict[float, float] = {}
     short_map: dict[float, float] = {}
+    price_by_leverage: dict[int, dict[float, float]] = {}
+    leverage_totals: dict[int, float] = {}
 
-    for level in levels:
-        if not isinstance(level, dict):
-            continue
-        price = provider_compare.safe_float(level.get("price"))
-        if price is None:
-            continue
-        long_value = provider_compare.safe_float(level.get("long_density")) or 0.0
-        short_value = provider_compare.safe_float(level.get("short_density")) or 0.0
-        if long_value > 0:
-            long_map[price] = long_map.get(price, 0.0) + long_value
-        if short_value > 0:
-            short_map[price] = short_map.get(price, 0.0) + short_value
-        total_value = long_value + short_value
-        if total_value > 0:
-            total_map[price] = total_map.get(price, 0.0) + total_value
+    def ingest_rows(rows: list[dict[str, Any]], target_map: dict[float, float]) -> None:
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            price = provider_compare.safe_float(row.get("price_level"))
+            volume = provider_compare.safe_float(row.get("volume")) or 0.0
+            if price is None or volume <= 0:
+                continue
+
+            target_map[price] = target_map.get(price, 0.0) + volume
+            total_map[price] = total_map.get(price, 0.0) + volume
+
+            raw_leverage = str(row.get("leverage") or "").lower().rstrip("x")
+            try:
+                leverage = int(raw_leverage)
+            except ValueError:
+                continue
+            price_by_leverage.setdefault(leverage, {})
+            price_by_leverage[leverage][price] = price_by_leverage[leverage].get(price, 0.0) + volume
+            leverage_totals[leverage] = leverage_totals.get(leverage, 0.0) + volume
+
+    ingest_rows(long_liqs, long_map)
+    ingest_rows(short_liqs, short_map)
 
     if not total_map:
-        raise SystemExit("Internal heatmap latest snapshot has no active price levels.")
-
-    notes = [
-        "Internal state uses the latest /liquidations/heatmap-timeseries snapshot.",
-        "long_density and short_density are active predicted liquidation densities, not vendor-reported executed liquidations.",
-    ]
+        raise SystemExit("rektslug /liquidations/levels capture has no active price levels.")
 
     return ProviderMapState(
-        provider="internal",
-        source_url=source_url,
-        saved_file="live_api",
-        symbol=meta.get("symbol"),
-        exchange="internal",
-        timeframe=meta.get("interval"),
-        current_price=None,
+        provider="rektslug",
+        source_url=capture.source_url,
+        saved_file=str(capture.saved_file),
+        symbol=root.get("symbol"),
+        exchange="binance",
+        timeframe=timeframe,
+        current_price=current_price,
         total_map=rounded_map(total_map),
         long_map=rounded_map(long_map),
         short_map=rounded_map(short_map),
-        price_by_leverage={},
-        leverage_totals={},
-        notes=notes,
+        price_by_leverage={
+            leverage: rounded_map(level_map)
+            for leverage, level_map in sorted(price_by_leverage.items())
+        },
+        leverage_totals=dict(sorted(leverage_totals.items())),
+        notes=[
+            "Local rektslug state uses the captured /liquidations/levels payload from the same manifest.",
+            "Long/short buckets come directly from the local OI-based liq-map contract.",
+        ],
     )
 
 
@@ -962,41 +969,45 @@ def find_scenario(
     return None
 
 
-def vendor_scale_factor_for_internal(scenario: ScenarioMetrics) -> float | None:
-    """Return the multiplicative factor that scales internal totals to the vendor total."""
-    if scenario.left_provider == "internal":
+def vendor_scale_factor_for_anchor(
+    anchor_provider: str,
+    scenario: ScenarioMetrics,
+) -> float | None:
+    """Return the multiplicative factor that scales the anchor totals to the vendor total."""
+    if scenario.left_provider == anchor_provider:
         return ratio(scenario.right_total, scenario.left_total)
-    if scenario.right_provider == "internal":
+    if scenario.right_provider == anchor_provider:
         return ratio(scenario.left_total, scenario.right_total)
     return None
 
 
-def build_internal_alignment_summary(
+def build_anchor_alignment_summary(
+    anchor_provider: str,
     scenarios: list[ScenarioMetrics],
 ) -> dict[str, Any]:
-    """Build shape-first benchmark summary for internal vs vendor scenarios."""
-    internal_scenarios = [
+    """Build shape-first benchmark summary for the local anchor provider vs vendors."""
+    anchor_scenarios = [
         scenario
         for scenario in scenarios
-        if scenario.left_provider == "internal" or scenario.right_provider == "internal"
+        if scenario.left_provider == anchor_provider or scenario.right_provider == anchor_provider
     ]
-    if not internal_scenarios:
+    if not anchor_scenarios:
         return {}
 
     targets: dict[str, Any] = {}
     best_shape_scenario: ScenarioMetrics | None = None
     best_shape_score = -1.0
 
-    for scenario in internal_scenarios:
+    for scenario in anchor_scenarios:
         vendor = (
             scenario.right_provider
-            if scenario.left_provider == "internal"
+            if scenario.left_provider == anchor_provider
             else scenario.left_provider
         )
         shape_cosine = scenario.shape_cosine
         overlap = scenario.distribution_overlap
         matched_ratio = scenario.matched_bucket_ratio
-        scale_factor = vendor_scale_factor_for_internal(scenario)
+        scale_factor = vendor_scale_factor_for_anchor(anchor_provider, scenario)
 
         shape_components = [value for value in (shape_cosine, overlap) if value is not None]
         shape_score = (
@@ -1027,7 +1038,7 @@ def build_internal_alignment_summary(
     if best_shape_scenario is not None:
         best_vendor = (
             best_shape_scenario.right_provider
-            if best_shape_scenario.left_provider == "internal"
+            if best_shape_scenario.left_provider == anchor_provider
             else best_shape_scenario.left_provider
         )
 
@@ -1039,6 +1050,7 @@ def build_internal_alignment_summary(
                 "Vendor totals are treated as scaling profiles, not as directly equivalent ground truth."
             ),
         },
+        "anchor_provider": anchor_provider,
         "best_shape_target": best_vendor,
         "targets": targets,
     }
@@ -1220,7 +1232,7 @@ def build_report(
     manifest_paths: list[Path],
     coinank_state: ProviderMapState,
     coinglass_state: ProviderMapState,
-    internal_state: ProviderMapState | None,
+    local_state: ProviderMapState | None,
     scenarios: list[ScenarioMetrics],
     common_tiers: list[int],
 ) -> dict[str, Any]:
@@ -1236,16 +1248,27 @@ def build_report(
         ]
         for state in (coinank_state, coinglass_state)
     }
-    if internal_state is not None:
-        leverage_composition[internal_state.provider] = []
+    if local_state is not None:
+        leverage_composition[local_state.provider] = [
+            {
+                "leverage": leverage,
+                "total_value": local_state.leverage_totals[leverage],
+                "share_ratio": local_state.leverage_share_map().get(leverage),
+            }
+            for leverage in sorted(local_state.leverage_totals)
+        ]
 
     raw_metrics = scenarios[0]
     common_tier_metrics = scenarios[1]
     rebinned_metrics = scenarios[2]
     combined_metrics = scenarios[3]
-    internal_alignment = build_internal_alignment_summary(scenarios)
-    internal_vs_coinank = find_scenario(scenarios, "internal_vs_coinank")
-    internal_vs_coinglass = find_scenario(scenarios, "internal_vs_coinglass")
+    local_alignment = (
+        build_anchor_alignment_summary(local_state.provider, scenarios)
+        if local_state is not None
+        else {}
+    )
+    local_vs_coinank = find_scenario(scenarios, "rektslug_vs_coinank")
+    local_vs_coinglass = find_scenario(scenarios, "rektslug_vs_coinglass")
 
     providers = {
         coinank_state.provider: {
@@ -1281,22 +1304,22 @@ def build_report(
             "notes": coinglass_state.notes,
         },
     }
-    if internal_state is not None:
-        providers[internal_state.provider] = {
-            "source_url": internal_state.source_url,
-            "saved_file": internal_state.saved_file,
-            "symbol": internal_state.symbol,
-            "exchange": internal_state.exchange,
-            "timeframe": internal_state.timeframe,
-            "bucket_count": internal_state.bucket_count,
-            "total_value": internal_state.total_value,
-            "total_long": internal_state.total_long,
-            "total_short": internal_state.total_short,
-            "peak_long": internal_state.peak_long,
-            "peak_short": internal_state.peak_short,
-            "current_price": internal_state.current_price,
-            "price_step_median": internal_state.price_step_median,
-            "notes": internal_state.notes,
+    if local_state is not None:
+        providers[local_state.provider] = {
+            "source_url": local_state.source_url,
+            "saved_file": local_state.saved_file,
+            "symbol": local_state.symbol,
+            "exchange": local_state.exchange,
+            "timeframe": local_state.timeframe,
+            "bucket_count": local_state.bucket_count,
+            "total_value": local_state.total_value,
+            "total_long": local_state.total_long,
+            "total_short": local_state.total_short,
+            "peak_long": local_state.peak_long,
+            "peak_short": local_state.peak_short,
+            "current_price": local_state.current_price,
+            "price_step_median": local_state.price_step_median,
+            "notes": local_state.notes,
         }
 
     return {
@@ -1306,7 +1329,7 @@ def build_report(
         "common_leverage_tiers": common_tiers,
         "leverage_composition": leverage_composition,
         "scenarios": [scenario.to_public_dict() for scenario in scenarios],
-        "internal_alignment": internal_alignment,
+        "local_alignment": local_alignment,
         "findings": build_summary_findings(
             raw_metrics=raw_metrics,
             common_tier_metrics=common_tier_metrics,
@@ -1327,14 +1350,14 @@ def build_report(
             "This analysis uses the exact CoinAnk getLiqMap and Coinglass liqMap captures referenced by the input manifest.",
             "The residual gap after common-tier filtering and shared-grid rebinning is the strongest estimate of provider-side scaling/persistence differences.",
             "CoinAnk and Coinglass do not expose the same leverage ladder coverage in their public/private map payloads, so raw totals are not directly comparable.",
-            "For internal-vs-vendor comparisons, shape metrics are primary; total ratios are secondary and only inform a vendor-specific scale factor.",
+            "For rektslug-vs-vendor comparisons, shape metrics are primary; total ratios are secondary and only inform a vendor-specific scale factor.",
             (
-                "Current internal benchmark ratios: "
-                f"CoinAnk={internal_vs_coinank.total_ratio:.8g}x, "
-                f"Coinglass={internal_vs_coinglass.total_ratio:.8g}x."
+                "Current rektslug benchmark ratios: "
+                f"CoinAnk={local_vs_coinank.total_ratio:.8g}x, "
+                f"Coinglass={local_vs_coinglass.total_ratio:.8g}x."
             )
-            if internal_vs_coinank and internal_vs_coinglass
-            else "Internal-vs-vendor scenarios were not available in this run.",
+            if local_vs_coinank and local_vs_coinglass
+            else "rektslug-vs-vendor scenarios were not available in this run.",
         ],
     }
 
@@ -1362,25 +1385,15 @@ def main() -> int:
         provider="coinglass",
         url_paths=("/api/index/v5/liqmap", "/api/index/5/liqmap"),
     )
+    rektslug_capture = choose_capture(
+        captures,
+        provider="rektslug",
+        url_paths=("/liquidations/levels",),
+    )
 
     coinank_state = extract_coinank_state(coinank_capture)
     coinglass_state = extract_coinglass_state(coinglass_capture)
-    settings = get_settings()
-    internal_time_window = choose_internal_time_window(
-        coinank_state.timeframe,
-        coinglass_state.timeframe,
-        args.internal_time_window,
-    )
-    internal_payload, internal_source_url = fetch_internal_heatmap_payload(
-        api_base=args.internal_api_base or settings.api_url,
-        symbol=coinank_state.symbol or coinglass_state.symbol or "BTCUSDT",
-        time_window=internal_time_window,
-        price_bin_size=choose_internal_price_bin_size(coinank_state, coinglass_state),
-    )
-    internal_state = extract_internal_state(
-        internal_payload,
-        source_url=internal_source_url,
-    )
+    local_state = extract_rektslug_state(rektslug_capture)
 
     common_tiers = sorted(
         set(coinank_state.leverage_totals) & set(coinglass_state.leverage_totals)
@@ -1440,27 +1453,27 @@ def main() -> int:
             ],
         ),
         build_scenario_metrics(
-            "internal_vs_coinank",
-            "Internal latest heatmap snapshot versus CoinAnk price-map.",
-            internal_state,
+            "rektslug_vs_coinank",
+            "Local rektslug liq-map levels versus CoinAnk price-map.",
+            local_state,
             coinank_state,
             notes=[
                 (
-                    "Internal uses the latest heatmap-timeseries snapshot. "
-                    "Shape metrics are aligned on a shared coarse grid; totals stay native."
+                    "rektslug uses the captured /liquidations/levels payload from the same run. "
+                    "Shape metrics are aligned on a shared grid; totals stay native."
                 ),
             ],
         ),
         build_scenario_metrics(
-            "internal_vs_coinglass",
-            "Internal latest heatmap snapshot versus Coinglass price-map.",
-            internal_state,
+            "rektslug_vs_coinglass",
+            "Local rektslug liq-map levels versus Coinglass price-map.",
+            local_state,
             coinglass_state,
             common_tiers=common_tiers,
             notes=[
                 (
-                    "Internal uses the latest heatmap-timeseries snapshot. "
-                    "This is the direct benchmark path for our model vs Coinglass."
+                    "rektslug uses the captured /liquidations/levels payload from the same run. "
+                    "This is the direct benchmark path for our local model vs Coinglass."
                 ),
             ],
         ),
@@ -1470,7 +1483,7 @@ def main() -> int:
         manifest_paths=manifest_paths,
         coinank_state=coinank_state,
         coinglass_state=coinglass_state,
-        internal_state=internal_state,
+        local_state=local_state,
         scenarios=scenarios,
         common_tiers=common_tiers,
     )

@@ -1,0 +1,33 @@
+{
+  "provider": "rektslug",
+  "page_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+  "login_attempted": false,
+  "login_success": false,
+  "requested_ui_timeframe": null,
+  "timeframe_applied": true,
+  "capture_count": 1,
+  "captures": [
+    {
+      "provider": "rektslug",
+      "source_url": "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7",
+      "status": 200,
+      "method": "GET",
+      "content_type": "application/json",
+      "response_headers": {},
+      "request_headers": {},
+      "request_post_data": "",
+      "saved_file": "data/validation/raw_provider_api/20260310T173221Z/rektslug/01_levels.json",
+      "summary": {
+        "kind": "object",
+        "top_level_keys": [
+          "current_price",
+          "long_liquidations",
+          "model",
+          "short_liquidations",
+          "symbol"
+        ]
+      }
+    }
+  ],
+  "capture_mode": "rest"
+}

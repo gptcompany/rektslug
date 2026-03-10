@@ -1,0 +1,1461 @@
+{
+  "symbol": "BTCUSDT",
+  "model": "openinterest",
+  "current_price": "71115.4",
+  "long_liquidations": [
+    {
+      "price_level": "71100",
+      "volume": "5984548.350941697",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71000",
+      "volume": "7310214.72474311",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70900",
+      "volume": "10451104.210188173",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70800",
+      "volume": "8689687.328703767",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70700",
+      "volume": "8466701.901015302",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70600",
+      "volume": "9334363.205856217",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70500",
+      "volume": "4881008.764925367",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70400",
+      "volume": "11969096.701883394",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "70400",
+      "volume": "19134853.97801933",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70300",
+      "volume": "14620429.44948622",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "70300",
+      "volume": "16142090.220910905",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70200",
+      "volume": "20902208.420376346",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "70200",
+      "volume": "3076486.0054233167",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70100",
+      "volume": "17379374.657407533",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "70100",
+      "volume": "14639842.95484669",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "70000",
+      "volume": "16933403.802030604",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "70000",
+      "volume": "677250.7455273834",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69900",
+      "volume": "18668726.411712434",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69900",
+      "volume": "25621731.37017938",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69800",
+      "volume": "9762017.529850734",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69800",
+      "volume": "28295470.677673645",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69700",
+      "volume": "38269707.95603866",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69700",
+      "volume": "12092532.9434724",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69600",
+      "volume": "32284180.44182181",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69600",
+      "volume": "16241751.111682246",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69500",
+      "volume": "6152972.010846633",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69500",
+      "volume": "23894048.747570857",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69400",
+      "volume": "29279685.90969338",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69400",
+      "volume": "18169290.4786069",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69300",
+      "volume": "1354501.4910547668",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69300",
+      "volume": "20644273.02594232",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69200",
+      "volume": "51243462.74035876",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69100",
+      "volume": "56590941.35534729",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "69100",
+      "volume": "1299575.7751092967",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "69000",
+      "volume": "24185065.8869448",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68900",
+      "volume": "14961370.877354242",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68900",
+      "volume": "32483502.22336449",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68900",
+      "volume": "5276299.008365776",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68800",
+      "volume": "18275536.811857775",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68800",
+      "volume": "47788097.495141715",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68800",
+      "volume": "11192305.022915874",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68700",
+      "volume": "26127760.52547043",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68700",
+      "volume": "36338580.9572138",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68700",
+      "volume": "15822173.625366487",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68600",
+      "volume": "21724218.321759418",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68600",
+      "volume": "41288546.05188464",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68600",
+      "volume": "5509218.349094342",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68500",
+      "volume": "21166754.752538253",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68500",
+      "volume": "16241684.58149488",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68400",
+      "volume": "23335908.014640544",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68400",
+      "volume": "2599151.5502185933",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68400",
+      "volume": "9761326.709716272",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68300",
+      "volume": "60039656.85736174",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68300",
+      "volume": "2979516.645790996",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68200",
+      "volume": "40355225.55227726",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68200",
+      "volume": "10552598.016731553",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68200",
+      "volume": "5505700.406533623",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68100",
+      "volume": "7691215.013558292",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68100",
+      "volume": "22384610.045831747",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68100",
+      "volume": "207881.70822592196",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "68000",
+      "volume": "36599607.38711672",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "68000",
+      "volume": "31644347.250732973",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "68000",
+      "volume": "5922426.291284259",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "67900",
+      "volume": "1693126.8638184583",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67900",
+      "volume": "11018436.698188685",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67900",
+      "volume": "1192576.4335907178",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "67800",
+      "volume": "64054328.42544845",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67800",
+      "volume": "32483369.16298976",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67700",
+      "volume": "70738676.69418411",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67700",
+      "volume": "19522653.419432543",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67600",
+      "volume": "30231332.358680997",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67600",
+      "volume": "5959033.291581992",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67500",
+      "volume": "40604377.77920561",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67500",
+      "volume": "11011400.813067246",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67400",
+      "volume": "59735121.86892714",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67400",
+      "volume": "415763.4164518439",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67300",
+      "volume": "45423226.196517244",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67300",
+      "volume": "11844852.582568519",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67200",
+      "volume": "51610682.56485579",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "67200",
+      "volume": "2385152.8671814357",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "67000",
+      "volume": "3248939.437773241",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66800",
+      "volume": "13190747.520914441",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66700",
+      "volume": "27980762.557289682",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66600",
+      "volume": "39555434.06341621",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66500",
+      "volume": "13773045.872735854",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66400",
+      "volume": "40604211.4537372",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66300",
+      "volume": "24403316.774290677",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66200",
+      "volume": "7448791.61447749",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66100",
+      "volume": "13764251.016334057",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "66000",
+      "volume": "519704.2705648049",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "65900",
+      "volume": "14806065.728210647",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "65800",
+      "volume": "2981441.0839767945",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "64600",
+      "volume": "17953645.05282509",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64500",
+      "volume": "53283956.804793835",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64400",
+      "volume": "26069061.986111302",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64300",
+      "volume": "25400105.7030459",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64200",
+      "volume": "28003089.617568653",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64100",
+      "volume": "14643026.294776103",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "64000",
+      "volume": "57404561.93405799",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63900",
+      "volume": "48426270.66273271",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63800",
+      "volume": "9229458.01626995",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63700",
+      "volume": "43919528.86454006",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63600",
+      "volume": "78896946.34712029",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63500",
+      "volume": "84886412.03302093",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63400",
+      "volume": "36277598.83041719",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63300",
+      "volume": "48725253.33504673",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63200",
+      "volume": "71682146.24271257",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63100",
+      "volume": "54507871.43582069",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "63000",
+      "volume": "61932819.07782695",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62800",
+      "volume": "3898727.325327889",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62600",
+      "volume": "49405812.09384495",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62500",
+      "volume": "47466520.87609945",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62400",
+      "volume": "16527655.047283024",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62300",
+      "volume": "48725053.74448464",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62200",
+      "volume": "29283980.12914881",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62100",
+      "volume": "8938549.937372988",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "62000",
+      "volume": "16517101.219600867",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "61900",
+      "volume": "623645.1246777659",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "61800",
+      "volume": "17767278.873852775",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "61700",
+      "volume": "3577729.3007721533",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "57500",
+      "volume": "8976822.526412545",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "57400",
+      "volume": "10965322.087114664",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "57300",
+      "volume": "15676656.315282255",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "57200",
+      "volume": "25734583.8445786",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "57100",
+      "volume": "14001544.808784327",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "57000",
+      "volume": "7321513.147388051",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56900",
+      "volume": "28702280.967028994",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56800",
+      "volume": "28827864.339501332",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56700",
+      "volume": "21959764.43227003",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56600",
+      "volume": "1015876.1182910749",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56500",
+      "volume": "38432597.05526907",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56400",
+      "volume": "60582005.431719065",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56300",
+      "volume": "24362626.667523365",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56200",
+      "volume": "35841073.121356286",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56100",
+      "volume": "27253935.717910346",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "56000",
+      "volume": "30966409.538913473",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55900",
+      "volume": "1949363.6626639445",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55700",
+      "volume": "7914448.512548665",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55600",
+      "volume": "40521717.97242354",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55500",
+      "volume": "8263827.523641512",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55400",
+      "volume": "24362526.87224232",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55300",
+      "volume": "14641990.064574406",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55200",
+      "volume": "12727825.578486927",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55100",
+      "volume": "311822.56233888294",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "55000",
+      "volume": "8883639.436926387",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "54900",
+      "volume": "1788864.6503860767",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ],
+  "short_liquidations": [
+    {
+      "price_level": "71100",
+      "volume": "41236216.28230103",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71100",
+      "volume": "16658821.642612332",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71200",
+      "volume": "11385742.388439445",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71200",
+      "volume": "28250080.260837235",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71200",
+      "volume": "17304003.73232284",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71300",
+      "volume": "19663111.460545216",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71300",
+      "volume": "65429882.664932445",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71300",
+      "volume": "1953082.23139987",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71400",
+      "volume": "31899349.684095133",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71400",
+      "volume": "29173157.709306248",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71500",
+      "volume": "15276437.852143215",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71500",
+      "volume": "18510938.308611244",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71500",
+      "volume": "16608459.14636516",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71600",
+      "volume": "25250718.78944058",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71600",
+      "volume": "1743448.980604726",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71600",
+      "volume": "13555772.456504626",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71700",
+      "volume": "12883157.618796859",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "71700",
+      "volume": "20387566.96968533",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71700",
+      "volume": "9898336.141861811",
+      "count": 1,
+      "leverage": "100x"
+    },
+    {
+      "price_level": "71800",
+      "volume": "33317643.285224665",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "71900",
+      "volume": "34608007.46464568",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "72000",
+      "volume": "8215954.523544473",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72000",
+      "volume": "3906164.46279974",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "72200",
+      "volume": "9323621.9629014",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72200",
+      "volume": "33216918.29273032",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "72300",
+      "volume": "27089099.41492753",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72300",
+      "volume": "27111544.913009252",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "72400",
+      "volume": "30390422.876859657",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72400",
+      "volume": "19796672.283723623",
+      "count": 1,
+      "leverage": "50x"
+    },
+    {
+      "price_level": "72500",
+      "volume": "51545270.35287628",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72600",
+      "volume": "35312600.32604654",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72700",
+      "volume": "81787353.33116555",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72800",
+      "volume": "36466447.13663281",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "72900",
+      "volume": "23138672.885764055",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73000",
+      "volume": "2179311.225755907",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73100",
+      "volume": "25484458.71210666",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73200",
+      "volume": "41647054.10653083",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73300",
+      "volume": "43260009.33080709",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73500",
+      "volume": "4882705.578499675",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73700",
+      "volume": "41521147.8659129",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73800",
+      "volume": "33889431.14126156",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "73900",
+      "volume": "24745840.35465453",
+      "count": 1,
+      "leverage": "25x"
+    },
+    {
+      "price_level": "74900",
+      "volume": "2830228.002943903",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75000",
+      "volume": "6609819.695631329",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75100",
+      "volume": "4587516.969785106",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75200",
+      "volume": "3782456.558447503",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75300",
+      "volume": "13662890.866127333",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75400",
+      "volume": "23595733.75265426",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75500",
+      "volume": "38279219.62091416",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75600",
+      "volume": "18331725.422571857",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75700",
+      "volume": "30300862.547328696",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "75800",
+      "volume": "15459789.14255623",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76200",
+      "volume": "9859145.428253368",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76400",
+      "volume": "11188346.35548168",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76500",
+      "volume": "32506919.297913037",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76600",
+      "volume": "36468507.452231586",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76700",
+      "volume": "61854324.423451535",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76800",
+      "volume": "42375120.39125585",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "76900",
+      "volume": "98144823.99739866",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77000",
+      "volume": "43759736.56395937",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77200",
+      "volume": "27766407.462916866",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77300",
+      "volume": "2615173.4709070884",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77400",
+      "volume": "30581350.45452799",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77500",
+      "volume": "49976464.92783699",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77600",
+      "volume": "51912011.1969685",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77700",
+      "volume": "5859246.69419961",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "77900",
+      "volume": "49825377.439095475",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "78000",
+      "volume": "40667317.36951388",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "78100",
+      "volume": "29695008.425585434",
+      "count": 1,
+      "leverage": "10x"
+    },
+    {
+      "price_level": "81700",
+      "volume": "1415114.0014719516",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "81800",
+      "volume": "3304909.8478156645",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "81900",
+      "volume": "2293758.484892553",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82000",
+      "volume": "1891228.2792237515",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82200",
+      "volume": "6831445.433063666",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82300",
+      "volume": "11797866.87632713",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82400",
+      "volume": "19139609.81045708",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82500",
+      "volume": "9165862.711285928",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82600",
+      "volume": "15150431.273664348",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "82800",
+      "volume": "7729894.571278115",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83100",
+      "volume": "4929572.714126684",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83400",
+      "volume": "5594173.17774084",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83500",
+      "volume": "16253459.648956519",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83600",
+      "volume": "18234253.726115793",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83700",
+      "volume": "30927162.211725768",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "83800",
+      "volume": "21187560.195627924",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84000",
+      "volume": "49072411.99869933",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84100",
+      "volume": "21879868.281979684",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84200",
+      "volume": "13883203.731458433",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84300",
+      "volume": "1307586.7354535442",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84400",
+      "volume": "15290675.227263995",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84600",
+      "volume": "24988232.463918496",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84700",
+      "volume": "25956005.59848425",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "84800",
+      "volume": "2929623.347099805",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "85000",
+      "volume": "24912688.719547737",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "85200",
+      "volume": "20333658.68475694",
+      "count": 1,
+      "leverage": "5x"
+    },
+    {
+      "price_level": "85300",
+      "volume": "14847504.212792717",
+      "count": 1,
+      "leverage": "5x"
+    }
+  ]
+}

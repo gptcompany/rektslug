@@ -25,6 +25,7 @@ from scripts.compare_provider_liquidations import generate_report
 SPEC_017_SUPPORTED_SYMBOLS = {"BTC", "ETH"}
 SPEC_017_SUPPORTED_TIMEFRAMES = {"1d", "1w"}
 SPEC_017_SUPPORTED_PRODUCTS = {"liq-map"}
+SPEC_017_ALLOWED_PROVIDERS = {"coinank", "coinglass", "rektslug", "both", "all"}
 
 
 def validate_spec017_matrix(symbol: str, timeframe: str) -> None:
@@ -51,6 +52,15 @@ def validate_product_filter(product: str | None) -> None:
         raise ValueError(
             f"Unsupported product: {product!r}. "
             f"Only liq-map is supported by spec-017."
+        )
+
+
+def validate_spec017_provider(provider: str) -> None:
+    """Fail fast if a provider choice drifts outside the spec-017 scope."""
+    if provider not in SPEC_017_ALLOWED_PROVIDERS:
+        raise ValueError(
+            f"Unsupported provider for spec-017: {provider!r}. "
+            "Allowed: coinank, coinglass, rektslug, both, all."
         )
 
 
@@ -146,6 +156,10 @@ def parse_args() -> argparse.Namespace:
 
 def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
     """Translate combined CLI args into the capture script's expected namespace."""
+    matrix_locked = args.matrix_preset == "spec-017"
+    include_rektslug = matrix_locked and args.provider in {"both", "all"}
+    include_bitcoincounterflow = not matrix_locked
+
     return argparse.Namespace(
         provider=args.provider,
         coin=args.coin,
@@ -160,6 +174,8 @@ def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
         headed=args.headed,
         coinglass_mode=getattr(args, "coinglass_mode", "rest"),
         coinglass_timeframe=None,
+        include_rektslug=include_rektslug,
+        include_bitcoincounterflow=include_bitcoincounterflow,
     )
 
 
@@ -173,6 +189,7 @@ def main() -> int:
     # Validate matrix preset (T006, T009, T011)
     if args.matrix_preset == "spec-017":
         validate_spec017_matrix(args.coin, args.timeframe)
+        validate_spec017_provider(args.provider)
 
     capture_args = build_capture_namespace(args)
 
@@ -209,7 +226,12 @@ def main() -> int:
         gap_output = gap_result.stdout.strip()
         print(f"gap analysis: {gap_output}")
     else:
-        print(f"gap analysis failed (exit {gap_result.returncode}): {gap_result.stderr.strip()}")
+        gap_stderr = gap_result.stderr.strip()
+        gap_stdout = gap_result.stdout.strip()
+        if gap_stdout:
+            print(f"gap analysis output: {gap_stdout}")
+        print(f"gap analysis failed (exit {gap_result.returncode}): {gap_stderr}")
+        return gap_result.returncode or 1
 
     return 0
 
