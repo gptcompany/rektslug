@@ -10,6 +10,11 @@ Abstract the current screenshot-validation pieces into a reusable harness that
 can score local-vs-provider visual parity for both current liq-map specs and
 future heatmap specs.
 
+The key architectural rule is explicit separation between:
+
+- product adapters (`liq-map`, `liq-heat-map`)
+- renderer adapters (`plotly`, future `lightweight`)
+
 ## Technical Context
 
 ### Existing Infrastructure
@@ -39,6 +44,12 @@ future heatmap specs.
 - Chromium via `uv run playwright install chromium`
 - current local Plotly pages at `frontend/liq_map_1w.html` and `frontend/coinglass_heatmap.html`
 
+### Renderer Decision
+
+- `plotly` is the first renderer adapter and the only one assumed to exist today
+- `lightweight` is not a default; it is a future adapter path for Counterflow-style pages
+- no repo-wide Lightweight installation is required for this spec's planning phase
+
 ### Reference URLs
 
 - Local liq-map: `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1w`
@@ -50,6 +61,8 @@ future heatmap specs.
 
 ```
 product adapter
+    +
+renderer adapter
     +
 capture runner
     +
@@ -70,16 +83,19 @@ visual comparison report
 ## What Needs Work
 
 1. one shared manifest contract for screenshot-based runs
-2. renderer-agnostic scoring output
-3. adapter separation between data capture and screenshot comparison
-4. future compatibility with Counterflow-style rendering
+2. explicit product-adapter contract
+3. explicit renderer-adapter contract
+4. renderer-agnostic scoring output
+5. adapter separation between data capture and screenshot comparison
+6. future compatibility with Counterflow-style rendering
 
 ## Phases
 
 1. Inventory existing tooling.
 2. Define shared manifest and scoring contracts.
-3. Integrate liq-map first.
-4. Leave clean adapter seams for heatmap and Counterflow.
+3. Define product and renderer adapter seams.
+4. Integrate liq-map on `plotly` first.
+5. Leave clean seams for `liq-heat-map` and Counterflow/`lightweight`.
 
 ## Risks
 
@@ -87,3 +103,4 @@ visual comparison report
 - mixing data-comparison concerns with screenshot-comparison concerns
 - binding the harness too tightly to Plotly-specific DOM behavior
 - treating OCR-based validation and DOM-stable screenshot capture as interchangeable when they are not
+- letting `lightweight` concerns leak into the default `plotly` path too early

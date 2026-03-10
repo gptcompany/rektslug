@@ -12,3 +12,4 @@ The implementation goal is unchanged:
 - build reusable screenshot/score/manifest infrastructure
 - support current `liq-map` work first
 - remain extensible to future heatmap comparisons
+- keep product adapters separate from renderer adapters

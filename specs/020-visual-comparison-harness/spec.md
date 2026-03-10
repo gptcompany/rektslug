@@ -9,6 +9,7 @@ This spec is infrastructure:
 
 - it should serve `rektslug-ank`, `rektslug-glass`, and later heatmap work
 - it does not define provider-specific model tuning itself
+- it must keep **product adapters** separate from **renderer adapters**
 
 ## Reference Sources
 
@@ -32,6 +33,8 @@ This spec is infrastructure:
 - scoring/reporting schema
 - provider/local viewport normalization
 - reuse for both `liq-map` and later `liq-heat-map`
+- product adapters
+- renderer adapters
 
 ### Out of Scope
 
@@ -53,6 +56,22 @@ This spec is infrastructure:
 - Chromium installed via `uv run playwright install chromium`
 - existing Plotly-based local pages already present in repo
 
+## Adapter Model
+
+The harness should use two independent adapter axes:
+
+- **Product adapters**:
+  - `liq-map`
+  - `liq-heat-map`
+- **Renderer adapters**:
+  - `plotly`
+  - `lightweight` (reserved for Counterflow-style integration)
+
+This separation is required to avoid conflating:
+
+- the dataset/product being validated
+- the rendering technology used by the page under test
+
 ## Functional Requirements
 
 - **FR-001**: The harness MUST support local-vs-provider visual capture with reproducible viewport parameters.
@@ -60,6 +79,9 @@ This spec is infrastructure:
 - **FR-003**: The harness MUST emit machine-readable scores suitable for thresholding in CI/manual gates.
 - **FR-004**: The harness MUST support at least `liq-map` initially and be extensible to `liq-heat-map`.
 - **FR-005**: The harness MUST keep provider adapters separate from scoring logic.
+- **FR-006**: The harness MUST model product adapters separately from renderer adapters.
+- **FR-007**: `plotly` MUST be treated as the first concrete renderer adapter.
+- **FR-008**: `lightweight` MUST be introduced only as a separate renderer adapter, never as an implicit default.
 
 ## Success Criteria
 

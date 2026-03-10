@@ -53,6 +53,15 @@ first acceptance gate should be a minimal smoke page that confirms:
 - screenshot capture works under Playwright/Chromium
 - the resulting DOM/canvas output is stable enough for the `spec-020` harness
 
+### Harness Integration Rule
+
+Counterflow should integrate into `spec-020` under:
+
+- `product_adapter`: chosen separately by the consuming workflow
+- `renderer_adapter=lightweight`
+
+This avoids confusing renderer decisions with dataset/product decisions.
+
 ## Architecture
 
 ```

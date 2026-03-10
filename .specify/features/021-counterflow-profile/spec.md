@@ -12,3 +12,4 @@ The implementation goal is unchanged:
 - define Counterflow as an explicit provider/profile
 - document Lightweight Charts constraints
 - align future integration with the shared visual harness
+- treat Counterflow as a separate `lightweight` renderer adapter

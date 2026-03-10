@@ -9,6 +9,7 @@ This spec is not a copy of `spec-017`:
 
 - Counterflow is primarily useful as a reference profile and capture target
 - its UI technology differs from the current local Plotly path
+- it should plug into the shared visual harness as `renderer_adapter=lightweight`
 
 ## Reference Sources
 
@@ -50,6 +51,7 @@ This spec is not a copy of `spec-017`:
 - **FR-002**: Counterflow participation in manifests/reports MUST be explicit and separable from CoinAnK and Coinglass.
 - **FR-003**: The spec MUST document renderer constraints relevant to visual comparison against a Lightweight Charts provider.
 - **FR-004**: Counterflow integration MUST be compatible with the shared visual harness from `spec-020`.
+- **FR-005**: Counterflow MUST enter `spec-020` as a dedicated `lightweight` renderer adapter, not as a product adapter.
 
 ## Success Criteria
 

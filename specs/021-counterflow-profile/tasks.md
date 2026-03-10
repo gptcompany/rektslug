@@ -15,14 +15,15 @@
 - [ ] T004 Define manifest/provider metadata for Counterflow
 - [ ] T005 Define how Counterflow should appear in comparison reports
 - [ ] T006 Define whether Counterflow is data-source, visual-reference, or both
+- [ ] T007 Define the expected `renderer_adapter=lightweight` contract for Counterflow
 
 ## Phase 3: Harness Alignment
 
-- [ ] T007 Define how Counterflow will plug into `spec-020` screenshot/score manifests
-- [ ] T008 Identify adapter work required because of Lightweight Charts rendering
-- [ ] T009 Define a minimal smoke run for future implementation
-- [ ] T010 Decide whether a local Lightweight Charts smoke page is needed at all
-- [ ] T011 If needed, document installation choice and validation gates before implementation
+- [ ] T008 Define how Counterflow will plug into `spec-020` screenshot/score manifests
+- [ ] T009 Identify adapter work required because of Lightweight Charts rendering
+- [ ] T010 Define a minimal smoke run for future implementation
+- [ ] T011 Decide whether a local Lightweight Charts smoke page is needed at all
+- [ ] T012 If needed, document installation choice and validation gates before implementation
 
 Suggested validation gates if Lightweight is introduced later:
 - library loads locally without a repo-wide frontend build migration
@@ -32,4 +33,4 @@ Suggested validation gates if Lightweight is introduced later:
 
 ## Phase 4: Documentation
 
-- [ ] T012 Document the final architectural role of Counterflow in repo docs/spec notes
+- [ ] T013 Document the final architectural role of Counterflow in repo docs/spec notes
