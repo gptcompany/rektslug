@@ -43,6 +43,17 @@ class LiquidationLevelsResponse(BaseModel):
     long_liquidations: list[dict]
     short_liquidations: list[dict]
 
+
+def _bucket_price_precision(bin_size: float) -> int:
+    normalized = Decimal(str(bin_size)).normalize()
+    return max(0, -normalized.as_tuple().exponent)
+
+
+def _format_bucket_price(value: float, precision: int) -> str:
+    if precision <= 0:
+        return str(int(round(value)))
+    return f"{value:.{precision}f}".rstrip("0").rstrip(".")
+
 def parse_leverage_weights(weights_str: str | None) -> list[tuple[int, Decimal]] | None:
     if not weights_str:
         return None
@@ -139,9 +150,10 @@ async def get_liquidation_levels(
         )
 
         if not bins_df.empty and "liq_price" in bins_df.columns:
+            price_precision = _bucket_price_precision(bin_size)
             bins_df["liq_price_binned"] = (
-                np.round(bins_df["liq_price"] / bin_size) * bin_size
-            ).astype(int)
+                np.round(np.round(bins_df["liq_price"] / bin_size) * bin_size, price_precision)
+            )
             bins_df = (
                 bins_df.groupby(["liq_price_binned", "leverage", "side"])
                 .agg({"volume": "sum"})
@@ -159,7 +171,7 @@ async def get_liquidation_levels(
     short_liqs: list[dict] = []
     for _, row in bins_df.iterrows():
         liq_entry = {
-            "price_level": str(row["price_bucket"]),
+            "price_level": _format_bucket_price(float(row["price_bucket"]), _bucket_price_precision(bin_size)),
             "volume": str(row["total_volume"]),
             "count": int(row["count"]),
             "leverage": f"{int(row['leverage'])}x",

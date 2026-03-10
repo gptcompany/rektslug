@@ -1,0 +1,322 @@
+{
+  "timestamp_utc": "2026-03-10T23:56:17.152967+00:00",
+  "profile": "rektslug-ank",
+  "baseline_profile": "rektslug-default",
+  "profile_params": {
+    "name": "rektslug-ank",
+    "leverage_weights": {
+      "25": 0.35,
+      "50": 0.35,
+      "100": 0.3
+    },
+    "bin_size_1d": 10.0,
+    "bin_size_1w": 10.0,
+    "bin_size_30d": 25.0,
+    "bin_size_overrides": {
+      "BTCUSDT:1d": 15.0,
+      "ETHUSDT:1d": 0.45,
+      "ETHUSDT:7d": 1.65
+    },
+    "side_weight_overrides": {
+      "BTCUSDT:1d": {
+        "buy": 0.95,
+        "sell": 1.0
+      },
+      "BTCUSDT:7d": {
+        "buy": 0.52,
+        "sell": 1.0
+      },
+      "ETHUSDT:1d": {
+        "buy": 0.66,
+        "sell": 1.0
+      },
+      "ETHUSDT:7d": {
+        "buy": 0.3,
+        "sell": 1.0
+      }
+    }
+  },
+  "status": "accepted",
+  "acceptance": {
+    "accepted": true,
+    "entries_passing": 4,
+    "required_entries": 3,
+    "required_metrics": 3,
+    "has_critical_regression": false,
+    "entries": [
+      {
+        "symbol": "BTC",
+        "timeframe": "1d",
+        "metrics_improved": 4,
+        "entry_passes": true,
+        "critical_regression": null
+      },
+      {
+        "symbol": "BTC",
+        "timeframe": "1w",
+        "metrics_improved": 4,
+        "entry_passes": true,
+        "critical_regression": null
+      },
+      {
+        "symbol": "ETH",
+        "timeframe": "1d",
+        "metrics_improved": 4,
+        "entry_passes": true,
+        "critical_regression": null
+      },
+      {
+        "symbol": "ETH",
+        "timeframe": "1w",
+        "metrics_improved": 5,
+        "entry_passes": true,
+        "critical_regression": null
+      }
+    ]
+  },
+  "entry_results": [
+    {
+      "symbol": "BTC",
+      "timeframe": "1d",
+      "improvements": {
+        "bucket_count_proximity": {
+          "baseline": 0.6899128268991283,
+          "calibrated": 0.3424657534246575,
+          "improvement_ratio": 0.5036101083032491,
+          "threshold": 0.2,
+          "passed": true
+        },
+        "long_short_total_ratio": {
+          "baseline": 0.2657036932748994,
+          "calibrated": 0.10151263678975952,
+          "improvement_ratio": 0.617947964747582,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "long_short_peak_ratio": {
+          "baseline": 0.5488871820451304,
+          "calibrated": 0.08334691887100099,
+          "improvement_ratio": 0.8481529144833482,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "current_price_anchor": {
+          "baseline": 0.0011965616045845856,
+          "calibrated": 0.0011965616045845856,
+          "improvement_ratio": 0.0,
+          "threshold": 0.1,
+          "passed": false
+        },
+        "bucket_overlap": {
+          "baseline": 0.37628865979381443,
+          "calibrated": 0.6482142857142857,
+          "improvement_ratio": 0.7226516634050881,
+          "threshold": 0.1,
+          "passed": true
+        }
+      },
+      "critical_regression": null,
+      "baseline": {
+        "bucket_count_proximity": 0.6899128268991283,
+        "long_short_total_ratio": 0.2657036932748994,
+        "long_short_peak_ratio": 0.5488871820451304,
+        "current_price_anchor": 0.0011965616045845856,
+        "bucket_overlap": 0.37628865979381443
+      },
+      "calibrated": {
+        "bucket_count_proximity": 0.3424657534246575,
+        "long_short_total_ratio": 0.10151263678975952,
+        "long_short_peak_ratio": 0.08334691887100099,
+        "current_price_anchor": 0.0011965616045845856,
+        "bucket_overlap": 0.6482142857142857
+      }
+    },
+    {
+      "symbol": "BTC",
+      "timeframe": "1w",
+      "improvements": {
+        "bucket_count_proximity": {
+          "baseline": 0.30321592649310875,
+          "calibrated": 0.030627871362940276,
+          "improvement_ratio": 0.898989898989899,
+          "threshold": 0.2,
+          "passed": true
+        },
+        "long_short_total_ratio": {
+          "baseline": 1.0417356408419898,
+          "calibrated": 0.3913600702331713,
+          "improvement_ratio": 0.6243192083580322,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "long_short_peak_ratio": {
+          "baseline": 2.11867899087601,
+          "calibrated": 0.43348038788949617,
+          "improvement_ratio": 0.7954006294694672,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "current_price_anchor": {
+          "baseline": 0.0012882390009165486,
+          "calibrated": 0.0012882390009165486,
+          "improvement_ratio": 0.0,
+          "threshold": 0.1,
+          "passed": false
+        },
+        "bucket_overlap": {
+          "baseline": 0.44368600682593856,
+          "calibrated": 0.7506493506493507,
+          "improvement_ratio": 0.691848151848152,
+          "threshold": 0.1,
+          "passed": true
+        }
+      },
+      "critical_regression": null,
+      "baseline": {
+        "bucket_count_proximity": 0.30321592649310875,
+        "long_short_total_ratio": 1.0417356408419898,
+        "long_short_peak_ratio": 2.11867899087601,
+        "current_price_anchor": 0.0012882390009165486,
+        "bucket_overlap": 0.44368600682593856
+      },
+      "calibrated": {
+        "bucket_count_proximity": 0.030627871362940276,
+        "long_short_total_ratio": 0.3913600702331713,
+        "long_short_peak_ratio": 0.43348038788949617,
+        "current_price_anchor": 0.0012882390009165486,
+        "bucket_overlap": 0.7506493506493507
+      }
+    },
+    {
+      "symbol": "ETH",
+      "timeframe": "1d",
+      "improvements": {
+        "bucket_count_proximity": {
+          "baseline": 0.967391304347826,
+          "calibrated": 0.2108695652173913,
+          "improvement_ratio": 0.7820224719101123,
+          "threshold": 0.2,
+          "passed": true
+        },
+        "long_short_total_ratio": {
+          "baseline": 1.748366335060139,
+          "calibrated": 0.2531736799713795,
+          "improvement_ratio": 0.8551941461612099,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "long_short_peak_ratio": {
+          "baseline": 0.7372247483366661,
+          "calibrated": 0.17625797542800647,
+          "improvement_ratio": 0.7609169037994431,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "current_price_anchor": {
+          "baseline": 0.0016177410630869664,
+          "calibrated": 0.0016177410630869664,
+          "improvement_ratio": 0.0,
+          "threshold": 0.1,
+          "passed": false
+        },
+        "bucket_overlap": {
+          "baseline": 0.4,
+          "calibrated": 0.7125,
+          "improvement_ratio": 0.78125,
+          "threshold": 0.1,
+          "passed": true
+        }
+      },
+      "critical_regression": null,
+      "baseline": {
+        "bucket_count_proximity": 0.967391304347826,
+        "long_short_total_ratio": 1.748366335060139,
+        "long_short_peak_ratio": 0.7372247483366661,
+        "current_price_anchor": 0.0016177410630869664,
+        "bucket_overlap": 0.4
+      },
+      "calibrated": {
+        "bucket_count_proximity": 0.2108695652173913,
+        "long_short_total_ratio": 0.2531736799713795,
+        "long_short_peak_ratio": 0.17625797542800647,
+        "current_price_anchor": 0.0016177410630869664,
+        "bucket_overlap": 0.7125
+      }
+    },
+    {
+      "symbol": "ETH",
+      "timeframe": "1w",
+      "improvements": {
+        "bucket_count_proximity": {
+          "baseline": 0.9647058823529412,
+          "calibrated": 0.023529411764705882,
+          "improvement_ratio": 0.975609756097561,
+          "threshold": 0.2,
+          "passed": true
+        },
+        "long_short_total_ratio": {
+          "baseline": 2.1681126122828958,
+          "calibrated": 0.09242900366831752,
+          "improvement_ratio": 0.9573689101088733,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "long_short_peak_ratio": {
+          "baseline": 1.0499571197405642,
+          "calibrated": 0.08620210837968434,
+          "improvement_ratio": 0.9178994010717465,
+          "threshold": 0.15,
+          "passed": true
+        },
+        "current_price_anchor": {
+          "baseline": 0.0,
+          "calibrated": 0.0,
+          "improvement_ratio": 1.0,
+          "threshold": 0.1,
+          "passed": true
+        },
+        "bucket_overlap": {
+          "baseline": 0.6,
+          "calibrated": 0.6996197718631179,
+          "improvement_ratio": 0.16603295310519647,
+          "threshold": 0.1,
+          "passed": true
+        }
+      },
+      "critical_regression": null,
+      "baseline": {
+        "bucket_count_proximity": 0.9647058823529412,
+        "long_short_total_ratio": 2.1681126122828958,
+        "long_short_peak_ratio": 1.0499571197405642,
+        "current_price_anchor": 0.0,
+        "bucket_overlap": 0.6
+      },
+      "calibrated": {
+        "bucket_count_proximity": 0.023529411764705882,
+        "long_short_total_ratio": 0.09242900366831752,
+        "long_short_peak_ratio": 0.08620210837968434,
+        "current_price_anchor": 0.0,
+        "bucket_overlap": 0.6996197718631179
+      }
+    }
+  ],
+  "elapsed_seconds": 114.6,
+  "matrix": [
+    {
+      "symbol": "BTC",
+      "timeframe": "1d"
+    },
+    {
+      "symbol": "BTC",
+      "timeframe": "1w"
+    },
+    {
+      "symbol": "ETH",
+      "timeframe": "1d"
+    },
+    {
+      "symbol": "ETH",
+      "timeframe": "1w"
+    }
+  ]
+}

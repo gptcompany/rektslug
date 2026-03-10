@@ -20,6 +20,7 @@ import argparse
 import json
 import time
 import sys
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
@@ -31,6 +32,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.liquidationheatmap.models.profiles import get_profile, list_profiles
+from scripts.compare_provider_liquidations import load_capture_files, median_step
 
 COINANK_HEALTH_URL = "https://coinank.com"
 COINANK_TIMEOUT = 10
@@ -116,10 +118,105 @@ def extract_provider_metrics(report: dict, provider: str) -> dict | None:
 
 def compute_metrics_from_provider_metrics(rektslug: dict, coinank: dict) -> dict:
     """Compute the 5 spec-018 metrics against a frozen CoinAnK reference."""
-    rs_buckets = rektslug.get("bucket_count", 0)
-    ank_buckets = coinank.get("bucket_count", 0)
-    overlap_estimate = min(rs_buckets, ank_buckets) / max(rs_buckets, ank_buckets, 1)
-    return _compute_metrics(rektslug, coinank, overlap_estimate)
+    return _compute_metrics(rektslug, coinank, 0.0)
+
+
+def extract_bucket_prices_from_manifest(manifest_path: Path, provider: str) -> list[float]:
+    """Extract active bucket prices for one provider from a raw capture manifest."""
+    captures = load_capture_files([manifest_path])
+    if provider == "rektslug":
+        for capture in captures:
+            if capture.provider != "rektslug" or "/liquidations/levels" not in capture.source_url.lower():
+                continue
+            root = capture.payload
+            if not isinstance(root, dict):
+                continue
+            prices: list[float] = []
+            for side_key in ("long_liquidations", "short_liquidations"):
+                entries = root.get(side_key)
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    try:
+                        prices.append(float(entry.get("price_level")))
+                    except (TypeError, ValueError):
+                        continue
+            if prices:
+                return sorted(set(prices))
+        return []
+
+    if provider == "coinank":
+        for capture in captures:
+            if capture.provider != "coinank" or "/api/liqMap/getLiqMap" not in capture.source_url:
+                continue
+            root = capture.payload
+            data = root.get("data") if isinstance(root, dict) else None
+            prices_raw = data.get("prices") if isinstance(data, dict) else None
+            if not isinstance(prices_raw, list) or not prices_raw:
+                continue
+            leverage_keys = sorted(
+                [
+                    key
+                    for key, value in data.items()
+                    if key.startswith("x") and isinstance(value, list) and len(value) == len(prices_raw)
+                ],
+                key=lambda key: int(key[1:]),
+            )
+            prices: list[float] = []
+            for idx, raw_price in enumerate(prices_raw):
+                try:
+                    price = float(raw_price)
+                except (TypeError, ValueError):
+                    continue
+                value = 0.0
+                for leverage_key in leverage_keys:
+                    try:
+                        value += float(data[leverage_key][idx])
+                    except (TypeError, ValueError, IndexError):
+                        continue
+                if value > 0:
+                    prices.append(price)
+            if prices:
+                return sorted(set(prices))
+        return []
+
+    return []
+
+
+def aligned_bucket_overlap(local_prices: list[float], provider_prices: list[float]) -> float:
+    """Measure overlap on a common comparison step instead of exact raw prices."""
+    if not local_prices or not provider_prices:
+        return 0.0
+
+    local_step = median_step(local_prices) or 0.0
+    provider_step = median_step(provider_prices) or 0.0
+    comparison_step = max(local_step, provider_step)
+    if comparison_step <= 0:
+        combined = sorted(set(local_prices + provider_prices))
+        deltas = [
+            round(combined[idx + 1] - combined[idx], 8)
+            for idx in range(len(combined) - 1)
+            if combined[idx + 1] > combined[idx]
+        ]
+        comparison_step = min(deltas) if deltas else 1.0
+
+    decimals = max(0, min(8, int(math.ceil(-math.log10(comparison_step))) if comparison_step < 1 else 0))
+
+    def normalize(prices: list[float]) -> set[float]:
+        normalized = set()
+        for price in prices:
+            bucket = round(round(price / comparison_step) * comparison_step, decimals)
+            normalized.add(bucket)
+        return normalized
+
+    local_grid = normalize(local_prices)
+    provider_grid = normalize(provider_prices)
+    union = local_grid | provider_grid
+    if not union:
+        return 0.0
+    return len(local_grid & provider_grid) / len(union)
 
 
 def _compute_metrics(rs: dict, ank: dict, overlap: float) -> dict:
@@ -271,6 +368,8 @@ def run_comparison_for_profile(
             "--no-persist-db",
             "--skip-gap-analysis",
         ]
+        if provider == "coinank":
+            cmd.append("--include-rektslug")
 
         existing_reports = set(OUTPUT_DIR.glob("*_provider_liquidations.json"))
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -396,6 +495,7 @@ def main() -> int:
     baseline_metrics = {}
     baseline_rektslug_reference = {}
     coinank_reference = {}
+    coinank_bucket_prices = {}
     for coin, tf in MATRIX:
         print(f"  {coin} {tf}...")
         report_path = run_comparison_for_profile(
@@ -413,9 +513,17 @@ def main() -> int:
             if rektslug_metrics and coinank_metrics:
                 coinank_reference[(coin, tf)] = coinank_metrics
                 baseline_rektslug_reference[(coin, tf)] = rektslug_metrics
+                manifest_path = Path(report["manifests"][0])
+                local_prices = extract_bucket_prices_from_manifest(manifest_path, "rektslug")
+                provider_prices = extract_bucket_prices_from_manifest(manifest_path, "coinank")
+                coinank_bucket_prices[(coin, tf)] = provider_prices
                 baseline_metrics[(coin, tf)] = compute_metrics_from_provider_metrics(
                     rektslug_metrics,
                     coinank_metrics,
+                )
+                baseline_metrics[(coin, tf)]["bucket_overlap"] = aligned_bucket_overlap(
+                    local_prices,
+                    provider_prices,
                 )
                 print(f"    baseline metrics extracted")
             else:
@@ -454,6 +562,12 @@ def main() -> int:
                 calibrated_metrics[(coin, tf)] = compute_metrics_from_provider_metrics(
                     frozen_rektslug_metrics,
                     coinank_metrics,
+                )
+                manifest_path = Path(report["manifests"][0])
+                local_prices = extract_bucket_prices_from_manifest(manifest_path, "rektslug")
+                calibrated_metrics[(coin, tf)]["bucket_overlap"] = aligned_bucket_overlap(
+                    local_prices,
+                    coinank_bucket_prices.get((coin, tf), []),
                 )
                 print(f"    calibrated metrics extracted")
             else:

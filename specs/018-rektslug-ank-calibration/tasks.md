@@ -35,7 +35,7 @@
 ## Phase 4: Validation
 
 - [X] T012 Freeze the chosen `rektslug-ank` profile parameters in versioned config/code
-- [X] T013 Re-run the full `BTC/ETH x 1d/1w` matrix against CoinAnk and verify: wall-clock runtime < 10 min (NFR-001), each report < 1 MB (NFR-002), capture timestamps present in every report (EC-004)
+- [X] T013 Re-run the full `BTC/ETH x 1d/1w` matrix against CoinAnk and verify: wall-clock runtime < 10 min (NFR-001), each report is stored as JSON and remains < 1 MB (NFR-002), capture timestamps present in every report (EC-004)
 - [X] T014 Confirm the calibrated profile improves at least `3/5` core metrics on at least `3/4` matrix entries, with no critical regression (> 30% degradation vs `rektslug-default` baseline) on any entry
 - [X] T015 Confirm the default local profile still works unchanged when selected explicitly
 
@@ -46,6 +46,6 @@
 
 ## Completion Notes
 
-- Accepted calibration artifact: `data/validation/provider_comparisons/20260310T231654Z_calibration_rektslug-ank.json`
+- Accepted calibration artifact: `data/validation/provider_comparisons/20260310T235617Z_calibration_rektslug-ank.json`
 - Acceptance result: `accepted`, `4/4` matrix entries passing, `0` critical regressions
-- Runtime gate: `113.1s` total wall-clock, below `NFR-001` (`< 10 min`)
+- Runtime gate: `114.6s` total wall-clock, below `NFR-001` (`< 10 min`)

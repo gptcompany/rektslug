@@ -157,6 +157,11 @@ def parse_args() -> argparse.Namespace:
         help="Calibration profile for the local rektslug model (default: rektslug-default).",
     )
     parser.add_argument(
+        "--include-rektslug",
+        action="store_true",
+        help="Also capture the local rektslug dataset alongside the selected provider(s).",
+    )
+    parser.add_argument(
         "--skip-gap-analysis",
         action="store_true",
         help="Skip the post-comparison gap-analysis step.",
@@ -167,9 +172,9 @@ def parse_args() -> argparse.Namespace:
 def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
     """Translate combined CLI args into the capture script's expected namespace."""
     matrix_locked = args.matrix_preset == "spec-017"
-    # Include rektslug when: matrix locked + (all/both OR any profile specified)
-    has_profile = bool(getattr(args, "profile", None))
-    include_rektslug = matrix_locked and (args.provider in {"both", "all"} or has_profile)
+    include_rektslug = matrix_locked and (
+        args.provider in {"rektslug", "both", "all"} or getattr(args, "include_rektslug", False)
+    )
     include_bitcoincounterflow = not matrix_locked
 
     return argparse.Namespace(

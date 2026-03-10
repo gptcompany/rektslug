@@ -448,6 +448,66 @@ class TestSpec017ProviderScope:
         assert "bitcoincounterflow" not in providers
         assert providers == ["coinank", "coinglass", "rektslug"]
 
+    def test_build_capture_namespace_keeps_single_provider_pure_by_default(self):
+        from scripts.run_provider_api_comparison import build_capture_namespace
+        import argparse
+
+        args = argparse.Namespace(
+            provider="coinank",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url="https://www.coinglass.com/LiquidationData",
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            capture_output_dir=Path("/tmp/captures"),
+            comparison_output=None,
+            max_responses=5,
+            post_load_wait_ms=1000,
+            headed=False,
+            no_persist_db=True,
+            db_path=None,
+            product="liq-map",
+            matrix_preset="spec-017",
+            coinglass_mode="rest",
+            profile="rektslug-default",
+            include_rektslug=False,
+            skip_gap_analysis=False,
+        )
+
+        capture_args = build_capture_namespace(args)
+        assert capture_args.include_rektslug is False
+
+    def test_build_capture_namespace_can_opt_in_rektslug_for_calibration(self):
+        from scripts.run_provider_api_comparison import build_capture_namespace
+        import argparse
+
+        args = argparse.Namespace(
+            provider="coinank",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url="https://www.coinglass.com/LiquidationData",
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            capture_output_dir=Path("/tmp/captures"),
+            comparison_output=None,
+            max_responses=5,
+            post_load_wait_ms=1000,
+            headed=False,
+            no_persist_db=True,
+            db_path=None,
+            product="liq-map",
+            matrix_preset="spec-017",
+            coinglass_mode="rest",
+            profile="rektslug-default",
+            include_rektslug=True,
+            skip_gap_analysis=False,
+        )
+
+        capture_args = build_capture_namespace(args)
+        assert capture_args.include_rektslug is True
+
 
 class TestRealProductFiltering:
     """Validate real liq-map filtering against heatmap-like Coinglass captures."""

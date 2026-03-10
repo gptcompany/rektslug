@@ -99,11 +99,11 @@ Primary metrics to improve (improvement-based, not absolute):
 | 2 | long/short total ratio | `abs(local_ls_ratio - provider_ls_ratio)` | Reduce gap vs baseline by >= 15% |
 | 3 | long/short peak ratio | `abs(local_peak_ratio - provider_peak_ratio)` | Reduce gap vs baseline by >= 15% |
 | 4 | current-price anchor | `abs(local_anchor - provider_anchor) / provider_anchor` | Reduce gap vs baseline by >= 10% |
-| 5 | bucket overlap | `intersection(local_buckets, provider_buckets) / union(...)` | Increase overlap vs baseline by >= 10% |
+| 5 | bucket overlap | `intersection(rebin(local_buckets, aligned_step), rebin(provider_buckets, aligned_step)) / union(...)` | Increase overlap vs baseline by >= 10% |
 
 Acceptance rule: the calibrated profile MUST improve **at least 3 out of 5**
 metrics on **at least 3 out of 4** matrix entries, without critical regression
-(> 30% degradation) on any remaining entry.
+(> 30% degradation) on any entry.
 
 ## Non-Functional Requirements
 
