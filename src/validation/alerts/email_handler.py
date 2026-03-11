@@ -7,7 +7,7 @@ Sends email alerts when validation runs fail with C or F grades.
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from src.validation.logger import logger
 
@@ -28,6 +28,7 @@ class EmailHandler:
         from_email: str = "validation@liquidationheatmap.local",
         to_emails: Optional[List[str]] = None,
         use_tls: bool = True,
+        smtp_factory: Any = None,
     ):
         """
         Initialize email handler.
@@ -48,6 +49,7 @@ class EmailHandler:
         self.from_email = from_email
         self.to_emails = to_emails or []
         self.use_tls = use_tls
+        self.smtp_factory = smtp_factory or smtplib.SMTP
 
     def send_alert(self, alert_context: dict) -> bool:
         """
@@ -65,8 +67,8 @@ class EmailHandler:
 
         try:
             # Build email
-            subject = self._build_subject(alert_context)
-            body = self._build_body(alert_context)
+            subject = self.build_subject(alert_context)
+            body = self.build_body(alert_context)
 
             # Send email
             success = self._send_email(subject, body)
@@ -82,6 +84,14 @@ class EmailHandler:
         except Exception as e:
             logger.error(f"Failed to send alert email: {e}", exc_info=True)
             return False
+
+    def build_subject(self, alert_context: dict) -> str:
+        """Public testable wrapper for subject generation."""
+        return self._build_subject(alert_context)
+
+    def build_body(self, alert_context: dict) -> str:
+        """Public testable wrapper for body generation."""
+        return self._build_body(alert_context)
 
     def _build_subject(self, alert_context: dict) -> str:
         """
@@ -251,7 +261,7 @@ class EmailHandler:
                         <td>{test["name"]}</td>
                         <td class="{status_class}">{status_icon} {status_text}</td>
                         <td>{test["score"]:.1f}/100</td>
-                        <td>{test["weight"] * 100:.0f}%</td>
+                        <td>{test.get("weight", 0) * 100:.0f}%</td>
                     </tr>
             """
 
@@ -313,7 +323,7 @@ class EmailHandler:
 
         # Connect and send
         try:
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with self.smtp_factory(self.smtp_host, self.smtp_port) as server:
                 if self.use_tls:
                     server.starttls()
 
@@ -331,6 +341,10 @@ class EmailHandler:
             logger.error(f"SMTP error: {e}", exc_info=True)
             return False
 
+    def _send_raw_email(self, subject: str, body: str) -> bool:
+        """Compatibility alias for dependency-injected SMTP tests."""
+        return self._send_email(subject, body)
+
     def test_connection(self) -> bool:
         """
         Test SMTP connection.
@@ -340,10 +354,10 @@ class EmailHandler:
         """
         try:
             if self.use_tls:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server = self.smtp_factory(self.smtp_host, self.smtp_port)
                 server.starttls()
             else:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server = self.smtp_factory(self.smtp_host, self.smtp_port)
 
             if self.smtp_user and self.smtp_password:
                 server.login(self.smtp_user, self.smtp_password)

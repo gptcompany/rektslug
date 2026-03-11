@@ -4,8 +4,10 @@ Aggregates validation results into dashboard-friendly format
 per specs/014-validation-pipeline/data-model.md.
 """
 
-from datetime import datetime, timedelta
+import math
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any, Protocol
 
 import duckdb
 
@@ -16,6 +18,14 @@ from src.validation.pipeline.models import (
     compute_overall_grade,
     determine_dashboard_status,
 )
+
+
+class DatabaseConnection(Protocol):
+    """Lightweight database protocol for testing and dependency injection."""
+
+    def execute(self, query: str, parameters: list[Any] | None = None) -> Any: ...
+
+    def close(self) -> None: ...
 
 
 class MetricsAggregator:
@@ -31,6 +41,7 @@ class MetricsAggregator:
     def __init__(
         self,
         db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        db_conn: Any = None,
     ):
         """Initialize aggregator.
 
@@ -38,11 +49,13 @@ class MetricsAggregator:
             db_path: Path to DuckDB database with validation results
         """
         self.db_path = db_path
+        self._db_conn = db_conn
 
     def get_dashboard_metrics(
         self,
         symbol: str = "BTCUSDT",
         days: int = 30,
+        conn_override: Any = None,
     ) -> DashboardMetrics | None:
         """Get aggregated metrics for dashboard display.
 
@@ -53,56 +66,60 @@ class MetricsAggregator:
         Returns:
             DashboardMetrics or None if no data
         """
-        import math
-
-        if not Path(self.db_path).exists():
-            return None
-
-        conn = duckdb.connect(self.db_path, read_only=True)
+        owns_connection = False
+        conn = conn_override or self._db_conn
+        if conn is None:
+            if not Path(self.db_path).exists():
+                return None
+            conn = duckdb.connect(self.db_path, read_only=True)
+            owns_connection = True
 
         try:
             # Get latest validation result
-            latest = self._get_latest_validation(conn, symbol)
+            latest = self._fetch_latest_validation(conn, symbol)
             if latest is None:
                 return None
 
             # Get trend data
-            trend = self._get_trend_data(conn, symbol, days)
-
-            # Generate alerts
-            alerts = self._generate_alerts(latest, trend)
-
-            # Calculate days since last validation
-            # Ensure timestamp is a datetime object (DuckDB may return date or datetime)
-            timestamp = latest["timestamp"]
-            if hasattr(timestamp, "date") and not hasattr(timestamp, "hour"):
-                # It's a date, convert to datetime
-                timestamp = datetime.combine(timestamp, datetime.min.time())
-            days_since = (datetime.now() - timestamp).days
-
-            # Determine status
-            status = determine_dashboard_status(latest["f1_score"], days_since)
-
-            # Sanitize f1_score for grade computation - replace NaN/None with 0.0
-            f1_for_grade = latest["f1_score"]
-            if f1_for_grade is None or math.isnan(f1_for_grade) or math.isinf(f1_for_grade):
-                f1_for_grade = 0.0
-
-            return DashboardMetrics(
-                status=status,
-                last_validation_timestamp=latest["timestamp"],
-                last_validation_grade=compute_overall_grade(f1_for_grade),
-                f1_score=latest["f1_score"],
-                precision=latest["precision"],
-                recall=latest["recall"],
-                trend=trend,
-                alerts=alerts,
-                backtest_coverage=latest.get("snapshots_analyzed", 0),
-                backtest_period_days=latest.get("period_days", 0),
-            )
+            trend = self._fetch_trend_data(conn, symbol, days)
+            return self.compute_dashboard_metrics(latest, trend)
 
         finally:
-            conn.close()
+            if owns_connection:
+                conn.close()
+
+    def compute_dashboard_metrics(
+        self,
+        latest: dict[str, Any],
+        trend: list[TrendDataPoint],
+        now_override: datetime | None = None,
+    ) -> DashboardMetrics:
+        """Compute dashboard metrics from already-fetched data."""
+        now = now_override or datetime.now()
+        timestamp = latest["timestamp"]
+        if isinstance(timestamp, date) and not isinstance(timestamp, datetime):
+            timestamp = datetime.combine(timestamp, datetime.min.time())
+
+        days_since = (now - timestamp).days
+        f1_for_grade = latest.get("f1_score")
+        if f1_for_grade is None or math.isnan(f1_for_grade) or math.isinf(f1_for_grade):
+            f1_for_grade = 0.0
+
+        alerts = self.generate_alerts(latest, trend, now)
+        status = determine_dashboard_status(f1_for_grade, days_since)
+
+        return DashboardMetrics(
+            status=status,
+            last_validation_timestamp=latest["timestamp"],
+            last_validation_grade=compute_overall_grade(f1_for_grade),
+            f1_score=f1_for_grade,
+            precision=latest.get("precision", 0.0),
+            recall=latest.get("recall", 0.0),
+            trend=trend,
+            alerts=alerts,
+            backtest_coverage=latest.get("snapshots_analyzed", 0),
+            backtest_period_days=latest.get("period_days", 0),
+        )
 
     def _get_latest_validation(self, conn: duckdb.DuckDBPyConnection, symbol: str) -> dict | None:
         """Get most recent validation result.
@@ -170,6 +187,13 @@ class MetricsAggregator:
             pass
 
         return None
+
+    def _fetch_latest_validation(self, conn: duckdb.DuckDBPyConnection, symbol: str) -> dict | None:
+        """Compatibility alias with a less DB-specific name."""
+        try:
+            return self._get_latest_validation(conn, symbol)
+        except Exception:
+            return None
 
     def _get_trend_data(
         self,
@@ -256,27 +280,29 @@ class MetricsAggregator:
 
         return trend
 
-    def _generate_alerts(
+    def _fetch_trend_data(
+        self,
+        conn: duckdb.DuckDBPyConnection,
+        symbol: str,
+        days: int,
+    ) -> list[TrendDataPoint]:
+        """Compatibility alias with a less DB-specific name."""
+        try:
+            return self._get_trend_data(conn, symbol, days)
+        except Exception:
+            return []
+
+    def generate_alerts(
         self,
         latest: dict,
         trend: list[TrendDataPoint],
+        now: datetime,
     ) -> list[Alert]:
-        """Generate alerts based on metrics.
-
-        Args:
-            latest: Latest validation result
-            trend: Historical trend data
-
-        Returns:
-            List of alerts
-        """
+        """Pure alert generation logic for testability."""
         alerts = []
-        now = datetime.now()
 
-        # Check for stale validation
-        # Ensure timestamp is a datetime object (DuckDB may return date or datetime)
         timestamp = latest["timestamp"]
-        if hasattr(timestamp, "date") and not hasattr(timestamp, "hour"):
+        if isinstance(timestamp, date) and not isinstance(timestamp, datetime):
             timestamp = datetime.combine(timestamp, datetime.min.time())
         days_since = (now - timestamp).days
         if days_since > 14:
@@ -297,12 +323,7 @@ class MetricsAggregator:
                 )
             )
 
-        # Check F1 score thresholds
-        import math
-
         f1 = latest["f1_score"]
-
-        # Handle invalid f1 values (NaN, None, infinite) as critical
         if f1 is None or math.isnan(f1) or math.isinf(f1):
             alerts.append(
                 Alert(
@@ -331,10 +352,8 @@ class MetricsAggregator:
                 )
             )
 
-        # Check for declining trend
         if len(trend) >= 3:
             recent_f1 = [t.f1_score for t in trend[-3:]]
-            # Filter out NaN values for trend analysis
             valid_f1 = [f for f in recent_f1 if f is not None and not math.isnan(f)]
             if len(valid_f1) >= 3:
                 if all(valid_f1[i] > valid_f1[i + 1] for i in range(len(valid_f1) - 1)):
@@ -347,6 +366,22 @@ class MetricsAggregator:
                     )
 
         return alerts
+
+    def _generate_alerts(
+        self,
+        latest: dict,
+        trend: list[TrendDataPoint],
+    ) -> list[Alert]:
+        """Generate alerts based on metrics.
+
+        Args:
+            latest: Latest validation result
+            trend: Historical trend data
+
+        Returns:
+            List of alerts
+        """
+        return self.generate_alerts(latest, trend, datetime.now())
 
     def save_metrics_to_history(
         self,

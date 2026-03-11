@@ -4,7 +4,7 @@ This module implements the core clustering algorithm using scikit-learn's DBSCAN
 """
 
 import time
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -23,13 +23,13 @@ from src.clustering.models import (
 class ClusteringService:
     """Service for clustering liquidation levels using DBSCAN algorithm."""
 
-    def __init__(self, cache_ttl_seconds: int = 300):
+    def __init__(self, cache_ttl_seconds: int = 300, cache: Any = None):
         """Initialize clustering service with cache.
 
         Args:
             cache_ttl_seconds: TTL for cached results (default 5 minutes)
         """
-        self._cache = ClusterCache(ttl_seconds=cache_ttl_seconds)
+        self._cache = cache if cache is not None else ClusterCache(ttl_seconds=cache_ttl_seconds)
 
     def cluster_liquidations(
         self,
@@ -75,14 +75,14 @@ class ClusteringService:
             return ClusteringResult(clusters=[], noise_points=[], metadata=metadata)
 
         # Prepare features
-        features, prices_array = self._prepare_features(liquidations)
+        features, prices_array = self.prepare_feature_matrix(liquidations)
         volumes_array = np.array([liq["volume"] for liq in liquidations])
 
         # Auto-tune epsilon if requested
         epsilon = params.epsilon
         auto_tuned = False
         if params.auto_tune:
-            epsilon = self._auto_epsilon(features, params.min_samples)
+            epsilon = self.calculate_auto_epsilon(features, params.min_samples)
             auto_tuned = True
 
         # Run DBSCAN
@@ -94,7 +94,7 @@ class ClusteringService:
         labels = dbscan.fit_predict(features)
 
         # Compute clusters
-        clusters = self._compute_clusters(labels, prices_array, volumes_array, features)
+        clusters = self.compute_cluster_stats(labels, prices_array, volumes_array)
 
         # Compute cluster centers for noise distance calculation
         cluster_centers = {}
@@ -107,7 +107,7 @@ class ClusteringService:
             cluster_centers[cluster_id] = np.mean(cluster_features, axis=0)
 
         # Compute noise points
-        noise_points = self._compute_noise(
+        noise_points = self.compute_noise_stats(
             labels, prices_array, volumes_array, features, cluster_centers
         )
 
@@ -133,9 +133,8 @@ class ClusteringService:
 
         return result
 
-    def _prepare_features(
-        self, liquidations: List[Dict[str, float]]
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    @staticmethod
+    def prepare_feature_matrix(liquidations: List[Dict[str, float]]) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare feature matrix for DBSCAN clustering (T019).
 
         Normalizes price and log(volume) to [0, 1] range for distance calculation.
@@ -170,7 +169,8 @@ class ClusteringService:
 
         return features, prices
 
-    def _auto_epsilon(self, features: np.ndarray, min_samples: int) -> float:
+    @staticmethod
+    def calculate_auto_epsilon(features: np.ndarray, min_samples: int) -> float:
         """Auto-calculate epsilon using k-distance graph elbow method (T020).
 
         Args:
@@ -181,6 +181,9 @@ class ClusteringService:
             Optimal epsilon value
         """
         # Use k-nearest neighbors to find k-distance
+        if len(features) < min_samples:
+            return 0.1
+
         k = min_samples
         nbrs = NearestNeighbors(n_neighbors=k).fit(features)
         distances, _ = nbrs.kneighbors(features)
@@ -200,12 +203,11 @@ class ClusteringService:
 
         return round(epsilon, 4)
 
-    def _compute_clusters(
-        self,
+    @staticmethod
+    def compute_cluster_stats(
         labels: np.ndarray,
         prices: np.ndarray,
         volumes: np.ndarray,
-        features: np.ndarray,
     ) -> List[LiquidationCluster]:
         """Compute cluster statistics from DBSCAN labels (T022).
 
@@ -267,8 +269,8 @@ class ClusteringService:
 
         return clusters
 
-    def _compute_noise(
-        self,
+    @staticmethod
+    def compute_noise_stats(
         labels: np.ndarray,
         prices: np.ndarray,
         volumes: np.ndarray,
@@ -315,3 +317,34 @@ class ClusteringService:
             noise_points.append(noise_point)
 
         return noise_points
+
+    def _prepare_features(
+        self, liquidations: List[Dict[str, float]]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Backward-compatible wrapper for feature preparation."""
+        return self.prepare_feature_matrix(liquidations)
+
+    def _auto_epsilon(self, features: np.ndarray, min_samples: int) -> float:
+        """Backward-compatible wrapper for epsilon auto-tuning."""
+        return self.calculate_auto_epsilon(features, min_samples)
+
+    def _compute_clusters(
+        self,
+        labels: np.ndarray,
+        prices: np.ndarray,
+        volumes: np.ndarray,
+        features: np.ndarray,
+    ) -> List[LiquidationCluster]:
+        """Backward-compatible wrapper for cluster aggregation."""
+        return self.compute_cluster_stats(labels, prices, volumes)
+
+    def _compute_noise(
+        self,
+        labels: np.ndarray,
+        prices: np.ndarray,
+        volumes: np.ndarray,
+        features: np.ndarray,
+        cluster_centers: Dict[int, np.ndarray],
+    ) -> List[NoisePoint]:
+        """Backward-compatible wrapper for noise statistics."""
+        return self.compute_noise_stats(labels, prices, volumes, features, cluster_centers)

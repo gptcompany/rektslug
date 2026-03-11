@@ -2,13 +2,13 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from src.validation.alerts.REFACTOR_email_handler import EmailHandler
+from src.validation.alerts.email_handler import EmailHandler
 
 class TestREFACTOREmailHandler:
     def test_build_subject(self):
         """Should build correct subject line with emoji."""
         ctx = {"grade": "F", "model_name": "BTC", "score": 35.5}
-        subject = EmailHandler.build_subject(ctx)
+        subject = EmailHandler().build_subject(ctx)
         assert "🚨" in subject
         assert "Grade F" in subject
         assert "35.5" in subject
@@ -27,11 +27,13 @@ class TestREFACTOREmailHandler:
                 {"name": "Test2", "passed": False, "score": 20},
             ]
         }
-        body = EmailHandler.build_body(ctx)
+        body = EmailHandler().build_body(ctx)
         assert "Grade C" in body
         assert "ETH" in body
-        assert "✅ Test1" in body
-        assert "❌ Test2" in body
+        assert "Test1" in body
+        assert "Test2" in body
+        assert "PASS" in body
+        assert "FAIL" in body
 
     def test_send_alert_no_recipients(self):
         """Should return False if no recipients configured."""

@@ -5,7 +5,7 @@ Detects model performance degradation from historical trends.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.validation.logger import logger
 
@@ -60,6 +60,7 @@ class DegradationDetector:
     def detect_score_degradation(
         self,
         scores: List[Tuple[datetime, float]],
+        now_override: Optional[datetime] = None,
     ) -> Dict:
         """
         Detect degradation in overall scores.
@@ -78,14 +79,10 @@ class DegradationDetector:
                 "message": "Insufficient data",
             }
 
-        # Sort by timestamp
-        sorted_scores = sorted(scores, key=lambda x: x[0])
-
-        # Get baseline (average of older data)
-        cutoff_date = datetime.utcnow() - timedelta(days=self.lookback_days)
-
-        baseline_scores = [score for ts, score in sorted_scores if ts < cutoff_date]
-        recent_scores = [score for ts, score in sorted_scores if ts >= cutoff_date]
+        baseline_scores, recent_scores = self._split_by_lookback(
+            scores,
+            now_override=now_override,
+        )
 
         if not baseline_scores or not recent_scores:
             logger.info("Not enough data in baseline or recent period")
@@ -134,9 +131,18 @@ class DegradationDetector:
 
         return result
 
+    def analyze_score_trend(
+        self,
+        scores: List[Tuple[datetime, float]],
+        now_override: Optional[datetime] = None,
+    ) -> Dict:
+        """Alias for testable score trend analysis."""
+        return self.detect_score_degradation(scores, now_override=now_override)
+
     def detect_grade_degradation(
         self,
         grades: List[Tuple[datetime, str]],
+        now_override: Optional[datetime] = None,
     ) -> Dict:
         """
         Detect degradation in grade distribution.
@@ -154,14 +160,10 @@ class DegradationDetector:
                 "message": "Insufficient data",
             }
 
-        # Sort by timestamp
-        sorted_grades = sorted(grades, key=lambda x: x[0])
-
-        # Get baseline and recent periods
-        cutoff_date = datetime.utcnow() - timedelta(days=self.lookback_days)
-
-        baseline_grades = [grade for ts, grade in sorted_grades if ts < cutoff_date]
-        recent_grades = [grade for ts, grade in sorted_grades if ts >= cutoff_date]
+        baseline_grades, recent_grades = self._split_by_lookback(
+            grades,
+            now_override=now_override,
+        )
 
         if not baseline_grades or not recent_grades:
             return {
@@ -215,6 +217,23 @@ class DegradationDetector:
 
         return result
 
+    def analyze_grade_trend(
+        self,
+        grades: List[Tuple[datetime, str]],
+        now_override: Optional[datetime] = None,
+    ) -> Dict:
+        """Alias for testable grade trend analysis."""
+        result = self.detect_grade_degradation(grades, now_override=now_override)
+        if "baseline_f_percent" in result:
+            result["baseline_f_pct"] = result["baseline_f_percent"]
+        if "recent_f_percent" in result:
+            result["recent_f_pct"] = result["recent_f_percent"]
+        if "baseline_a_percent" in result:
+            result["baseline_a_pct"] = result["baseline_a_percent"]
+        if "recent_a_percent" in result:
+            result["recent_a_pct"] = result["recent_a_percent"]
+        return result
+
     def detect_test_degradation(
         self,
         test_type: str,
@@ -240,6 +259,7 @@ class DegradationDetector:
     def detect_multi_metric_degradation(
         self,
         runs: List,
+        now_override: Optional[datetime] = None,
     ) -> Dict[str, Dict]:
         """
         Detect degradation across all metrics.
@@ -253,14 +273,25 @@ class DegradationDetector:
         logger.info(f"Detecting multi-metric degradation for {len(runs)} runs")
 
         # Extract overall scores
-        scores = [(run.started_at, float(run.overall_score)) for run in runs if run.overall_score]
+        scores = []
+        grades = []
+        for run in runs:
+            started_at = self._get_run_field(run, "started_at")
+            overall_score = self._get_run_field(run, "overall_score")
+            overall_grade = self._get_run_field(run, "overall_grade")
 
-        # Extract grades
-        grades = [(run.started_at, run.overall_grade.value) for run in runs if run.overall_grade]
+            if started_at is None:
+                continue
+
+            if overall_score:
+                scores.append((started_at, float(overall_score)))
+
+            if overall_grade:
+                grades.append((started_at, self._normalize_grade(overall_grade)))
 
         degradation = {
-            "overall_score": self.detect_score_degradation(scores),
-            "overall_grade": self.detect_grade_degradation(grades),
+            "overall_score": self.detect_score_degradation(scores, now_override=now_override),
+            "overall_grade": self.detect_grade_degradation(grades, now_override=now_override),
         }
 
         # Check if any degradation detected
@@ -277,6 +308,19 @@ class DegradationDetector:
         )
 
         return degradation
+
+    def analyze_multi_metric(
+        self,
+        run_data: List[Any],
+        now_override: Optional[datetime] = None,
+    ) -> Dict[str, Dict]:
+        """Alias used by refactor-style tests and experiments."""
+        result = self.detect_multi_metric_degradation(run_data, now_override=now_override)
+        summary = dict(result.get("summary", {}))
+        if "any_degradation_detected" in summary:
+            summary["any_degradation"] = summary["any_degradation_detected"]
+        result["summary"] = summary
+        return result
 
     def _determine_severity(self, degradation_pct: float) -> str:
         """
@@ -305,6 +349,31 @@ class DegradationDetector:
         for grade in grades:
             distribution[grade] = distribution.get(grade, 0) + 1
         return distribution
+
+    def _split_by_lookback(
+        self,
+        time_series: List[Tuple[datetime, Any]],
+        now_override: Optional[datetime] = None,
+    ) -> Tuple[List[Any], List[Any]]:
+        """Split timestamped values into baseline and recent windows."""
+        now = now_override or datetime.utcnow()
+        cutoff_date = now - timedelta(days=self.lookback_days)
+        sorted_values = sorted(time_series, key=lambda item: item[0])
+        baseline = [value for ts, value in sorted_values if ts < cutoff_date]
+        recent = [value for ts, value in sorted_values if ts >= cutoff_date]
+        return baseline, recent
+
+    @staticmethod
+    def _get_run_field(run: Any, field_name: str) -> Any:
+        """Read a field from either a model object or a dict-like run."""
+        if isinstance(run, dict):
+            return run.get(field_name)
+        return getattr(run, field_name, None)
+
+    @staticmethod
+    def _normalize_grade(grade: Any) -> str:
+        """Normalize enum-like grades to their string value."""
+        return getattr(grade, "value", grade)
 
     def _get_worst_severity(self, degradation: Dict[str, Dict]) -> str:
         """Get worst severity from degradation results."""

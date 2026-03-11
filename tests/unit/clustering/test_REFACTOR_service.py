@@ -1,9 +1,8 @@
-"""Unit tests for REFACTORED clustering service."""
+"""Unit tests for clustering service refactor-compatible seams."""
 
-import pytest
 import numpy as np
 from unittest.mock import MagicMock
-from src.clustering.REFACTOR_service import ClusteringService, ClusteringCache
+from src.clustering.service import ClusteringService, ClusterCache
 from src.clustering.models import ClusterParameters
 
 class TestREFACTORClusteringService:
@@ -55,7 +54,7 @@ class TestREFACTORClusteringService:
 
     def test_cache_interaction(self):
         """Should check cache before computing and set cache after."""
-        mock_cache = MagicMock(spec=ClusteringCache)
+        mock_cache = MagicMock(spec=ClusterCache)
         mock_cache.generate_key.return_value = "key123"
         mock_cache.get.return_value = None # Cache miss
         

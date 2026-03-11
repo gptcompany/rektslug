@@ -1,11 +1,9 @@
-"""Unit tests for REFACTORED metrics aggregator."""
+"""Unit tests for metrics aggregator refactor-compatible seams."""
 
-import pytest
-import math
 from datetime import datetime, timedelta, date
 from unittest.mock import MagicMock
-from src.validation.pipeline.REFACTOR_metrics_aggregator import MetricsAggregator, DatabaseConnection
-from src.validation.pipeline.models import TrendDataPoint, PipelineStatus
+from src.validation.pipeline.metrics_aggregator import MetricsAggregator, DatabaseConnection
+from src.validation.pipeline.models import TrendDataPoint
 
 class TestREFACTORMetricsAggregator:
     def test_compute_dashboard_metrics_success(self):

@@ -1,8 +1,8 @@
-"""Unit tests for REFACTORED degradation detector."""
+"""Unit tests for degradation detector refactor-compatible seams."""
 
 import pytest
 from datetime import datetime, timedelta
-from src.validation.trends.REFACTOR_degradation_detector import DegradationDetector, DegradationSeverity
+from src.validation.trends.degradation_detector import DegradationDetector, DegradationSeverity
 
 class TestREFACTORDegradationDetector:
     def test_analyze_score_trend_stable(self):
