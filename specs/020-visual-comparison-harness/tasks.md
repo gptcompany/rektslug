@@ -28,6 +28,7 @@
 - [ ] T009 Define product adapters (`liq-map` first, `liq-heat-map` later)
 - [ ] T010 Define renderer adapters (`plotly` first, `lightweight` reserved)
 - [ ] T011 Define first-cut scoring outputs and threshold policy: Tier-1 gate, `0/100` on Tier-1 failure, otherwise `tier2 + tier3`, pass threshold `95`
+- [ ] T011a Review and sign off the first-cut scoring formula against the current `validate_liqmap_visual.py` checklist semantics before wiring the MVP path
 
 ## Phase 3: Liq-Map MVP Integration
 

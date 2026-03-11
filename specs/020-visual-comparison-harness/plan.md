@@ -7,8 +7,8 @@
 ## Summary
 
 Abstract the current screenshot-validation pieces into a reusable harness that
-can score local-vs-provider visual parity for both current liq-map specs and
-future heatmap specs.
+starts by scoring local-vs-provider visual parity for the current
+`liq-map + plotly` MVP and then leaves clean seams for future heatmap specs.
 
 The key architectural rule is explicit separation between:
 
@@ -138,7 +138,7 @@ First-cut score semantics:
 
 1. Inventory existing tooling and lock the first-cut matrix.
 2. Define shared manifest, score, and threshold contracts.
-3. Write failing tests for manifest/adapters/score policy before implementation.
+3. Write failing tests and review the first-cut scoring formula before implementation.
 4. Integrate `liq-map` on `plotly` for local vs CoinAnK only.
 5. Add extension seams for future `liq-heat-map`, Coinglass visual adapters, and Counterflow/`lightweight`.
 
