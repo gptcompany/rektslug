@@ -167,7 +167,7 @@ First-cut score semantics:
 
 - Phase 1-2 can run immediately in parallel with `spec-018` / `spec-019`
 - Phase 3 may begin once the contracts above are fixed and at least one concrete calibrated local profile path exists, starting with `spec-018`
-- Phase 4-5 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation
+- Phase 4-6 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation
 - Counterflow integration should wait for these seams rather than adding a parallel special-case path
 
 ## Non-Functional Gates
