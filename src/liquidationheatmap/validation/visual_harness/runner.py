@@ -11,6 +11,13 @@ from .providers import capture_coinank_liqmap_capture, capture_local_liqmap_capt
 from .scorer import build_score_report, write_score_report
 
 
+def _window_supported(request: "VisualHarnessRequest") -> bool:
+    # Current local/provider capture adapters build URLs from timeframe labels only.
+    if request.product == "liq-map" and request.renderer == "plotly":
+        return False
+    return False
+
+
 @dataclass(frozen=True)
 class VisualHarnessRequest:
     run_id: str
@@ -28,6 +35,10 @@ class VisualHarnessRequest:
     def __post_init__(self) -> None:
         if bool(self.timeframe) == bool(self.window):
             raise ValueError("Exactly one of timeframe or window must be provided")
+        if self.window is not None and not _window_supported(self):
+            raise ValueError(
+                "window-based visual harness requests are not supported for the configured adapters; use timeframe"
+            )
 
 
 @dataclass(frozen=True)

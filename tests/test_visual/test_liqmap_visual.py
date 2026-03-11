@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -361,3 +362,64 @@ def test_fetch_data_freshness_returns_error_on_failure():
         symbol="BTCUSDT",
     )
     assert "error" in result
+
+
+def test_wait_for_local_liqmap_ready_accepts_plotly_dom_signals():
+    """Readiness should accept actual Plotly render signals, not one selector only."""
+    from validate_liqmap_visual import wait_for_local_liqmap_ready
+
+    class _FakePage:
+        def __init__(self):
+            self._states = iter(
+                [
+                    {
+                        "hasContainer": True,
+                        "hasPlotlyGlobal": True,
+                        "hasPlotRoot": False,
+                        "hasMainSvg": False,
+                        "hasFullLayout": False,
+                        "lastDataText": "",
+                        "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+                    },
+                    {
+                        "hasContainer": True,
+                        "hasPlotlyGlobal": True,
+                        "hasPlotRoot": True,
+                        "hasMainSvg": True,
+                        "hasFullLayout": True,
+                        "lastDataText": "Last data: 2026-03-11 10:00:00 UTC",
+                        "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+                    },
+                ]
+            )
+
+        async def wait_for_selector(self, *_args, **_kwargs):
+            return None
+
+        async def evaluate(self, _script):
+            return next(self._states)
+
+        async def wait_for_timeout(self, _millis):
+            return None
+
+    state = asyncio.run(wait_for_local_liqmap_ready(_FakePage()))
+
+    assert state["ready"] is True
+    assert state["hasMainSvg"] is True
+    assert state["hasFullLayout"] is True
+
+
+def test_derive_local_liqmap_failure_reason_prioritizes_levels_failure():
+    """The validator should surface a failed levels fetch ahead of generic browser errors."""
+    from validate_liqmap_visual import _derive_local_liqmap_failure_reason
+
+    reason = _derive_local_liqmap_failure_reason(
+        {
+            "hasPlotlyGlobal": True,
+            "levels_request_failures": [{"status": 503}],
+            "console_errors": ["Error loading levels"],
+            "dialog_messages": ["Error: Service Unavailable"],
+        }
+    )
+
+    assert reason == "levels_request_failed"

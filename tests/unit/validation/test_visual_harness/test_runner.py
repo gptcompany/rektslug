@@ -39,6 +39,11 @@ def _local_capture_ready(_request: VisualHarnessRequest, output_path: Path):
         "screenshot_path": str(output_path),
         "capture_timestamp": "2026-03-11T10:00:00Z",
         "ready": True,
+        "local_page_state": {
+            "hasPlotlyGlobal": True,
+            "hasPlotRoot": True,
+            "hasMainSvg": True,
+        },
     }
 
 
@@ -50,6 +55,11 @@ def _local_capture_not_ready(_request: VisualHarnessRequest, output_path: Path):
         "screenshot_path": str(output_path),
         "capture_timestamp": "2026-03-11T10:00:00Z",
         "ready": False,
+        "local_page_state": {
+            "hasPlotlyGlobal": True,
+            "levels_request_failures": [{"status": 503}],
+            "failure_reason": "levels_request_failed",
+        },
     }
 
 
@@ -110,6 +120,7 @@ def test_manifest_json_validates_against_required_field_schema(
     assert manifest["viewport"] == {"width": 1920, "height": 1400}
     assert manifest["local"]["ready"] is True
     assert manifest["local"]["capture_timestamp"]
+    assert manifest["local"]["page_state"]["hasPlotRoot"] is True
     assert manifest["provider"]["name"] == "coinank"
     assert manifest["provider"]["capture_mode"] == "screenshot_crop"
     assert manifest["provider"]["capture_timestamp"]
@@ -120,6 +131,19 @@ def test_adapter_dispatch_routes_product_renderer_to_correct_handler():
 
     assert bundle.product.name == "liq-map"
     assert bundle.renderer.name == "plotly"
+
+
+def test_window_requests_fail_fast_for_current_timeframe_only_adapters():
+    with pytest.raises(ValueError, match="window-based visual harness requests are not supported"):
+        VisualHarnessRequest(
+            run_id="run-001",
+            product="liq-map",
+            renderer="plotly",
+            provider="coinank",
+            symbol="BTCUSDT",
+            exchange="binance",
+            window="48h",
+        )
 
 
 def test_unsupported_product_renderer_combination_fails_before_capture(tmp_path: Path):

@@ -311,30 +311,54 @@ def build_liqmap_page_url(
     return page_url
 
 
+async def _extract_local_liqmap_state(page) -> dict[str, Any]:
+    return await page.evaluate(
+        """
+        () => {
+            const container = document.getElementById('liquidation-map');
+            const plotRoot = container
+                ? container.querySelector('.js-plotly-plot, .plot-container')
+                : null;
+            const mainSvg = container ? container.querySelector('svg.main-svg') : null;
+            const plotlyNode = plotRoot || container;
+            const lastDataEl = document.getElementById('lastDataPoint');
+            return {
+                hasContainer: Boolean(container),
+                hasPlotlyGlobal: typeof window.Plotly !== 'undefined',
+                hasPlotRoot: Boolean(plotRoot),
+                hasMainSvg: Boolean(mainSvg),
+                hasFullLayout: Boolean(plotlyNode && plotlyNode._fullLayout),
+                lastDataText: lastDataEl ? lastDataEl.textContent : '',
+                documentTitle: document.title || '',
+            };
+        }
+        """
+    )
+
+
+def _derive_local_liqmap_failure_reason(state: dict[str, Any]) -> str:
+    if state.get("levels_request_failures"):
+        return "levels_request_failed"
+    if not state.get("hasPlotlyGlobal", True):
+        return "plotly_not_loaded"
+    if state.get("dialog_messages"):
+        return "page_dialog"
+    if state.get("console_errors"):
+        return "browser_console_error"
+    return "chart_not_ready"
+
+
 async def wait_for_local_liqmap_ready(page) -> dict[str, Any]:
     """Wait for the Plotly liq-map chart to render."""
     await page.wait_for_selector("#liquidation-map", state="visible", timeout=30000)
 
     for _ in range(45):
-        state = await page.evaluate(
-            """
-            () => {
-                const container = document.getElementById('liquidation-map');
-                const plot = container
-                    ? container.querySelector('.plot-container')
-                    : null;
-                const priceEl = document.getElementById('currentPrice');
-                return {
-                    hasPlot: Boolean(plot),
-                    priceText: priceEl ? priceEl.textContent : '',
-                };
-            }
-            """
-        )
-        if state.get("hasPlot"):
+        state = await _extract_local_liqmap_state(page)
+        if state.get("hasPlotRoot") or state.get("hasMainSvg") or state.get("hasFullLayout"):
             return {"ready": True, **state}
         await page.wait_for_timeout(1000)
-    return {"ready": False, "hasPlot": False, "priceText": ""}
+    state = await _extract_local_liqmap_state(page)
+    return {"ready": False, **state}
 
 
 async def capture_local_liqmap_page(
@@ -355,10 +379,41 @@ async def capture_local_liqmap_page(
             args=["--no-sandbox", "--disable-setuid-sandbox"],
         )
         page = await browser.new_page(viewport={"width": 1920, "height": 1400})
+        console_errors: list[str] = []
+        levels_request_failures: list[dict[str, Any]] = []
+        dialog_messages: list[str] = []
+
+        def _handle_console(msg) -> None:
+            if msg.type == "error":
+                console_errors.append(msg.text)
+
+        def _handle_response(response) -> None:
+            if "/liquidations/levels" in response.url and not response.ok:
+                levels_request_failures.append(
+                    {
+                        "url": response.url,
+                        "status": response.status,
+                    }
+                )
+
+        def _handle_dialog(dialog) -> None:
+            dialog_messages.append(dialog.message)
+            asyncio.create_task(dialog.dismiss())
+
+        page.on("console", _handle_console)
+        page.on("response", _handle_response)
+        page.on("dialog", _handle_dialog)
         try:
             await page.goto(page_url, timeout=120000)
             await page.wait_for_load_state("load", timeout=30000)
             ready_state = await wait_for_local_liqmap_ready(page)
+            ready_state["console_errors"] = console_errors
+            ready_state["levels_request_failures"] = levels_request_failures
+            ready_state["dialog_messages"] = dialog_messages
+            if not ready_state.get("ready"):
+                ready_state["failure_reason"] = _derive_local_liqmap_failure_reason(
+                    ready_state
+                )
 
             chart = page.locator("#liquidation-map")
             try:

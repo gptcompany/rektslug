@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -51,3 +53,19 @@ def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
     assert "manifest=" in output
     assert "score=" in output
     assert mock_run.called
+
+
+def test_script_executes_as_file_without_src_import_error():
+    repo_root = Path(__file__).resolve().parents[2]
+
+    result = subprocess.run(
+        [sys.executable, str(repo_root / "scripts" / "run_visual_harness.py"), "--help"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "ModuleNotFoundError" not in result.stderr
+    assert "No module named 'src'" not in result.stderr
