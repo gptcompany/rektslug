@@ -120,3 +120,22 @@ def test_run_read_operation_with_retry_converts_exhausted_transient_lock_to_http
     assert exc_info.value.status_code == 500
     assert "Temporary database contention" in exc_info.value.detail
     assert sleep_calls == [0.01]
+
+
+def test_synthetic_legacy_levels_keep_longs_below_price_and_shorts_above():
+    long_liqs, short_liqs = liquidations._build_legacy_level_lists_from_model(
+        symbol="BTCUSDT",
+        model_name="binance_standard",
+        current_price=70000.0,
+        bin_size=1000.0,
+    )
+
+    assert len(long_liqs) >= 3
+    assert len(short_liqs) >= 3
+    assert all(float(entry["price_level"]) < 70000.0 for entry in long_liqs)
+    assert all(float(entry["price_level"]) > 70000.0 for entry in short_liqs)
+    assert {entry["leverage"] for entry in long_liqs + short_liqs} >= {
+        "5x",
+        "10x",
+        "25x",
+    }
