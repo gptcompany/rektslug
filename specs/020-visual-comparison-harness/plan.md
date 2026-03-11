@@ -52,10 +52,19 @@ The key architectural rule is explicit separation between:
 
 ### Reference URLs
 
-- Local liq-map: `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1w`
-- Local liq-heat-map: `http://localhost:8002/chart/derivatives/liq-heat-map/btcusdt/1w`
-- CoinAnK liq-map: `https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1w`
-- CoinAnK liq-heat-map: `https://coinank.com/chart/derivatives/liq-heat-map/btcusdt/7d`
+- Local liq-map matrix:
+  - `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1d`
+  - `http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1w`
+  - `http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1d`
+  - `http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1w`
+- CoinAnK liq-map matrix:
+  - `https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1d`
+  - `https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1w`
+  - `https://coinank.com/chart/derivatives/liq-map/binance/ethusdt/1d`
+  - `https://coinank.com/chart/derivatives/liq-map/binance/ethusdt/1w`
+- Local liq-heat-map example: `http://localhost:8002/chart/derivatives/liq-heat-map/btcusdt/1w`
+- CoinAnK liq-heat-map example: `https://coinank.com/chart/derivatives/liq-heat-map/btcusdt/7d`
+- Coinglass visual routes are not yet canonical for this spec's first cut and must not be assumed during MVP implementation
 
 ## Architecture
 
@@ -73,6 +82,41 @@ scoring engine
 visual comparison report
 ```
 
+## First-Cut Contract
+
+The first green implementation is intentionally narrow:
+
+- provider pair: `local` vs `CoinAnK`
+- product adapter: `liq-map`
+- renderer adapter: `plotly`
+- active matrix: `BTC/ETH x 1d/1w`
+
+The harness still defines provider/product/renderer seams, but it should not wire a
+live Coinglass visual adapter until canonical URLs and capture invariants are
+documented in a future spec or runbook update.
+
+Minimum manifest schema:
+
+- `schema_version`, `run_id`, `product`, `renderer`
+- `symbol`, `exchange`, exactly one of `timeframe` or `window`
+- `viewport.width`, `viewport.height`
+- `local.url`, `local.screenshot_path`, `local.capture_timestamp`, `local.ready`
+- `provider.name`, `provider.url`, `provider.screenshot_path`
+- `provider.capture_timestamp`, `provider.capture_mode`
+
+Minimum score schema:
+
+- `schema_version`, `run_id`, `product`, `renderer`, `provider`
+- `status`, `score`, `max_score`, `pass_threshold`, `tier1_pass`
+- `components`
+
+First-cut score semantics:
+
+- if any Tier-1 gate fails, total score = `0`
+- otherwise total score = `tier2_points + tier3_points`
+- `max_score = 100`
+- `pass_threshold = 95`
+
 ## What Already Works
 
 - liq-map screenshot validation between local and CoinAnK
@@ -85,23 +129,39 @@ visual comparison report
 1. one shared manifest contract for screenshot-based runs
 2. explicit product-adapter contract
 3. explicit renderer-adapter contract
-4. renderer-agnostic scoring output
+4. renderer-agnostic scoring output with explicit JSON schema and thresholds
 5. adapter separation between data capture and screenshot comparison
-6. future compatibility with Counterflow-style rendering
+6. runtime/report-size/timestamp gates for each run
+7. future compatibility with Counterflow-style rendering
 
 ## Phases
 
-1. Inventory existing tooling.
-2. Define shared manifest and scoring contracts.
-3. Define product and renderer adapter seams.
-4. Integrate liq-map on `plotly` first.
-5. Leave clean seams for `liq-heat-map` and Counterflow/`lightweight`.
+1. Inventory existing tooling and lock the first-cut matrix.
+2. Define shared manifest, score, and threshold contracts.
+3. Write failing tests for manifest/adapters/score policy before implementation.
+4. Integrate `liq-map` on `plotly` for local vs CoinAnK only.
+5. Add extension seams for future `liq-heat-map`, Coinglass visual adapters, and Counterflow/`lightweight`.
 
 ## Execution Order
 
 - Phase 1-2 can run immediately in parallel with `spec-018` / `spec-019`
-- Phase 3-5 should assume at least one concrete calibrated local profile path exists, starting with `spec-018`
+- Phase 3 may begin once the contracts above are fixed and at least one concrete calibrated local profile path exists, starting with `spec-018`
+- Phase 4-5 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation
 - Counterflow integration should wait for these seams rather than adding a parallel special-case path
+
+## Non-Functional Gates
+
+- Single `liq-map + plotly` comparison pair under `120s`
+- Manifest JSON + score JSON under `1 MB` combined
+- Stable `schema_version` and deterministic artifact naming
+
+## Edge Cases to Handle
+
+- local page loads but Plotly chart never becomes ready
+- CoinAnK native download unavailable and screenshot-crop fallback is used
+- unsupported `product + renderer` or `timeframe/window` pair
+- provider unreachable or login failure with partial-manifest output
+- incompatible timeframe-style vs window-style comparison input
 
 ## Risks
 
@@ -110,3 +170,4 @@ visual comparison report
 - binding the harness too tightly to Plotly-specific DOM behavior
 - treating OCR-based validation and DOM-stable screenshot capture as interchangeable when they are not
 - letting `lightweight` concerns leak into the default `plotly` path too early
+- assuming a Coinglass visual liq-map path exists before the repo documents it
