@@ -11,6 +11,7 @@ Tests cover:
 
 import threading
 import time
+from datetime import datetime, timedelta
 
 from src.validation.concurrency_lock import ConcurrencyLock, get_concurrency_lock
 
@@ -282,4 +283,98 @@ class TestConcurrencyLock:
         assert lock._acquired_at is not None
 
         # Cleanup
+        lock.release("run-1")
+
+    def test_release_returns_false_when_underlying_lock_release_errors(self):
+        """Release should surface failure if the underlying lock release breaks."""
+        lock = ConcurrencyLock()
+        lock.acquire("run-1")
+
+        class _BrokenLock:
+            def __init__(self, wrapped):
+                self._wrapped = wrapped
+
+            def acquire(self, *args, **kwargs):
+                return self._wrapped.acquire(*args, **kwargs)
+
+            def release(self):
+                raise RuntimeError("boom")
+
+            def locked(self):
+                return self._wrapped.locked()
+
+        lock._lock = _BrokenLock(lock._lock)
+
+        assert lock.release("run-1") is False
+
+    def test_force_release_handles_unlocked_and_locked_states(self):
+        """force_release should report both unlocked and successful locked paths."""
+        lock = ConcurrencyLock()
+        assert lock.force_release() is False
+
+        lock.acquire("run-1")
+        assert lock.force_release() is True
+        assert lock.is_locked() is False
+        assert lock.get_holder() is None
+
+    def test_force_release_returns_false_when_underlying_release_errors(self):
+        """force_release should surface release failures as False."""
+        lock = ConcurrencyLock()
+        lock.acquire("run-1")
+
+        class _BrokenLock:
+            def __init__(self, wrapped):
+                self._wrapped = wrapped
+
+            def acquire(self, *args, **kwargs):
+                return self._wrapped.acquire(*args, **kwargs)
+
+            def release(self):
+                raise RuntimeError("boom")
+
+            def locked(self):
+                return self._wrapped.locked()
+
+        lock._lock = _BrokenLock(lock._lock)
+
+        assert lock.force_release() is False
+
+    def test_check_timeout_and_get_lock_info_report_state(self):
+        """Timeout and lock info should reflect held-lock metadata."""
+        lock = ConcurrencyLock(timeout_seconds=10)
+        lock.acquire("run-1")
+        lock._acquired_at = datetime.utcnow() - timedelta(seconds=20)
+
+        assert lock.check_timeout() is True
+
+        info = lock.get_lock_info()
+        assert info["locked"] is True
+        assert info["holder"] == "run-1"
+        assert info["acquired_at"] is not None
+        assert info["hold_duration"] is not None
+        assert info["is_timeout"] is True
+
+        lock.force_release()
+
+    def test_get_lock_info_reports_unlocked_state(self):
+        """Unlocked lock info should have empty holder metadata."""
+        lock = ConcurrencyLock()
+
+        assert lock.get_lock_info() == {
+            "locked": False,
+            "holder": None,
+            "acquired_at": None,
+            "hold_duration": None,
+        }
+
+    def test_check_timeout_returns_false_without_timeout(self):
+        """check_timeout should be False both without acquisition and before timeout."""
+        lock = ConcurrencyLock(timeout_seconds=10)
+        assert lock.check_timeout() is False
+
+        lock.acquire("run-1")
+        lock._acquired_at = datetime.utcnow() - timedelta(seconds=2)
+
+        assert lock.check_timeout() is False
+
         lock.release("run-1")
