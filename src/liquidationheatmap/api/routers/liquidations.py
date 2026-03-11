@@ -124,7 +124,7 @@ async def get_liquidation_levels(
             current_price=current_price,
             symbol=symbol,
         )
-        leverage_weights = cal_profile.leverage_weights
+        leverage_weights = cal_profile.get_leverage_weights(symbol, timeframe)
         side_weights = cal_profile.get_side_weights(symbol, timeframe)
     else:
         if timeframe <= 7:

@@ -53,7 +53,9 @@ local profile. The goal is not generic parity but a clean, explicit
 ## Architecture
 
 ```
-spec-017 Coinglass baselines
+frozen spec-017 Coinglass references
+        +
+fresh local baseline captures (rektslug-default)
         ->
 profile parameter experiments
         ->
@@ -74,6 +76,7 @@ full matrix rerun against Coinglass
 2. acceptance thresholds for provider-specific parity
 3. protection against bundle drift during calibration
 4. profile-isolation tests
+5. fresh local baseline capture against frozen provider references
 
 ## Phases
 
@@ -82,6 +85,12 @@ full matrix rerun against Coinglass
 3. Parameter experiments per matrix entry.
 4. Freeze one profile and rerun the matrix.
 5. Document repeatable commands and results.
+
+## Acceptance Notes
+
+- Keep the global calibration rule aligned with `spec-018`: `3/5` metrics on `3/4` entries, no critical regression.
+- Use a Coinglass-specific `bucket_overlap` improvement threshold of `>= 5%`.
+- Compare both `rektslug-default` and `rektslug-glass` against the same frozen Coinglass reference per entry.
 
 ## Risks
 

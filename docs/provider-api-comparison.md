@@ -187,6 +187,31 @@ By default, this command also persists normalized comparison rows into the
 validation DuckDB (`data/validation/validation_results.duckdb`). Use
 `--no-persist-db` if you want a file-only run.
 
+## Calibration Commands
+
+### Spec-019: Coinglass-oriented liq-map calibration
+
+`spec-019` reuses frozen Coinglass references from `spec-017`, then compares a
+fresh local baseline (`rektslug-default`) and the candidate
+`rektslug-glass` profile against those same provider artifacts.
+
+Standard run:
+
+```bash
+uv run python scripts/run_glass_calibration.py
+```
+
+If you want to point the runner at a non-container local API instance:
+
+```bash
+REKTSLUG_API_BASE=http://127.0.0.1:8010 \
+  uv run python scripts/run_glass_calibration.py
+```
+
+The accepted calibration artifact is currently:
+
+`data/validation/provider_comparisons/20260311T005526Z_calibration_rektslug-glass.json`
+
 ## Provider-Specific Notes
 
 ### CoinAnk

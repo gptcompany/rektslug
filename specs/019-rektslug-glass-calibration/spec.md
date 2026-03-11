@@ -59,14 +59,36 @@ the CoinAnK-oriented profile.
 
 - **FR-001**: The repo MUST expose an explicit `rektslug-glass` calibration profile for `liq-map`.
 - **FR-002**: Calibration MUST optimize against Coinglass-only artifacts from the existing comparison workflow.
-- **FR-003**: The calibrated profile MUST be selectable without replacing `rektslug-default` or `rektslug-ank`.
-- **FR-004**: Reports MUST record which local profile generated the local dataset.
-- **FR-005**: Acceptance MUST use measurable parity metrics derived from the comparison harness.
+- **FR-003**: Calibration MUST compare a fresh local baseline (`rektslug-default`) and the calibrated local profile against the same frozen Coinglass reference per matrix entry.
+- **FR-004**: The calibrated profile MUST be selectable without replacing `rektslug-default` or `rektslug-ank`.
+- **FR-005**: Reports MUST record which local profile generated the local dataset.
+- **FR-006**: Acceptance MUST use measurable parity metrics derived from the comparison harness.
+
+## Calibration Targets
+
+Primary metrics to improve (improvement-based, not absolute):
+
+| # | Metric | Definition | Improvement threshold |
+|---|--------|------------|-----------------------|
+| 1 | bucket-count proximity | `abs(local_buckets - provider_buckets) / provider_buckets` | Reduce gap vs baseline by >= 20% |
+| 2 | long/short total ratio | `abs(local_ls_ratio - provider_ls_ratio)` | Reduce gap vs baseline by >= 15% |
+| 3 | long/short peak ratio | `abs(local_peak_ratio - provider_peak_ratio)` | Reduce gap vs baseline by >= 15% |
+| 4 | current-price anchor | `abs(local_anchor - provider_anchor) / provider_anchor` | Reduce gap vs baseline by >= 10% |
+| 5 | bucket overlap | `intersection(rebin(local_buckets, aligned_step), rebin(provider_buckets, aligned_step)) / union(...)` | Increase overlap vs baseline by >= 5% |
+
+Coinglass-specific note: `liqMap` clusters liquidation state under top-level price
+bucket keys, so aligned-grid `bucket_overlap` moves in smaller steps than the
+CoinAnK-oriented profile. `spec-019` therefore uses a `>= 5%` improvement gate
+for overlap while keeping the `3/5 on 3/4` acceptance rule unchanged.
+
+Acceptance rule: the calibrated profile MUST improve **at least 3 out of 5**
+metrics on **at least 3 out of 4** matrix entries, without critical regression
+(> 30% degradation) on any entry.
 
 ## Success Criteria
 
 - **SC-001**: `rektslug-glass` can be selected as a first-class local profile.
-- **SC-002**: It improves Coinglass parity over the default profile on the majority of core metrics across `BTC/ETH x 1d/1w`.
+- **SC-002**: It improves at least `3/5` core metrics on at least `3/4` matrix entries, with no critical regression.
 - **SC-003**: CoinAnK-focused calibration remains isolated from Coinglass-focused calibration.
 
 ## Notes

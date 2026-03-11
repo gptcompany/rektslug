@@ -18,6 +18,7 @@ class CalibrationProfile:
     leverage_weights: dict[int, float]
     _bin_size_fn: Callable[..., float] = field(repr=False)
     bin_size_overrides: dict[tuple[str, int], float] = field(default_factory=dict)
+    leverage_weight_overrides: dict[tuple[str, int], dict[int, float]] = field(default_factory=dict)
     side_weight_overrides: dict[tuple[str, int], dict[str, float]] = field(default_factory=dict)
 
     def get_bin_size(
@@ -48,10 +49,21 @@ class CalibrationProfile:
             {"buy": 1.0, "sell": 1.0},
         )
 
+    def get_leverage_weights(self, symbol: str, timeframe_days: int) -> dict[int, float]:
+        """Return leverage weights for a matrix entry, falling back to the profile default."""
+        return self.leverage_weight_overrides.get(
+            (symbol.upper(), timeframe_days),
+            self.leverage_weights,
+        )
+
     def to_dict(self) -> dict:
         bin_overrides = {
             f"{symbol}:{days}d": value
             for (symbol, days), value in sorted(self.bin_size_overrides.items())
+        }
+        leverage_overrides = {
+            f"{symbol}:{days}d": {str(k): v for k, v in weights.items()}
+            for (symbol, days), weights in sorted(self.leverage_weight_overrides.items())
         }
         side_overrides = {
             f"{symbol}:{days}d": weights
@@ -64,6 +76,7 @@ class CalibrationProfile:
             "bin_size_1w": self.get_bin_size(7),
             "bin_size_30d": self.get_bin_size(30),
             "bin_size_overrides": bin_overrides,
+            "leverage_weight_overrides": leverage_overrides,
             "side_weight_overrides": side_overrides,
         }
 
@@ -105,25 +118,36 @@ def _ank_bin_size(
     return 50.0
 
 
+_DEFAULT_LEVERAGE_WEIGHTS = {
+    5: 0.15,
+    10: 0.30,
+    25: 0.25,
+    50: 0.20,
+    100: 0.10,
+}
+
+_ANK_LEVERAGE_WEIGHTS = {
+    25: 0.35,
+    50: 0.35,
+    100: 0.30,
+}
+
+_GLASS_LEVERAGE_WEIGHTS = {
+    25: 0.30,
+    50: 0.35,
+    100: 0.35,
+}
+
+
 _PROFILES: dict[str, CalibrationProfile] = {
     "rektslug-default": CalibrationProfile(
         name="rektslug-default",
-        leverage_weights={
-            5: 0.15,
-            10: 0.30,
-            25: 0.25,
-            50: 0.20,
-            100: 0.10,
-        },
+        leverage_weights=_DEFAULT_LEVERAGE_WEIGHTS,
         _bin_size_fn=_default_bin_size,
     ),
     "rektslug-ank": CalibrationProfile(
         name="rektslug-ank",
-        leverage_weights={
-            25: 0.35,
-            50: 0.35,
-            100: 0.30,
-        },
+        leverage_weights=_ANK_LEVERAGE_WEIGHTS,
         _bin_size_fn=_ank_bin_size,
         bin_size_overrides={
             ("BTCUSDT", 1): 15.0,
@@ -135,6 +159,26 @@ _PROFILES: dict[str, CalibrationProfile] = {
             ("BTCUSDT", 7): {"buy": 0.52, "sell": 1.0},
             ("ETHUSDT", 1): {"buy": 0.66, "sell": 1.0},
             ("ETHUSDT", 7): {"buy": 0.30, "sell": 1.0},
+        },
+    ),
+    "rektslug-glass": CalibrationProfile(
+        name="rektslug-glass",
+        leverage_weights=_GLASS_LEVERAGE_WEIGHTS,
+        _bin_size_fn=_ank_bin_size,
+        bin_size_overrides={
+            ("BTCUSDT", 1): 100.0,
+            ("BTCUSDT", 7): 120.0,
+            ("ETHUSDT", 1): 1.8,
+            ("ETHUSDT", 7): 3.5,
+        },
+        leverage_weight_overrides={
+            ("BTCUSDT", 1): _DEFAULT_LEVERAGE_WEIGHTS,
+        },
+        side_weight_overrides={
+            ("BTCUSDT", 1): {"buy": 0.9, "sell": 1.0},
+            ("BTCUSDT", 7): {"buy": 0.4, "sell": 1.0},
+            ("ETHUSDT", 1): {"buy": 1.1, "sell": 1.0},
+            ("ETHUSDT", 7): {"buy": 0.45, "sell": 1.0},
         },
     ),
 }

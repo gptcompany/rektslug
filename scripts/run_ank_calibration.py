@@ -32,7 +32,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.liquidationheatmap.models.profiles import get_profile, list_profiles
-from scripts.compare_provider_liquidations import load_capture_files, median_step
+from scripts.compare_provider_liquidations import (
+    decode_coinglass_json_payload,
+    load_capture_files,
+    median_step,
+)
 
 COINANK_HEALTH_URL = "https://coinank.com"
 COINANK_TIMEOUT = 10
@@ -182,6 +186,41 @@ def extract_bucket_prices_from_manifest(manifest_path: Path, provider: str) -> l
                 return sorted(set(prices))
         return []
 
+    if provider == "coinglass":
+        for capture in captures:
+            lowered = capture.source_url.lower()
+            if capture.provider != "coinglass" or "/api/index/5/liqmap" not in lowered:
+                continue
+            payload, _ = decode_coinglass_json_payload(capture)
+            if not isinstance(payload, dict):
+                continue
+            liq_map_v2 = payload.get("liqMapV2")
+            if not isinstance(liq_map_v2, dict) or not liq_map_v2:
+                continue
+
+            prices: list[float] = []
+            for raw_bucket_price, raw_rows in liq_map_v2.items():
+                try:
+                    bucket_price = float(raw_bucket_price)
+                except (TypeError, ValueError):
+                    continue
+                if not isinstance(raw_rows, list):
+                    continue
+
+                bucket_total = 0.0
+                for row in raw_rows:
+                    if not isinstance(row, list) or len(row) < 2:
+                        continue
+                    try:
+                        bucket_total += float(row[1])
+                    except (TypeError, ValueError):
+                        continue
+                if bucket_total > 0:
+                    prices.append(bucket_price)
+            if prices:
+                return sorted(set(prices))
+        return []
+
     return []
 
 
@@ -250,13 +289,18 @@ def _compute_metrics(rs: dict, ank: dict, overlap: float) -> dict:
     }
 
 
-def evaluate_improvement(baseline: dict, calibrated: dict) -> dict:
+def evaluate_improvement(
+    baseline: dict,
+    calibrated: dict,
+    thresholds: dict[str, float] | None = None,
+) -> dict:
     """Evaluate per-metric improvement of calibrated vs baseline.
 
     For gap metrics (lower is better): bucket_count_proximity, ls_total_ratio,
     ls_peak_ratio, price_anchor — improvement means reduction.
     For overlap (higher is better) — improvement means increase.
     """
+    active_thresholds = thresholds or IMPROVEMENT_THRESHOLDS
     improvements = {}
     for key in METRIC_KEYS:
         base_val = baseline.get(key, 0)
@@ -278,7 +322,7 @@ def evaluate_improvement(baseline: dict, calibrated: dict) -> dict:
             else:
                 improvement = 0.0
 
-        threshold = IMPROVEMENT_THRESHOLDS[key]
+        threshold = active_thresholds[key]
         improvements[key] = {
             "baseline": base_val,
             "calibrated": cal_val,

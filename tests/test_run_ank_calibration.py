@@ -1,6 +1,12 @@
 """Unit tests for spec-018 calibration helpers."""
 
-from scripts.run_ank_calibration import aligned_bucket_overlap
+from pathlib import Path
+
+from scripts.compare_provider_liquidations import CaptureFile
+from scripts.run_ank_calibration import (
+    aligned_bucket_overlap,
+    extract_bucket_prices_from_manifest,
+)
 
 
 def test_aligned_bucket_overlap_handles_different_steps():
@@ -19,3 +25,37 @@ def test_aligned_bucket_overlap_returns_zero_for_disjoint_ranges():
     overlap = aligned_bucket_overlap(local_prices, provider_prices)
 
     assert overlap == 0.0
+
+
+def test_extract_bucket_prices_from_manifest_decodes_coinglass_payload(monkeypatch):
+    manifest_path = Path("/tmp/fake-manifest.json")
+    capture = CaptureFile(
+        provider="coinglass",
+        source_url="https://capi.coinglass.com/api/index/5/liqMap?symbol=Binance_BTCUSDT",
+        saved_file=Path("/tmp/fake.json"),
+        content_type="application/json",
+        payload={"data": "encrypted"},
+        manifest_path=manifest_path,
+    )
+
+    monkeypatch.setattr(
+        "scripts.run_ank_calibration.load_capture_files",
+        lambda manifest_paths: [capture],
+    )
+    monkeypatch.setattr(
+        "scripts.run_ank_calibration.decode_coinglass_json_payload",
+        lambda capture_file: (
+            {
+                "liqMapV2": {
+                    "70000": [[69950, 120.0, 50, 1]],
+                    "70100": [[70125, 0.0, 50, 1], [70120, 80.0, 25, 2]],
+                    "70200": [[70220, 0.0, 25, 1]],
+                }
+            },
+            ["decoded"],
+        ),
+    )
+
+    prices = extract_bucket_prices_from_manifest(manifest_path, "coinglass")
+
+    assert prices == [70000.0, 70100.0]

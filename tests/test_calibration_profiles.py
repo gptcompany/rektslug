@@ -24,6 +24,13 @@ class TestProfileRegistry:
         assert profile is not None
         assert profile.name == "rektslug-ank"
 
+    def test_glass_profile_exists(self):
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-glass")
+        assert profile is not None
+        assert profile.name == "rektslug-glass"
+
     def test_unknown_profile_raises(self):
         from src.liquidationheatmap.models.profiles import get_profile
 
@@ -60,6 +67,30 @@ class TestProfileRegistry:
         assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.52, "sell": 1.0}
         assert profile.get_side_weights("DOGEUSDT", 1) == {"buy": 1.0, "sell": 1.0}
 
+    def test_glass_profile_supports_leverage_weight_overrides(self):
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-glass")
+        assert profile.get_leverage_weights("BTCUSDT", 1) == {
+            5: 0.15,
+            10: 0.30,
+            25: 0.25,
+            50: 0.20,
+            100: 0.10,
+        }
+        assert profile.get_leverage_weights("ETHUSDT", 1) == profile.leverage_weights
+        assert profile.get_leverage_weights("BTCUSDT", 7) == profile.leverage_weights
+
+    def test_glass_profile_supports_symbol_specific_overrides(self):
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-glass")
+        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 100.0
+        assert profile.get_bin_size(timeframe_days=7, symbol="ETHUSDT") == 3.5
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.9, "sell": 1.0}
+        assert profile.get_side_weights("ETHUSDT", 1) == {"buy": 1.1, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.4, "sell": 1.0}
+
     def test_default_profile_matches_current_behavior(self):
         """rektslug-default must reproduce the existing hardcoded parameters."""
         from src.liquidationheatmap.models.profiles import get_profile
@@ -92,6 +123,7 @@ class TestProfileRegistry:
         names = list_profiles()
         assert "rektslug-default" in names
         assert "rektslug-ank" in names
+        assert "rektslug-glass" in names
 
 
 class TestProfileMetadata:
@@ -107,6 +139,7 @@ class TestProfileMetadata:
         assert "bin_size_1d" in d
         assert "bin_size_1w" in d
         assert "bin_size_overrides" in d
+        assert "leverage_weight_overrides" in d
         assert "side_weight_overrides" in d
 
     def test_profile_round_trip(self):
