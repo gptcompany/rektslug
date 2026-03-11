@@ -9,7 +9,12 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
-import duckdb
+try:
+    import duckdb
+    DuckDBConn = duckdb.DuckDBPyConnection
+except (ImportError, AttributeError):
+    duckdb = None
+    DuckDBConn = Any  # type: ignore
 
 from src.validation.pipeline.models import (
     Alert,
@@ -121,7 +126,7 @@ class MetricsAggregator:
             backtest_period_days=latest.get("period_days", 0),
         )
 
-    def _get_latest_validation(self, conn: duckdb.DuckDBPyConnection, symbol: str) -> dict | None:
+    def _get_latest_validation(self, conn: DuckDBConn, symbol: str) -> dict | None:
         """Get most recent validation result.
 
         Tries validation_backtest_results first, falls back to
@@ -155,7 +160,7 @@ class MetricsAggregator:
                     "snapshots_analyzed": result[4] or 0,
                     "period_days": result[5] or 0,
                 }
-        except duckdb.CatalogException:
+        except (duckdb.CatalogException if duckdb else Exception):
             # Table doesn't exist yet
             pass
 
@@ -183,12 +188,12 @@ class MetricsAggregator:
                     "snapshots_analyzed": result[1] or 0,
                     "period_days": result[2] or 0,
                 }
-        except duckdb.CatalogException:
+        except (duckdb.CatalogException if duckdb else Exception):
             pass
 
         return None
 
-    def _fetch_latest_validation(self, conn: duckdb.DuckDBPyConnection, symbol: str) -> dict | None:
+    def _fetch_latest_validation(self, conn: DuckDBConn, symbol: str) -> dict | None:
         """Compatibility alias with a less DB-specific name."""
         try:
             return self._get_latest_validation(conn, symbol)
@@ -197,7 +202,7 @@ class MetricsAggregator:
 
     def _get_trend_data(
         self,
-        conn: duckdb.DuckDBPyConnection,
+        conn: DuckDBConn,
         symbol: str,
         days: int,
     ) -> list[TrendDataPoint]:
@@ -241,7 +246,7 @@ class MetricsAggregator:
                         recall=float(row[3]) if row[3] else None,
                     )
                 )
-        except duckdb.CatalogException:
+        except (duckdb.CatalogException if duckdb else Exception):
             # Table doesn't exist - return empty trend
             pass
 
@@ -275,14 +280,14 @@ class MetricsAggregator:
                             recall=float(row[3]) if row[3] else None,
                         )
                     )
-            except duckdb.CatalogException:
+            except (duckdb.CatalogException if duckdb else Exception):
                 pass
 
         return trend
 
     def _fetch_trend_data(
         self,
-        conn: duckdb.DuckDBPyConnection,
+        conn: DuckDBConn,
         symbol: str,
         days: int,
     ) -> list[TrendDataPoint]:
@@ -323,7 +328,7 @@ class MetricsAggregator:
                 )
             )
 
-        f1 = latest["f1_score"]
+        f1 = latest.get("f1_score")
         if f1 is None or math.isnan(f1) or math.isinf(f1):
             alerts.append(
                 Alert(
@@ -385,7 +390,7 @@ class MetricsAggregator:
 
     def save_metrics_to_history(
         self,
-        conn: duckdb.DuckDBPyConnection,
+        conn: DuckDBConn,
         symbol: str,
         date: datetime,
         f1_score: float,
