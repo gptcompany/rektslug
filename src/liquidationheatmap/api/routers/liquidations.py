@@ -1,7 +1,8 @@
+import asyncio
 import json
 import logging
 import math
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
@@ -11,7 +12,7 @@ import numpy as np
 from fastapi import APIRouter, Query, HTTPException, Response
 from pydantic import BaseModel
 
-from src.liquidationheatmap.ingestion.db_service import DuckDBService
+from src.liquidationheatmap.ingestion.db_service import DuckDBService, IngestionLockError
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
@@ -34,6 +35,8 @@ logger = logging.getLogger(__name__)
 _SETTINGS = get_settings()
 
 VALID_LEVERAGE_TIERS = {5, 10, 25, 50, 100}
+TRANSIENT_DUCKDB_RETRY_ATTEMPTS = 3
+TRANSIENT_DUCKDB_RETRY_DELAY_SECONDS = 0.05
 
 
 class LiquidationLevelsResponse(BaseModel):
@@ -56,6 +59,83 @@ def _format_bucket_price(value: float, precision: int) -> str:
         return str(int(round(value)))
     return f"{value:.{precision}f}".rstrip("0").rstrip(".")
 
+
+def _normalize_leverage_weights(weights: dict[Any, Any]) -> dict[int, float] | None:
+    normalized: dict[int, float] = {}
+    total = 0.0
+
+    for leverage_raw, weight_raw in weights.items():
+        leverage = int(leverage_raw)
+        weight = float(weight_raw)
+        if leverage not in VALID_LEVERAGE_TIERS or weight <= 0:
+            continue
+        normalized[leverage] = weight
+        total += weight
+
+    if total <= 0:
+        return None
+
+    return {lev: weight / total for lev, weight in normalized.items()}
+
+
+def _round_to_bucket(value: float, bin_size: float) -> Decimal:
+    value_decimal = Decimal(str(value))
+    bin_decimal = Decimal(str(bin_size))
+    if bin_decimal <= 0:
+        return value_decimal
+
+    return (
+        (value_decimal / bin_decimal).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        * bin_decimal
+    )
+
+
+def _aggregate_legacy_levels(bins_df, bin_size: float):
+    if bins_df.empty:
+        return bins_df
+
+    agg_df = bins_df.copy()
+    agg_df["price_bucket"] = agg_df["liq_price"].apply(
+        lambda value: _round_to_bucket(float(value), bin_size)
+    )
+    return agg_df.groupby(["price_bucket", "side"]).agg({
+        "volume": "sum",
+        "leverage": "max",
+    }).reset_index()
+
+
+def _is_transient_duckdb_read_lock(exc: IngestionLockError) -> bool:
+    message = str(exc).lower()
+    return "another duckdb process" in message or "retry shortly" in message
+
+
+async def _run_read_operation_with_retry(
+    operation,
+    *,
+    attempts: int = TRANSIENT_DUCKDB_RETRY_ATTEMPTS,
+    delay_seconds: float = TRANSIENT_DUCKDB_RETRY_DELAY_SECONDS,
+    exhausted_status_detail: str | None = None,
+):
+    for attempt in range(attempts):
+        try:
+            return operation()
+        except IngestionLockError as exc:
+            if not _is_transient_duckdb_read_lock(exc):
+                raise
+
+            if attempt == attempts - 1:
+                if exhausted_status_detail is not None:
+                    raise HTTPException(status_code=500, detail=exhausted_status_detail) from exc
+                raise
+
+            logger.warning(
+                "Transient DuckDB read lock, retrying %s/%s: %s",
+                attempt + 1,
+                attempts,
+                exc,
+            )
+            await asyncio.sleep(delay_seconds)
+
 def parse_leverage_weights(weights_str: str | None) -> dict[int, float] | None:
     if not weights_str:
         return None
@@ -64,26 +144,23 @@ def parse_leverage_weights(weights_str: str | None) -> dict[int, float] | None:
         try:
             weights_dict = json.loads(weights_str)
             if isinstance(weights_dict, dict):
-                return {int(k): float(v) for k, v in weights_dict.items()}
+                return _normalize_leverage_weights(weights_dict)
         except json.JSONDecodeError:
             pass
 
         # Try key:val,key:val format
         weights = {}
-        total = 0.0
         for pair in weights_str.split(","):
             parts = pair.split(":")
-            if len(parts) != 2: continue
+            if len(parts) != 2:
+                continue
             leverage = int(parts[0])
             weight = float(parts[1])
-            if leverage not in VALID_LEVERAGE_TIERS: continue
+            if leverage not in VALID_LEVERAGE_TIERS or weight <= 0:
+                continue
             weights[leverage] = weight
-            total += weight
-        
-        if total > 0:
-            # Normalize to sum to 1.0
-            return {lev: w / total for lev, w in weights.items()}
-        return None
+
+        return _normalize_leverage_weights(weights)
     except Exception:
         return None
 
@@ -119,9 +196,15 @@ async def get_liquidation_levels(
             current_price = float(json.loads(resp.read().decode())["price"])
     except Exception as e:
         logger.warning("Binance API price fetch failed for %s: %s", symbol, e)
-        with DuckDBService(read_only=True) as db_fallback:
-            price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
-            current_price = float(price_decimal)
+        def _load_current_price():
+            with DuckDBService(read_only=True) as db_fallback:
+                price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
+                return float(price_decimal)
+
+        current_price = await _run_read_operation_with_retry(
+            _load_current_price,
+            exhausted_status_detail="Temporary database contention while loading fallback price.",
+        )
 
     # Resolve calibration profile
     if profile:
@@ -139,42 +222,56 @@ async def get_liquidation_levels(
         side_weights = cal_profile.get_side_weights(symbol, timeframe)
     else:
         # Default dynamic binning algorithm
-        with DuckDBService(read_only=True) as db:
-            table_name, _ = db._resolve_oi_kline_source(symbol, timeframe, "auto")
-            # Use MAX timestamp from data instead of CURRENT_TIMESTAMP
-            range_row = db.conn.execute(f"""
-                SELECT MAX(high) - MIN(low) FROM {table_name} 
-                WHERE symbol = ? 
-                  AND open_time >= (SELECT MAX(open_time) FROM {table_name} WHERE symbol = ?) - INTERVAL '{timeframe} days'
-            """, [symbol, symbol]).fetchone()
-            
-            price_range = float(range_row[0]) if range_row and range_row[0] else current_price * 0.2
-            
-            if symbol == "BTCUSDT" and price_range < 10001.0:
-                # BTC dynamic binning should target $1000 bins for readability in many views
-                price_range = 10001.0
-                
-            if price_range <= 0:
-                price_range = current_price * 0.2
-                
-            tick_digits = 2 - math.ceil(math.log10(price_range))
-            bin_size = float(10**(-tick_digits))
+        def _resolve_default_bin_size():
+            with DuckDBService(read_only=True) as db:
+                table_name, _ = db._resolve_oi_kline_source(symbol, timeframe, "auto")
+                range_row = db.conn.execute(
+                    f"""
+                    SELECT MAX(high) - MIN(low) FROM {table_name} 
+                    WHERE symbol = ? 
+                      AND open_time >= (SELECT MAX(open_time) FROM {table_name} WHERE symbol = ?) - INTERVAL '{timeframe} days'
+                    """,
+                    [symbol, symbol],
+                ).fetchone()
+
+                price_range = float(range_row[0]) if range_row and range_row[0] else current_price * 0.2
+
+                if symbol == "BTCUSDT" and price_range < 10001.0:
+                    price_range = 10001.0
+
+                if price_range <= 0:
+                    price_range = current_price * 0.2
+
+                tick_digits = 2 - math.ceil(math.log10(price_range))
+                return float(10 ** (-tick_digits))
+
+        bin_size = await _run_read_operation_with_retry(
+            _resolve_default_bin_size,
+            exhausted_status_detail="Temporary database contention while resolving liq-map bins.",
+        )
             
         leverage_weights = None
         side_weights = None
 
-    with DuckDBService(read_only=True) as db:
-        effective_kline_interval = kline_interval or _SETTINGS.oi_kline_interval
-        bins_df = db.calculate_liquidations_oi_based(
-            symbol=symbol,
-            current_price=current_price,
-            bin_size=bin_size,
-            lookback_days=timeframe,
-            whale_threshold=whale_threshold,
-            leverage_weights=leverage_weights,
-            side_weights=side_weights,
-            kline_interval=effective_kline_interval,
-        )
+    effective_kline_interval = kline_interval or _SETTINGS.oi_kline_interval
+
+    def _load_bins_df():
+        with DuckDBService(read_only=True) as db:
+            return db.calculate_liquidations_oi_based(
+                symbol=symbol,
+                current_price=current_price,
+                bin_size=bin_size,
+                lookback_days=timeframe,
+                whale_threshold=whale_threshold,
+                leverage_weights=leverage_weights,
+                side_weights=side_weights,
+                kline_interval=effective_kline_interval,
+            )
+
+    bins_df = await _run_read_operation_with_retry(
+        _load_bins_df,
+        exhausted_status_detail="Temporary database contention while loading liquidation levels.",
+    )
 
     if bins_df.empty:
         return LiquidationLevelsResponse(
@@ -187,16 +284,13 @@ async def get_liquidation_levels(
 
     # Aggregate by liq_price and side to avoid duplicates in price_level
     # We round liq_price to bin_size-aligned buckets for the legacy map to maintain spacing properties
-    agg_df = bins_df.groupby(["liq_price", "side"]).agg({
-        "volume": "sum",
-        "leverage": "max"
-    }).reset_index()
+    agg_df = _aggregate_legacy_levels(bins_df, bin_size)
 
     long_liqs: list[dict] = []
     short_liqs: list[dict] = []
     for _, row in agg_df.iterrows():
         liq_entry = {
-            "price_level": _format_bucket_price(float(row["liq_price"]), _bucket_price_precision(bin_size)),
+            "price_level": _format_bucket_price(float(row["price_bucket"]), _bucket_price_precision(bin_size)),
             "volume": str(row["volume"]),
             "count": 1,
             "leverage": f"{int(row['leverage'])}x",
@@ -225,20 +319,26 @@ async def get_heatmap(
     if symbol not in SUPPORTED_SYMBOLS:
         raise HTTPException(status_code=400, detail=f"Invalid symbol '{symbol}'")
 
-    with DuckDBService(read_only=True) as db:
-        current_price, open_interest = db.get_latest_open_interest(symbol)
-        calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
-        liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
+    def _load_heatmap_response():
+        with DuckDBService(read_only=True) as db:
+            current_price, open_interest = db.get_latest_open_interest(symbol)
+            calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
+            liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
 
-        long_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "long"]
-        short_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "short"]
+            long_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "long"]
+            short_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "short"]
 
-        return LiquidationResponse(
-            symbol=symbol,
-            current_price=float(current_price),
-            longs=long_liqs,
-            shorts=short_liqs
-        )
+            return LiquidationResponse(
+                symbol=symbol,
+                current_price=float(current_price),
+                longs=long_liqs,
+                shorts=short_liqs
+            )
+
+    return await _run_read_operation_with_retry(
+        _load_heatmap_response,
+        exhausted_status_detail="Temporary database contention while loading heatmap data.",
+    )
 
 @router.get("/heatmap-timeseries", response_model=HeatmapTimeseriesResponse)
 async def get_heatmap_timeseries(
@@ -286,11 +386,16 @@ async def get_heatmap_timeseries(
     if eff_price_bin_size is None:
         try:
             profile = get_profile("rektslug-ank")
-            # We need current price for adaptive binning
-            with DuckDBService(read_only=True) as db:
-                current_price, _ = db.get_latest_open_interest(symbol)
-                eff_price_bin_size = profile.get_bin_size(lookback_days, float(current_price), symbol)
-                logger.info(f"Dynamic binning for {symbol}: {eff_price_bin_size} (price={current_price}, days={lookback_days})")
+            def _resolve_dynamic_bin_size():
+                with DuckDBService(read_only=True) as db:
+                    current_price, _ = db.get_latest_open_interest(symbol)
+                    return current_price, profile.get_bin_size(lookback_days, float(current_price), symbol)
+
+            current_price, eff_price_bin_size = await _run_read_operation_with_retry(
+                _resolve_dynamic_bin_size,
+                exhausted_status_detail="Temporary database contention while resolving dynamic bin size.",
+            )
+            logger.info(f"Dynamic binning for {symbol}: {eff_price_bin_size} (price={current_price}, days={lookback_days})")
         except Exception as e:
             logger.warning(f"Failed to resolve dynamic bin size: {e}")
             eff_price_bin_size = 100.0
@@ -302,33 +407,39 @@ async def get_heatmap_timeseries(
         return cached
 
     # Query DB
-    with DuckDBService(read_only=True) as db:
-        snapshots = db.get_heatmap_timeseries(
-            symbol=symbol,
-            start_time=eff_start_time_str,
-            end_time=end_time,
-            interval=eff_interval,
-            price_bin_size=eff_price_bin_size,
-            leverage_weights=eff_leverage_weights,
-        )
-        
-        if not snapshots:
-            response = HeatmapTimeseriesResponse(
-                data=[],
-                meta=HeatmapTimeseriesMetadata(
-                    symbol=symbol,
-                    start_time=eff_start_time_str,
-                    end_time=end_time or "",
-                    interval=eff_interval,
-                    total_snapshots=0,
-                    price_range={},
-                    total_long_volume=0,
-                    total_short_volume=0,
-                    total_consumed=0,
-                )
+    def _load_heatmap_snapshots():
+        with DuckDBService(read_only=True) as db:
+            return db.get_heatmap_timeseries(
+                symbol=symbol,
+                start_time=eff_start_time_str,
+                end_time=end_time,
+                interval=eff_interval,
+                price_bin_size=eff_price_bin_size,
+                leverage_weights=eff_leverage_weights,
             )
-            heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
-            return response
+
+    snapshots = await _run_read_operation_with_retry(
+        _load_heatmap_snapshots,
+        exhausted_status_detail="Temporary database contention while loading heatmap timeseries.",
+    )
+        
+    if not snapshots:
+        response = HeatmapTimeseriesResponse(
+            data=[],
+            meta=HeatmapTimeseriesMetadata(
+                symbol=symbol,
+                start_time=eff_start_time_str,
+                end_time=end_time or "",
+                interval=eff_interval,
+                total_snapshots=0,
+                price_range={},
+                total_long_volume=0,
+                total_short_volume=0,
+                total_consumed=0,
+            )
+        )
+        heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
+        return response
 
         # Format snapshots for response
         data = []
@@ -385,45 +496,54 @@ async def get_liquidation_history(
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
     limit: int = 100
 ):
-    with DuckDBService(read_only=True) as db:
-        if db._table_exists("liquidation_history"):
-            df = db.conn.execute("SELECT * FROM liquidation_history WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
-            return df.to_dict(orient="records")
-        elif db._table_exists("position_events"):
-            # Fallback to position_events if liquidation_history is missing
-            df = db.conn.execute("SELECT * FROM position_events WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
-            # Map columns to match expected liquidation_history format if possible
-            if not df.empty:
-                df.rename(columns={"liq_price": "price", "volume": "quantity"}, inplace=True)
-            return df.to_dict(orient="records")
-        return []
+    def _load_history():
+        with DuckDBService(read_only=True) as db:
+            if db._table_exists("liquidation_history"):
+                df = db.conn.execute("SELECT * FROM liquidation_history WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
+                return df.to_dict(orient="records")
+            if db._table_exists("position_events"):
+                df = db.conn.execute("SELECT * FROM position_events WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
+                if not df.empty:
+                    df.rename(columns={"liq_price": "price", "volume": "quantity"}, inplace=True)
+                return df.to_dict(orient="records")
+            return []
+
+    return await _run_read_operation_with_retry(
+        _load_history,
+        exhausted_status_detail="Temporary database contention while loading liquidation history.",
+    )
 
 @router.get("/compare-models")
 async def compare_models(symbol: str = "BTCUSDT"):
-    with DuckDBService(read_only=True) as db:
-        current_price, open_interest = db.get_latest_open_interest(symbol)
-        
-        models = []
-        for model_cls, name in [
-            (BinanceStandardModel, "binance_standard"),
-            (FundingAdjustedModel, "funding_adjusted"),
-            (EnsembleModel, "ensemble"),
-        ]:
-            model = model_cls()
-            liqs = model.calculate_liquidations(current_price, open_interest, symbol)
-            
-            # Simple avg confidence calculation for ensemble compatibility
-            avg_conf = 0.95
-            if name == "ensemble":
-                avg_conf = 0.98
-                
-            models.append({
-                "name": name,
-                "avg_confidence": avg_conf,
-                "liquidations": [
-                    {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} 
-                    for l in liqs
-                ]
-            })
-            
-        return {"symbol": symbol, "current_price": float(current_price), "models": models}
+    def _load_model_comparison():
+        with DuckDBService(read_only=True) as db:
+            current_price, open_interest = db.get_latest_open_interest(symbol)
+
+            models = []
+            for model_cls, name in [
+                (BinanceStandardModel, "binance_standard"),
+                (FundingAdjustedModel, "funding_adjusted"),
+                (EnsembleModel, "ensemble"),
+            ]:
+                model = model_cls()
+                liqs = model.calculate_liquidations(current_price, open_interest, symbol)
+
+                avg_conf = 0.95
+                if name == "ensemble":
+                    avg_conf = 0.98
+
+                models.append({
+                    "name": name,
+                    "avg_confidence": avg_conf,
+                    "liquidations": [
+                        {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+                        for l in liqs
+                    ]
+                })
+
+            return {"symbol": symbol, "current_price": float(current_price), "models": models}
+
+    return await _run_read_operation_with_retry(
+        _load_model_comparison,
+        exhausted_status_detail="Temporary database contention while comparing models.",
+    )
