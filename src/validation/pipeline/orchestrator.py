@@ -7,6 +7,7 @@ implementing Gate 2 decision logic per specs/014-validation-pipeline/plan.md.
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable, Optional
 
 from src.liquidationheatmap.validation.backtest import (
     BacktestConfig,
@@ -26,6 +27,32 @@ from src.validation.pipeline.models import (
 )
 
 
+class PipelineConfig:
+    """Configuration object for a validation pipeline run."""
+
+    def __init__(
+        self,
+        symbol: str = "BTCUSDT",
+        validation_types: Optional[list[ValidationType]] = None,
+        trigger_type: TriggerType = TriggerType.MANUAL,
+        triggered_by: str = "system",
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        tolerance_pct: float = 2.0,
+        prediction_horizon_minutes: int = 60,
+        verbose: bool = False,
+    ):
+        self.symbol = symbol
+        self.validation_types = validation_types or [ValidationType.BACKTEST]
+        self.trigger_type = trigger_type
+        self.triggered_by = triggered_by
+        self.start_date = start_date
+        self.end_date = end_date
+        self.tolerance_pct = tolerance_pct
+        self.prediction_horizon_minutes = prediction_horizon_minutes
+        self.verbose = verbose
+
+
 class PipelineOrchestrator:
     """Coordinates validation pipeline execution.
 
@@ -40,6 +67,7 @@ class PipelineOrchestrator:
         self,
         db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
         reports_dir: str = "reports",
+        backtest_runner: Callable[[BacktestConfig, bool], BacktestResult] = run_backtest,
     ):
         """Initialize orchestrator.
 
@@ -50,9 +78,12 @@ class PipelineOrchestrator:
         self.db_path = db_path
         self.reports_dir = Path(reports_dir)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.backtest_runner = backtest_runner
 
     def run_pipeline(
         self,
+        config: PipelineConfig | str | None = None,
+        *,
         symbol: str = "BTCUSDT",
         validation_types: list[ValidationType] | None = None,
         trigger_type: TriggerType = TriggerType.MANUAL,
@@ -79,100 +110,50 @@ class PipelineOrchestrator:
         Returns:
             ValidationPipelineRun with results and gate decisions
         """
-        if validation_types is None:
-            validation_types = [ValidationType.BACKTEST]
+        if isinstance(config, PipelineConfig):
+            pipeline_config = config
+        else:
+            if isinstance(config, str):
+                symbol = config
+            pipeline_config = PipelineConfig(
+                symbol=symbol,
+                validation_types=validation_types,
+                trigger_type=trigger_type,
+                triggered_by=triggered_by,
+                start_date=start_date,
+                end_date=end_date,
+                tolerance_pct=tolerance_pct,
+                prediction_horizon_minutes=prediction_horizon_minutes,
+                verbose=verbose,
+            )
 
         # Generate run ID
         run_id = str(uuid.uuid4())
         started_at = datetime.now()
 
         # Initialize pipeline run
-        pipeline_run = ValidationPipelineRun(
-            run_id=run_id,
-            started_at=started_at,
-            trigger_type=trigger_type,
-            triggered_by=triggered_by,
-            symbol=symbol,
-            status=PipelineStatus.RUNNING,
-            validation_types=validation_types,
-            config={
-                "tolerance_pct": tolerance_pct,
-                "prediction_horizon_minutes": prediction_horizon_minutes,
-                "start_date": start_date.isoformat() if start_date else None,
-                "end_date": end_date.isoformat() if end_date else None,
-            },
-        )
+        pipeline_run = self._initialize_run(run_id, started_at, pipeline_config)
 
-        if verbose:
+        if pipeline_config.verbose:
             print(f"🚀 Starting validation pipeline: {run_id}")
-            print(f"   Symbol: {symbol}")
-            print(f"   Validation types: {[vt.value for vt in validation_types]}")
+            print(f"   Symbol: {pipeline_config.symbol}")
+            print(f"   Validation types: {[vt.value for vt in pipeline_config.validation_types]}")
 
         try:
             # Run backtest if requested
-            backtest_result: BacktestResult | None = None
-            if (
-                ValidationType.BACKTEST in validation_types
-                or ValidationType.FULL in validation_types
-            ):
-                backtest_result = self._run_backtest(
-                    symbol=symbol,
-                    start_date=start_date,
-                    end_date=end_date,
-                    tolerance_pct=tolerance_pct,
-                    prediction_horizon_minutes=prediction_horizon_minutes,
-                    verbose=verbose,
-                )
-
-                if backtest_result.error:
-                    pipeline_run.status = PipelineStatus.FAILED
-                    pipeline_run.error_message = backtest_result.error
-                else:
-                    # Store backtest result reference
-                    pipeline_run.backtest_result_id = f"backtest_{run_id}"
-
-                    # Evaluate Gate 2
-                    decision, reason = evaluate_gate_2(backtest_result.metrics.f1_score)
-                    pipeline_run.gate_2_decision = decision
-                    pipeline_run.gate_2_reason = reason
-
-                    # Compute overall grade and score
-                    pipeline_run.overall_grade = compute_overall_grade(
-                        backtest_result.metrics.f1_score
-                    )
-                    pipeline_run.overall_score = compute_overall_score(
-                        backtest_result.metrics.f1_score
-                    )
-
-                    if verbose:
-                        gate_emoji = (
-                            "✅"
-                            if decision == GateDecision.PASS
-                            else ("⚠️" if decision == GateDecision.ACCEPTABLE else "❌")
-                        )
-                        print(f"\n{gate_emoji} Gate 2: {reason}")
-                        print(f"   Grade: {pipeline_run.overall_grade}")
+            if self._should_run(ValidationType.BACKTEST, pipeline_config.validation_types):
+                self._execute_backtest_step(pipeline_run, pipeline_config)
 
             # Run Coinglass comparison if requested (informational only)
-            if (
-                ValidationType.COINGLASS in validation_types
-                or ValidationType.FULL in validation_types
-            ):
-                if verbose:
+            if self._should_run(ValidationType.COINGLASS, pipeline_config.validation_types):
+                if pipeline_config.verbose:
                     print("\n📊 Coinglass comparison: SKIPPED (informational only)")
                 # Note: Coinglass validation is informational per research.md
                 # Not implemented as blocking gate
 
-            # Mark completed
-            if pipeline_run.status == PipelineStatus.RUNNING:
-                pipeline_run.status = PipelineStatus.COMPLETED
+            self._finalize_run(pipeline_run, started_at)
 
-            pipeline_run.completed_at = datetime.now()
-            pipeline_run.duration_seconds = int(
-                (pipeline_run.completed_at - started_at).total_seconds()
-            )
-
-            if verbose:
+            if pipeline_config.verbose:
                 print(f"\n✅ Pipeline completed in {pipeline_run.duration_seconds}s")
                 print(f"   Status: {pipeline_run.status.value}")
                 if pipeline_run.gate_2_decision != GateDecision.SKIP:
@@ -181,17 +162,99 @@ class PipelineOrchestrator:
             return pipeline_run
 
         except Exception as e:
-            pipeline_run.status = PipelineStatus.FAILED
-            pipeline_run.error_message = str(e)
-            pipeline_run.completed_at = datetime.now()
-            pipeline_run.duration_seconds = int(
-                (pipeline_run.completed_at - started_at).total_seconds()
-            )
-
-            if verbose:
+            if pipeline_config.verbose:
                 print(f"\n❌ Pipeline failed: {e}")
+            return self._handle_failure(pipeline_run, started_at, e)
 
-            return pipeline_run
+    def _initialize_run(
+        self,
+        run_id: str,
+        started_at: datetime,
+        config: PipelineConfig,
+    ) -> ValidationPipelineRun:
+        """Build the initial pipeline run state."""
+        return ValidationPipelineRun(
+            run_id=run_id,
+            started_at=started_at,
+            trigger_type=config.trigger_type,
+            triggered_by=config.triggered_by,
+            symbol=config.symbol,
+            status=PipelineStatus.RUNNING,
+            validation_types=config.validation_types,
+            config={
+                "tolerance_pct": config.tolerance_pct,
+                "prediction_horizon_minutes": config.prediction_horizon_minutes,
+                "start_date": config.start_date.isoformat() if config.start_date else None,
+                "end_date": config.end_date.isoformat() if config.end_date else None,
+            },
+        )
+
+    def _should_run(self, v_type: ValidationType, requested: list[ValidationType]) -> bool:
+        """Return whether a given validation type should run."""
+        return v_type in requested or ValidationType.FULL in requested
+
+    def _execute_backtest_step(
+        self,
+        pipeline_run: ValidationPipelineRun,
+        config: PipelineConfig,
+    ) -> None:
+        """Execute the backtest stage and apply the resulting metrics."""
+        backtest_result = self._run_backtest(
+            symbol=config.symbol,
+            start_date=config.start_date,
+            end_date=config.end_date,
+            tolerance_pct=config.tolerance_pct,
+            prediction_horizon_minutes=config.prediction_horizon_minutes,
+            verbose=config.verbose,
+        )
+
+        if backtest_result.error:
+            pipeline_run.status = PipelineStatus.FAILED
+            pipeline_run.error_message = backtest_result.error
+            return
+
+        pipeline_run.backtest_result_id = f"backtest_{pipeline_run.run_id}"
+        self._apply_metrics(pipeline_run, backtest_result.metrics.f1_score, config.verbose)
+
+    def _apply_metrics(
+        self,
+        pipeline_run: ValidationPipelineRun,
+        f1_score: float,
+        verbose: bool = False,
+    ) -> None:
+        """Apply gate and score decisions from a backtest result."""
+        decision, reason = evaluate_gate_2(f1_score)
+        pipeline_run.gate_2_decision = decision
+        pipeline_run.gate_2_reason = reason
+        pipeline_run.overall_grade = compute_overall_grade(f1_score)
+        pipeline_run.overall_score = compute_overall_score(f1_score)
+
+        if verbose:
+            gate_emoji = (
+                "✅" if decision == GateDecision.PASS else ("⚠️" if decision == GateDecision.ACCEPTABLE else "❌")
+            )
+            print(f"\n{gate_emoji} Gate 2: {reason}")
+            print(f"   Grade: {pipeline_run.overall_grade}")
+
+    def _finalize_run(self, pipeline_run: ValidationPipelineRun, started_at: datetime) -> None:
+        """Finalize a pipeline run after successful orchestration."""
+        if pipeline_run.status == PipelineStatus.RUNNING:
+            pipeline_run.status = PipelineStatus.COMPLETED
+        pipeline_run.completed_at = datetime.now()
+        pipeline_run.duration_seconds = int((pipeline_run.completed_at - started_at).total_seconds())
+
+    def _handle_failure(
+        self,
+        pipeline_run: ValidationPipelineRun,
+        started_at: datetime,
+        exc: Exception,
+    ) -> ValidationPipelineRun:
+        """Finalize a failed pipeline run."""
+        pipeline_run.status = PipelineStatus.FAILED
+        pipeline_run.error_message = str(exc)
+        pipeline_run.completed_at = datetime.now()
+        pipeline_run.duration_seconds = int((pipeline_run.completed_at - started_at).total_seconds())
+        return pipeline_run
 
     def _run_backtest(
         self,
@@ -235,7 +298,7 @@ class PipelineOrchestrator:
             db_path=self.db_path,
         )
 
-        result = run_backtest(config, verbose=verbose)
+        result = self.backtest_runner(config, verbose=verbose)
 
         if verbose and not result.error:
             print(f"   F1: {result.metrics.f1_score:.2%}")

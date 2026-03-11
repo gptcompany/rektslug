@@ -27,6 +27,7 @@ from src.validation.pipeline.models import (
     evaluate_gate_2,
 )
 from src.validation.pipeline.orchestrator import (
+    PipelineConfig,
     PipelineOrchestrator,
     run_pipeline,
 )
@@ -48,6 +49,7 @@ __all__ = [
     "compute_overall_score",
     "determine_dashboard_status",
     # Orchestrator
+    "PipelineConfig",
     "PipelineOrchestrator",
     "run_pipeline",
     # Aggregator
