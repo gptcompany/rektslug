@@ -129,6 +129,14 @@ Required score fields:
 - `tier1_pass`
 - `components`
 
+`components` is an array of objects, each with:
+
+- `name`: string component identifier such as `tier1_ready` or `tier2_price_range`
+- `pass`: boolean pass/fail result for the component
+- `points`: awarded points, `0` when the component fails
+- `max_points`: maximum points available for the component
+- `detail`: optional human-readable explanation
+
 For the first concrete `liq-map + plotly` path, the scoring formula reuses the
 current `scripts/validate_liqmap_visual.py` contract:
 
@@ -183,3 +191,4 @@ additional renderer-specific scoring model.
 
 - Existing scripts like `scripts/validate_liqmap_visual.py` are starting points, not necessarily the final architecture.
 - This harness should stay renderer-agnostic enough to support both Plotly pages and future Counterflow-style visual adapters.
+- Phase 3+ assumes that `spec-018` or an equivalent prior spec has already established at least one calibrated local profile path. Phase 1-2 may proceed independently.

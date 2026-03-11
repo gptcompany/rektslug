@@ -82,6 +82,26 @@ scoring engine
 visual comparison report
 ```
 
+## Module Structure
+
+```text
+src/liquidationheatmap/validation/visual_harness/
+├── __init__.py
+├── runner.py          # capture orchestration, provider-agnostic
+├── manifest.py        # manifest JSON writer
+├── scorer.py          # scoring engine, threshold gates
+├── adapters/
+│   ├── __init__.py
+│   ├── products.py    # liq-map, liq-heat-map adapters
+│   └── renderers.py   # plotly, lightweight adapters
+└── providers/
+    ├── __init__.py
+    ├── local.py       # local page capture
+    └── coinank.py     # CoinAnK capture + fallback
+
+tests/unit/validation/test_visual_harness/
+```
+
 ## First-Cut Contract
 
 The first green implementation is intentionally narrow:
@@ -139,8 +159,9 @@ First-cut score semantics:
 1. Inventory existing tooling and lock the first-cut matrix.
 2. Define shared manifest, score, and threshold contracts.
 3. Write failing tests and review the first-cut scoring formula before implementation.
-4. Integrate `liq-map` on `plotly` for local vs CoinAnK only.
-5. Add extension seams for future `liq-heat-map`, Coinglass visual adapters, and Counterflow/`lightweight`.
+4. Implement local capture, provider capture, manifest writing, and scoring for `liq-map` on `plotly` for local vs CoinAnK only.
+5. Validate NFR gates for runtime, artifact size, and threshold-failure behavior.
+6. Add extension seams for future `liq-heat-map`, Coinglass visual adapters, and Counterflow/`lightweight`.
 
 ## Execution Order
 

@@ -11,6 +11,7 @@
 - `spec-021` should consume the renderer-adapter seams from this spec, not bypass them
 - The first concrete green path in this spec is `local + CoinAnK + liq-map + plotly`
 - Live Coinglass visual wiring is deferred until canonical URLs and capture invariants are documented
+- Task ids with an `a` suffix indicate review/checkpoint gates attached to the preceding numbered task
 
 ## Phase 1: Inventory
 
@@ -23,7 +24,13 @@
 
 ## Phase 2: Contracts and RED Tests
 
-- [ ] T007 Write failing tests for manifest schema, adapter dispatch, unsupported combinations, local-not-ready behavior, provider-unreachable partial-manifest behavior, and score-threshold behavior
+- [ ] T007a Write failing test: manifest JSON validates against the required field schema
+- [ ] T007b Write failing test: adapter dispatch routes `product + renderer` to the correct handler
+- [ ] T007c Write failing test: unsupported `product + renderer` combination fails before capture
+- [ ] T007d Write failing test: local chart not ready -> `ready=false`, `tier1_pass=false`, `score=0`
+- [ ] T007e Write failing test: provider unreachable -> non-zero exit and partial manifest with failure reason
+- [ ] T007f Write failing test: score threshold gate returns non-zero when `score < pass_threshold`
+- [ ] T007g Write failing test: re-running the same matrix entry with the same `run_id` produces identical artifact paths and `schema_version`
 - [ ] T008 Define a provider-agnostic runner interface
 - [ ] T009 Define product adapters (`liq-map` first, `liq-heat-map` later)
 - [ ] T010 Define renderer adapters (`plotly` first, `lightweight` reserved)
@@ -32,20 +39,22 @@
 
 ## Phase 3: Liq-Map MVP Integration
 
-- [ ] T012 Implement the local/CoinAnK `liq-map + plotly` harness path against the locked `BTC/ETH x 1d/1w` matrix
-- [ ] T013 Emit one normalized manifest JSON and one normalized score JSON per run, including capture timestamps, provider capture mode, and partial-manifest failure details when capture aborts
-- [ ] T014 Validate runtime `< 120s`, manifest+score size `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure for the MVP path
+- [ ] T012 Implement local page capture for `liq-map + plotly` against the locked `BTC/ETH x 1d/1w` matrix
+- [ ] T013 Implement CoinAnK provider capture with `capture_mode` tracking and fallback handling
+- [ ] T014 Implement the manifest writer: emit one normalized manifest JSON per comparison pair
+- [ ] T015 Implement the scorer: emit one normalized score JSON per comparison pair with Tier-1 gate semantics
+- [ ] T016 Validate NFR gates: runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure
 
 ## Phase 4: Extensibility
 
-- [ ] T015 Define the `liq-heat-map` adapter seam without wiring a live provider path yet
-- [ ] T016 Define the `lightweight` renderer seam without making it the default renderer
-- [ ] T017 Ensure manifests can represent both timeframe-style and window-style runs and reject incompatible pairings
-- [ ] T018 Document Coinglass visual adapter prerequisites instead of wiring a speculative live path
-- [ ] T019 Extend tests for manifest/score compatibility across product and renderer adapters
+- [ ] T017 Define the `liq-heat-map` adapter seam without wiring a live provider path yet
+- [ ] T018 Define the `lightweight` renderer seam without making it the default renderer
+- [ ] T019 Ensure manifests can represent both timeframe-style and window-style runs and reject incompatible pairings
+- [ ] T020 Document Coinglass visual adapter prerequisites instead of wiring a speculative live path
+- [ ] T021 Extend tests for manifest/score compatibility across product and renderer adapters
 
 ## Phase 5: Documentation
 
-- [ ] T020 Document how calibration specs consume the harness
-- [ ] T021 Document how future heatmap specs will plug into the harness
-- [ ] T022 Document that Counterflow enters as a `lightweight` renderer adapter, not as a special-case global path
+- [ ] T022 Document how calibration specs consume the harness
+- [ ] T023 Document how future heatmap specs will plug into the harness
+- [ ] T024 Document that Counterflow enters as a `lightweight` renderer adapter, not as a special-case global path
