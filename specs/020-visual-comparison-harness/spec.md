@@ -45,6 +45,37 @@ This spec is infrastructure:
 - Counterflow-specific profile behavior
 - Coinglass visual wiring before canonical URLs/capture rules are documented
 
+## Delivery Milestones
+
+This spec is intentionally delivered in three internal milestones without
+splitting into new numbered specs.
+
+### Milestone 1: MVP
+
+- provider pair: `local` vs `CoinAnK`
+- product adapter: `liq-map`
+- renderer adapter: `plotly`
+- matrix: `BTC/ETH x 1d/1w`
+- outputs: manifest JSON, score JSON, deterministic artifacts, non-zero exit on fail
+
+### Milestone 2: Hardening
+
+- retry/failure behavior
+- partial-manifest behavior
+- runtime and artifact-size gates
+- deterministic naming checks
+- scoring review/signoff against current liq-map validation semantics
+
+### Milestone 3: Extension Seams
+
+- `liq-heat-map` product seam
+- `lightweight` renderer seam
+- timeframe/window compatibility rules
+- documented prerequisites for future Coinglass visual wiring
+
+Until Milestone 1 is green, this spec MUST NOT expand into live Coinglass visual
+capture or Counterflow-specific behavior.
+
 ## Reference URLs
 
 Current canonical liq-map validation matrix:
@@ -192,3 +223,4 @@ additional renderer-specific scoring model.
 - Existing scripts like `scripts/validate_liqmap_visual.py` are starting points, not necessarily the final architecture.
 - This harness should stay renderer-agnostic enough to support both Plotly pages and future Counterflow-style visual adapters.
 - Phase 3+ assumes that `spec-018` or an equivalent prior spec has already established at least one calibrated local profile path. Phase 1-2 may proceed independently.
+- Milestone 1 is the only active implementation target until it is green; Milestone 2 hardens it, and Milestone 3 only defines extension seams.

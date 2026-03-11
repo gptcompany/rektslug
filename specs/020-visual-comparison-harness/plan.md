@@ -15,6 +15,12 @@ The key architectural rule is explicit separation between:
 - product adapters (`liq-map`, `liq-heat-map`)
 - renderer adapters (`plotly`, future `lightweight`)
 
+Execution is intentionally split into three internal milestones:
+
+- `Milestone 1 / MVP`: `local + CoinAnK + liq-map + plotly`
+- `Milestone 2 / Hardening`: failure modes, deterministic artifacts, runtime/size gates
+- `Milestone 3 / Extension`: seams for `liq-heat-map`, `lightweight`, and future provider wiring
+
 ## Technical Context
 
 ### Existing Infrastructure
@@ -154,21 +160,31 @@ First-cut score semantics:
 6. runtime/report-size/timestamp gates for each run
 7. future compatibility with Counterflow-style rendering
 
-## Phases
+## Milestones and Phases
+
+### Milestone 1: MVP
 
 1. Inventory existing tooling and lock the first-cut matrix.
 2. Define shared manifest, score, and threshold contracts.
 3. Write failing tests and review the first-cut scoring formula before implementation.
 4. Implement local capture, provider capture, manifest writing, and scoring for `liq-map` on `plotly` for local vs CoinAnK only.
-5. Validate NFR gates for runtime, artifact size, and threshold-failure behavior.
+
+### Milestone 2: Hardening
+
+5. Validate NFR gates for runtime, artifact size, timestamp presence, and threshold/provider-failure behavior.
+
+### Milestone 3: Extension
+
 6. Add extension seams for future `liq-heat-map`, Coinglass visual adapters, and Counterflow/`lightweight`.
 
 ## Execution Order
 
-- Phase 1-2 can run immediately in parallel with `spec-018` / `spec-019`
-- Phase 3 may begin once the contracts above are fixed and at least one concrete calibrated local profile path exists, starting with `spec-018`
-- Phase 4-6 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation
-- Counterflow integration should wait for these seams rather than adding a parallel special-case path
+- Milestone 1 is the only active delivery target until a concrete green harness exists.
+- Within Milestone 1, Phase 1-2 can run immediately in parallel with `spec-018` / `spec-019`.
+- Milestone 1 Phase 3 may begin once the contracts above are fixed and at least one concrete calibrated local profile path exists, starting with `spec-018`.
+- Milestone 2 should begin only after Milestone 1 is green on the locked `BTC/ETH x 1d/1w` matrix.
+- Milestone 3 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation.
+- Counterflow integration should wait for Milestone 3 seams rather than adding a parallel special-case path.
 
 ## Non-Functional Gates
 
