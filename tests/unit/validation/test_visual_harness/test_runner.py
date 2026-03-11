@@ -229,6 +229,24 @@ def test_score_report_components_follow_declared_schema():
     assert set(component) >= {"name", "pass", "points", "max_points"}
 
 
+def test_default_runner_scoring_passes_when_capture_contract_is_complete(
+    tmp_path: Path,
+    harness_request: VisualHarnessRequest,
+):
+    outcome = run_visual_pair(
+        request=harness_request,
+        output_dir=tmp_path,
+        local_capture=_local_capture_ready,
+        provider_capture=_provider_capture_ok,
+    )
+
+    report = json.loads(outcome.score_path.read_text(encoding="utf-8"))
+
+    assert outcome.exit_code == 0
+    assert report["score"] == 100
+    assert report["status"] == "pass"
+
+
 def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_path: Path, harness_request):
     from src.liquidationheatmap.validation.visual_harness.providers.local import capture_local_liqmap_capture
 

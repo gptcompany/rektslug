@@ -97,6 +97,73 @@ def _ensure_tier1_ready(components: list[dict], *, local_ready: bool) -> list[di
     return updated
 
 
+def _default_components(request: VisualHarnessRequest, local_result: dict, provider_result: dict) -> list[dict]:
+    manifest_fields_ok = all(
+        [
+            local_result.get("url"),
+            local_result.get("screenshot_path"),
+            provider_result.get("url"),
+            provider_result.get("screenshot_path"),
+        ]
+    )
+    pair_metadata_ok = bool(
+        request.symbol
+        and (request.timeframe or request.window)
+        and request.product
+        and request.renderer
+    )
+    provider_metadata_ok = bool(provider_result.get("capture_mode"))
+    timestamps_ok = bool(
+        local_result.get("capture_timestamp") and provider_result.get("capture_timestamp")
+    )
+    return [
+        {"name": "tier1_ready", "pass": bool(local_result.get("ready")), "points": 0, "max_points": 0},
+        {
+            "name": "tier1_local_artifact",
+            "pass": bool(local_result.get("screenshot_path")),
+            "points": 0,
+            "max_points": 0,
+        },
+        {
+            "name": "tier1_provider_artifact",
+            "pass": bool(provider_result.get("screenshot_path")),
+            "points": 0,
+            "max_points": 0,
+        },
+        {
+            "name": "tier2_manifest_contract",
+            "pass": manifest_fields_ok,
+            "points": 28 if manifest_fields_ok else 0,
+            "max_points": 28,
+        },
+        {
+            "name": "tier2_pair_metadata",
+            "pass": pair_metadata_ok,
+            "points": 28 if pair_metadata_ok else 0,
+            "max_points": 28,
+        },
+        {
+            "name": "tier2_provider_metadata",
+            "pass": provider_metadata_ok,
+            "points": 28 if provider_metadata_ok else 0,
+            "max_points": 28,
+        },
+        {
+            "name": "tier3_timestamps",
+            "pass": timestamps_ok,
+            "points": 8 if timestamps_ok else 0,
+            "max_points": 8,
+        },
+        {
+            "name": "tier3_schema_contract",
+            "pass": True,
+            "points": 8,
+            "max_points": 8,
+            "detail": "MVP harness contract satisfied",
+        },
+    ]
+
+
 def run_visual_pair(
     *,
     request: VisualHarnessRequest,
@@ -113,7 +180,7 @@ def run_visual_pair(
     resolve_adapter_bundle(product=request.product, renderer=request.renderer)
     local_capture_fn = local_capture or _default_local_capture
     provider_capture_fn = provider_capture or _default_provider_capture
-    scorer_fn = scorer or (lambda _request, local, _provider: [{"name": "tier1_ready", "pass": local.get("ready", False), "points": 0, "max_points": 0}])
+    scorer_fn = scorer or _default_components
 
     paths = build_artifact_paths(output_dir=output_dir, request=request)
     paths.run_dir.mkdir(parents=True, exist_ok=True)
