@@ -13,15 +13,17 @@ from src.liquidationheatmap.ingestion.db_service import DuckDBService
 
 @pytest.fixture(autouse=True)
 def reset_db_singletons():
-    """Reset DuckDBService singletons before and after each test.
+    """Reset DuckDBService singletons and release locks before and after each test.
 
     This ensures test isolation - each test gets a fresh connection.
     Prevents 'different configuration' errors when mixing read-only/read-write.
     """
     # Reset before test
+    DuckDBService.release_ingestion_lock()
     DuckDBService.reset_singletons()
     yield
     # Reset after test
+    DuckDBService.release_ingestion_lock()
     DuckDBService.reset_singletons()
 
 

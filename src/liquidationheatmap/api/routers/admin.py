@@ -18,7 +18,7 @@ _settings = get_settings()
 logger = logging.getLogger(__name__)
 
 @router.post("/prepare-for-ingestion")
-async def prepare_for_ingestion():
+async def prepare_for_ingestion(token_valid: None = Depends(_require_internal_token)):
     """Prepare database for ingestion by closing read-only connections."""
     DuckDBService.set_ingestion_lock()
     closed = DuckDBService.close_all_instances()
@@ -27,7 +27,7 @@ async def prepare_for_ingestion():
     return {"status": "success", "connections_closed": closed}
 
 @router.post("/refresh-connections")
-async def refresh_connections():
+async def refresh_connections(token_valid: None = Depends(_require_internal_token)):
     """Release ingestion lock and warm up read connection."""
     DuckDBService.release_ingestion_lock()
     try:

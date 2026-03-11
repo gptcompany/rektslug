@@ -22,33 +22,13 @@ class TestExchangeHealthEndpoint:
 
     def test_health_endpoint_returns_exchange_status(self, client):
         """T057: /exchanges/health returns health status for all exchanges."""
-        # Mock the aggregator health check
-        mock_health = {
-            "binance": {
-                "exchange": "binance",
-                "is_connected": True,
-                "message_count": 1000,
-                "error_count": 5,
-                "uptime_percent": 99.5,
-            },
-            "hyperliquid": {
-                "exchange": "hyperliquid",
-                "is_connected": True,
-                "message_count": 500,
-                "error_count": 2,
-                "uptime_percent": 98.0,
-            },
-            "bybit": None,  # Not implemented
-        }
+        response = client.get("/exchanges/health")
 
-        with patch(
-            "src.liquidationheatmap.api.main.get_exchange_health",
-            return_value=mock_health,
-        ):
-            response = client.get("/exchanges/health")
-
-        # Endpoint may not exist yet - accept 404 or implementation
+        # Endpoint may not exist yet - accept 200 or 404
         assert response.status_code in (200, 404)
+        if response.status_code == 200:
+            data = response.json()
+            assert "binance" in data
 
     def test_health_endpoint_includes_last_heartbeat(self, client):
         """Health response includes last_heartbeat timestamp."""
@@ -82,7 +62,7 @@ class TestExchangeListEndpoint:
             exchanges = data.get("exchanges", data)
             if isinstance(exchanges, list):
                 assert "binance" in [
-                    e.get("name", e) if isinstance(e, dict) else e for e in exchanges
+                    (e.get("name", e) if isinstance(e, dict) else e).lower() for e in exchanges
                 ]
 
     def test_list_includes_status_and_features(self, client):

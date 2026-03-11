@@ -37,6 +37,19 @@ def setup_test_env():
     _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS liquidation_snapshots (id BIGINT PRIMARY KEY, timestamp TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, price_bucket DOUBLE NOT NULL, side VARCHAR NOT NULL, active_volume DOUBLE NOT NULL, density INTEGER DEFAULT 1, model VARCHAR DEFAULT 'binance_standard')")
     _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS open_interest_history (id BIGINT PRIMARY KEY, timestamp TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, open_interest_value DOUBLE NOT NULL, open_interest_contracts DOUBLE NOT NULL, source VARCHAR DEFAULT 'ccxt')")
     _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS klines_5m_history (open_time TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, quote_volume DOUBLE, PRIMARY KEY (open_time, symbol))")
+    _shared_mock_conn.real_conn.execute("CREATE TABLE IF NOT EXISTS klines_1m_history (open_time TIMESTAMP NOT NULL, symbol VARCHAR NOT NULL, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, quote_volume DOUBLE, PRIMARY KEY (open_time, symbol))")
+    
+    # Add dummy data
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    for i in range(1000):
+        ts = now - timedelta(minutes=5*i)
+        _shared_mock_conn.real_conn.execute("INSERT INTO klines_5m_history VALUES (?, 'BTCUSDT', 70000, 71000, 69000, 70500, 100, 7000000)", [ts])
+    for i in range(1000):
+        ts = now - timedelta(minutes=i)
+        _shared_mock_conn.real_conn.execute("INSERT INTO klines_1m_history VALUES (?, 'BTCUSDT', 70000, 71000, 69000, 70500, 100, 7000000)", [ts])
+    
+    _shared_mock_conn.real_conn.execute("INSERT INTO open_interest_history VALUES (1, ?, 'BTCUSDT', 1000000000, 1000, 'ccxt')", [now])
     
     with patch("src.liquidationheatmap.ingestion.db_service.duckdb.connect", return_value=_shared_mock_conn):
         yield
@@ -55,7 +68,7 @@ def client():
 
 class TestApiBooster:
     def test_heatmap_timeseries_basic(self, client):
-        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT")
+        client.get("/liquidations/heatmap-timeseries?symbol=BTCUSDT&time_window=1h")
 
     def test_klines_variants(self, client):
         client.get("/prices/klines?symbol=BTCUSDT&interval=5m&limit=10")

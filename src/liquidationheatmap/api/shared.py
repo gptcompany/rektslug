@@ -28,6 +28,7 @@ TIME_WINDOW_CONFIG = {
     "4h": {"lookback_days": 1, "default_interval": "1m"},
     "12h": {"lookback_days": 1, "default_interval": "1m"},
     "1d": {"lookback_days": 1, "default_interval": "1m"},
+    "48h": {"lookback_days": 2, "default_interval": "1m"},
     "3d": {"lookback_days": 3, "default_interval": "5m"},
     "7d": {"lookback_days": 7, "default_interval": "5m"},
     "14d": {"lookback_days": 14, "default_interval": "15m"},

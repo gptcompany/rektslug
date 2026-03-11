@@ -10,7 +10,7 @@ except ImportError:
     UTC = timezone.utc
 from decimal import Decimal
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.request import urlopen
 
 import duckdb
@@ -826,7 +826,7 @@ class DuckDBService:
         lookback_days: int,
         expected_per_day: int,
         min_ratio: float,
-        freshness_minutes: int = 20,
+        freshness_minutes: int = 1440,  # Increased from 20 to 1440 (1 day) for better resilience
     ) -> bool:
         if not self._table_exists(table_name):
             return False
@@ -871,11 +871,16 @@ class DuckDBService:
             (table_name, interval_used)
         """
         requested = (kline_interval or "auto").lower()
-        if requested not in {"auto", "1m", "5m"}:
+        if requested in {"1h", "4h", "1d"}:
+            # Map higher granularity to best available
+            requested = "15m"
+            
+        if requested not in {"auto", "1m", "5m", "15m"}:
             raise ValueError(f"Unsupported kline_interval={kline_interval!r}")
 
         table_1m = self._kline_table_for_interval("1m")
         table_5m = self._kline_table_for_interval("5m")
+        table_15m = self._kline_table_for_interval("15m")
 
         has_1m = self._has_kline_coverage(
             table_1m,
@@ -891,6 +896,13 @@ class DuckDBService:
             expected_per_day=288,
             min_ratio=0.50,
         )
+        has_15m = self._has_kline_coverage(
+            table_15m,
+            symbol,
+            lookback_days=lookback_days,
+            expected_per_day=96,
+            min_ratio=0.50,
+        )
 
         if requested == "1m":
             if has_1m:
@@ -901,6 +913,8 @@ class DuckDBService:
                     symbol,
                 )
                 return table_5m, "5m"
+            if has_15m:
+                return table_15m, "15m"
             raise ValueError(f"No usable kline data for symbol={symbol}")
 
         if requested == "5m":
@@ -912,6 +926,17 @@ class DuckDBService:
                     symbol,
                 )
                 return table_1m, "1m"
+            if has_15m:
+                return table_15m, "15m"
+            raise ValueError(f"No usable kline data for symbol={symbol}")
+
+        if requested == "15m":
+            if has_15m:
+                return table_15m, "15m"
+            if has_5m:
+                return table_5m, "5m"
+            if has_1m:
+                return table_1m, "1m"
             raise ValueError(f"No usable kline data for symbol={symbol}")
 
         # auto policy: prefer 1m only for short windows where higher granularity matters.
@@ -919,6 +944,8 @@ class DuckDBService:
             return table_1m, "1m"
         if has_5m:
             return table_5m, "5m"
+        if has_15m:
+            return table_15m, "15m"
         if has_1m:
             return table_1m, "1m"
         raise ValueError(f"No usable kline data for symbol={symbol}")
@@ -1469,6 +1496,138 @@ class DuckDBService:
 
         logger.debug(f"Saved snapshot for {snapshot.symbol} at {snapshot.timestamp}")
         return rows_inserted
+
+    def get_heatmap_timeseries(
+        self,
+        symbol: str,
+        start_time: str,
+        end_time: Optional[str] = None,
+        interval: str = "15m",
+        price_bin_size: float = 100.0,
+        leverage_weights: Optional[dict[int, float]] = None,
+    ) -> list[Any]:
+        """Fetch data and calculate time-evolving heatmap snapshots.
+
+        Args:
+            symbol: Trading pair
+            start_time: ISO start time
+            end_time: Optional ISO end time
+            interval: Kline interval (5m, 15m, 1h, etc.)
+            price_bin_size: Price bucket size
+            leverage_weights: Optional leverage distribution
+
+        Returns:
+            List of HeatmapSnapshot objects
+        """
+        from dataclasses import dataclass
+        from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
+
+        @dataclass
+        class Candle:
+            open_time: datetime
+            open: Decimal
+            high: Decimal
+            low: Decimal
+            close: Decimal
+            volume: Decimal
+
+        # Determine table name
+        lookback_days = 30 # Default for source resolution
+        if start_time:
+            try:
+                dt_start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                lookback_days = (datetime.now(timezone.utc) - dt_start).days
+            except:
+                pass
+        
+        table_name, _ = self._resolve_oi_kline_source(symbol, lookback_days, interval)
+
+        # 1. Fetch Candles
+        candle_query = f"""
+        SELECT
+            open_time,
+            CAST(open AS DECIMAL(18,8)) as open,
+            CAST(high AS DECIMAL(18,8)) as high,
+            CAST(low AS DECIMAL(18,8)) as low,
+            CAST(close AS DECIMAL(18,8)) as close,
+            CAST(volume AS DECIMAL(18,8)) as volume
+        FROM {table_name}
+        WHERE symbol = ? AND open_time >= ?
+        """
+        params = [symbol, start_time]
+        if end_time:
+            candle_query += " AND open_time <= ?"
+            params.append(end_time)
+        
+        candle_query += " ORDER BY open_time"
+        
+        candles_df = self.conn.execute(candle_query, params).df()
+        if candles_df.empty:
+            return []
+
+        candles = [
+            Candle(
+                open_time=row["open_time"].to_pydatetime() if hasattr(row["open_time"], "to_pydatetime") else row["open_time"],
+                open=Decimal(str(row["open"])),
+                high=Decimal(str(row["high"])),
+                low=Decimal(str(row["low"])),
+                close=Decimal(str(row["close"])),
+                volume=Decimal(str(row["volume"])),
+            )
+            for _, row in candles_df.iterrows()
+        ]
+
+        # 2. Fetch OI deltas
+        oi_query = """
+        SELECT
+            timestamp,
+            open_interest_value,
+            open_interest_value - LAG(open_interest_value) OVER (ORDER BY timestamp) as oi_delta
+        FROM open_interest_history
+        WHERE symbol = ? AND timestamp >= ?
+        """
+        oi_params = [symbol, start_time]
+        if end_time:
+            oi_query += " AND timestamp <= ?"
+            oi_params.append(end_time)
+        
+        oi_query += " ORDER BY timestamp"
+        
+        oi_df = self.conn.execute(oi_query, oi_params).df()
+        
+        # 3. Align OI deltas to candles
+        oi_deltas = []
+        oi_timestamps = oi_df["timestamp"].tolist() if not oi_df.empty else []
+        oi_values = oi_df["oi_delta"].fillna(0).tolist() if not oi_df.empty else []
+
+        for candle in candles:
+            delta = Decimal("0")
+            min_diff = float("inf")
+            if oi_timestamps:
+                for i, oi_ts in enumerate(oi_timestamps):
+                    oi_ts_dt = oi_ts.to_pydatetime() if hasattr(oi_ts, "to_pydatetime") else oi_ts
+                    # DuckDB timestamps might be timezone-aware or naive
+                    c_ts = candle.open_time.replace(tzinfo=None)
+                    o_ts = oi_ts_dt.replace(tzinfo=None)
+                    diff = abs((c_ts - o_ts).total_seconds())
+                    if diff < 900 and diff < min_diff:  # 15 min window
+                        min_diff = diff
+                        delta = Decimal(str(oi_values[i])) if oi_values[i] else Decimal("0")
+            oi_deltas.append(delta)
+
+        # 4. Convert leverage weights to list of tuples if needed
+        lw = None
+        if leverage_weights:
+            lw = [(int(k), Decimal(str(v))) for k, v in leverage_weights.items()]
+
+        # 5. Calculate
+        return calculate_time_evolving_heatmap(
+            candles=candles,
+            oi_deltas=oi_deltas,
+            symbol=symbol,
+            leverage_weights=lw,
+            price_bucket_size=Decimal(str(price_bin_size)),
+        )
 
     def load_snapshots(
         self,

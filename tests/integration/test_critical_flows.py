@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.liquidationheatmap.api.main import app, _gap_fill_lock
+from src.liquidationheatmap.api.main import app
+from src.liquidationheatmap.api.shared import _gap_fill_lock
 from src.liquidationheatmap.ingestion.db_service import (
     DuckDBService,
     INGESTION_LOCK_FILE,
@@ -82,7 +83,7 @@ class TestCriticalFlows:
 
     def test_gap_fill_internal_error_handling(self, client):
         """Test API 500 handling when run_gap_fill raises an exception."""
-        with patch("src.liquidationheatmap.api.main.run_gap_fill", side_effect=Exception("Database corruption")):
+        with patch("src.liquidationheatmap.api.routers.admin.run_gap_fill", side_effect=Exception("Database corruption")):
             response = client.post("/api/v1/gap-fill")
             assert response.status_code == 500
             assert response.json()["status"] == "error"
@@ -101,7 +102,7 @@ class TestCriticalFlows:
             await asyncio.sleep(0.5)
             return mock_result
 
-        with patch("src.liquidationheatmap.api.main.run_gap_fill", side_effect=slow_gap_fill):
+        with patch("src.liquidationheatmap.api.routers.admin.run_gap_fill", side_effect=slow_gap_fill):
             # We can't easily test concurrent requests with TestClient in a single-threaded test
             # but we can verify the state after run_gap_fill is called.
             pass
@@ -110,7 +111,7 @@ class TestCriticalFlows:
         """Verify gap-fill releases both locks after successful run."""
         mock_result = {"total_inserted": 42, "symbols": {}}
 
-        with patch("src.liquidationheatmap.api.main.run_gap_fill", return_value=mock_result):
+        with patch("src.liquidationheatmap.api.routers.admin.run_gap_fill", return_value=mock_result):
             response = client.post("/api/v1/gap-fill")
 
             assert response.status_code == 200

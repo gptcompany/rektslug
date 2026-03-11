@@ -64,4 +64,4 @@ class HeatmapTimeseriesResponse(BaseModel):
     meta: HeatmapTimeseriesMetadata
 
 # Re-add TimeWindow enum/literal if needed
-TimeWindow = Literal["1h", "4h", "12h", "1d", "3d", "7d", "14d", "30d", "90d", "1y"]
+TimeWindow = Literal["1h", "4h", "12h", "1d", "48h", "3d", "7d", "14d", "30d", "90d", "1y"]

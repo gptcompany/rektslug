@@ -1,7 +1,7 @@
 """Unit tests for HeatmapCache in API."""
 
 import time
-from src.liquidationheatmap.api.main import HeatmapCache
+from src.liquidationheatmap.api.cache import HeatmapCache
 
 
 def test_heatmap_cache_set_get():
