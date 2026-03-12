@@ -18,3 +18,9 @@ Internal delivery is now split into three milestones:
 - `Milestone 1 / MVP`: `local + CoinAnK + liq-map + plotly`
 - `Milestone 2 / Hardening`: failure modes, deterministic artifacts, runtime/size gates
 - `Milestone 3 / Extension`: seams for `liq-heat-map`, `lightweight`, and future provider wiring
+
+Milestone 1 is now frozen as the stable contract for later specs:
+- `schema_version = "1.0"`
+- one manifest per comparison attempt
+- one score JSON per completed comparison pair
+- partial-manifest-only behavior for provider failures before pair completion

@@ -56,7 +56,7 @@ splitting into new numbered specs.
 - product adapter: `liq-map`
 - renderer adapter: `plotly`
 - matrix: `BTC/ETH x 1d/1w`
-- outputs: manifest JSON, score JSON, deterministic artifacts, non-zero exit on fail
+- outputs: manifest JSON, score JSON for completed comparison pairs, deterministic artifacts, and a partial-manifest path for pre-score failures
 
 ### Milestone 2: Hardening
 
@@ -123,7 +123,12 @@ This separation is required to avoid conflating:
 
 ## Manifest and Score Contract
 
-First-cut runs MUST emit one manifest JSON and one score JSON per comparison pair.
+Milestone 1 freezes the harness contract at `schema_version = "1.0"`.
+
+First-cut runs MUST emit one manifest JSON per comparison attempt.
+
+- completed comparison pairs MUST also emit one score JSON
+- provider failures before a comparable pair exists MUST emit a partial manifest and no score JSON
 
 Required manifest fields:
 
@@ -146,6 +151,12 @@ Required manifest fields:
 - `provider.capture_timestamp`
 - `provider.capture_mode`
 
+Optional but now frozen diagnostic manifest fields:
+
+- `local.page_state`
+- `provider.capture_info`
+- `failure_reason`
+
 Required score fields:
 
 - `schema_version`
@@ -159,6 +170,9 @@ Required score fields:
 - `pass_threshold`
 - `tier1_pass`
 - `components`
+- `elapsed_seconds`
+- `artifact_bytes`
+- `nfr_failures`
 
 `components` is an array of objects, each with:
 
@@ -179,6 +193,13 @@ current `scripts/validate_liqmap_visual.py` contract:
 The first implementation MUST preserve these semantics before introducing any
 additional renderer-specific scoring model.
 
+Milestone 1 also freezes these operational semantics:
+
+- `provider.capture_mode` records the concrete provider path used, currently `native_download` or `screenshot_crop`
+- deterministic artifact names are derived from `run_id`, `provider`, `product`, `renderer`, `symbol`, and `timeframe/window`
+- `local.page_state.failure_reason` is the canonical local diagnostic for non-ready runs
+- provider-side pre-score failures preserve partial provider context in the manifest when available
+
 ## Functional Requirements
 
 - **FR-001**: The harness MUST support local-vs-provider visual capture with reproducible viewport parameters.
@@ -186,7 +207,7 @@ additional renderer-specific scoring model.
 - **FR-002**: The harness MUST emit a manifest tying screenshots to symbol, timeframe/window, provider, product, and run timestamp.
   Acceptance: every comparison pair writes a JSON manifest containing all required manifest fields listed above.
 - **FR-003**: The harness MUST emit machine-readable scores suitable for thresholding in CI/manual gates.
-  Acceptance: every comparison pair writes a JSON score report containing all required score fields and returns non-zero when the pair fails the configured threshold.
+  Acceptance: every completed comparison pair writes a JSON score report containing all required score fields and returns non-zero when the pair fails the configured threshold; provider failures before pair completion write a partial manifest and no score JSON.
 - **FR-004**: The harness MUST support at least `liq-map` initially and be extensible to `liq-heat-map`.
   Acceptance: the first implementation ships with a concrete `liq-map` adapter and a documented `liq-heat-map` adapter contract without ad-hoc branching in the runner.
 - **FR-005**: The harness MUST keep provider adapters separate from scoring logic.

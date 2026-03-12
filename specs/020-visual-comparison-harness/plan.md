@@ -110,7 +110,8 @@ tests/unit/validation/test_visual_harness/
 
 ## First-Cut Contract
 
-The first green implementation is intentionally narrow:
+The first green implementation is intentionally narrow and is now frozen as the
+Milestone 1 contract:
 
 - provider pair: `local` vs `CoinAnK`
 - product adapter: `liq-map`
@@ -121,7 +122,7 @@ The harness still defines provider/product/renderer seams, but it should not wir
 live Coinglass visual adapter until canonical URLs and capture invariants are
 documented in a future spec or runbook update.
 
-Minimum manifest schema:
+Frozen manifest schema (`schema_version = "1.0"`):
 
 - `schema_version`, `run_id`, `product`, `renderer`
 - `symbol`, `exchange`, exactly one of `timeframe` or `window`
@@ -129,12 +130,14 @@ Minimum manifest schema:
 - `local.url`, `local.screenshot_path`, `local.capture_timestamp`, `local.ready`
 - `provider.name`, `provider.url`, `provider.screenshot_path`
 - `provider.capture_timestamp`, `provider.capture_mode`
+- optional diagnostics: `local.page_state`, `provider.capture_info`, `failure_reason`
 
-Minimum score schema:
+Frozen score schema for completed comparison pairs:
 
 - `schema_version`, `run_id`, `product`, `renderer`, `provider`
 - `status`, `score`, `max_score`, `pass_threshold`, `tier1_pass`
 - `components`
+- `elapsed_seconds`, `artifact_bytes`, `nfr_failures`
 
 First-cut score semantics:
 
@@ -142,6 +145,14 @@ First-cut score semantics:
 - otherwise total score = `tier2_points + tier3_points`
 - `max_score = 100`
 - `pass_threshold = 95`
+
+Failure semantics:
+
+- every comparison attempt writes a manifest JSON
+- completed pairs write one score JSON
+- provider failures before pair completion write a partial manifest and no score JSON
+- provider partial manifests preserve `provider.url`, `provider.capture_mode`, and `provider.capture_info` when available
+- local non-ready runs preserve `local.page_state.failure_reason`
 
 ## What Already Works
 
@@ -159,6 +170,7 @@ First-cut score semantics:
 5. adapter separation between data capture and screenshot comparison
 6. runtime/report-size/timestamp gates for each run
 7. future compatibility with Counterflow-style rendering
+8. explicit contract freeze for later specs consuming the harness
 
 ## Milestones and Phases
 

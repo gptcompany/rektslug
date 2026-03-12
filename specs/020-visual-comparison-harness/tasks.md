@@ -57,7 +57,7 @@
 - [x] T017 Validate runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure under the live MVP path
 - [x] T018 Re-run the locked matrix and confirm deterministic naming/artifact paths under repeated `run_id` conventions
 - [x] T019 Verify partial-manifest behavior on provider-unreachable and local-not-ready failure modes using the MVP path
-- [ ] T020 Freeze the Milestone 1 manifest/score schema and scoring semantics as the stable contract consumed by later specs
+- [x] T020 Freeze the Milestone 1 manifest/score schema and scoring semantics as the stable contract consumed by later specs
 
 ## Milestone 3: Extension
 
@@ -82,4 +82,5 @@
 - All four live matrix entries produced `status=pass`, `score=100`, `capture_mode=screenshot_crop`, and artifact sizes well below the `< 1 MB` budget.
 - Local failure handling is now explicit and fast-failing, with `local.page_state.failure_reason` populated for backend/page load failures.
 - Provider failure handling now preserves partial `CoinAnK` capture context in partial manifests instead of collapsing to a generic error only.
-- `T020` remains open until the Milestone 1 manifest/score contract is intentionally frozen for later specs.
+- Milestone 1 contract is frozen at `schema_version = "1.0"` for later specs, with score JSON required for completed pairs and partial-manifest-only behavior retained for provider pre-score failures.
+- The frozen MVP contract now explicitly includes `elapsed_seconds`, `artifact_bytes`, `nfr_failures`, optional `local.page_state`, optional `provider.capture_info`, and `failure_reason` semantics.
