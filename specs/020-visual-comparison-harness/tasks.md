@@ -62,11 +62,11 @@
 ## Milestone 3: Extension
 
 ### Phase 5: Extensibility
-- [ ] T021 Define the `liq-heat-map` adapter seam without wiring a live provider path yet
-- [ ] T022 Define the `lightweight` renderer seam without making it the default renderer
-- [ ] T023 Ensure manifests can represent both timeframe-style and window-style runs and reject incompatible pairings
-- [ ] T024 Document Coinglass visual adapter prerequisites instead of wiring a speculative live path
-- [ ] T025 Extend tests for manifest/score compatibility across product and renderer adapters
+- [x] T021 Define the `liq-heat-map` adapter seam without wiring a live provider path yet
+- [x] T022 Define the `lightweight` renderer seam without making it the default renderer
+- [x] T023 Ensure manifests can represent both timeframe-style and window-style runs and reject incompatible pairings
+- [x] T024 Document Coinglass visual adapter prerequisites instead of wiring a speculative live path
+- [x] T025 Extend tests for manifest/score compatibility across product and renderer adapters
 
 ### Phase 6: Documentation
 
@@ -84,3 +84,5 @@
 - Provider failure handling now preserves partial `CoinAnK` capture context in partial manifests instead of collapsing to a generic error only.
 - Milestone 1 contract is frozen at `schema_version = "1.0"` for later specs, with score JSON required for completed pairs and partial-manifest-only behavior retained for provider pre-score failures.
 - The frozen MVP contract now explicitly includes `elapsed_seconds`, `artifact_bytes`, `nfr_failures`, optional `local.page_state`, optional `provider.capture_info`, and `failure_reason` semantics.
+- Milestone 3 extension seams are now defined in code: `liq-map` remains timeframe-only on `plotly`, while `liq-heat-map` supports both timeframe/window entry modes and reserves both `plotly` and `lightweight` renderer adapters without wiring a live provider path yet.
+- Compatibility tests now cover `window`-style manifests, deterministic artifact naming for `window` runs, and successful adapter resolution for `liq-heat-map` plus `lightweight`.

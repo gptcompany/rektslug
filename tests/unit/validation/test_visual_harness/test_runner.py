@@ -147,10 +147,22 @@ def test_adapter_dispatch_routes_product_renderer_to_correct_handler():
 
     assert bundle.product.name == "liq-map"
     assert bundle.renderer.name == "plotly"
+    assert bundle.renderer.default is True
+
+
+def test_adapter_dispatch_supports_liq_heat_map_with_lightweight_renderer():
+    bundle = resolve_adapter_bundle(product="liq-heat-map", renderer="lightweight")
+
+    assert bundle.product.name == "liq-heat-map"
+    assert bundle.renderer.name == "lightweight"
+    assert bundle.renderer.default is False
 
 
 def test_window_requests_fail_fast_for_current_timeframe_only_adapters():
-    with pytest.raises(ValueError, match="window-based visual harness requests are not supported"):
+    with pytest.raises(
+        ValueError,
+        match="liq-map does not support window-based visual harness requests",
+    ):
         VisualHarnessRequest(
             run_id="run-001",
             product="liq-map",
@@ -160,6 +172,21 @@ def test_window_requests_fail_fast_for_current_timeframe_only_adapters():
             exchange="binance",
             window="48h",
         )
+
+
+def test_window_requests_are_allowed_for_liq_heat_map_adapters():
+    request = VisualHarnessRequest(
+        run_id="run-001",
+        product="liq-heat-map",
+        renderer="plotly",
+        provider="coinank",
+        symbol="BTCUSDT",
+        exchange="binance",
+        window="48h",
+    )
+
+    assert request.timeframe is None
+    assert request.window == "48h"
 
 
 def test_unsupported_product_renderer_combination_fails_before_capture(tmp_path: Path):
@@ -277,6 +304,25 @@ def test_re_running_same_matrix_entry_with_same_run_id_produces_identical_artifa
     assert paths_a == paths_b
     assert paths_a.manifest_path.name == paths_b.manifest_path.name
     assert SCHEMA_VERSION == "1.0"
+
+
+def test_window_style_artifact_paths_are_deterministic_for_same_run_id(tmp_path: Path):
+    request = VisualHarnessRequest(
+        run_id="run-heat-window",
+        product="liq-heat-map",
+        renderer="plotly",
+        provider="coinank",
+        symbol="ETHUSDT",
+        exchange="binance",
+        window="48h",
+    )
+
+    paths_a = build_artifact_paths(output_dir=tmp_path, request=request)
+    paths_b = build_artifact_paths(output_dir=tmp_path, request=request)
+
+    assert paths_a == paths_b
+    assert "_48h_" in paths_a.manifest_path.name
+    assert "_48h_" in paths_a.score_path.name
 
 
 def test_score_report_components_follow_declared_schema():
@@ -432,3 +478,57 @@ def test_runner_fails_when_runtime_budget_is_exceeded(
     assert outcome.exit_code == 1
     assert report["elapsed_seconds"] == 121.0
     assert "runtime_exceeded" in report["nfr_failures"]
+
+
+def test_window_style_runs_emit_window_in_manifest_and_not_timeframe(tmp_path: Path):
+    request = VisualHarnessRequest(
+        run_id="run-heat-window",
+        product="liq-heat-map",
+        renderer="plotly",
+        provider="coinank",
+        symbol="ETHUSDT",
+        exchange="binance",
+        window="48h",
+    )
+
+    def _local_capture(_request: VisualHarnessRequest, output_path: Path):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("local-heat")
+        return {
+            "url": "http://localhost:8002/chart/derivatives/liq-heat-map/binance/ethusdt?window=48h",
+            "screenshot_path": str(output_path),
+            "capture_timestamp": "2026-03-11T11:00:00Z",
+            "ready": True,
+            "local_page_state": {
+                "hasPlotlyGlobal": True,
+                "hasPlotRoot": True,
+                "hasMainSvg": True,
+            },
+        }
+
+    def _provider_capture(_request: VisualHarnessRequest, output_path: Path):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("provider-heat")
+        return {
+            "url": "https://coinglass.com/pro/futures/LiquidationHeatMap?symbol=ETHUSDT&window=48h",
+            "screenshot_path": str(output_path),
+            "capture_timestamp": "2026-03-11T11:00:05Z",
+            "capture_mode": "screenshot_crop",
+        }
+
+    outcome = run_visual_pair(
+        request=request,
+        output_dir=tmp_path,
+        local_capture=_local_capture,
+        provider_capture=_provider_capture,
+        scorer=_passing_scorer,
+    )
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+
+    assert outcome.exit_code == 0
+    assert manifest["product"] == "liq-heat-map"
+    assert manifest["renderer"] == "plotly"
+    assert manifest["window"] == "48h"
+    assert "timeframe" not in manifest
+    assert manifest["provider"]["name"] == "coinank"

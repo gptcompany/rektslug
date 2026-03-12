@@ -28,6 +28,27 @@ def test_parse_args_accepts_timeframe():
     assert args.window is None
 
 
+def test_parse_args_accepts_window_for_heat_map_and_lightweight():
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--product",
+            "liq-heat-map",
+            "--renderer",
+            "lightweight",
+            "--window",
+            "48h",
+        ],
+    ):
+        args = parse_args()
+
+    assert args.product == "liq-heat-map"
+    assert args.renderer == "lightweight"
+    assert args.timeframe is None
+    assert args.window == "48h"
+
+
 def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
     class _Outcome:
         exit_code = 0

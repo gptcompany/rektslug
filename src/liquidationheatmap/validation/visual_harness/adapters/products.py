@@ -7,11 +7,20 @@ from dataclasses import dataclass
 class ProductAdapter:
     name: str
     supported_renderers: frozenset[str]
+    supported_entry_modes: frozenset[str]
 
 
 PRODUCT_ADAPTERS: dict[str, ProductAdapter] = {
-    "liq-map": ProductAdapter(name="liq-map", supported_renderers=frozenset({"plotly"})),
-    "liq-heat-map": ProductAdapter(name="liq-heat-map", supported_renderers=frozenset({"plotly"})),
+    "liq-map": ProductAdapter(
+        name="liq-map",
+        supported_renderers=frozenset({"plotly"}),
+        supported_entry_modes=frozenset({"timeframe"}),
+    ),
+    "liq-heat-map": ProductAdapter(
+        name="liq-heat-map",
+        supported_renderers=frozenset({"plotly", "lightweight"}),
+        supported_entry_modes=frozenset({"timeframe", "window"}),
+    ),
 }
 
 

@@ -6,11 +6,12 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class RendererAdapter:
     name: str
+    default: bool = False
 
 
 RENDERER_ADAPTERS: dict[str, RendererAdapter] = {
-    "plotly": RendererAdapter(name="plotly"),
-    "lightweight": RendererAdapter(name="lightweight"),
+    "plotly": RendererAdapter(name="plotly", default=True),
+    "lightweight": RendererAdapter(name="lightweight", default=False),
 }
 
 
