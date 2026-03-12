@@ -48,6 +48,8 @@ def test_core_deploy_workflow_targets_core_code():
     assert "src/liquidationheatmap/**" in text
     assert "docker-compose.yml" in text
     assert "docker/build-push-action" in text
+    assert "scripts/deploy-core.sh" in text
+    assert "scripts/lib/runtime_env.sh" in text
     # Deploy uses self-hosted runner with git pull + deploy script
     assert "self-hosted" in text
     assert "deploy-core.sh" in text

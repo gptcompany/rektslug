@@ -9,6 +9,8 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "src/liquidationheatmap/**"
+      - "scripts/deploy-core.sh"
+      - "scripts/lib/runtime_env.sh"
       - "scripts/run-ccxt-gap-fill.sh"
       - "scripts/run-gapfill-daemon.sh"
       - ".github/workflows/core-deploy.yml"
