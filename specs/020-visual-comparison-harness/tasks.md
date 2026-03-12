@@ -20,43 +20,43 @@
 
 ### Phase 1: Inventory
 
-- [ ] T001 Inventory current screenshot/validation scripts and manifest formats
-- [ ] T002 Identify what is reusable vs what is liq-map-specific today
-- [ ] T003 Define the minimal common manifest and score JSON schemas for screenshot-based comparison
-- [ ] T004 Verify Playwright + Chromium are the canonical browser tooling for the harness
-- [ ] T005 Lock the first-cut matrix to `BTC/ETH x 1d/1w` on local/CoinAnK `liq-map`
-- [ ] T006 Identify the current renderer assumptions baked into the existing Plotly-specific scripts
+- [x] T001 Inventory current screenshot/validation scripts and manifest formats
+- [x] T002 Identify what is reusable vs what is liq-map-specific today
+- [x] T003 Define the minimal common manifest and score JSON schemas for screenshot-based comparison
+- [x] T004 Verify Playwright + Chromium are the canonical browser tooling for the harness
+- [x] T005 Lock the first-cut matrix to `BTC/ETH x 1d/1w` on local/CoinAnK `liq-map`
+- [x] T006 Identify the current renderer assumptions baked into the existing Plotly-specific scripts
 
 ### Phase 2: Contracts and RED Tests
 
-- [ ] T007a Write failing test: manifest JSON validates against the required field schema
-- [ ] T007b Write failing test: adapter dispatch routes `product + renderer` to the correct handler
-- [ ] T007c Write failing test: unsupported `product + renderer` combination fails before capture
-- [ ] T007d Write failing test: local chart not ready -> `ready=false`, `tier1_pass=false`, `score=0`
-- [ ] T007e Write failing test: provider unreachable -> non-zero exit and partial manifest with failure reason
-- [ ] T007f Write failing test: score threshold gate returns non-zero when `score < pass_threshold`
-- [ ] T007g Write failing test: re-running the same matrix entry with the same `run_id` produces identical artifact paths and `schema_version`
-- [ ] T008 Define a provider-agnostic runner interface
-- [ ] T009 Define product adapters (`liq-map` first, `liq-heat-map` later)
-- [ ] T010 Define renderer adapters (`plotly` first, `lightweight` reserved)
-- [ ] T011 Define first-cut scoring outputs and threshold policy: Tier-1 gate, `0/100` on Tier-1 failure, otherwise `tier2 + tier3`, pass threshold `95`
-- [ ] T011a Review and sign off the first-cut scoring formula against the current `validate_liqmap_visual.py` checklist semantics before wiring the MVP path
+- [x] T007a Write failing test: manifest JSON validates against the required field schema
+- [x] T007b Write failing test: adapter dispatch routes `product + renderer` to the correct handler
+- [x] T007c Write failing test: unsupported `product + renderer` combination fails before capture
+- [x] T007d Write failing test: local chart not ready -> `ready=false`, `tier1_pass=false`, `score=0`
+- [x] T007e Write failing test: provider unreachable -> non-zero exit and partial manifest with failure reason
+- [x] T007f Write failing test: score threshold gate returns non-zero when `score < pass_threshold`
+- [x] T007g Write failing test: re-running the same matrix entry with the same `run_id` produces identical artifact paths and `schema_version`
+- [x] T008 Define a provider-agnostic runner interface
+- [x] T009 Define product adapters (`liq-map` first, `liq-heat-map` later)
+- [x] T010 Define renderer adapters (`plotly` first, `lightweight` reserved)
+- [x] T011 Define first-cut scoring outputs and threshold policy: Tier-1 gate, `0/100` on Tier-1 failure, otherwise `tier2 + tier3`, pass threshold `95`
+- [x] T011a Review and sign off the first-cut scoring formula against the current `validate_liqmap_visual.py` checklist semantics before wiring the MVP path
 
 ### Phase 3: Liq-Map MVP Integration
 
-- [ ] T012 Implement local page capture for `liq-map + plotly` against the locked `BTC/ETH x 1d/1w` matrix
-- [ ] T013 Implement CoinAnK provider capture with `capture_mode` tracking and fallback handling
-- [ ] T014 Implement the manifest writer: emit one normalized manifest JSON per comparison pair
-- [ ] T015 Implement the scorer: emit one normalized score JSON per comparison pair with Tier-1 gate semantics
-- [ ] T016 Validate NFR gates: runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure
+- [x] T012 Implement local page capture for `liq-map + plotly` against the locked `BTC/ETH x 1d/1w` matrix
+- [x] T013 Implement CoinAnK provider capture with `capture_mode` tracking and fallback handling
+- [x] T014 Implement the manifest writer: emit one normalized manifest JSON per comparison pair
+- [x] T015 Implement the scorer: emit one normalized score JSON per comparison pair with Tier-1 gate semantics
+- [x] T016 Validate NFR gates: runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure
 
 ## Milestone 2: Hardening
 
 ### Phase 4: Hardening Gates
 
-- [ ] T017 Validate runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure under the live MVP path
-- [ ] T018 Re-run the locked matrix and confirm deterministic naming/artifact paths under repeated `run_id` conventions
-- [ ] T019 Verify partial-manifest behavior on provider-unreachable and local-not-ready failure modes using the MVP path
+- [x] T017 Validate runtime `< 120s`, manifest+score `< 1 MB`, timestamp presence, and non-zero exit on threshold/provider failure under the live MVP path
+- [x] T018 Re-run the locked matrix and confirm deterministic naming/artifact paths under repeated `run_id` conventions
+- [x] T019 Verify partial-manifest behavior on provider-unreachable and local-not-ready failure modes using the MVP path
 - [ ] T020 Freeze the Milestone 1 manifest/score schema and scoring semantics as the stable contract consumed by later specs
 
 ## Milestone 3: Extension
@@ -73,3 +73,13 @@
 - [ ] T026 Document how calibration specs consume the harness
 - [ ] T027 Document how future heatmap specs will plug into the harness
 - [ ] T028 Document that Counterflow enters as a `lightweight` renderer adapter, not as a special-case global path
+
+## Completion Notes
+
+- Milestone 1 MVP is green for the locked `BTC/ETH x 1d/1w` matrix on the `local + CoinAnK + liq-map + plotly` path.
+- The live matrix smoke was executed against a worktree-served `uvicorn` instance on `http://127.0.0.1:8012` using `scripts/run_visual_harness.py`.
+- Successful live run ids: `spec020-btc1d`, `spec020-btc1w`, `spec020-eth1d`, `spec020-eth1w`.
+- All four live matrix entries produced `status=pass`, `score=100`, `capture_mode=screenshot_crop`, and artifact sizes well below the `< 1 MB` budget.
+- Local failure handling is now explicit and fast-failing, with `local.page_state.failure_reason` populated for backend/page load failures.
+- Provider failure handling now preserves partial `CoinAnK` capture context in partial manifests instead of collapsing to a generic error only.
+- `T020` remains open until the Milestone 1 manifest/score contract is intentionally frozen for later specs.
