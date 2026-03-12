@@ -823,7 +823,13 @@ def main() -> int:
             if lc == 0 and sc == 0:
                 print("warning: API returned zero liquidation levels for the selected parameters")
         if not local_state.get("ready"):
-            print(f"warning: local page not fully ready (hasPlot={local_state.get('hasPlot')})")
+            print(
+                "warning: local page not fully ready "
+                f"(hasPlotRoot={local_state.get('hasPlotRoot')} "
+                f"hasMainSvg={local_state.get('hasMainSvg')} "
+                f"hasFullLayout={local_state.get('hasFullLayout')} "
+                f"reason={local_state.get('failure_reason')})"
+            )
         if data_freshness.get("warning"):
             print(f"warning: {data_freshness['warning']}")
 

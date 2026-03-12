@@ -256,6 +256,7 @@ class TestFrontendStaticFiles:
         assert "ensureValidLevelsPayload" in response.text
         assert "window.__liqMapLoadError = null" in response.text
         assert "if (!response.ok)" in response.text
+        assert "Current Price: ${Math.round(currentPrice)}" in response.text
 
     def test_coinank_heatmap_route_redirects_to_canonical_page(self, client):
         """Test canonical heatmap route redirects to the canonical frontend page."""
