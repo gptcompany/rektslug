@@ -386,27 +386,30 @@
             });
 
             const sortedPrices = [...allPrices].sort((a, b) => a - b);
-            const prices = new Array(sortedPrices.length);
-            const values = new Array(sortedPrices.length);
-
             if (isLong) {
-                // Cumulative from right (descending)
+                const relevantPrices = sortedPrices.filter(price => price < currentPrice);
+                const cumulativeByPrice = new Map();
                 let cumulativeSum = 0;
-                for (let i = sortedPrices.length - 1; i >= 0; i--) {
-                    cumulativeSum += volumeMap[sortedPrices[i]] || 0;
-                    prices[i] = sortedPrices[i];
-                    values[i] = cumulativeSum;
+                for (let i = relevantPrices.length - 1; i >= 0; i--) {
+                    const price = relevantPrices[i];
+                    cumulativeSum += volumeMap[price] || 0;
+                    cumulativeByPrice.set(price, cumulativeSum);
                 }
-            } else {
-                // Cumulative from left (ascending)
-                let cumulativeSum = 0;
-                for (let i = 0; i < sortedPrices.length; i++) {
-                    cumulativeSum += volumeMap[sortedPrices[i]] || 0;
-                    prices[i] = sortedPrices[i];
-                    values[i] = cumulativeSum;
-                }
+                return {
+                    prices: [...relevantPrices, currentPrice],
+                    values: [...relevantPrices.map(price => cumulativeByPrice.get(price) || 0), 0],
+                };
             }
 
+            const relevantPrices = sortedPrices.filter(price => price > currentPrice);
+            const prices = [currentPrice];
+            const values = [0];
+            let cumulativeSum = 0;
+            for (const price of relevantPrices) {
+                cumulativeSum += volumeMap[price] || 0;
+                prices.push(price);
+                values.push(cumulativeSum);
+            }
             return { prices, values };
         }
 

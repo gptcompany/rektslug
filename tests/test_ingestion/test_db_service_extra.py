@@ -91,6 +91,25 @@ class TestDuckDBServiceExtra:
         table, interval = temp_db._resolve_oi_kline_source(symbol, lookback_days=1, kline_interval="auto")
         assert interval == "1m"
 
+    def test_resolve_oi_kline_source_can_fallback_to_stale_history_for_legacy_levels(self, temp_db):
+        symbol = "BTCUSDT"
+        stale_now = datetime.now() - timedelta(hours=8)
+        for i in range(2000):
+            temp_db.conn.execute(
+                "INSERT INTO klines_1m_history (open_time, symbol) VALUES (?, ?)",
+                [stale_now - timedelta(minutes=i), symbol],
+            )
+
+        table, interval = temp_db._resolve_oi_kline_source(
+            symbol,
+            lookback_days=1,
+            kline_interval="auto",
+            allow_stale_fallback=True,
+        )
+
+        assert table == "klines_1m_history"
+        assert interval == "1m"
+
     def test_snapshot_lifecycle(self, temp_db):
         temp_db.initialize_snapshot_tables()
         now = datetime.now().replace(microsecond=0)

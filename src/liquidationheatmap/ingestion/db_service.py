@@ -1,5 +1,6 @@
 """DuckDB service for querying Open Interest and market data."""
 
+from dataclasses import dataclass
 import json
 import logging
 import time
@@ -103,6 +104,158 @@ def _get_latest_local_price(conn: duckdb.DuckDBPyConnection, symbol: str) -> Dec
             return Decimal(str(row[0]))
 
     return None
+
+
+@dataclass
+class _HeatmapCandle:
+    open_time: datetime
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: Decimal
+
+
+def _as_naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(microsecond=0) if value.microsecond else value
+    normalized = value.astimezone(UTC).replace(tzinfo=None)
+    return normalized.replace(microsecond=0) if normalized.microsecond else normalized
+
+
+def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return _as_naive_utc(parsed)
+
+
+def _interval_timedelta(interval: str) -> timedelta:
+    mapping = {
+        "1m": timedelta(minutes=1),
+        "5m": timedelta(minutes=5),
+        "15m": timedelta(minutes=15),
+        "1h": timedelta(hours=1),
+        "4h": timedelta(hours=4),
+        "1d": timedelta(days=1),
+    }
+    try:
+        return mapping[interval]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported interval={interval!r}") from exc
+
+
+def _floor_timestamp_to_interval(value: datetime, interval: str) -> datetime:
+    dt = _as_naive_utc(value)
+
+    if interval == "1d":
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    if interval == "4h":
+        return dt.replace(hour=dt.hour - (dt.hour % 4), minute=0, second=0, microsecond=0)
+    if interval == "1h":
+        return dt.replace(minute=0, second=0, microsecond=0)
+    if interval in {"1m", "5m", "15m"}:
+        minutes = int(interval[:-1])
+        return dt.replace(
+            minute=dt.minute - (dt.minute % minutes),
+            second=0,
+            microsecond=0,
+        )
+    raise ValueError(f"Unsupported interval={interval!r}")
+
+
+def _resample_heatmap_candles(
+    candles: list[_HeatmapCandle],
+    source_interval: str,
+    target_interval: str,
+) -> list[_HeatmapCandle]:
+    if not candles or source_interval == target_interval:
+        return candles
+
+    if _interval_timedelta(target_interval) < _interval_timedelta(source_interval):
+        return candles
+
+    resampled: list[_HeatmapCandle] = []
+    bucket_start: Optional[datetime] = None
+    open_value: Optional[Decimal] = None
+    high_value: Optional[Decimal] = None
+    low_value: Optional[Decimal] = None
+    close_value: Optional[Decimal] = None
+    volume_value = Decimal("0")
+
+    for candle in sorted(candles, key=lambda item: _as_naive_utc(item.open_time)):
+        candle_bucket = _floor_timestamp_to_interval(candle.open_time, target_interval)
+        if bucket_start != candle_bucket:
+            if bucket_start is not None and None not in {open_value, high_value, low_value, close_value}:
+                resampled.append(
+                    _HeatmapCandle(
+                        open_time=bucket_start,
+                        open=open_value,
+                        high=high_value,
+                        low=low_value,
+                        close=close_value,
+                        volume=volume_value,
+                    )
+                )
+            bucket_start = candle_bucket
+            open_value = candle.open
+            high_value = candle.high
+            low_value = candle.low
+            close_value = candle.close
+            volume_value = candle.volume
+            continue
+
+        assert high_value is not None
+        assert low_value is not None
+        high_value = max(high_value, candle.high)
+        low_value = min(low_value, candle.low)
+        close_value = candle.close
+        volume_value += candle.volume
+
+    if bucket_start is not None and None not in {open_value, high_value, low_value, close_value}:
+        resampled.append(
+            _HeatmapCandle(
+                open_time=bucket_start,
+                open=open_value,
+                high=high_value,
+                low=low_value,
+                close=close_value,
+                volume=volume_value,
+            )
+        )
+
+    return resampled
+
+
+def _align_oi_deltas_to_candles(
+    candles: list[_HeatmapCandle],
+    oi_df,
+    alignment_interval: str,
+) -> list[Decimal]:
+    if not candles:
+        return []
+
+    candle_buckets = {
+        _as_naive_utc(candle.open_time): Decimal("0")
+        for candle in candles
+    }
+
+    if oi_df.empty:
+        return [Decimal("0")] * len(candles)
+
+    for _, row in oi_df.iterrows():
+        oi_timestamp = row["timestamp"]
+        oi_bucket = _floor_timestamp_to_interval(
+            oi_timestamp.to_pydatetime() if hasattr(oi_timestamp, "to_pydatetime") else oi_timestamp,
+            alignment_interval,
+        )
+        if oi_bucket not in candle_buckets:
+            continue
+
+        oi_delta = row["oi_delta"]
+        candle_buckets[oi_bucket] += Decimal(str(oi_delta)) if oi_delta else Decimal("0")
+
+    return [candle_buckets[_as_naive_utc(candle.open_time)] for candle in candles]
 
 
 class DuckDBService:
@@ -826,7 +979,7 @@ class DuckDBService:
         lookback_days: int,
         expected_per_day: int,
         min_ratio: float,
-        freshness_minutes: int = 1440,  # Increased from 20 to 1440 (1 day) for better resilience
+        freshness_minutes: int | None = 20,
     ) -> bool:
         if not self._table_exists(table_name):
             return False
@@ -840,7 +993,7 @@ class DuckDBService:
 
         max_ts = max_ts_row[0]
         now_utc = datetime.now(UTC).replace(tzinfo=None)
-        if max_ts < now_utc - timedelta(minutes=freshness_minutes):
+        if freshness_minutes is not None and max_ts < now_utc - timedelta(minutes=freshness_minutes):
             return False
 
         start_ts = max_ts - timedelta(days=lookback_days)
@@ -864,6 +1017,7 @@ class DuckDBService:
         symbol: str,
         lookback_days: int,
         kline_interval: str = "auto",
+        allow_stale_fallback: bool = False,
     ) -> tuple[str, str]:
         """Select klines table for OI-based model with robust fallback.
 
@@ -948,6 +1102,45 @@ class DuckDBService:
             return table_15m, "15m"
         if has_1m:
             return table_1m, "1m"
+        if allow_stale_fallback:
+            has_1m_stale = self._has_kline_coverage(
+                table_1m,
+                symbol,
+                lookback_days=lookback_days,
+                expected_per_day=1440,
+                min_ratio=0.60,
+                freshness_minutes=None,
+            )
+            has_5m_stale = self._has_kline_coverage(
+                table_5m,
+                symbol,
+                lookback_days=lookback_days,
+                expected_per_day=288,
+                min_ratio=0.50,
+                freshness_minutes=None,
+            )
+            has_15m_stale = self._has_kline_coverage(
+                table_15m,
+                symbol,
+                lookback_days=lookback_days,
+                expected_per_day=96,
+                min_ratio=0.50,
+                freshness_minutes=None,
+            )
+            if has_1m_stale or has_5m_stale or has_15m_stale:
+                logger.warning(
+                    "No fresh kline source for %s (%sd); using stale fallback data for legacy liq-map",
+                    symbol,
+                    lookback_days,
+                )
+                if lookback_days <= 7 and has_1m_stale:
+                    return table_1m, "1m"
+                if has_5m_stale:
+                    return table_5m, "5m"
+                if has_15m_stale:
+                    return table_15m, "15m"
+                if has_1m_stale:
+                    return table_1m, "1m"
         raise ValueError(f"No usable kline data for symbol={symbol}")
 
     def calculate_liquidations_oi_based(
@@ -960,6 +1153,7 @@ class DuckDBService:
         leverage_weights: dict[int, float] | None = None,
         side_weights: dict[str, float] | None = None,
         kline_interval: str = "auto",
+        allow_stale_kline_fallback: bool = False,
     ):
         """Calculate liquidations using Open Interest-based volume profile scaling.
 
@@ -1036,6 +1230,7 @@ class DuckDBService:
             symbol=symbol,
             lookback_days=lookback_days,
             kline_interval=kline_interval,
+            allow_stale_fallback=allow_stale_kline_fallback,
         )
         logger.info(
             "OI model kline source: requested=%s selected=%s table=%s",
@@ -1519,17 +1714,7 @@ class DuckDBService:
         Returns:
             List of HeatmapSnapshot objects
         """
-        from dataclasses import dataclass
         from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
-
-        @dataclass
-        class Candle:
-            open_time: datetime
-            open: Decimal
-            high: Decimal
-            low: Decimal
-            close: Decimal
-            volume: Decimal
 
         # Determine table name
         lookback_days = 30 # Default for source resolution
@@ -1540,7 +1725,7 @@ class DuckDBService:
             except:
                 pass
         
-        table_name, _ = self._resolve_oi_kline_source(symbol, lookback_days, interval)
+        table_name, source_interval = self._resolve_oi_kline_source(symbol, lookback_days, interval)
 
         # 1. Fetch Candles
         candle_query = f"""
@@ -1566,8 +1751,10 @@ class DuckDBService:
             return []
 
         candles = [
-            Candle(
-                open_time=row["open_time"].to_pydatetime() if hasattr(row["open_time"], "to_pydatetime") else row["open_time"],
+            _HeatmapCandle(
+                open_time=_as_naive_utc(
+                    row["open_time"].to_pydatetime() if hasattr(row["open_time"], "to_pydatetime") else row["open_time"]
+                ),
                 open=Decimal(str(row["open"])),
                 high=Decimal(str(row["high"])),
                 low=Decimal(str(row["low"])),
@@ -1577,7 +1764,27 @@ class DuckDBService:
             for _, row in candles_df.iterrows()
         ]
 
+        requested_interval = (interval or source_interval).lower()
+        candles = _resample_heatmap_candles(
+            candles=candles,
+            source_interval=source_interval,
+            target_interval=requested_interval,
+        )
+        alignment_interval = (
+            requested_interval
+            if _interval_timedelta(requested_interval) >= _interval_timedelta(source_interval)
+            else source_interval
+        )
+
         # 2. Fetch OI deltas
+        parsed_start_time = _parse_iso_timestamp(start_time)
+        oi_query_start = start_time
+        if parsed_start_time is not None:
+            oi_query_start = parsed_start_time - max(
+                _interval_timedelta(alignment_interval),
+                timedelta(minutes=15),
+            )
+
         oi_query = """
         SELECT
             timestamp,
@@ -1586,7 +1793,7 @@ class DuckDBService:
         FROM open_interest_history
         WHERE symbol = ? AND timestamp >= ?
         """
-        oi_params = [symbol, start_time]
+        oi_params = [symbol, oi_query_start]
         if end_time:
             oi_query += " AND timestamp <= ?"
             oi_params.append(end_time)
@@ -1595,25 +1802,10 @@ class DuckDBService:
         
         oi_df = self.conn.execute(oi_query, oi_params).df()
         
-        # 3. Align OI deltas to candles
-        oi_deltas = []
-        oi_timestamps = oi_df["timestamp"].tolist() if not oi_df.empty else []
-        oi_values = oi_df["oi_delta"].fillna(0).tolist() if not oi_df.empty else []
-
-        for candle in candles:
-            delta = Decimal("0")
-            min_diff = float("inf")
-            if oi_timestamps:
-                for i, oi_ts in enumerate(oi_timestamps):
-                    oi_ts_dt = oi_ts.to_pydatetime() if hasattr(oi_ts, "to_pydatetime") else oi_ts
-                    # DuckDB timestamps might be timezone-aware or naive
-                    c_ts = candle.open_time.replace(tzinfo=None)
-                    o_ts = oi_ts_dt.replace(tzinfo=None)
-                    diff = abs((c_ts - o_ts).total_seconds())
-                    if diff < 900 and diff < min_diff:  # 15 min window
-                        min_diff = diff
-                        delta = Decimal(str(oi_values[i])) if oi_values[i] else Decimal("0")
-            oi_deltas.append(delta)
+        # 3. Align OI deltas to candles without duplicating the same OI sample across neighbors
+        if not oi_df.empty:
+            oi_df["oi_delta"] = oi_df["oi_delta"].fillna(0)
+        oi_deltas = _align_oi_deltas_to_candles(candles, oi_df, alignment_interval)
 
         # 4. Convert leverage weights to list of tuples if needed
         lw = None

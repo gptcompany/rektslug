@@ -332,7 +332,12 @@ async def get_liquidation_levels(
         # Default dynamic binning algorithm
         def _resolve_default_bin_size():
             with DuckDBService(read_only=True) as db:
-                table_name, _ = db._resolve_oi_kline_source(symbol, timeframe, "auto")
+                table_name, _ = db._resolve_oi_kline_source(
+                    symbol,
+                    timeframe,
+                    "auto",
+                    allow_stale_fallback=True,
+                )
                 range_row = db.conn.execute(
                     f"""
                     SELECT MAX(high) - MIN(low) FROM {table_name} 
@@ -383,6 +388,7 @@ async def get_liquidation_levels(
                 leverage_weights=leverage_weights,
                 side_weights=side_weights,
                 kline_interval=effective_kline_interval,
+                allow_stale_kline_fallback=True,
             )
 
     try:
