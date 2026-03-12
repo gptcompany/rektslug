@@ -380,6 +380,7 @@ def test_wait_for_local_liqmap_ready_accepts_plotly_dom_signals():
                         "hasFullLayout": False,
                         "lastDataText": "",
                         "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+                        "loadErrorText": "",
                     },
                     {
                         "hasContainer": True,
@@ -389,6 +390,7 @@ def test_wait_for_local_liqmap_ready_accepts_plotly_dom_signals():
                         "hasFullLayout": True,
                         "lastDataText": "Last data: 2026-03-11 10:00:00 UTC",
                         "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+                        "loadErrorText": "",
                     },
                 ]
             )
@@ -430,6 +432,7 @@ def test_wait_for_local_liqmap_ready_can_abort_early_on_explicit_failure():
                 "hasFullLayout": False,
                 "lastDataText": "",
                 "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+                "loadErrorText": "Service Unavailable",
             }
 
         async def wait_for_timeout(self, _millis):
@@ -474,3 +477,36 @@ def test_should_abort_local_liqmap_wait_on_levels_failure():
     )
 
     assert should_abort is True
+
+
+def test_should_abort_local_liqmap_wait_on_explicit_page_load_error():
+    """A page-level load error should short-circuit the wait loop."""
+    from validate_liqmap_visual import _should_abort_local_liqmap_wait
+
+    should_abort = _should_abort_local_liqmap_wait(
+        {
+            "ready": False,
+            "levels_request_failures": [],
+            "dialog_messages": [],
+            "loadErrorText": "Invalid liquidation levels payload",
+        }
+    )
+
+    assert should_abort is True
+
+
+def test_derive_local_liqmap_failure_reason_marks_invalid_payloads():
+    """The validator should distinguish malformed payloads from transport failures."""
+    from validate_liqmap_visual import _derive_local_liqmap_failure_reason
+
+    reason = _derive_local_liqmap_failure_reason(
+        {
+            "hasPlotlyGlobal": True,
+            "levels_request_failures": [],
+            "loadErrorText": "Invalid liquidation levels payload",
+            "console_errors": [],
+            "dialog_messages": [],
+        }
+    )
+
+    assert reason == "levels_payload_invalid"

@@ -253,6 +253,9 @@ class TestFrontendStaticFiles:
         response = client.get("/chart/derivatives/liq-map/binance/btcusdt/1d")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
+        assert "ensureValidLevelsPayload" in response.text
+        assert "window.__liqMapLoadError = null" in response.text
+        assert "if (!response.ok)" in response.text
 
     def test_coinank_heatmap_route_redirects_to_canonical_page(self, client):
         """Test canonical heatmap route redirects to the canonical frontend page."""

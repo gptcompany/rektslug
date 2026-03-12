@@ -330,6 +330,9 @@ async def _extract_local_liqmap_state(page) -> dict[str, Any]:
                 hasFullLayout: Boolean(plotlyNode && plotlyNode._fullLayout),
                 lastDataText: lastDataEl ? lastDataEl.textContent : '',
                 documentTitle: document.title || '',
+                loadErrorText: typeof window.__liqMapLoadError === 'string'
+                    ? window.__liqMapLoadError
+                    : '',
             };
         }
         """
@@ -339,6 +342,10 @@ async def _extract_local_liqmap_state(page) -> dict[str, Any]:
 def _derive_local_liqmap_failure_reason(state: dict[str, Any]) -> str:
     if state.get("levels_request_failures"):
         return "levels_request_failed"
+    if state.get("loadErrorText"):
+        if "payload" in state["loadErrorText"].lower():
+            return "levels_payload_invalid"
+        return "page_load_error"
     if not state.get("hasPlotlyGlobal", True):
         return "plotly_not_loaded"
     if state.get("dialog_messages"):
@@ -352,6 +359,8 @@ def _should_abort_local_liqmap_wait(state: dict[str, Any]) -> bool:
     if state.get("ready"):
         return False
     if state.get("levels_request_failures"):
+        return True
+    if state.get("loadErrorText"):
         return True
     if state.get("dialog_messages"):
         return True

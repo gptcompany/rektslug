@@ -60,6 +60,19 @@
             return days === 1 ? '1D' : '1W';
         }
 
+        function ensureValidLevelsPayload(data) {
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            if (!Array.isArray(data.long_liquidations) || !Array.isArray(data.short_liquidations)) {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            if (data.current_price === undefined || data.current_price === null) {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            return data;
+        }
+
         async function loadLevels() {
             const symbol = getSymbol();
             const exchange = getExchange();
@@ -72,17 +85,40 @@
             document.getElementById('pageTitle').textContent =
                 `${displaySymbol} Liquidation Map - ${timeframeLabel} (${exchangeLabel})`;
             document.title = `${displaySymbol} Liquidation Map - ${timeframeTitle} (${exchangeLabel})`;
+            window.__liqMapLoadError = null;
 
             try {
                 const response = await fetch(
                     `/liquidations/levels?symbol=${symbol}&model=openinterest&timeframe=${timeframeDays}`
                 );
-                const data = await response.json();
+                const rawText = await response.text();
+                let data = null;
 
+                if (rawText) {
+                    try {
+                        data = JSON.parse(rawText);
+                    } catch (_parseError) {
+                        throw new Error(
+                            response.ok
+                                ? 'Invalid JSON response from /liquidations/levels'
+                                : `Levels request failed (${response.status})`
+                        );
+                    }
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        (data && (data.message || data.error))
+                            || `Levels request failed (${response.status})`
+                    );
+                }
+
+                ensureValidLevelsPayload(data);
                 renderLiquidationMap(data, symbol);
             } catch (error) {
+                window.__liqMapLoadError = error.message;
+                document.getElementById('lastDataPoint').textContent = `Error: ${error.message}`;
                 console.error('Error loading levels:', error);
-                alert(`Error: ${error.message}`);
             }
         }
 
@@ -154,6 +190,8 @@
 
         function renderLiquidationMap(data, symbol) {
             const currentPrice = parseFloat(data.current_price);
+            document.getElementById('currentPrice').textContent = String(currentPrice);
+            window.__liqMapLoadError = null;
 
             // Show last data point timestamp (hidden DOM element, kept for compatibility)
             const lastTs = data.last_data_timestamp || new Date().toISOString();
