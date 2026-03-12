@@ -70,9 +70,9 @@
 
 ### Phase 6: Documentation
 
-- [ ] T026 Document how calibration specs consume the harness
-- [ ] T027 Document how future heatmap specs will plug into the harness
-- [ ] T028 Document that Counterflow enters as a `lightweight` renderer adapter, not as a special-case global path
+- [x] T026 Document how calibration specs consume the harness
+- [x] T027 Document how future heatmap specs will plug into the harness
+- [x] T028 Document that Counterflow enters as a `lightweight` renderer adapter, not as a special-case global path
 
 ## Completion Notes
 
@@ -86,3 +86,4 @@
 - The frozen MVP contract now explicitly includes `elapsed_seconds`, `artifact_bytes`, `nfr_failures`, optional `local.page_state`, optional `provider.capture_info`, and `failure_reason` semantics.
 - Milestone 3 extension seams are now defined in code: `liq-map` remains timeframe-only on `plotly`, while `liq-heat-map` supports both timeframe/window entry modes and reserves both `plotly` and `lightweight` renderer adapters without wiring a live provider path yet.
 - Compatibility tests now cover `window`-style manifests, deterministic artifact naming for `window` runs, and successful adapter resolution for `liq-heat-map` plus `lightweight`.
+- The spec and plan now document the consumption rules for `spec-018` / `spec-019`, future heatmap work, and Counterflow, keeping `lightweight` as a renderer seam instead of a special-case global path.

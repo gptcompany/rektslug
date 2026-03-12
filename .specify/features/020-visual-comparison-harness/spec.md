@@ -24,3 +24,8 @@ Milestone 1 is now frozen as the stable contract for later specs:
 - one manifest per comparison attempt
 - one score JSON per completed comparison pair
 - partial-manifest-only behavior for provider failures before pair completion
+
+Consumption guidance:
+- `spec-018` and `spec-019` consume this frozen Milestone 1 contract for `liq-map`
+- future heatmap work should plug in through the `liq-heat-map` product seam
+- Counterflow should enter only as `renderer = lightweight`, never as a special-case global path

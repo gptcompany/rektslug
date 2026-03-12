@@ -245,3 +245,23 @@ Milestone 1 also freezes these operational semantics:
 - This harness should stay renderer-agnostic enough to support both Plotly pages and future Counterflow-style visual adapters.
 - Phase 3+ assumes that `spec-018` or an equivalent prior spec has already established at least one calibrated local profile path. Phase 1-2 may proceed independently.
 - Milestone 1 is the only active implementation target until it is green; Milestone 2 hardens it, and Milestone 3 only defines extension seams.
+
+## Consumption Notes
+
+### Calibration Specs
+
+- `spec-018` and `spec-019` consume the Milestone 1 harness contract as a stable screenshot-validation baseline for `liq-map`.
+- Calibration specs should reuse `schema_version = "1.0"`, the frozen manifest/score field set, and the same `run_id + provider + product + renderer + symbol + timeframe/window` artifact naming convention.
+- Calibration-specific metadata may be added outside the frozen Milestone 1 fields, but calibration specs should not fork the core visual-harness runner or scoring contract.
+
+### Future Heatmap Specs
+
+- Future heatmap specs should plug into this harness through the `liq-heat-map` product adapter seam rather than branching the runner into a second screenshot pipeline.
+- Heatmap work may choose timeframe-style or window-style entries, but the manifest must keep those entry modes explicit and must reject incompatible pairings rather than coercing them.
+- Future live provider wiring for heatmap paths should add provider adapters and readiness/scoring details without changing the frozen Milestone 1 `liq-map` contract.
+
+### Counterflow
+
+- Counterflow enters this harness only through `renderer = lightweight`.
+- Counterflow must not be introduced as a special-case global execution path, alternate manifest schema, or bypass around the product/renderer adapter model.
+- Any Counterflow-specific capture or scoring logic belongs behind the `lightweight` renderer seam and should preserve the shared manifest/score contract unless a later spec explicitly versions it.

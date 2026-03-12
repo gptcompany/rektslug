@@ -198,6 +198,24 @@ Failure semantics:
 - Milestone 3 should assume the TDD RED tests already exist and should not add live Coinglass visual wiring without new canonical route documentation.
 - Counterflow integration should wait for Milestone 3 seams rather than adding a parallel special-case path.
 
+## Consumer Guidance
+
+### Calibration Specs
+
+- `spec-018` and `spec-019` should consume the frozen Milestone 1 harness contract as-is for `liq-map` visual validation.
+- Calibration work may enrich higher-level reports, but it should not fork the harness manifest schema, rename artifact files, or redefine pass/fail semantics for the base visual pair.
+
+### Future Heatmap Specs
+
+- Future heatmap specs should integrate through the existing `liq-heat-map` product seam and keep `timeframe` vs `window` explicit in the request/manifest path.
+- They should add provider-specific capture adapters and scoring details incrementally, without changing the locked `liq-map + plotly` MVP contract.
+- Coinglass visual live wiring remains gated on canonical route and capture-invariant documentation.
+
+### Counterflow / Lightweight
+
+- Counterflow should be integrated as `renderer = lightweight` on top of the same runner, manifest writer, and scorer contract.
+- Counterflow-specific behavior should live behind the renderer adapter and must not become a repo-wide special case or bypass path.
+
 ## Non-Functional Gates
 
 - Single `liq-map + plotly` comparison pair under `120s`
