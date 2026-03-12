@@ -78,6 +78,22 @@ def _provider_capture_unreachable(_request: VisualHarnessRequest, _output_path: 
     raise RuntimeError("provider unreachable")
 
 
+def _provider_capture_partial_failure(_request: VisualHarnessRequest, output_path: Path):
+    error = RuntimeError("provider timeout")
+    error.capture_context = {
+        "url": "https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1d",
+        "screenshot_path": str(output_path),
+        "capture_timestamp": "2026-03-11T10:00:04Z",
+        "capture_mode": "screenshot_crop",
+        "capture_info": {
+            "method": "screenshot_crop",
+            "login_attempted": True,
+            "login_success": False,
+        },
+    }
+    raise error
+
+
 def _passing_scorer(_request, _local_capture, _provider_capture):
     return [
         {"name": "tier1_ready", "pass": True, "points": 0, "max_points": 0},
@@ -208,6 +224,29 @@ def test_provider_unreachable_returns_non_zero_and_partial_manifest_with_failure
     assert manifest["provider"]["name"] == "coinank"
 
 
+def test_provider_failure_preserves_partial_capture_context_in_manifest(
+    tmp_path: Path,
+    harness_request: VisualHarnessRequest,
+):
+    outcome = run_visual_pair(
+        request=harness_request,
+        output_dir=tmp_path,
+        local_capture=_local_capture_ready,
+        provider_capture=_provider_capture_partial_failure,
+        scorer=_passing_scorer,
+    )
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+
+    assert outcome.exit_code == 1
+    assert outcome.score_path is None
+    assert manifest["failure_reason"] == "provider timeout"
+    assert manifest["provider"]["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d")
+    assert manifest["provider"]["capture_mode"] == "screenshot_crop"
+    assert manifest["provider"]["capture_info"]["login_attempted"] is True
+    assert manifest["provider"]["capture_info"]["login_success"] is False
+
+
 def test_score_threshold_gate_returns_non_zero_when_score_below_pass_threshold(
     tmp_path: Path,
     harness_request: VisualHarnessRequest,
@@ -317,6 +356,40 @@ def test_coinank_provider_wrapper_tracks_capture_mode(monkeypatch, tmp_path: Pat
 
     assert result["capture_mode"] == "native_download"
     assert result["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d")
+
+
+def test_coinank_provider_wrapper_raises_failure_with_partial_context(
+    monkeypatch,
+    tmp_path: Path,
+    harness_request,
+):
+    from src.liquidationheatmap.validation.visual_harness.providers.coinank import (
+        capture_coinank_liqmap_capture,
+    )
+
+    async def _capture_coinank_liqmap(**kwargs):
+        kwargs["capture_info"]["method"] = "screenshot_crop"
+        kwargs["capture_info"]["url"] = "https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1d"
+        kwargs["capture_info"]["login_attempted"] = True
+        kwargs["capture_info"]["login_success"] = False
+        raise RuntimeError("browser timed out")
+
+    fake_module = SimpleNamespace(
+        capture_coinank_liqmap=_capture_coinank_liqmap,
+        build_coinank_liqmap_url=lambda *_args, **_kwargs: "https://coinank.com/chart/derivatives/liq-map/binance/btcusdt/1d",
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.validation.visual_harness.providers.coinank.import_module",
+        lambda _name: fake_module,
+    )
+
+    with pytest.raises(RuntimeError, match="coinank capture failed: browser timed out") as excinfo:
+        capture_coinank_liqmap_capture(harness_request, tmp_path / "provider.png")
+
+    context = excinfo.value.capture_context
+    assert context["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d")
+    assert context["capture_mode"] == "screenshot_crop"
+    assert context["capture_info"]["login_attempted"] is True
 
 
 def test_runner_fails_when_combined_artifact_size_exceeds_limit(

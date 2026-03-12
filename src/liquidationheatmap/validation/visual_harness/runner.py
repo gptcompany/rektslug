@@ -200,10 +200,11 @@ def run_visual_pair(
     try:
         provider_result = provider_capture_fn(request, paths.provider_screenshot_path)
     except Exception as exc:
+        provider_context = getattr(exc, "capture_context", None)
         manifest = build_manifest_dict(
             request=request,
             local_capture=local_result,
-            provider_capture=None,
+            provider_capture=provider_context,
             failure_reason=str(exc),
         )
         write_manifest(path=paths.manifest_path, manifest=manifest)

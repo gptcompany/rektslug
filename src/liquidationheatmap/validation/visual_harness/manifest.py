@@ -80,6 +80,8 @@ def build_manifest_dict(
         manifest["window"] = request.window
     if local_capture and local_capture.get("local_page_state") is not None:
         manifest["local"]["page_state"] = local_capture["local_page_state"]
+    if provider_capture and provider_capture.get("capture_info") is not None:
+        manifest["provider"]["capture_info"] = provider_capture["capture_info"]
     if failure_reason is not None:
         manifest["failure_reason"] = failure_reason
     return manifest
