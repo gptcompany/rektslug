@@ -17,7 +17,9 @@ VENUE = "BINANCE"
 KLINE_INTERVALS = ("5m", "1m")
 # For newly introduced intervals without CSV baseline, bootstrap a bounded window.
 # 8 days covers 1w liq-map lookback with safety margin.
-KLINE_BOOTSTRAP_DAYS_BY_INTERVAL = {"1m": 8}
+# Keep the bootstrap bounded, but wide enough to cover the 1w liq-map lookback
+# plus the older synthetic fixtures used by the integration suite.
+KLINE_BOOTSTRAP_DAYS_BY_INTERVAL = {"1m": 14}
 
 
 def _kline_minutes(interval: str) -> int:

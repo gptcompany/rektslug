@@ -115,3 +115,25 @@ class TestBinanceStandardModel:
         # Short entries (sell) should result in liquidations ABOVE 60000
         for s in shorts:
             assert s.price_level > Decimal("60000")
+
+    def test_synthetic_mode_keeps_long_below_and_short_above_current_price_even_with_high_mmr(self):
+        """Mode 2 should keep directionally correct levels even on the highest MMR tiers."""
+        model = BinanceStandardModel()
+
+        current_price = Decimal("70000")
+        open_interest = Decimal("400000000")  # Highest MMR tier -> 50%
+
+        liquidations = model.calculate_liquidations(
+            current_price,
+            open_interest,
+            leverage_tiers=[10],
+            num_bins=1,
+        )
+
+        longs = [l for l in liquidations if l.side == "long"]
+        shorts = [l for l in liquidations if l.side == "short"]
+
+        assert len(longs) == 1
+        assert len(shorts) == 1
+        assert longs[0].price_level < current_price
+        assert shorts[0].price_level > current_price

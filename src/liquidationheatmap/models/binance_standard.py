@@ -129,18 +129,26 @@ class BinanceStandardModel(AbstractLiquidationModel):
         for leverage in leverage_tiers:
             # Volume per leverage tier
             volume_per_tier = open_interest / len(leverage_tiers) / 2  # Split long/short
+            long_factor = Decimal("1") - Decimal("1") / Decimal(str(leverage)) + mmr
+            short_factor = Decimal("1") + Decimal("1") / Decimal(str(leverage)) - mmr
 
-            # LONG positions: Entry prices distributed ABOVE current price
-            entry_range_long = np.linspace(
-                float(current_price) * 1.01,  # 1% above
-                float(current_price) * 1.15,  # 15% above
-                num_bins,
-            )
+            current_price_float = float(current_price)
+            long_boundary = current_price_float / float(long_factor)
+            if long_factor < Decimal("1"):
+                long_start = current_price_float * 1.01
+                long_end = min(current_price_float * 1.15, long_boundary * 0.99)
+            else:
+                long_start = long_boundary * 0.85
+                long_end = long_boundary * 0.99
+            if long_end <= long_start:
+                long_start = long_boundary * 0.80
+                long_end = long_boundary * 0.95
+            entry_range_long = np.linspace(long_start, long_end, num_bins)
 
             # Gaussian distribution for realistic volume clustering
             entry_weights_long = np.exp(
                 -0.5
-                * ((entry_range_long - float(current_price) * 1.05) / (float(current_price) * 0.03))
+                * ((entry_range_long - entry_range_long.mean()) / max(current_price_float * 0.03, 1.0))
                 ** 2
             )
             entry_weights_long = entry_weights_long / entry_weights_long.sum()
@@ -161,22 +169,22 @@ class BinanceStandardModel(AbstractLiquidationModel):
                     )
                 )
 
-            # SHORT positions: Entry prices distributed slightly BELOW current price
-            # Entry must be >95% of current to ensure liq > current with high MMR (50%)
-            entry_range_short = np.linspace(
-                float(current_price)
-                * 0.953,  # 4.7% below (ensures liq > current even with 50% MMR)
-                float(current_price) * 0.99,  # 1% below
-                num_bins,
-            )
+            short_boundary = current_price_float / float(short_factor)
+            if short_factor > Decimal("1"):
+                short_start = short_boundary * 1.01
+                short_end = min(current_price_float * 0.99, short_boundary * 1.15)
+            else:
+                short_start = short_boundary * 1.01
+                short_end = short_boundary * 1.15
+            if short_end <= short_start:
+                short_start = short_boundary * 1.02
+                short_end = short_boundary * 1.20
+            entry_range_short = np.linspace(short_start, short_end, num_bins)
 
             # Gaussian distribution
             entry_weights_short = np.exp(
                 -0.5
-                * (
-                    (entry_range_short - float(current_price) * 0.95)
-                    / (float(current_price) * 0.03)
-                )
+                * ((entry_range_short - entry_range_short.mean()) / max(current_price_float * 0.03, 1.0))
                 ** 2
             )
             entry_weights_short = entry_weights_short / entry_weights_short.sum()
