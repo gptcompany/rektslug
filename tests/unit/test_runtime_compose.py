@@ -51,3 +51,5 @@ def test_core_deploy_workflow_targets_core_code():
     # Deploy uses self-hosted runner with git pull + deploy script
     assert "self-hosted" in text
     assert "deploy-core.sh" in text
+    assert 'cd "${GITHUB_WORKSPACE}"' in text
+    assert "/media/sam/1TB/rektslug" not in text
