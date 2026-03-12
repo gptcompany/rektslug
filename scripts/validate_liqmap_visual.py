@@ -348,7 +348,17 @@ def _derive_local_liqmap_failure_reason(state: dict[str, Any]) -> str:
     return "chart_not_ready"
 
 
-async def wait_for_local_liqmap_ready(page) -> dict[str, Any]:
+def _should_abort_local_liqmap_wait(state: dict[str, Any]) -> bool:
+    if state.get("ready"):
+        return False
+    if state.get("levels_request_failures"):
+        return True
+    if state.get("dialog_messages"):
+        return True
+    return False
+
+
+async def wait_for_local_liqmap_ready(page, abort_if=None) -> dict[str, Any]:
     """Wait for the Plotly liq-map chart to render."""
     await page.wait_for_selector("#liquidation-map", state="visible", timeout=30000)
 
@@ -356,6 +366,8 @@ async def wait_for_local_liqmap_ready(page) -> dict[str, Any]:
         state = await _extract_local_liqmap_state(page)
         if state.get("hasPlotRoot") or state.get("hasMainSvg") or state.get("hasFullLayout"):
             return {"ready": True, **state}
+        if abort_if is not None and abort_if(state):
+            return {"ready": False, **state}
         await page.wait_for_timeout(1000)
     state = await _extract_local_liqmap_state(page)
     return {"ready": False, **state}
@@ -406,7 +418,16 @@ async def capture_local_liqmap_page(
         try:
             await page.goto(page_url, timeout=120000)
             await page.wait_for_load_state("load", timeout=30000)
-            ready_state = await wait_for_local_liqmap_ready(page)
+            ready_state = await wait_for_local_liqmap_ready(
+                page,
+                abort_if=lambda state: _should_abort_local_liqmap_wait(
+                    {
+                        **state,
+                        "levels_request_failures": levels_request_failures,
+                        "dialog_messages": dialog_messages,
+                    }
+                ),
+            )
             ready_state["console_errors"] = console_errors
             ready_state["levels_request_failures"] = levels_request_failures
             ready_state["dialog_messages"] = dialog_messages

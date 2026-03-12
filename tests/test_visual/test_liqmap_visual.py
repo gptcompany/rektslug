@@ -409,6 +409,42 @@ def test_wait_for_local_liqmap_ready_accepts_plotly_dom_signals():
     assert state["hasFullLayout"] is True
 
 
+def test_wait_for_local_liqmap_ready_can_abort_early_on_explicit_failure():
+    """The validator should stop waiting when the page has already failed loudly."""
+    from validate_liqmap_visual import wait_for_local_liqmap_ready
+
+    class _FakePage:
+        def __init__(self):
+            self.evaluate_calls = 0
+
+        async def wait_for_selector(self, *_args, **_kwargs):
+            return None
+
+        async def evaluate(self, _script):
+            self.evaluate_calls += 1
+            return {
+                "hasContainer": True,
+                "hasPlotlyGlobal": True,
+                "hasPlotRoot": False,
+                "hasMainSvg": False,
+                "hasFullLayout": False,
+                "lastDataText": "",
+                "documentTitle": "BTC/USDT Liquidation Map - 1D (Binance)",
+            }
+
+        async def wait_for_timeout(self, _millis):
+            raise AssertionError("wait_for_timeout should not be called after an explicit abort")
+
+    state = asyncio.run(
+        wait_for_local_liqmap_ready(
+            _FakePage(),
+            abort_if=lambda state: True,
+        )
+    )
+
+    assert state["ready"] is False
+
+
 def test_derive_local_liqmap_failure_reason_prioritizes_levels_failure():
     """The validator should surface a failed levels fetch ahead of generic browser errors."""
     from validate_liqmap_visual import _derive_local_liqmap_failure_reason
@@ -423,3 +459,18 @@ def test_derive_local_liqmap_failure_reason_prioritizes_levels_failure():
     )
 
     assert reason == "levels_request_failed"
+
+
+def test_should_abort_local_liqmap_wait_on_levels_failure():
+    """A failed levels request should short-circuit the wait loop."""
+    from validate_liqmap_visual import _should_abort_local_liqmap_wait
+
+    should_abort = _should_abort_local_liqmap_wait(
+        {
+            "ready": False,
+            "levels_request_failures": [{"status": 503}],
+            "dialog_messages": [],
+        }
+    )
+
+    assert should_abort is True
