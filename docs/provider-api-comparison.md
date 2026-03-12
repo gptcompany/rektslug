@@ -189,6 +189,29 @@ validation DuckDB (`data/validation/validation_results.duckdb`). Use
 
 ## Calibration Commands
 
+### Spec-018: CoinAnK-oriented liq-map calibration
+
+`spec-018` freezes CoinAnK references from `spec-017`, then compares a fresh
+local baseline (`rektslug-default`) and the candidate `rektslug-ank` profile
+against those same provider artifacts.
+
+Standard run:
+
+```bash
+uv run python scripts/run_ank_calibration.py
+```
+
+If you want to point the runner at a non-container local API instance:
+
+```bash
+REKTSLUG_API_BASE=http://127.0.0.1:8010 \
+  uv run python scripts/run_ank_calibration.py
+```
+
+The accepted calibration artifact is currently:
+
+`data/validation/provider_comparisons/20260310T235617Z_calibration_rektslug-ank.json`
+
 ### Spec-019: Coinglass-oriented liq-map calibration
 
 `spec-019` reuses frozen Coinglass references from `spec-017`, then compares a
@@ -211,6 +234,93 @@ REKTSLUG_API_BASE=http://127.0.0.1:8010 \
 The accepted calibration artifact is currently:
 
 `data/validation/provider_comparisons/20260311T005526Z_calibration_rektslug-glass.json`
+
+## Current Status
+
+As of `2026-03-12`, the repo state is:
+
+- `spec-017`: closed. Raw/liquidation-data comparison is locked to `liq-map`
+  across `BTC/ETH x 1d/1w`.
+- `spec-018`: closed. `rektslug-ank` is accepted against the locked CoinAnK
+  matrix (`4/4` entries passing, no critical regressions).
+- `spec-019`: closed. `rektslug-glass` is accepted against the locked
+  Coinglass matrix (`3/4` entries passing, no critical regressions).
+- `spec-020`: closed for the current MVP. The live green path is
+  `local + CoinAnK + liq-map + plotly`, with the harness contract frozen at
+  `schema_version = "1.0"`.
+- `spec-021`: closed at the provider-profile level. Counterflow is explicitly
+  represented in normalized reports, but it is **not** yet wired as a live
+  visual-harness provider.
+
+Practical interpretation:
+
+- Rektslug is now comparison-ready and calibrated against both CoinAnK and
+  Coinglass on the `liq-map` data side.
+- Rektslug is visually verified today only on the `local vs CoinAnK` MVP path.
+- Rektslug is **not** yet a guaranteed 1:1 numeric or visual clone of both
+  external providers at the same time.
+
+## Where To Verify
+
+Use the following surfaces, depending on what you want to verify.
+
+### 1. Raw/provider-comparison artifacts
+
+Primary evidence for data-side parity and calibration:
+
+- accepted CoinAnK calibration:
+  `data/validation/provider_comparisons/20260310T235617Z_calibration_rektslug-ank.json`
+- accepted Coinglass calibration:
+  `data/validation/provider_comparisons/20260311T005526Z_calibration_rektslug-glass.json`
+- normalized comparison reports:
+  `data/validation/provider_comparisons/*_provider_liquidations.json`
+- residual-gap reports:
+  `data/validation/provider_comparisons/*_provider_gap_analysis.json`
+
+### 2. Local/provider visual parity
+
+Primary evidence for the current visual-harness MVP:
+
+- local chart routes:
+  see `docs/runbooks/chart-routes.md`
+- CLI:
+
+```bash
+uv run python scripts/run_visual_harness.py \
+  --run-id visual_btc_1d \
+  --provider coinank \
+  --product liq-map \
+  --renderer plotly \
+  --symbol BTCUSDT \
+  --timeframe 1d
+```
+
+By default this writes to:
+
+`data/validation/visual_harness/`
+
+Each successful pair emits:
+
+- one manifest JSON
+- one score JSON
+
+For the frozen MVP contract, a pass means:
+
+- `status = "pass"`
+- `tier1_pass = true`
+- `score >= 95`
+
+### 3. Internal validation dashboard
+
+The repo also has an internal validation dashboard:
+
+- UI file: `frontend/validation_dashboard.html`
+- API endpoint: `/api/validation/dashboard`
+- API implementation: `src/api/endpoints/dashboard.py`
+
+This dashboard is for validation-pipeline health, trends, alerts, and recent
+validation runs. It is **not** the same thing as the provider-parity surface
+used for CoinAnK/Coinglass/Counterflow comparison.
 
 ## Provider-Specific Notes
 

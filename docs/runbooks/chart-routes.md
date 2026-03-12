@@ -51,5 +51,21 @@ The visual validation scripts now target the canonical routes:
 
 - `scripts/validate_liqmap_visual.py`
 - `scripts/validate_heatmap_visual.py`
+- `scripts/run_visual_harness.py`
 
 Use these routes for browser automation, screenshot diffing, and future 1:1 Coinank validation loops.
+
+For the current frozen `spec-020` MVP, the concrete live harness path is:
+
+```bash
+uv run python scripts/run_visual_harness.py \
+  --provider coinank \
+  --product liq-map \
+  --renderer plotly \
+  --symbol BTCUSDT \
+  --timeframe 1d
+```
+
+This is separate from the internal validation dashboard in
+`frontend/validation_dashboard.html`, which tracks validation-pipeline health
+rather than provider-parity artifacts.
