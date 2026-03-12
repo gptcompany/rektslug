@@ -254,6 +254,7 @@ class TestFrontendStaticFiles:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "ensureValidLevelsPayload" in response.text
+        assert "if (_isCoinankPath) return 'rektslug-ank';" in response.text
         assert "window.__liqMapLoadError = null" in response.text
         assert "if (!response.ok)" in response.text
         assert "Current Price: ${Math.round(currentPrice)}" in response.text

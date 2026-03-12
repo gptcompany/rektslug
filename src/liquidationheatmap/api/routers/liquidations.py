@@ -102,9 +102,8 @@ def _aggregate_legacy_levels(bins_df, bin_size: float):
     agg_df["price_bucket"] = agg_df["liq_price"].apply(
         lambda value: _round_to_bucket(float(value), bin_size)
     )
-    return agg_df.groupby(["price_bucket", "side"]).agg({
+    return agg_df.groupby(["price_bucket", "side", "leverage"]).agg({
         "volume": "sum",
-        "leverage": "max",
     }).reset_index()
 
 

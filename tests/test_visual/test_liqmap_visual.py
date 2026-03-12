@@ -76,11 +76,13 @@ def test_preflight_liqmap_api_parses_response(free_port):
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
+            profile="rektslug-ank",
         )
         assert result["ok"] is True
         assert result["long_count"] == 1
         assert result["short_count"] == 2
         assert result["current_price"] == "86000.5"
+        assert "profile=rektslug-ank" in result["url"]
     finally:
         server.shutdown()
 
@@ -146,6 +148,7 @@ def test_fetch_liqmap_payload_returns_full_payload(free_port):
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
+            profile="rektslug-ank",
         )
         assert "long_liquidations" in payload
         assert "short_liquidations" in payload
@@ -154,6 +157,24 @@ def test_fetch_liqmap_payload_returns_full_payload(free_port):
         assert len(payload["short_liquidations"]) == 1
     finally:
         server.shutdown()
+
+
+def test_build_liqmap_page_url_includes_profile_query():
+    from validate_liqmap_visual import build_liqmap_page_url
+
+    url = build_liqmap_page_url(
+        api_base="http://127.0.0.1:8002",
+        exchange="binance",
+        symbol="BTCUSDT",
+        timeframe=1,
+        chart_mode="bar",
+        profile="rektslug-ank",
+    )
+
+    assert url == (
+        "http://127.0.0.1:8002/chart/derivatives/liq-map/"
+        "binance/btcusdt/1d?profile=rektslug-ank"
+    )
 
 
 def test_fetch_liqmap_payload_returns_none_on_error():

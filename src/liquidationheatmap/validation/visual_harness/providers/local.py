@@ -14,6 +14,14 @@ def _timeframe_days(timeframe: str) -> int:
         raise ValueError(f"Unsupported liq-map timeframe: {timeframe}") from exc
 
 
+def _profile_for_provider(provider: str) -> str | None:
+    mapping = {
+        "coinank": "rektslug-ank",
+        "coinglass": "rektslug-glass",
+    }
+    return mapping.get(provider)
+
+
 def capture_local_liqmap_capture(request, output_path: Path) -> dict:
     module = import_module("scripts.validate_liqmap_visual")
     page_url = module.build_liqmap_page_url(
@@ -22,6 +30,7 @@ def capture_local_liqmap_capture(request, output_path: Path) -> dict:
         symbol=request.symbol,
         timeframe=_timeframe_days(request.timeframe or ""),
         chart_mode="bar",
+        profile=_profile_for_provider(request.provider),
     )
     ready_state = asyncio.run(
         module.capture_local_liqmap_page(

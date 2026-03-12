@@ -60,6 +60,16 @@
             return days === 1 ? '1D' : '1W';
         }
 
+        function getProfile() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicitProfile = urlParams.get('profile');
+            if (explicitProfile) return explicitProfile;
+            // Canonical liq-map route is CoinAnK-style; default it to the calibrated
+            // CoinAnK profile unless a specific comparison profile is requested.
+            if (_isCoinankPath) return 'rektslug-ank';
+            return null;
+        }
+
         function ensureValidLevelsPayload(data) {
             if (!data || typeof data !== 'object') {
                 throw new Error('Invalid liquidation levels payload');
@@ -77,6 +87,7 @@
             const symbol = getSymbol();
             const exchange = getExchange();
             const timeframeDays = getTimeframeDays();
+            const profile = getProfile();
             const displaySymbol = symbol.replace('USDT', '/USDT');
             const exchangeLabel = formatExchangeLabel(exchange);
             const timeframeLabel = getTimeframeLabel(timeframeDays);
@@ -88,9 +99,12 @@
             window.__liqMapLoadError = null;
 
             try {
-                const response = await fetch(
-                    `/liquidations/levels?symbol=${symbol}&model=openinterest&timeframe=${timeframeDays}`
-                );
+                let levelsUrl =
+                    `/liquidations/levels?symbol=${symbol}&model=openinterest&timeframe=${timeframeDays}`;
+                if (profile) {
+                    levelsUrl += `&profile=${encodeURIComponent(profile)}`;
+                }
+                const response = await fetch(levelsUrl);
                 const rawText = await response.text();
                 let data = null;
 

@@ -65,8 +65,11 @@ def preflight_liqmap_api(
     symbol: str,
     model: str,
     timeframe: int,
+    profile: str | None = None,
 ) -> dict[str, Any]:
     url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
+    if profile:
+        url = f"{url}&profile={profile}"
     try:
         payload = http_get_json(url, timeout=15.0)
     except Exception as exc:
@@ -88,12 +91,15 @@ def fetch_liqmap_payload(
     symbol: str,
     model: str,
     timeframe: int,
+    profile: str | None = None,
 ) -> dict[str, Any] | None:
     """Fetch the complete /liquidations/levels JSON payload.
 
     Returns the full response dict, or None on error.
     """
     url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
+    if profile:
+        url = f"{url}&profile={profile}"
     try:
         return http_get_json(url, timeout=15.0)
     except Exception:
@@ -298,6 +304,7 @@ def build_liqmap_page_url(
     symbol: str,
     timeframe: int,
     chart_mode: str,
+    profile: str | None = None,
 ) -> str:
     route_timeframe = ROUTE_TIMEFRAME_BY_DAYS.get(timeframe)
     if route_timeframe is None:
@@ -306,8 +313,13 @@ def build_liqmap_page_url(
         f"{api_base}/chart/derivatives/liq-map/"
         f"{exchange.lower()}/{symbol.lower()}/{route_timeframe}"
     )
+    query_params: list[str] = []
     if chart_mode != "bar":
-        page_url = f"{page_url}?chart={chart_mode}"
+        query_params.append(f"chart={chart_mode}")
+    if profile:
+        query_params.append(f"profile={profile}")
+    if query_params:
+        page_url = f"{page_url}?{'&'.join(query_params)}"
     return page_url
 
 
