@@ -53,3 +53,15 @@ def test_core_deploy_workflow_targets_core_code():
     assert "deploy-core.sh" in text
     assert 'cd "${GITHUB_WORKSPACE}"' in text
     assert "/media/sam/1TB/rektslug" not in text
+
+
+def test_deploy_core_uses_shared_env_fallback():
+    """deploy-core.sh should reuse the shared runtime env when checkout .env is absent."""
+    script_path = REPO_ROOT / "scripts" / "deploy-core.sh"
+    text = script_path.read_text(encoding="utf-8")
+
+    assert '. "$SCRIPT_DIR/lib/runtime_env.sh"' in text
+    assert "lh_load_runtime_env host" in text
+    assert "SHARED_ENV_FILE" in text
+    assert 'ln -sf "${SHARED_ENV_FILE}" .env' in text
+    assert 'rm -f "${PROJECT_DIR}/.env"' in text
