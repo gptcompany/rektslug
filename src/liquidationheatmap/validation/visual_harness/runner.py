@@ -7,7 +7,11 @@ from typing import Callable
 
 from .adapters import get_product_adapter, get_renderer_adapter
 from .manifest import build_artifact_paths, build_manifest_dict, write_manifest
-from .providers import capture_coinank_liqmap_capture, capture_local_liqmap_capture
+from .providers import (
+    capture_coinank_liqmap_capture,
+    capture_coinglass_liqmap_capture,
+    capture_local_liqmap_capture,
+)
 from .scorer import build_score_report, write_score_report
 
 
@@ -72,6 +76,8 @@ def _default_local_capture(request: VisualHarnessRequest, output_path: Path) -> 
 def _default_provider_capture(request: VisualHarnessRequest, output_path: Path) -> dict:
     if request.provider == "coinank" and request.product == "liq-map" and request.renderer == "plotly":
         return capture_coinank_liqmap_capture(request, output_path)
+    if request.provider == "coinglass" and request.product == "liq-map" and request.renderer == "plotly":
+        return capture_coinglass_liqmap_capture(request, output_path)
     raise ValueError(
         f"No provider capture adapter for provider={request.provider} product={request.product} renderer={request.renderer}"
     )

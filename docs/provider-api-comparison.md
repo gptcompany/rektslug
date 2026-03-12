@@ -246,8 +246,9 @@ As of `2026-03-12`, the repo state is:
 - `spec-019`: closed. `rektslug-glass` is accepted against the locked
   Coinglass matrix (`3/4` entries passing, no critical regressions).
 - `spec-020`: closed for the current MVP. The live green path is
-  `local + CoinAnK + liq-map + plotly`, with the harness contract frozen at
-  `schema_version = "1.0"`.
+  `local + provider + liq-map + plotly`, with the harness contract frozen at
+  `schema_version = "1.0"`. Both CoinAnK and Coinglass are now wired as live
+  providers on the active `BTC/ETH x 1d/1w` matrix.
 - `spec-021`: closed at the provider-profile level. Counterflow is explicitly
   represented in normalized reports, but it is **not** yet wired as a live
   visual-harness provider.
@@ -256,7 +257,8 @@ Practical interpretation:
 
 - Rektslug is now comparison-ready and calibrated against both CoinAnK and
   Coinglass on the `liq-map` data side.
-- Rektslug is visually verified today only on the `local vs CoinAnK` MVP path.
+- Rektslug is visually verified today on both `local vs CoinAnK` and
+  `local vs Coinglass` for the frozen `liq-map + plotly` MVP path.
 - Rektslug is **not** yet a guaranteed 1:1 numeric or visual clone of both
   external providers at the same time.
 
@@ -293,6 +295,14 @@ uv run python scripts/run_visual_harness.py \
   --renderer plotly \
   --symbol BTCUSDT \
   --timeframe 1d
+
+uv run python scripts/run_visual_harness.py \
+  --run-id visual_eth_1w \
+  --provider coinglass \
+  --product liq-map \
+  --renderer plotly \
+  --symbol ETHUSDT \
+  --timeframe 1w
 ```
 
 By default this writes to:
@@ -358,6 +368,14 @@ used for CoinAnK/Coinglass/Counterflow comparison.
   (as of commit `cae0e8f`). Instead of clicking the dropdown, it intercepts
   the page's own authenticated `liqMap` request and rewrites the `interval`,
   `limit`, and `data` query parameters before forwarding.
+- For the visual harness MVP, the live Coinglass path now supports:
+  - `BTCUSDT` / `ETHUSDT`
+  - `1d` / `1w`
+  - `provider=coinglass`
+  - `product=liq-map`
+  - `renderer=plotly`
+- The harness uses symbol/timeframe UI application with screenshot capture as
+  the final fallback even when route-rewrite verification times out.
 - `timeframe_applied` is set to `true` only when a rewritten response is
   captured with matching `interval`/`limit` and `success: true` in the body.
 - All 6 timeframes have been verified with real captures (2026-03-03):

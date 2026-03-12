@@ -1,6 +1,7 @@
 # Chart Routes
 
-This repo now has two canonical UI entrypoints for visual validation against Coinank.
+This repo now has two canonical UI entrypoints for visual validation against
+provider reference pages.
 
 ## Canonical Routes
 
@@ -53,9 +54,10 @@ The visual validation scripts now target the canonical routes:
 - `scripts/validate_heatmap_visual.py`
 - `scripts/run_visual_harness.py`
 
-Use these routes for browser automation, screenshot diffing, and future 1:1 Coinank validation loops.
+Use these routes for browser automation, screenshot diffing, and future 1:1
+provider validation loops.
 
-For the current frozen `spec-020` MVP, the concrete live harness path is:
+For the current frozen `spec-020` MVP, the concrete live harness paths are:
 
 ```bash
 uv run python scripts/run_visual_harness.py \
@@ -64,6 +66,13 @@ uv run python scripts/run_visual_harness.py \
   --renderer plotly \
   --symbol BTCUSDT \
   --timeframe 1d
+
+uv run python scripts/run_visual_harness.py \
+  --provider coinglass \
+  --product liq-map \
+  --renderer plotly \
+  --symbol ETHUSDT \
+  --timeframe 1w
 ```
 
 This is separate from the internal validation dashboard in

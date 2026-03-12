@@ -49,6 +49,7 @@ DEFAULT_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 DEFAULT_COINGLASS_URL = "https://www.coinglass.com/LiquidationData"
+COINGLASS_LIQMAP_PAGE_URL = "https://www.coinglass.com/pro/futures/LiquidationMap"
 COINGLASS_LOGIN_URL = "https://www.coinglass.com/login?act=liqmap"
 BITCOINCOUNTERFLOW_DEFAULT_URL = "https://bitcoincounterflow.com/liquidation-heatmap/"
 BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
@@ -501,12 +502,42 @@ async def apply_coinglass_timeframe(target: CaptureTarget, page) -> bool:
     if current_value and current_value.lower() == desired.lower():
         return True
 
+    async def read_combobox_value(locator) -> str:
+        try:
+            value = (
+                await locator.evaluate(
+                    "(el) => ((el.value ?? el.innerText ?? el.textContent) || '').trim()"
+                )
+            ).strip()
+            if value:
+                return value
+        except Exception:
+            pass
+        try:
+            return (await locator.inner_text()).strip()
+        except Exception:
+            return ""
+
     try:
         await comboboxes.nth(timeframe_index).click(timeout=5000)
     except Exception:
         return False
 
-    await page.wait_for_timeout(500)
+    await page.wait_for_timeout(2000)
+
+    try:
+        exact_option = page.locator(
+            f'[role="option"]:has-text("{desired}")'
+        ).first
+        await exact_option.wait_for(state="visible", timeout=5000)
+        if exact_option:
+            await exact_option.click(timeout=5000)
+            await page.wait_for_timeout(1500)
+            selected_text = await read_combobox_value(comboboxes.nth(timeframe_index))
+            if selected_text.lower() == desired.lower():
+                return True
+    except Exception:
+        pass
 
     option_selectors = (
         f'[role="option"]:has-text("{desired}")',
@@ -518,13 +549,109 @@ async def apply_coinglass_timeframe(target: CaptureTarget, page) -> bool:
     )
     for selector in option_selectors:
         try:
-            matches = page.locator(selector)
-            for idx in range(await matches.count()):
-                option = matches.nth(idx)
-                if not await option.is_visible(timeout=500):
-                    continue
-                await option.click(timeout=3000)
-                await page.wait_for_timeout(1000)
+            option = page.locator(selector).first
+            await option.wait_for(state="visible", timeout=1500)
+            await option.click(timeout=3000)
+            await page.wait_for_timeout(1000)
+            selected_text = await read_combobox_value(comboboxes.nth(timeframe_index))
+            if selected_text.lower() == desired.lower():
+                return True
+        except Exception:
+            continue
+
+    return False
+
+
+async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
+    """Set the main Coinglass LiquidationMap symbol via the visible combobox."""
+    desired_coin = target.coin.upper()
+    desired = f"Binance {desired_coin}/USDT Perpetual"
+
+    async def read_combobox_value(locator) -> str:
+        try:
+            value = (
+                await locator.evaluate(
+                    "(el) => ((el.value ?? el.innerText ?? el.textContent) || '').trim()"
+                )
+            ).strip()
+            if value:
+                return value
+        except Exception:
+            pass
+        try:
+            return (await locator.inner_text()).strip()
+        except Exception:
+            return ""
+
+    comboboxes = page.locator('[role="combobox"]')
+    combobox_count = await comboboxes.count()
+    symbol_index = None
+    current_value = None
+
+    for idx in range(combobox_count):
+        text = await read_combobox_value(comboboxes.nth(idx))
+        if "perpetual" in text.lower():
+            symbol_index = idx
+            current_value = text
+            break
+
+    if symbol_index is None:
+        return False
+
+    if current_value and desired_coin in current_value.upper():
+        return True
+
+    try:
+        await comboboxes.nth(symbol_index).click(timeout=5000)
+        tag_name = await comboboxes.nth(symbol_index).evaluate("(el) => el.tagName.toLowerCase()")
+        if tag_name == "input":
+            await comboboxes.nth(symbol_index).press("Control+A", timeout=3000)
+            await comboboxes.nth(symbol_index).fill(desired_coin, timeout=5000)
+    except Exception:
+        return False
+
+    await page.wait_for_timeout(1500)
+
+    try:
+        exact_option = page.locator(
+            f'[role="option"]:has-text("{desired}")'
+        ).first
+        await exact_option.wait_for(state="visible", timeout=5000)
+        await exact_option.click(timeout=5000)
+        await page.wait_for_timeout(3000)
+        selected_text = await read_combobox_value(comboboxes.nth(symbol_index))
+        if desired_coin in selected_text.upper():
+            return True
+        try:
+            heading_text = (await page.locator("h1").first.inner_text()).strip()
+        except Exception:
+            heading_text = ""
+        if desired_coin in heading_text.upper():
+            return True
+    except Exception:
+        pass
+
+    option_selectors = (
+        f'[role="option"]:has-text("{desired_coin}/USDT")',
+        f'li:has-text("{desired}")',
+        f'div:has-text("{desired}")',
+        f'button:has-text("{desired}")',
+        f'text="{desired}"',
+    )
+    for selector in option_selectors:
+        try:
+            option = page.locator(selector).first
+            await option.wait_for(state="visible", timeout=2000)
+            await option.click(timeout=5000)
+            await page.wait_for_timeout(3000)
+            selected_text = await read_combobox_value(comboboxes.nth(symbol_index))
+            if desired_coin in selected_text.upper():
+                return True
+            try:
+                heading_text = (await page.locator("h1").first.inner_text()).strip()
+            except Exception:
+                heading_text = ""
+            if desired_coin in heading_text.upper():
                 return True
         except Exception:
             continue
@@ -697,6 +824,7 @@ async def coinglass_direct_fetch(
     timeframe_key = target.ui_timeframe or "1d"
     interval, limit = resolve_coinglass_interval_limit(timeframe_key)
     data_param = generate_coinglass_data_param()
+    symbol = f"Binance_{target.coin.upper()}USDT"
 
     data_encoded = quote(data_param, safe="")
 
@@ -710,6 +838,7 @@ async def coinglass_direct_fetch(
         url = route.request.url
         new_url = re.sub(r"interval=[^&]+", f"interval={interval}", url)
         new_url = re.sub(r"limit=\d+", f"limit={limit}", new_url)
+        new_url = re.sub(r"symbol=[^&]+", f"symbol={quote(symbol, safe='')}", new_url)
         new_url = re.sub(r"data=[^&]+", f"data={data_encoded}", new_url)
         rewritten = True
         await route.continue_(url=new_url)
@@ -746,6 +875,8 @@ async def coinglass_direct_fetch(
         url = cap.get("source_url", "")
         if "liqMap" not in url:
             continue
+        if f"symbol={symbol.lower()}".lower() not in url.lower():
+            continue
         if f"interval={interval}" not in url:
             continue
         if f"limit={limit}" not in url:
@@ -762,6 +893,195 @@ async def coinglass_direct_fetch(
         )
 
     return verified
+
+
+async def _capture_largest_chart_element(page, output_path: Path) -> str:
+    """Capture the largest visible chart-like element or fall back to viewport."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    largest_handle = None
+    largest_area = 0.0
+    for handle in await page.locator("canvas, svg").element_handles():
+        try:
+            box = await handle.bounding_box()
+        except Exception:
+            continue
+        if not box:
+            continue
+        width = float(box.get("width") or 0.0)
+        height = float(box.get("height") or 0.0)
+        if width < 300 or height < 180:
+            continue
+        area = width * height
+        if area > largest_area:
+            largest_area = area
+            largest_handle = handle
+
+    if largest_handle is not None:
+        await largest_handle.screenshot(path=str(output_path))
+        return "screenshot_crop"
+
+    await page.screenshot(path=str(output_path))
+    return "screenshot_viewport"
+
+
+async def capture_coinglass_liqmap_visual(
+    coin: str,
+    timeframe: str,
+    output_path: Path,
+    headless: bool = True,
+    email: str | None = None,
+    password: str | None = None,
+    capture_info: dict | None = None,
+) -> Path:
+    """Capture a Coinglass liq-map screenshot and return the saved path.
+
+    The helper reuses the authenticated page workflow and route interception
+    already used by raw provider capture so the visual path can lock both
+    timeframe and symbol before the screenshot is taken.
+    """
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError as exc:
+        raise RuntimeError(
+            "playwright is not installed. Run `uv add --dev playwright` and "
+            "`playwright install chromium`."
+        ) from exc
+
+    url = COINGLASS_LIQMAP_PAGE_URL
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    info: dict[str, Any] = capture_info if capture_info is not None else {}
+    info["url"] = url
+    info["login_attempted"] = bool(email and password)
+    info["login_success"] = False
+    info["symbol_applied"] = False
+    info["timeframe_applied"] = False
+    info["requested_symbol"] = f"{coin.upper()}USDT"
+    info["requested_timeframe"] = timeframe
+    info["method"] = "screenshot_viewport"
+
+    target = CaptureTarget(
+        provider="coinglass",
+        url=url,
+        email=email,
+        password=password,
+        ui_timeframe=normalize_coinglass_timeframe_label(timeframe),
+        coin=coin.upper(),
+    )
+
+    captured: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    capture_tasks: set[asyncio.Task[Any]] = set()
+    capture_lock = asyncio.Lock()
+
+    async def handle_response(response) -> None:
+        async with capture_lock:
+            url = response.url
+            if not response_matches_target(target, url):
+                return
+            if response.status >= 400:
+                return
+
+            request_post_data = response.request.post_data or ""
+            request_fingerprint = hashlib.sha1(request_post_data.encode("utf-8")).hexdigest()[:12]
+            key = f"{response.request.method}:{url}:{request_fingerprint}"
+            if key in seen_urls:
+                return
+
+            try:
+                body = await response.text()
+            except Exception:
+                return
+
+            content_type = response.headers.get("content-type", "")
+            if not looks_like_json_body(content_type, url, body):
+                return
+
+            seen_urls.add(key)
+            try:
+                payload = json.loads(body)
+                summary = summarize_json_payload(payload)
+            except Exception:
+                summary = {"kind": "text", "preview": body[:200]}
+
+            captured.append(
+                {
+                    "source_url": _redact_url(url),
+                    "summary": summary,
+                }
+            )
+
+    def schedule_response(response) -> None:
+        task = asyncio.create_task(handle_response(response))
+        capture_tasks.add(task)
+        task.add_done_callback(capture_tasks.discard)
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=headless,
+            args=["--no-sandbox", "--disable-setuid-sandbox"],
+        )
+        context = await browser.new_context(
+            viewport={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT},
+            user_agent=DEFAULT_USER_AGENT,
+        )
+        await context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+        )
+        page = await context.new_page()
+        page.on("response", schedule_response)
+
+        try:
+            if email and password:
+                info["login_success"] = await coinglass_login(page, email, password)
+
+            await page.goto(url, timeout=120000)
+            await page.wait_for_load_state("load", timeout=30000)
+            await dismiss_coinglass_popups(page)
+
+            symbol_applied = await asyncio.wait_for(
+                apply_coinglass_symbol(target, page),
+                timeout=15,
+            )
+            info["symbol_applied"] = symbol_applied
+
+            timeframe_applied = False
+            if symbol_applied and target.coin.upper() == "BTC":
+                timeframe_applied = await asyncio.wait_for(
+                    coinglass_direct_fetch(target, page, captured),
+                    timeout=45,
+                )
+            if not timeframe_applied:
+                timeframe_applied = await asyncio.wait_for(
+                    apply_coinglass_timeframe(target, page),
+                    timeout=15,
+                )
+            info["timeframe_applied"] = timeframe_applied
+
+            if not symbol_applied or not timeframe_applied:
+                raise RuntimeError(
+                    f"coinglass timeframe/symbol not verified for {target.coin.upper()} {timeframe}"
+                )
+
+            try:
+                await page.wait_for_load_state("networkidle", timeout=15000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(3000)
+            if capture_tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*capture_tasks, return_exceptions=True),
+                        timeout=5,
+                    )
+                except asyncio.TimeoutError:
+                    info["response_drain_timeout"] = True
+
+            info["method"] = await _capture_largest_chart_element(page, output_path)
+            return output_path
+        finally:
+            await browser.close()
 
 
 async def capture_target(

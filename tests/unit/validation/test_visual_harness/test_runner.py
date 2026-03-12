@@ -438,6 +438,71 @@ def test_coinank_provider_wrapper_raises_failure_with_partial_context(
     assert context["capture_info"]["login_attempted"] is True
 
 
+def test_coinglass_provider_wrapper_tracks_capture_mode(monkeypatch, tmp_path: Path, harness_request):
+    from src.liquidationheatmap.validation.visual_harness.providers.coinglass import (
+        capture_coinglass_liqmap_capture,
+    )
+
+    async def _capture_coinglass_liqmap_visual(**kwargs):
+        kwargs["output_path"].write_text("provider")
+        kwargs["capture_info"]["method"] = "screenshot_crop"
+        kwargs["capture_info"]["url"] = "https://www.coinglass.com/pro/futures/LiquidationMap"
+        kwargs["capture_info"]["symbol_applied"] = True
+        kwargs["capture_info"]["timeframe_applied"] = True
+        return kwargs["output_path"]
+
+    fake_module = SimpleNamespace(
+        capture_coinglass_liqmap_visual=_capture_coinglass_liqmap_visual,
+        COINGLASS_LIQMAP_PAGE_URL="https://www.coinglass.com/pro/futures/LiquidationMap",
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.validation.visual_harness.providers.coinglass.import_module",
+        lambda _name: fake_module,
+    )
+
+    result = capture_coinglass_liqmap_capture(harness_request, tmp_path / "provider.png")
+
+    assert result["capture_mode"] == "screenshot_crop"
+    assert result["url"] == "https://www.coinglass.com/pro/futures/LiquidationMap"
+    assert result["capture_info"]["symbol_applied"] is True
+    assert result["capture_info"]["timeframe_applied"] is True
+
+
+def test_coinglass_provider_wrapper_raises_failure_with_partial_context(
+    monkeypatch,
+    tmp_path: Path,
+    harness_request,
+):
+    from src.liquidationheatmap.validation.visual_harness.providers.coinglass import (
+        capture_coinglass_liqmap_capture,
+    )
+
+    async def _capture_coinglass_liqmap_visual(**kwargs):
+        kwargs["capture_info"]["method"] = "screenshot_viewport"
+        kwargs["capture_info"]["url"] = "https://www.coinglass.com/pro/futures/LiquidationMap"
+        kwargs["capture_info"]["symbol_applied"] = False
+        kwargs["capture_info"]["timeframe_applied"] = False
+        raise RuntimeError("symbol rewrite failed")
+
+    fake_module = SimpleNamespace(
+        capture_coinglass_liqmap_visual=_capture_coinglass_liqmap_visual,
+        COINGLASS_LIQMAP_PAGE_URL="https://www.coinglass.com/pro/futures/LiquidationMap",
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.validation.visual_harness.providers.coinglass.import_module",
+        lambda _name: fake_module,
+    )
+
+    with pytest.raises(RuntimeError, match="coinglass capture failed: symbol rewrite failed") as excinfo:
+        capture_coinglass_liqmap_capture(harness_request, tmp_path / "provider.png")
+
+    context = excinfo.value.capture_context
+    assert context["url"] == "https://www.coinglass.com/pro/futures/LiquidationMap"
+    assert context["capture_mode"] == "screenshot_viewport"
+    assert context["capture_info"]["symbol_applied"] is False
+    assert context["capture_info"]["timeframe_applied"] is False
+
+
 def test_runner_fails_when_combined_artifact_size_exceeds_limit(
     tmp_path: Path,
     harness_request: VisualHarnessRequest,
