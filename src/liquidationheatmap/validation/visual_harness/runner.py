@@ -174,6 +174,24 @@ def _default_components(request: VisualHarnessRequest, local_result: dict, provi
     ]
 
 
+def _failure_outcome(
+    *,
+    request: VisualHarnessRequest,
+    paths,
+    failure_reason: str,
+    local_capture: dict | None = None,
+    provider_capture: dict | None = None,
+) -> RunOutcome:
+    manifest = build_manifest_dict(
+        request=request,
+        local_capture=local_capture,
+        provider_capture=provider_capture,
+        failure_reason=failure_reason,
+    )
+    write_manifest(path=paths.manifest_path, manifest=manifest)
+    return RunOutcome(exit_code=1, manifest_path=paths.manifest_path, score_path=None)
+
+
 def run_visual_pair(
     *,
     request: VisualHarnessRequest,
@@ -195,19 +213,27 @@ def run_visual_pair(
     paths = build_artifact_paths(output_dir=output_dir, request=request)
     paths.run_dir.mkdir(parents=True, exist_ok=True)
 
-    local_result = local_capture_fn(request, paths.local_screenshot_path)
+    try:
+        local_result = local_capture_fn(request, paths.local_screenshot_path)
+    except Exception as exc:
+        local_context = getattr(exc, "capture_context", None)
+        return _failure_outcome(
+            request=request,
+            paths=paths,
+            failure_reason=str(exc),
+            local_capture=local_context,
+        )
     try:
         provider_result = provider_capture_fn(request, paths.provider_screenshot_path)
     except Exception as exc:
         provider_context = getattr(exc, "capture_context", None)
-        manifest = build_manifest_dict(
+        return _failure_outcome(
             request=request,
+            paths=paths,
+            failure_reason=str(exc),
             local_capture=local_result,
             provider_capture=provider_context,
-            failure_reason=str(exc),
         )
-        write_manifest(path=paths.manifest_path, manifest=manifest)
-        return RunOutcome(exit_code=1, manifest_path=paths.manifest_path, score_path=None)
 
     components = scorer_fn(request, local_result, provider_result)
     components = _ensure_tier1_ready(components, local_ready=bool(local_result.get("ready")))

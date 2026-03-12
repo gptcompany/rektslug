@@ -76,6 +76,43 @@ def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
     assert mock_run.called
 
 
+def test_main_returns_non_zero_and_prints_manifest_for_unwired_lightweight_path(
+    capsys,
+    tmp_path: Path,
+):
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--run-id",
+            "run-heat-window",
+            "--provider",
+            "bitcoincounterflow",
+            "--product",
+            "liq-heat-map",
+            "--renderer",
+            "lightweight",
+            "--window",
+            "48h",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    ):
+        exit_code = main()
+
+    output = capsys.readouterr().out
+    manifest_path = (
+        tmp_path
+        / "run-heat-window"
+        / "run-heat-window_bitcoincounterflow_liq-heat-map_lightweight_btcusdt_48h_manifest.json"
+    )
+
+    assert exit_code == 1
+    assert f"manifest={manifest_path}" in output
+    assert "score=" not in output
+    assert manifest_path.exists()
+
+
 def test_script_executes_as_file_without_src_import_error():
     repo_root = Path(__file__).resolve().parents[2]
 

@@ -532,3 +532,30 @@ def test_window_style_runs_emit_window_in_manifest_and_not_timeframe(tmp_path: P
     assert manifest["window"] == "48h"
     assert "timeframe" not in manifest
     assert manifest["provider"]["name"] == "coinank"
+
+
+def test_missing_default_capture_adapter_returns_partial_manifest_instead_of_raising(
+    tmp_path: Path,
+):
+    request = VisualHarnessRequest(
+        run_id="run-heat-window",
+        product="liq-heat-map",
+        renderer="lightweight",
+        provider="bitcoincounterflow",
+        symbol="BTCUSDT",
+        exchange="binance",
+        window="48h",
+    )
+
+    outcome = run_visual_pair(
+        request=request,
+        output_dir=tmp_path,
+    )
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+
+    assert outcome.exit_code == 1
+    assert outcome.score_path is None
+    assert manifest["failure_reason"] == "No local capture adapter for liq-heat-map/lightweight"
+    assert manifest["provider"]["name"] == "bitcoincounterflow"
+    assert manifest["local"]["url"] is None
