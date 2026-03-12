@@ -38,6 +38,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.validation.constants import VALIDATION_DB_PATH
+from src.liquidationheatmap.validation.provider_profiles import get_provider_profile
 
 RAW_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
 DEFAULT_OUTPUT_DIR = Path("data/validation/provider_comparisons")
@@ -1896,6 +1897,10 @@ def build_report(
     return {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "manifests": [str(path.resolve()) for path in manifest_paths],
+        "provider_profiles": {
+            provider: get_provider_profile(provider).to_public_dict()
+            for provider in sorted(datasets)
+        },
         "providers": {
             provider: dataset.to_public_dict()
             for provider, dataset in sorted(datasets.items())

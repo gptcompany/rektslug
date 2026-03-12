@@ -79,6 +79,7 @@ future comparison runs
 - Counterflow can already be captured by the provider API workflow
 - raw `/api/liquidations` payloads already have a parser
 - provider choice already exists in orchestration scripts
+- shared provider-profile metadata can now expose Counterflow explicitly in normalized reports
 
 ## What Needs Work
 
@@ -86,6 +87,55 @@ future comparison runs
 2. separation between data-source and visual-reference semantics
 3. adapter design for the shared visual harness
 4. an explicit future decision on whether local Lightweight smoke validation is worth adding
+
+## Current Implementation Decision
+
+Counterflow should now be represented with explicit provider-profile metadata:
+
+- provider key: `bitcoincounterflow`
+- display name: `Bitcoin CounterFlow`
+- roles: `data-source`, `visual-reference`
+- default renderer adapter: `lightweight`
+
+This metadata belongs beside manifests/reports, not inside normalized dataset
+shape fields.
+
+## Harness Alignment
+
+When Counterflow enters the shared visual harness, it should do so through:
+
+- `provider = bitcoincounterflow`
+- `renderer_adapter = lightweight`
+- a product adapter chosen by the consuming workflow
+
+Counterflow must not become:
+
+- a special-case global runner branch
+- a hidden URL-only provider identity
+- a replacement for product-adapter selection
+
+## Future Smoke Run
+
+If a later implementation needs live Lightweight validation, the first smoke
+run should be intentionally narrow:
+
+```bash
+uv run python scripts/run_visual_harness.py \
+  --provider bitcoincounterflow \
+  --renderer lightweight \
+  --product liq-heat-map \
+  --window 48h
+```
+
+That command is a contract target, not a claim that the live provider adapter
+exists today.
+
+Current decision:
+
+- no local Lightweight smoke page is needed yet
+- no repo-wide Lightweight install should happen for planning only
+- if a future spec introduces it, installation and Playwright validation must be
+  documented as a dedicated gate first
 
 ## Phases
 

@@ -337,6 +337,21 @@ Important distinction:
 
 Do not assume these two views are the same dataset.
 
+Counterflow architectural role:
+
+- explicit provider key: `bitcoincounterflow`
+- explicit display name: `Bitcoin CounterFlow`
+- roles: `data-source` and `visual-reference`
+- expected future visual-harness entry: `renderer_adapter=lightweight`
+
+Current repo decision:
+
+- Counterflow is comparison-ready today on the raw data side
+- Counterflow is not yet wired as a live visual-harness provider
+- if that visual path is implemented later, it should plug into the shared
+  harness through the `lightweight` renderer seam instead of a special-case
+  global workflow
+
 ## What Is Still Missing
 
 The workflow is usable, but it is not complete yet.

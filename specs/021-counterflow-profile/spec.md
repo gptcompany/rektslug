@@ -69,6 +69,40 @@ a mixed provider case that must still enter the harness through
 - **FR-004**: Counterflow integration MUST be compatible with the shared visual harness from `spec-020`.
 - **FR-005**: Counterflow MUST enter `spec-020` as a dedicated `lightweight` renderer adapter, not as a product adapter.
 
+## Counterflow Contract
+
+Counterflow is now expected to appear in shared comparison/reporting flows with:
+
+- provider key: `bitcoincounterflow`
+- display name: `Bitcoin CounterFlow`
+- roles: `data-source` and `visual-reference`
+- default renderer adapter: `lightweight`
+
+This provider metadata should remain distinct from:
+
+- the normalized dataset payload itself
+- the selected product adapter (`liq-map`, `liq-heat-map`, or future products)
+- any provider-specific capture implementation details
+
+For report-style outputs, Counterflow metadata should be exposed as explicit
+provider-profile information rather than inferred from URLs or folded into
+dataset fields ad hoc.
+
+## Future Lightweight Smoke Decision
+
+The current decision is:
+
+- do **not** add a local TradingView Lightweight smoke page yet
+- keep Counterflow integration defined at the adapter/profile level first
+- add a local Lightweight smoke page only when a future spec needs a live
+  `renderer_adapter=lightweight` implementation path
+
+If that future step becomes necessary, the first smoke run should validate:
+
+- library installation/loading in isolation from a repo-wide frontend migration
+- one trivial local chart render under Playwright/Chromium
+- stable screenshot capture for the shared visual harness contract
+
 ## Success Criteria
 
 - **SC-001**: Counterflow has a clear role in the repo architecture and docs.

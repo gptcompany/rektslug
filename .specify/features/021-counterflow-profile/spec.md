@@ -14,3 +14,8 @@ The implementation goal is unchanged:
 - align future integration with the shared visual harness
 - treat Counterflow as a separate `lightweight` renderer adapter
 - treat Counterflow as both data-source and visual-reference, with an asymmetrical role
+
+Current repo decision:
+- expose Counterflow as explicit provider-profile metadata
+- keep its expected harness entry at `renderer_adapter=lightweight`
+- do not add a local Lightweight smoke page until a later spec actually needs it
