@@ -85,7 +85,9 @@ The `public liqmap builder` contract is frozen for implementation and RED tests:
   - `is_stale_real_data`
 - compatibility rule:
   - public HTML route switches to this endpoint
-  - legacy `/liquidations/levels` remains regression-tested
+  - legacy `/liquidations/levels` remains regression-tested (T008a, T015)
+- rollback rule:
+  - if the builder is buggy post-deploy, the frontend can revert to legacy `/levels` by removing the endpoint switch; this is verified in T022b
 
 ### Frozen First-Pass Grid Rules
 
@@ -97,8 +99,8 @@ The `public liqmap builder` contract is frozen for implementation and RED tests:
 - snap rule:
   - `anchor + round((raw - anchor) / step) * step`
 - display-range rule:
-  - `1d`: `p05..p95` + padding, bounded `±8%..±12%`
-  - `1w`: `p02..p98` + padding, bounded `±12%..±18%`
+  - `1d`: `p05..p95`; `span = max - min` of filtered; pad `span * 0.06`; clamp `±8%..±12%`
+  - `1w`: `p02..p98`; `span = max - min` of filtered; pad `span * 0.06`; clamp `±12%..±18%`
 
 ### Performance Budget
 
@@ -180,5 +182,5 @@ uv run python scripts/run_visual_harness.py \
   --symbol BTCUSDT \
   --timeframe 1d \
   --api-base http://127.0.0.1:8002 \
-  --pass-threshold 95
+  --pass-threshold 90  # structural pass gate; final tuning target is 95
 ```

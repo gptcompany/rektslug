@@ -211,10 +211,17 @@ Frozen initial step table for the first pass:
 
 Frozen initial range rule:
 
-- `1d`: keep snapped buckets within `p05..p95`, then pad by `6%` of span, bounded to at least `±8%` and at most `±12%` around `current_price`
-- `1w`: keep snapped buckets within `p02..p98`, then pad by `6%` of span, bounded to at least `±12%` and at most `±18%` around `current_price`
+- `1d`: keep snapped buckets within `p05..p95`; compute `span = max(filtered) - min(filtered)`; pad each side by `span * 0.06`; clamp final range to at least `±8%` and at most `±12%` around `current_price`
+- `1w`: keep snapped buckets within `p02..p98`; compute `span = max(filtered) - min(filtered)`; pad each side by `span * 0.06`; clamp final range to at least `±12%` and at most `±18%` around `current_price`
 
 This rule is intentionally explicit so RED tests can target it.
+
+### Precision Policy
+
+The internal builder MUST use `Decimal` (or equivalent fixed-precision) for all
+price arithmetic (snap, anchor, range bounds). The JSON payload serializes as
+`float` because JSON has no native `Decimal` type. This is acceptable because the
+public liqmap builder is display-only and does not execute financial transactions.
 
 ## Leverage-Ladder Grouping Rule
 
@@ -239,14 +246,14 @@ reduces it to display groups.
 - **NFR-002**: Public-route payload generation MUST not fall back to the synthetic 5-level dataset when real DuckDB-backed public data is available.
 - **NFR-003**: The public-route implementation MUST preserve backward-compatible URLs and return valid HTML for the existing chart routes.
 - **NFR-004**: Validation artifacts for one route pair MUST remain `< 1 MB` each for manifest and score outputs.
-- **NFR-005**: The `public liqmap builder` response time MUST remain `< 2s` warm and `< 10s` cold for a single `(symbol, timeframe)` request under local validation conditions.
+- **NFR-005**: The `public liqmap builder` response time MUST remain `< 2s` warm and `< 10s` cold for a single `(symbol, timeframe)` request under local validation conditions. Note: this is a rendering-heavy endpoint, not a standard CRUD API; the generic `< 100ms p95` budget from constitution §4 does not apply here.
 
 ## Edge Cases
 
 - **EC-001**: DuckDB data is stale but non-empty.
   - Expected: use stale real data with explicit metadata rather than synthetic fallback.
 - **EC-002**: Public route is available but the dedicated data-path builder fails.
-  - Expected: fail explicitly and diagnostically; do not silently collapse to a misleading near-empty chart.
+  - Expected: return HTTP 500 with JSON body `{"error": "<class>", "detail": "<message>"}`. MUST NOT return a partial HTML chart or silently fall back to the legacy path.
 - **EC-003**: BTC and ETH require different grid scales.
   - Expected: the builder supports symbol-aware grid generation rather than one universal bucket step.
 - **EC-004**: `1d` and `1w` require materially different visual ranges.

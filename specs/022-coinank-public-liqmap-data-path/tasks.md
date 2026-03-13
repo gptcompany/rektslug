@@ -18,8 +18,8 @@
 - [ ] T007 Write failing tests that cumulative long/short anchor correctly at current price
 - [ ] T008 Write failing tests that the canonical public HTML route consumes `/liquidations/coinank-public-map`, not legacy `/liquidations/levels`
 - [ ] T008a Write failing regression tests that legacy `/liquidations/levels` behavior remains available for existing workflows
-- [ ] T008b Write failing tests for explicit builder failure behavior: diagnostic error, no misleading silent fallback
-- [ ] T008c Write failing tests that `frontend/liq_map_1w.html` can consume the new payload schema
+- [ ] T008b Write failing tests for explicit builder failure behavior: HTTP 500 with JSON `{"error", "detail"}`, no partial HTML chart or silent legacy fallback
+- [ ] T008c Write failing E2E test (Playwright) that `frontend/liq_map_1w.html` renders correctly from the new endpoint payload
 - [ ] T008d Write failing tests that BTC and ETH use different grid steps and that `1d` and `1w` use different range envelopes
 
 ## Phase 3: Backend Rewrite
@@ -30,7 +30,11 @@
 - [ ] T012 Implement cumulative series generation from the dedicated public dataset
 - [ ] T013 Expose the builder via `GET /liquidations/coinank-public-map`
 - [ ] T014 Update `frontend/liq_map_1w.html` to consume the new endpoint on canonical public CoinAnK-style routes while preserving the existing HTML URL contract
-- [ ] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows
+- [ ] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows; update or remove the stale `Sunset: 2025-06-01` header
+
+## Phase 3b: Refactor
+
+- [ ] T015b Refactor the public liqmap builder after GREEN tests pass: clean up internal helpers, remove duplication, verify all tests still green
 
 ## Phase 4: Validation
 
@@ -41,6 +45,7 @@
 - [ ] T020 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
 - [ ] T021 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
 - [ ] T022 Measure the first structural pass gates: builder response `< 2s` warm / `< 10s` cold, validation runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
+- [ ] T022b Verify rollback path: confirm the frontend can revert to legacy `/liquidations/levels` by removing the endpoint switch, and that the legacy path still renders a valid chart
 
 ## Phase 5: Documentation
 
