@@ -90,16 +90,35 @@ like a provider-specific grid/ladder product.
 - `scripts/run_visual_harness.py` remains the canonical screenshot/score runner.
 - The public-route rewrite should remain compatible with `rektslug-ank-public`.
 
+## Architectural Decision
+
+This spec chooses the concrete implementation shape up front:
+
+- keep the public HTML URL contract unchanged
+- add a **new dedicated backend endpoint** for the public CoinAnK-style payload
+- make `frontend/liq_map_1w.html` call that new endpoint on canonical CoinAnK-style routes
+- keep legacy `/liquidations/levels` available for existing local workflows and tests
+
+Chosen endpoint:
+
+- `GET /liquidations/coinank-public-map?symbol=BTCUSDT&timeframe=1d`
+
+Rationale:
+
+- it cleanly separates provider-like public rendering from the legacy local OI path
+- it avoids silently mutating `/liquidations/levels` behavior for existing consumers
+- it gives RED tests an explicit contract to target
+
 ## Functional Requirements
 
 - **FR-001**: The public CoinAnK-style route MUST stop depending on the legacy local OI-bucket shape as its direct source of rendered bins.
-  - Acceptance: the public route uses a dedicated backend builder or endpoint for CoinAnK-style liq-map payloads.
+  - Acceptance: the public route uses `GET /liquidations/coinank-public-map` rather than direct rendering from legacy `/liquidations/levels`.
 - **FR-002**: The public data path MUST compute a CoinAnK-like price grid for `BTCUSDT` and `ETHUSDT` on `1d` and `1w`.
-  - Acceptance: bin step and bin placement are derived from the dedicated public grid logic, not only from frontend grouping.
+  - Acceptance: the grid uses the anchored step/snap algorithm defined below, with symbol-aware and timeframe-aware step sizes.
 - **FR-003**: The public data path MUST compute long/short split and cumulative curves from the same dedicated dataset.
-  - Acceptance: cumulative curves are generated from the public-route dataset and anchor correctly at current price.
+  - Acceptance: cumulative curves are generated server-side from the same snapped bucket dataset and include `current_price` as the zero anchor.
 - **FR-004**: The public data path MUST expose enough leverage-ladder detail to support provider-like grouping.
-  - Acceptance: the backend payload preserves a richer ladder than a hardcoded three-bucket approximation before frontend grouping.
+  - Acceptance: the payload preserves at least the ladder `25x, 30x, 40x, 50x, 60x, 70x, 80x, 90x, 100x` when present or computable, before the frontend groups them into `Low / Medium / High`.
 - **FR-005**: The existing public HTML routes MUST remain stable.
   - Acceptance: `/chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}` remains the user-facing URL.
 - **FR-006**: The implementation MUST remain limited to `BTC/ETH x 1d/1w`.
@@ -122,6 +141,77 @@ internal builder, enough information to render:
 The page should not have to invent the provider-like structure from a compressed
 legacy response.
 
+### Public Payload Schema
+
+The new endpoint should return JSON compatible with a typed response model
+equivalent to:
+
+```json
+{
+  "schema_version": "1.0",
+  "source": "coinank-public-builder",
+  "symbol": "BTCUSDT",
+  "timeframe": "1d",
+  "profile": "rektslug-ank-public",
+  "current_price": 60123.45,
+  "grid": {
+    "step": 10.0,
+    "anchor_price": 60123.45,
+    "min_price": 55200.0,
+    "max_price": 64800.0
+  },
+  "leverage_ladder": ["25x", "30x", "40x", "50x", "60x", "70x", "80x", "90x", "100x"],
+  "long_buckets": [
+    { "price_level": 59800.0, "leverage": "50x", "volume": 1234567.89 }
+  ],
+  "short_buckets": [
+    { "price_level": 60500.0, "leverage": "50x", "volume": 987654.32 }
+  ],
+  "cumulative_long": [
+    { "price_level": 59800.0, "value": 1234567.89 },
+    { "price_level": 60123.45, "value": 0.0 }
+  ],
+  "cumulative_short": [
+    { "price_level": 60123.45, "value": 0.0 },
+    { "price_level": 60500.0, "value": 987654.32 }
+  ],
+  "last_data_timestamp": "2026-03-13T12:00:00Z",
+  "is_stale_real_data": false
+}
+```
+
+Minimum contract guarantees:
+
+- `schema_version`, `source`, `symbol`, `timeframe`, `current_price`, `grid`, `leverage_ladder`
+- raw `long_buckets` and `short_buckets`
+- server-computed `cumulative_long` and `cumulative_short`
+- freshness metadata
+
+## Price-Grid Algorithm
+
+The first implementation must use a deterministic, documented algorithm:
+
+1. choose symbol/timeframe step from the frozen table below
+2. use `current_price` as the grid anchor
+3. snap every raw candidate level with:
+   - `snapped = anchor_price + round((raw_price - anchor_price) / step) * step`
+4. merge snapped levels by `(price_level, leverage, side)`
+5. derive route display range from snapped buckets with timeframe-aware quantiles and padding
+
+Frozen initial step table for the first pass:
+
+| Symbol | 1d step | 1w step |
+|--------|---------|---------|
+| BTCUSDT | 10.0 | 25.0 |
+| ETHUSDT | 0.5 | 2.0 |
+
+Frozen initial range rule:
+
+- `1d`: keep snapped buckets within `p05..p95`, then pad by `6%` of span, bounded to at least `±8%` and at most `±12%` around `current_price`
+- `1w`: keep snapped buckets within `p02..p98`, then pad by `6%` of span, bounded to at least `±12%` and at most `±18%` around `current_price`
+
+This rule is intentionally explicit so RED tests can target it.
+
 ## Non-Functional Requirements
 
 - **NFR-001**: A single public-route visual validation run (`BTC 1d`) MUST complete in `< 120s`.
@@ -143,7 +233,7 @@ legacy response.
 ## Success Criteria
 
 - **SC-001**: The public route for `BTCUSDT 1d` is no longer visually classified as “far” from CoinAnK by manual review.
-- **SC-002**: The public-route visual harness achieves at least the visual threshold documented for `liq-map` parity, with `95` as the official target and `90` as the minimum diagnostic threshold.
+- **SC-002**: The first structural rewrite pass achieves `>= 90` visual similarity on the public route for `BTC/ETH x 1d/1w`, with `95` retained as the official final parity target after tuning.
 - **SC-003**: `BTC/ETH x 1d/1w` public-route validations produce distinct, timeframe-appropriate views rather than near-identical outputs.
 - **SC-004**: The public-route backend contract is documented well enough that future CoinAnK public tuning does not require more blind frontend-only tweaks.
 

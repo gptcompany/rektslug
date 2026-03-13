@@ -27,6 +27,12 @@ price-grid structure, leverage ladder, split behavior, or cumulative curves.
 - `liq-heat-map` parity
 - Counterflow / TradingView Lightweight work
 
+## Architectural Decision
+
+- keep `/chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}` as the public HTML URL
+- add `GET /liquidations/coinank-public-map` as the dedicated backend payload endpoint
+- keep legacy `/liquidations/levels` available for existing local workflows
+
 ## Functional Requirements
 
 - **FR-001**: The public CoinAnK-style route MUST stop depending on the legacy local OI-bucket shape as its direct source of rendered bins.
@@ -37,8 +43,19 @@ price-grid structure, leverage ladder, split behavior, or cumulative curves.
 - **FR-006**: The implementation MUST remain limited to `BTC/ETH x 1d/1w`.
 - **FR-007**: The public route MUST be visually revalidated against CoinAnK after the backend rewrite.
 
+## Frozen First-Pass Rules
+
+- endpoint: `GET /liquidations/coinank-public-map`
+- grid anchor: `current_price`
+- grid snap: `anchor + round((raw - anchor) / step) * step`
+- initial steps:
+  - BTC `1d`: `10.0`
+  - BTC `1w`: `25.0`
+  - ETH `1d`: `0.5`
+  - ETH `1w`: `2.0`
+
 ## Success Criteria
 
 - **SC-001**: The public route for `BTCUSDT 1d` is no longer visually classified as “far” from CoinAnK by manual review.
-- **SC-002**: The public-route visual harness achieves at least the visual threshold documented for `liq-map` parity, with `95` as the official target and `90` as the minimum diagnostic threshold.
+- **SC-002**: The first structural rewrite pass achieves `>= 90` visual similarity on the public route, with `95` retained as the final parity target after tuning.
 - **SC-003**: `BTC/ETH x 1d/1w` public-route validations produce distinct, timeframe-appropriate views rather than near-identical outputs.

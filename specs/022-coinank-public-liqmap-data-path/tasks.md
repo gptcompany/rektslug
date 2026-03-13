@@ -8,34 +8,40 @@
 
 - [ ] T001 Capture the current public-route mismatch for `BTC/ETH x 1d/1w` using the canonical `/chart/derivatives/liq-map/...` URLs
 - [ ] T002 Document the current payload limitations of the public route versus CoinAnK (`grid`, `ladder`, `cdf`, `axes`)
-- [ ] T003 [P] Decide and document whether the dedicated public path will be a new endpoint or an internal builder behind the existing route
+- [ ] T003 Freeze the implementation decision and contract: new endpoint `GET /liquidations/coinank-public-map` backed by an internal builder, with legacy `/liquidations/levels` preserved
 
 ## Phase 2: Contract and RED Tests
 
-- [ ] T004 Write failing tests for the dedicated public builder contract
-- [ ] T005 Write failing tests for symbol-aware and timeframe-aware grid generation (`BTC/ETH`, `1d/1w`)
+- [ ] T004 Write failing tests for the typed public builder contract / response schema
+- [ ] T005 Write failing tests for symbol-aware and timeframe-aware grid generation (`BTC/ETH`, `1d/1w`), including unsupported symbol/timeframe rejection
 - [ ] T006 Write failing tests that the public path preserves richer leverage-ladder detail before frontend grouping
 - [ ] T007 Write failing tests that cumulative long/short anchor correctly at current price
-- [ ] T008 Write failing tests that the canonical public HTML route consumes the dedicated public path, not the legacy compressed shape
+- [ ] T008 Write failing tests that the canonical public HTML route consumes `/liquidations/coinank-public-map`, not legacy `/liquidations/levels`
+- [ ] T008a Write failing regression tests that legacy `/liquidations/levels` behavior remains available for existing workflows
+- [ ] T008b Write failing tests for explicit builder failure behavior: diagnostic error, no misleading silent fallback
+- [ ] T008c Write failing tests that `frontend/liq_map_1w.html` can consume the new payload schema
 
 ## Phase 3: Backend Rewrite
 
 - [ ] T009 Implement the dedicated CoinAnK-style public data builder
-- [ ] T010 Implement symbol-aware and timeframe-aware price-grid generation
+- [ ] T010 Implement symbol-aware and timeframe-aware price-grid generation using the frozen step/snap rules from the spec
 - [ ] T011 Implement public-route leverage ladder generation suitable for provider-like grouping
 - [ ] T012 Implement cumulative series generation from the dedicated public dataset
-- [ ] T013 Thread the dedicated public builder into `/chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}` without breaking the URL contract
+- [ ] T013 Expose the builder via `GET /liquidations/coinank-public-map`
+- [ ] T014 Update `frontend/liq_map_1w.html` to consume the new endpoint on canonical public CoinAnK-style routes while preserving the existing HTML URL contract
+- [ ] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows
 
 ## Phase 4: Validation
 
-- [ ] T014 Run public-route validation for `BTCUSDT 1d`
-- [ ] T015 Run public-route validation for `BTCUSDT 1w`
-- [ ] T016 Run public-route validation for `ETHUSDT 1d`
-- [ ] T017 Run public-route validation for `ETHUSDT 1w`
-- [ ] T018 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
-- [ ] T019 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
+- [ ] T016 Run public-route validation for `BTCUSDT 1d`
+- [ ] T017 Run public-route validation for `BTCUSDT 1w`
+- [ ] T018 Run public-route validation for `ETHUSDT 1d`
+- [ ] T019 Run public-route validation for `ETHUSDT 1w`
+- [ ] T020 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
+- [ ] T021 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
+- [ ] T022 Measure the first structural pass gates: runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
 
 ## Phase 5: Documentation
 
-- [ ] T020 Document the new public-route backend contract and how it supersedes the remaining backend/data-path gap in `spec-016`
-- [ ] T021 Record final validation artifacts and residual differences, if any
+- [ ] T023 Document the new public-route backend contract and how it supersedes the remaining backend/data-path gap in `spec-016`
+- [ ] T024 Record final validation artifacts and residual differences, if any

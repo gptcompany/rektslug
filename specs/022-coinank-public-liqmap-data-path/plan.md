@@ -49,6 +49,7 @@ generation first, not as another frontend-only tweak pass.
 ```text
 DuckDB / local model inputs
   -> dedicated CoinAnK-style public builder
+  -> GET /liquidations/coinank-public-map
   -> public-route payload with provider-like grid / ladder / cumulative data
   -> frontend/liq_map_1w.html
   -> validate_liqmap_visual.py / run_visual_harness.py
@@ -58,8 +59,46 @@ DuckDB / local model inputs
 
 - keep the public URL contract unchanged
 - add a dedicated builder/helper in the API layer or db service for public CoinAnK-style liq-map data
+- expose that builder through `GET /liquidations/coinank-public-map`
+- update `frontend/liq_map_1w.html` to call the new endpoint on canonical CoinAnK-style routes
 - keep legacy `/liquidations/levels` available for existing local workflows if needed
 - route public CoinAnK-style pages through the dedicated path, not through blind reuse of legacy grouped output
+
+### Builder Contract
+
+The builder contract is frozen for implementation and RED tests:
+
+- response model fields:
+  - `schema_version`
+  - `source`
+  - `symbol`
+  - `timeframe`
+  - `profile`
+  - `current_price`
+  - `grid`
+  - `leverage_ladder`
+  - `long_buckets`
+  - `short_buckets`
+  - `cumulative_long`
+  - `cumulative_short`
+  - `last_data_timestamp`
+  - `is_stale_real_data`
+- compatibility rule:
+  - public HTML route switches to this endpoint
+  - legacy `/liquidations/levels` remains regression-tested
+
+### Frozen First-Pass Grid Rules
+
+- BTC `1d` step: `10.0`
+- BTC `1w` step: `25.0`
+- ETH `1d` step: `0.5`
+- ETH `1w` step: `2.0`
+- anchor: `current_price`
+- snap rule:
+  - `anchor + round((raw - anchor) / step) * step`
+- display-range rule:
+  - `1d`: `p05..p95` + padding, bounded `±8%..±12%`
+  - `1w`: `p02..p98` + padding, bounded `±12%..±18%`
 
 ## What Already Works
 
@@ -82,13 +121,15 @@ DuckDB / local model inputs
 
 - capture the current public-route mismatch for `BTC 1d/1w` and `ETH 1d/1w`
 - define the dedicated public payload contract
-- decide whether the implementation lands as a new endpoint or internal builder
+- freeze the implementation decision: new endpoint + internal builder, legacy path preserved
 
 ### Phase 2: RED Tests
 
 - add tests for the new public-route builder
 - add tests for symbol/timeframe-aware grid behavior
 - add tests for cumulative anchoring and richer ladder preservation
+- add regression tests for legacy `/liquidations/levels`
+- add tests for explicit builder failure behavior
 
 ### Phase 3: Backend Rewrite
 
@@ -101,6 +142,8 @@ DuckDB / local model inputs
 - run public-route visual validation for `BTC/ETH x 1d/1w`
 - compare against CoinAnK using the public route, not a private worktree-only path
 - confirm route outputs are materially distinct between `1d` and `1w`
+- accept `>= 90` as the first structural pass gate
+- keep `95` as the official final parity target after tuning
 
 ### Phase 5: Documentation
 
