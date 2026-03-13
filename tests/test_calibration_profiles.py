@@ -24,6 +24,13 @@ class TestProfileRegistry:
         assert profile is not None
         assert profile.name == "rektslug-ank"
 
+    def test_ank_public_profile_exists(self):
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-ank-public")
+        assert profile is not None
+        assert profile.name == "rektslug-ank-public"
+
     def test_glass_profile_exists(self):
         from src.liquidationheatmap.models.profiles import get_profile
 
@@ -57,22 +64,25 @@ class TestProfileRegistry:
         from src.liquidationheatmap.models.profiles import get_profile
 
         profile = get_profile("rektslug-ank")
-        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 10.0
-        assert profile.get_bin_size(timeframe_days=7, symbol="BTCUSDT") == 12.0
+        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 15.0
         assert profile.get_bin_size(timeframe_days=7, symbol="ETHUSDT") == 1.65
 
     def test_ank_profile_supports_side_weight_overrides(self):
         from src.liquidationheatmap.models.profiles import get_profile
 
         profile = get_profile("rektslug-ank")
-        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.62, "sell": 1.0}
-        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.42, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.95, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.52, "sell": 1.0}
         assert profile.get_side_weights("DOGEUSDT", 1) == {"buy": 1.0, "sell": 1.0}
 
-    def test_ank_profile_supports_btc_leverage_weight_overrides(self):
+    def test_ank_public_profile_supports_btc_visual_overrides(self):
         from src.liquidationheatmap.models.profiles import get_profile
 
-        profile = get_profile("rektslug-ank")
+        profile = get_profile("rektslug-ank-public")
+        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 10.0
+        assert profile.get_bin_size(timeframe_days=7, symbol="BTCUSDT") == 12.0
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.62, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.42, "sell": 1.0}
         assert profile.get_leverage_weights("BTCUSDT", 1) == {
             25: 0.28,
             50: 0.34,
@@ -141,6 +151,7 @@ class TestProfileRegistry:
         names = list_profiles()
         assert "rektslug-default" in names
         assert "rektslug-ank" in names
+        assert "rektslug-ank-public" in names
         assert "rektslug-glass" in names
 
 

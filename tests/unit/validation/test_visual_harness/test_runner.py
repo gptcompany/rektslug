@@ -361,7 +361,7 @@ def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_p
 
     async def _capture_local_liqmap_page(*, page_url, output_path, headless):
         output_path.write_text("local")
-        assert page_url.endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank")
+        assert page_url.endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank-public")
         assert headless is True
         return {"ready": True}
 
@@ -380,7 +380,7 @@ def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_p
     result = capture_local_liqmap_capture(harness_request, tmp_path / "local.png")
 
     assert result["ready"] is True
-    assert result["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank")
+    assert result["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank-public")
 
 
 def test_local_provider_wrapper_uses_glass_profile_for_coinglass(monkeypatch, tmp_path: Path):

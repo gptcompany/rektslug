@@ -156,6 +156,22 @@ _PROFILES: dict[str, CalibrationProfile] = {
         leverage_weights=_ANK_LEVERAGE_WEIGHTS,
         _bin_size_fn=_ank_bin_size,
         bin_size_overrides={
+            ("BTCUSDT", 1): 15.0,
+            ("ETHUSDT", 1): 0.45,
+            ("ETHUSDT", 7): 1.65,
+        },
+        side_weight_overrides={
+            ("BTCUSDT", 1): {"buy": 0.95, "sell": 1.0},
+            ("BTCUSDT", 7): {"buy": 0.52, "sell": 1.0},
+            ("ETHUSDT", 1): {"buy": 0.66, "sell": 1.0},
+            ("ETHUSDT", 7): {"buy": 0.30, "sell": 1.0},
+        },
+    ),
+    "rektslug-ank-public": CalibrationProfile(
+        name="rektslug-ank-public",
+        leverage_weights=_ANK_LEVERAGE_WEIGHTS,
+        _bin_size_fn=_ank_bin_size,
+        bin_size_overrides={
             ("BTCUSDT", 1): 10.0,
             ("BTCUSDT", 7): 12.0,
             ("ETHUSDT", 1): 0.45,

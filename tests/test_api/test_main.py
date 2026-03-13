@@ -254,7 +254,7 @@ class TestFrontendStaticFiles:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "ensureValidLevelsPayload" in response.text
-        assert "if (_isCoinankPath) return 'rektslug-ank';" in response.text
+        assert "if (_isCoinankPath) return 'rektslug-ank-public';" in response.text
         assert "const PROFILE_LEVERAGE_GROUPS = {" in response.text
         assert "'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' }" in response.text
         assert "function computeDisplayRange(allPrices, currentPrice, timeframeDays)" in response.text

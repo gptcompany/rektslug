@@ -16,7 +16,7 @@ def _timeframe_days(timeframe: str) -> int:
 
 def _profile_for_provider(provider: str) -> str | None:
     mapping = {
-        "coinank": "rektslug-ank",
+        "coinank": "rektslug-ank-public",
         "coinglass": "rektslug-glass",
     }
     return mapping.get(provider)

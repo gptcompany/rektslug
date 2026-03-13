@@ -26,6 +26,11 @@
                 'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' },
                 'Medium leverage': { tiers: ['50x'], color: '#B37FEB' },
                 'High leverage':   { tiers: ['100x'], color: '#FF9C6E' }
+            },
+            'rektslug-ank-public': {
+                'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' },
+                'Medium leverage': { tiers: ['50x'], color: '#B37FEB' },
+                'High leverage':   { tiers: ['100x'], color: '#FF9C6E' }
             }
         };
 
@@ -73,8 +78,8 @@
             const explicitProfile = urlParams.get('profile');
             if (explicitProfile) return explicitProfile;
             // Canonical liq-map route is CoinAnK-style; default it to the calibrated
-            // CoinAnK profile unless a specific comparison profile is requested.
-            if (_isCoinankPath) return 'rektslug-ank';
+            // public CoinAnK-style visual profile unless a specific comparison profile is requested.
+            if (_isCoinankPath) return 'rektslug-ank-public';
             return null;
         }
 
@@ -91,7 +96,7 @@
                 return PROFILE_LEVERAGE_GROUPS[profileName];
             }
             if (!hasLowerTiers && hasCoinankStyleTiers) {
-                return PROFILE_LEVERAGE_GROUPS['rektslug-ank'];
+                return PROFILE_LEVERAGE_GROUPS['rektslug-ank-public'];
             }
             return DEFAULT_LEVERAGE_GROUPS;
         }

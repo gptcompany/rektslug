@@ -14,6 +14,7 @@ class TestCalibrationProfiles:
         profiles = list_profiles()
         assert "rektslug-default" in profiles
         assert "rektslug-ank" in profiles
+        assert "rektslug-ank-public" in profiles
         assert "rektslug-glass" in profiles
 
     def test_get_profile_success(self):
@@ -56,6 +57,18 @@ class TestCalibrationProfiles:
         profile = get_profile("rektslug-ank")
         assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.95, "sell": 1.0}
         assert profile.get_side_weights("UNKNOWN", 1) == {"buy": 1.0, "sell": 1.0}
+
+    def test_public_ank_profile_exposes_visual_btc_overrides(self):
+        profile = get_profile("rektslug-ank-public")
+        assert profile.get_bin_size(1, symbol="BTCUSDT") == 10.0
+        assert profile.get_bin_size(7, symbol="BTCUSDT") == 12.0
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.62, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.42, "sell": 1.0}
+        assert profile.get_leverage_weights("BTCUSDT", 1) == {
+            25: 0.28,
+            50: 0.34,
+            100: 0.38,
+        }
 
     def test_profile_get_leverage_weights(self):
         profile = get_profile("rektslug-glass")
