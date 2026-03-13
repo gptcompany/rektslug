@@ -285,6 +285,8 @@ Primary evidence for the current visual-harness MVP:
 
 - local chart routes:
   see `docs/runbooks/chart-routes.md`
+- threshold policy:
+  see `docs/runbooks/parity-thresholds.md`
 - CLI:
 
 ```bash
@@ -325,6 +327,14 @@ For the frozen MVP contract, a pass means:
 The CLI now exposes `--pass-threshold`, but the accepted range is intentionally
 restricted to `90..100`. The default operational gate for both
 `rektslug vs CoinAnK` and `rektslug vs Coinglass` remains `95`.
+
+Important:
+
+- this `95` gate is a **visual** parity threshold only
+- provider-data calibration continues to use the improvement-based rules from
+  `spec-018` and `spec-019`
+- heatmap thresholds are not frozen yet and must not be reported as using the
+  same `95` gate until a dedicated heatmap spec closes that contract
 
 ### 3. Internal validation dashboard
 

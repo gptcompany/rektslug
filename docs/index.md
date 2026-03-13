@@ -26,6 +26,13 @@ provider capture and comparison (CoinAnk, Coinglass, Bitcoin CounterFlow).
 See [Chart Routes](runbooks/chart-routes.md) for the canonical local/provider
 liq-map validation matrix and browser entrypoints.
 
+See [Parity Thresholds](runbooks/parity-thresholds.md) for the official gates
+used for:
+
+- `liq-map` visual similarity
+- `liq-map` provider-data calibration
+- future heatmap threshold policy
+
 For the internal validation dashboard, use:
 
 - [frontend/validation_dashboard.html](../frontend/validation_dashboard.html)
