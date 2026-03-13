@@ -255,6 +255,10 @@ class TestFrontendStaticFiles:
         assert "text/html" in response.headers["content-type"]
         assert "ensureValidLevelsPayload" in response.text
         assert "if (_isCoinankPath) return 'rektslug-ank';" in response.text
+        assert "const PROFILE_LEVERAGE_GROUPS = {" in response.text
+        assert "'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' }" in response.text
+        assert "function computeDisplayRange(allPrices, currentPrice, timeframeDays)" in response.text
+        assert "const [xMin, xMax] = computeDisplayRange(allPrices, currentPrice, timeframeDays);" in response.text
         assert "prices: [...relevantPrices, currentPrice]" in response.text
         assert "const prices = [currentPrice];" in response.text
         assert "window.__liqMapLoadError = null" in response.text

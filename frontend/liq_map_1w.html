@@ -14,11 +14,19 @@
     <div id="liquidation-map" style="width: 100%; height: 600px;"></div>
 
     <script>
-        // 3 Leverage groups (Coinank style) - hex for solid legend, opacity set on marker
-        const LEVERAGE_GROUPS = {
+        // Default 3 leverage groups - hex for solid legend, opacity set on marker
+        const DEFAULT_LEVERAGE_GROUPS = {
             'Low leverage':    { tiers: ['5x', '10x'],   color: '#5B8FF9' },
             'Medium leverage': { tiers: ['25x', '50x'],  color: '#B37FEB' },
             'High leverage':   { tiers: ['100x'],         color: '#FF9C6E' }
+        };
+
+        const PROFILE_LEVERAGE_GROUPS = {
+            'rektslug-ank': {
+                'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' },
+                'Medium leverage': { tiers: ['50x'], color: '#B37FEB' },
+                'High leverage':   { tiers: ['100x'], color: '#FF9C6E' }
+            }
         };
 
         // Parse params from Coinank-style path OR query string (backward compat)
@@ -68,6 +76,24 @@
             // CoinAnK profile unless a specific comparison profile is requested.
             if (_isCoinankPath) return 'rektslug-ank';
             return null;
+        }
+
+        function getLeverageGroups(profileName, liquidations) {
+            const availableTiers = new Set((liquidations || []).map(liq => liq.leverage));
+            const hasLowerTiers = availableTiers.has('5x') || availableTiers.has('10x');
+            const hasCoinankStyleTiers = (
+                availableTiers.has('25x') &&
+                availableTiers.has('50x') &&
+                availableTiers.has('100x')
+            );
+
+            if (profileName && PROFILE_LEVERAGE_GROUPS[profileName]) {
+                return PROFILE_LEVERAGE_GROUPS[profileName];
+            }
+            if (!hasLowerTiers && hasCoinankStyleTiers) {
+                return PROFILE_LEVERAGE_GROUPS['rektslug-ank'];
+            }
+            return DEFAULT_LEVERAGE_GROUPS;
         }
 
         function ensureValidLevelsPayload(data) {
@@ -137,9 +163,9 @@
         }
 
         // Group raw liquidations by the 3 leverage groups, aggregating volumes per price level
-        function groupByLeverageGroups(liquidations) {
+        function groupByLeverageGroups(liquidations, leverageGroups) {
             const grouped = {};
-            for (const [groupName, groupDef] of Object.entries(LEVERAGE_GROUPS)) {
+            for (const [groupName, groupDef] of Object.entries(leverageGroups)) {
                 const priceMap = {};
                 liquidations.forEach(liq => {
                     if (groupDef.tiers.includes(liq.leverage)) {
@@ -155,11 +181,11 @@
             return grouped;
         }
 
-        function buildBarTraces(longsGrouped, shortsGrouped) {
+        function buildBarTraces(longsGrouped, shortsGrouped, leverageGroups) {
             const traces = [];
 
             // Longs: show in legend (first occurrence of each group)
-            for (const [groupName, groupDef] of Object.entries(LEVERAGE_GROUPS)) {
+            for (const [groupName, groupDef] of Object.entries(leverageGroups)) {
                 const longLevels = longsGrouped[groupName] || [];
                 traces.push({
                     x: longLevels.map(l => parseFloat(l.price_level)),
@@ -175,7 +201,7 @@
             }
 
             // Shorts: hide from legend (same legendgroup as longs)
-            for (const [groupName, groupDef] of Object.entries(LEVERAGE_GROUPS)) {
+            for (const [groupName, groupDef] of Object.entries(leverageGroups)) {
                 const shortLevels = shortsGrouped[groupName] || [];
                 traces.push({
                     x: shortLevels.map(l => parseFloat(l.price_level)),
@@ -193,6 +219,56 @@
             return traces;
         }
 
+        function computeDisplayRange(allPrices, currentPrice, timeframeDays) {
+            const defaultHalfRangePct = timeframeDays === 1 ? 0.08 : 0.12;
+            const minHalfRangePct = timeframeDays === 1 ? 0.05 : 0.08;
+            const maxHalfRangePct = timeframeDays === 1 ? 0.12 : 0.18;
+
+            if (!Array.isArray(allPrices) || allPrices.length === 0) {
+                return [
+                    currentPrice * (1 - defaultHalfRangePct),
+                    currentPrice * (1 + defaultHalfRangePct),
+                ];
+            }
+
+            const sorted = [...allPrices]
+                .filter(price => Number.isFinite(price))
+                .sort((a, b) => a - b);
+            if (!sorted.length) {
+                return [
+                    currentPrice * (1 - defaultHalfRangePct),
+                    currentPrice * (1 + defaultHalfRangePct),
+                ];
+            }
+
+            const lowerPercentile = timeframeDays === 1 ? 0.05 : 0.02;
+            const upperPercentile = timeframeDays === 1 ? 0.95 : 0.98;
+            const lowerIndex = Math.max(0, Math.floor((sorted.length - 1) * lowerPercentile));
+            const upperIndex = Math.min(
+                sorted.length - 1,
+                Math.ceil((sorted.length - 1) * upperPercentile),
+            );
+            const observedMin = Math.min(sorted[lowerIndex], currentPrice);
+            const observedMax = Math.max(sorted[upperIndex], currentPrice);
+            const observedSpan = Math.max(observedMax - observedMin, currentPrice * 0.01);
+            const padding = Math.max(
+                observedSpan * 0.06,
+                currentPrice * (timeframeDays === 1 ? 0.005 : 0.01),
+            );
+
+            let xMin = observedMin - padding;
+            let xMax = observedMax + padding;
+            const minHalfRange = currentPrice * minHalfRangePct;
+            const maxHalfRange = currentPrice * maxHalfRangePct;
+
+            xMin = Math.min(xMin, currentPrice - minHalfRange);
+            xMax = Math.max(xMax, currentPrice + minHalfRange);
+            xMin = Math.max(xMin, currentPrice - maxHalfRange);
+            xMax = Math.min(xMax, currentPrice + maxHalfRange);
+
+            return [Number(xMin.toFixed(2)), Number(xMax.toFixed(2))];
+        }
+
         // Format financial ticks: use B (billion) instead of G (giga), with 2 decimals
         function formatFinancialValue(val) {
             const abs = Math.abs(val);
@@ -204,6 +280,8 @@
 
         function renderLiquidationMap(data, symbol) {
             const currentPrice = parseFloat(data.current_price);
+            const timeframeDays = getTimeframeDays();
+            const profileName = getProfile();
             document.getElementById('currentPrice').textContent = String(currentPrice);
             window.__liqMapLoadError = null;
 
@@ -214,10 +292,14 @@
                 `Last data: ${lastDate.toISOString().replace('T', ' ').substring(0, 19)} UTC`;
 
             // Group by 3 leverage groups
-            const longsGrouped = groupByLeverageGroups(data.long_liquidations);
-            const shortsGrouped = groupByLeverageGroups(data.short_liquidations);
+            const leverageGroups = getLeverageGroups(
+                profileName,
+                [...data.long_liquidations, ...data.short_liquidations],
+            );
+            const longsGrouped = groupByLeverageGroups(data.long_liquidations, leverageGroups);
+            const shortsGrouped = groupByLeverageGroups(data.short_liquidations, leverageGroups);
 
-            let traces = buildBarTraces(longsGrouped, shortsGrouped);
+            let traces = buildBarTraces(longsGrouped, shortsGrouped, leverageGroups);
 
             // Calculate cumulative distributions (raw data, not grouped)
             const allPrices = [...new Set([
@@ -268,10 +350,7 @@
                 yaxis: 'y'
             });
 
-            // Auto-zoom: center on current price ±15%
-            const priceRange = currentPrice * 0.15;
-            const xMin = currentPrice - priceRange;
-            const xMax = currentPrice + priceRange;
+            const [xMin, xMax] = computeDisplayRange(allPrices, currentPrice, timeframeDays);
 
             const layout = {
                 xaxis: {
