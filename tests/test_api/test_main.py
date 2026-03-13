@@ -254,13 +254,17 @@ class TestFrontendStaticFiles:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "ensureValidPublicMapPayload" in response.text
-        assert "if (_isCoinankPath) return 'rektslug-ank-public';" in response.text
+        assert "SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(getSymbol())" in response.text
+        assert "return 'rektslug-ank-public';" in response.text
         assert "const PROFILE_LEVERAGE_GROUPS = {" in response.text
         assert "'Low leverage':    { tiers: ['25x', '30x', '40x'], color: '#5B8FF9' }" in response.text
         assert "'Medium leverage': { tiers: ['50x', '60x', '70x'], color: '#B37FEB' }" in response.text
         assert "'High leverage':   { tiers: ['80x', '90x', '100x'], color: '#FF9C6E' }" in response.text
         assert "/liquidations/coinank-public-map" in response.text
-        assert "const endpointPath = _isCoinankPath" in response.text
+        assert "const usePublicBuilder = _isCoinankPath" in response.text
+        assert "? '/liquidations/coinank-public-map'" in response.text
+        assert ": '/liquidations/levels';" in response.text
+        assert "SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)" in response.text
         assert "data.cumulative_long" in response.text
         assert "data.cumulative_short" in response.text
         assert "data.grid.min_price" in response.text

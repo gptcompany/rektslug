@@ -505,12 +505,22 @@ async def get_coinank_public_map(
         )
 
     try:
-        return build_coinank_public_map_response(
-            symbol=normalized_symbol,
-            timeframe=normalized_timeframe,
+        return await _run_read_operation_with_retry(
+            lambda: build_coinank_public_map_response(
+                symbol=normalized_symbol,
+                timeframe=normalized_timeframe,
+            ),
+            exhausted_status_detail=(
+                "Temporary database contention while loading public liqmap data."
+            ),
         )
-    except HTTPException:
+    except IngestionLockError:
         raise
+    except HTTPException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": exc.__class__.__name__, "detail": exc.detail},
+        )
     except Exception as exc:
         logger.error(
             "Public liqmap builder failed for %s %s: %s",

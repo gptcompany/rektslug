@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
 from src.liquidationheatmap.api.routers import liquidations
+from src.liquidationheatmap.ingestion.db_service import IngestionLockError
 
 
 @pytest.fixture
@@ -130,6 +131,29 @@ class TestCoinankPublicMapContract:
             "detail": "builder exploded",
         }
 
+    def test_transient_duckdb_lock_is_retried(self, client, monkeypatch):
+        attempts = {"count": 0}
+
+        async def _fake_sleep(_delay):
+            return None
+
+        def _flaky(**_kwargs):
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise IngestionLockError("Database locked by another DuckDB process. Retry shortly.")
+            return _sample_public_map_payload()
+
+        monkeypatch.setattr(liquidations.asyncio, "sleep", _fake_sleep)
+        monkeypatch.setattr(liquidations, "build_coinank_public_map_response", _flaky)
+
+        response = client.get(
+            "/liquidations/coinank-public-map",
+            params={"symbol": "BTCUSDT", "timeframe": "1d"},
+        )
+
+        assert response.status_code == 200
+        assert attempts["count"] == 2
+
     def test_legacy_levels_endpoint_remains_available(self, client, monkeypatch):
         class _PriceResponse:
             def __enter__(self):
@@ -152,4 +176,3 @@ class TestCoinankPublicMapContract:
         data = response.json()
         assert "long_liquidations" in data
         assert "short_liquidations" in data
-

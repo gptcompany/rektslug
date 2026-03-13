@@ -33,6 +33,7 @@
                 'High leverage':   { tiers: ['80x', '90x', '100x'], color: '#FF9C6E' }
             }
         };
+        const SUPPORTED_PUBLIC_MAP_SYMBOLS = ['BTCUSDT', 'ETHUSDT'];
 
         // Parse params from Coinank-style path OR query string (backward compat)
         // Path: /chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}
@@ -79,7 +80,13 @@
             if (explicitProfile) return explicitProfile;
             // Canonical liq-map route is CoinAnK-style; default it to the calibrated
             // public CoinAnK-style visual profile unless a specific comparison profile is requested.
-            if (_isCoinankPath) return 'rektslug-ank-public';
+            if (
+                _isCoinankPath
+                && SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(getSymbol())
+                && (getTimeframeKey() === '1d' || getTimeframeKey() === '1w')
+            ) {
+                return 'rektslug-ank-public';
+            }
             return null;
         }
 
@@ -119,6 +126,94 @@
             return data;
         }
 
+        function ensureValidLegacyLevelsPayload(data) {
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            if (!Array.isArray(data.long_liquidations) || !Array.isArray(data.short_liquidations)) {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            if (data.current_price === undefined || data.current_price === null) {
+                throw new Error('Invalid liquidation levels payload');
+            }
+            return data;
+        }
+
+        function calculateCumulative(liquidations, allPrices, currentPrice, isLong = false) {
+            const volumeMap = {};
+            liquidations.forEach(liq => {
+                const price = parseFloat(liq.price_level);
+                volumeMap[price] = (volumeMap[price] || 0) + parseFloat(liq.volume);
+            });
+
+            const sortedPrices = [...allPrices].sort((a, b) => a - b);
+            if (isLong) {
+                const relevantPrices = sortedPrices.filter(price => price < currentPrice);
+                const cumulativeByPrice = new Map();
+                let cumulativeSum = 0;
+                for (let i = relevantPrices.length - 1; i >= 0; i--) {
+                    const price = relevantPrices[i];
+                    cumulativeSum += volumeMap[price] || 0;
+                    cumulativeByPrice.set(price, cumulativeSum);
+                }
+                return {
+                    prices: [...relevantPrices, currentPrice],
+                    values: [...relevantPrices.map(price => cumulativeByPrice.get(price) || 0), 0],
+                };
+            }
+
+            const relevantPrices = sortedPrices.filter(price => price > currentPrice);
+            const prices = [currentPrice];
+            const values = [0];
+            let cumulativeSum = 0;
+            for (const price of relevantPrices) {
+                cumulativeSum += volumeMap[price] || 0;
+                prices.push(price);
+                values.push(cumulativeSum);
+            }
+            return { prices, values };
+        }
+
+        function normalizeLegacyLevelsPayload(data, timeframeDays) {
+            const currentPrice = Number(data.current_price);
+            const longBuckets = data.long_liquidations.map(liq => ({
+                price_level: Number(liq.price_level),
+                leverage: liq.leverage,
+                volume: Number(liq.volume)
+            }));
+            const shortBuckets = data.short_liquidations.map(liq => ({
+                price_level: Number(liq.price_level),
+                leverage: liq.leverage,
+                volume: Number(liq.volume)
+            }));
+            const allPrices = [...new Set([
+                ...longBuckets.map(liq => Number(liq.price_level)),
+                ...shortBuckets.map(liq => Number(liq.price_level))
+            ])].sort((a, b) => a - b);
+            const [xMin, xMax] = computeDisplayRange(allPrices, currentPrice, timeframeDays);
+            const cumulativeLong = calculateCumulative(longBuckets, allPrices, currentPrice, true);
+            const cumulativeShort = calculateCumulative(shortBuckets, allPrices, currentPrice, false);
+
+            return {
+                current_price: currentPrice,
+                grid: {
+                    min_price: xMin,
+                    max_price: xMax
+                },
+                long_buckets: longBuckets,
+                short_buckets: shortBuckets,
+                cumulative_long: cumulativeLong.prices.map((price, index) => ({
+                    price_level: price,
+                    value: cumulativeLong.values[index]
+                })),
+                cumulative_short: cumulativeShort.prices.map((price, index) => ({
+                    price_level: price,
+                    value: cumulativeShort.values[index]
+                })),
+                last_data_timestamp: new Date().toISOString()
+            };
+        }
+
         function getTimeframeKey() {
             return getTimeframeDays() === 1 ? '1d' : '1w';
         }
@@ -140,10 +235,22 @@
             window.__liqMapLoadError = null;
 
             try {
-                const endpointPath = _isCoinankPath
+                const usePublicBuilder = _isCoinankPath
+                    && SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)
+                    && (timeframe === '1d' || timeframe === '1w');
+                const endpointPath = usePublicBuilder
                     ? '/liquidations/coinank-public-map'
-                    : '/liquidations/coinank-public-map';
-                const requestParams = new URLSearchParams({ symbol, timeframe });
+                    : '/liquidations/levels';
+                const requestParams = usePublicBuilder
+                    ? new URLSearchParams({ symbol, timeframe })
+                    : new URLSearchParams({
+                        symbol,
+                        model: 'openinterest',
+                        timeframe: String(timeframeDays)
+                    });
+                if (!usePublicBuilder && profile) {
+                    requestParams.set('profile', profile);
+                }
                 const response = await fetch(`${endpointPath}?${requestParams.toString()}`);
                 const rawText = await response.text();
                 let data = null;
@@ -154,8 +261,8 @@
                     } catch (_parseError) {
                         throw new Error(
                             response.ok
-                                ? 'Invalid JSON response from /liquidations/coinank-public-map'
-                                : `Public liqmap request failed (${response.status})`
+                                ? `Invalid JSON response from ${endpointPath}`
+                                : `Liqmap request failed (${response.status})`
                         );
                     }
                 }
@@ -163,12 +270,14 @@
                 if (!response.ok) {
                     throw new Error(
                         (data && (data.detail || data.message || data.error))
-                            || `Public liqmap request failed (${response.status})`
+                            || `Liqmap request failed (${response.status})`
                     );
                 }
 
-                ensureValidPublicMapPayload(data);
-                renderLiquidationMap(data, symbol);
+                const normalizedData = usePublicBuilder
+                    ? ensureValidPublicMapPayload(data)
+                    : normalizeLegacyLevelsPayload(ensureValidLegacyLevelsPayload(data), timeframeDays);
+                renderLiquidationMap(normalizedData, symbol);
             } catch (error) {
                 window.__liqMapLoadError = error.message;
                 document.getElementById('lastDataPoint').textContent = `Error: ${error.message}`;

@@ -10,6 +10,7 @@ from threading import Thread
 import pytest
 
 try:
+    from playwright.async_api import Error as PlaywrightError
     from playwright.async_api import async_playwright
 
     PLAYWRIGHT_AVAILABLE = True
@@ -79,6 +80,19 @@ class _LiqMapHandler(BaseHTTPRequestHandler):
         "last_data_timestamp": "2026-03-13T12:00:00Z",
         "is_stale_real_data": False,
     }
+    legacy_payload = {
+        "symbol": "SOLUSDT",
+        "model": "openinterest",
+        "current_price": "140.0",
+        "long_liquidations": [
+            {"price_level": "130.0", "leverage": "10x", "volume": "20.0", "count": 1},
+            {"price_level": "135.0", "leverage": "25x", "volume": "10.0", "count": 1},
+        ],
+        "short_liquidations": [
+            {"price_level": "145.0", "leverage": "10x", "volume": "7.0", "count": 1},
+            {"price_level": "150.0", "leverage": "25x", "volume": "3.0", "count": 1},
+        ],
+    }
 
     def do_GET(self):
         self.__class__.request_log.append(self.path)
@@ -103,6 +117,13 @@ class _LiqMapHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(self.payload).encode("utf-8"))
+            return
+
+        if self.path.startswith("/liquidations/levels"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(self.legacy_payload).encode("utf-8"))
             return
 
         if self.path == "/favicon.ico":
@@ -130,10 +151,19 @@ def liqmap_server(free_port):
         thread.join(timeout=5)
 
 
+async def _launch_browser_or_skip(playwright):
+    try:
+        return await playwright.chromium.launch()
+    except PlaywrightError as exc:
+        if "Executable doesn't exist" in str(exc):
+            pytest.skip("Playwright browser executable not installed")
+        raise
+
+
 @pytest.mark.asyncio
 async def test_canonical_liqmap_frontend_renders_from_public_builder_payload(liqmap_server):
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch()
+        browser = await _launch_browser_or_skip(playwright)
         page = await browser.new_page()
 
         async def _fulfill_plotly(route):
@@ -167,6 +197,50 @@ async def test_canonical_liqmap_frontend_renders_from_public_builder_payload(liq
         assert await page.evaluate("() => Boolean(window.__lastPlotlyRender)") is True
         assert any(
             "/liquidations/coinank-public-map" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+
+        await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_non_parity_symbol_falls_back_to_legacy_levels(liqmap_server):
+    async with async_playwright() as playwright:
+        browser = await _launch_browser_or_skip(playwright)
+        page = await browser.new_page()
+
+        async def _fulfill_plotly(route):
+            await route.fulfill(
+                content_type="application/javascript",
+                body="""
+                window.Plotly = {
+                    newPlot: function(_id, traces, layout) {
+                        window.__lastPlotlyRender = { traces, layout };
+                        return Promise.resolve({
+                            _fullLayout: {
+                                yaxis: { range: [0, 30] },
+                                yaxis2: { range: [0, 30] }
+                            }
+                        });
+                    },
+                    relayout: function() {
+                        return Promise.resolve();
+                    }
+                };
+                """,
+            )
+
+        _LiqMapHandler.request_log = []
+        await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+        await page.goto(f"{liqmap_server}/chart/derivatives/liq-map/binance/solusdt/1w")
+        await page.wait_for_function(
+            "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
+        )
+
+        assert await page.evaluate("() => window.__liqMapLoadError") is None
+        assert await page.evaluate("() => Boolean(window.__lastPlotlyRender)") is True
+        assert any(
+            "/liquidations/levels" in request_path
             for request_path in _LiqMapHandler.request_log
         )
 
