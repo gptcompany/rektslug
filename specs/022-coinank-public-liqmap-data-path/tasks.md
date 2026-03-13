@@ -6,21 +6,21 @@
 
 ## Phase 1: Baseline Audit
 
-- [ ] T001 Capture the current public-route mismatch for `BTC/ETH x 1d/1w` using the canonical `/chart/derivatives/liq-map/...` URLs
-- [ ] T002 Document the current payload limitations of the public route versus CoinAnK (`grid`, `ladder`, `cdf`, `axes`)
-- [ ] T003 Freeze the implementation decision and contract: new endpoint `GET /liquidations/coinank-public-map` backed by an internal builder, with legacy `/liquidations/levels` preserved
+- [x] T001 Capture the current public-route mismatch for `BTC/ETH x 1d/1w` using the canonical `/chart/derivatives/liq-map/...` URLs
+- [x] T002 Document the current payload limitations of the public route versus CoinAnK (`grid`, `ladder`, `cdf`, `axes`)
+- [x] T003 Freeze the implementation decision and contract: new endpoint `GET /liquidations/coinank-public-map` backed by an internal builder, with legacy `/liquidations/levels` preserved
 
 ## Phase 2: Contract and RED Tests
 
-- [ ] T004 Write failing tests for the typed public builder contract / response schema
-- [ ] T005 Write failing tests for symbol-aware and timeframe-aware grid generation (`BTC/ETH`, `1d/1w`), including unsupported symbol/timeframe rejection
-- [ ] T006 Write failing tests that the public path preserves richer leverage-ladder detail before frontend grouping
-- [ ] T007 Write failing tests that cumulative long/short anchor correctly at current price
-- [ ] T008 Write failing tests that the canonical public HTML route consumes `/liquidations/coinank-public-map`, not legacy `/liquidations/levels`
-- [ ] T008a Write failing regression tests that legacy `/liquidations/levels` behavior remains available for existing workflows
-- [ ] T008b Write failing tests for explicit builder failure behavior: HTTP 500 with JSON `{"error", "detail"}`, no partial HTML chart or silent legacy fallback
-- [ ] T008c Write failing E2E test (Playwright) that `frontend/liq_map_1w.html` renders correctly from the new endpoint payload
-- [ ] T008d Write failing tests that BTC and ETH use different grid steps and that `1d` and `1w` use different range envelopes
+- [x] T004 Write failing tests for the typed public builder contract / response schema
+- [x] T005 Write failing tests for symbol-aware and timeframe-aware grid generation (`BTC/ETH`, `1d/1w`), including unsupported symbol/timeframe rejection
+- [x] T006 Write failing tests that the public path preserves richer leverage-ladder detail before frontend grouping
+- [x] T007 Write failing tests that cumulative long/short anchor correctly at current price
+- [x] T008 Write failing tests that the canonical public HTML route consumes `/liquidations/coinank-public-map`, not legacy `/liquidations/levels`
+- [x] T008a Write failing regression tests that legacy `/liquidations/levels` behavior remains available for existing workflows
+- [x] T008b Write failing tests for explicit builder failure behavior: HTTP 500 with JSON `{"error", "detail"}`, no partial HTML chart or silent legacy fallback
+- [x] T008c Write failing E2E test (Playwright) that `frontend/liq_map_1w.html` renders correctly from the new endpoint payload
+- [x] T008d Write failing tests that BTC and ETH use different grid steps and that `1d` and `1w` use different range envelopes
 
 ## Phase 3: Backend Rewrite
 
