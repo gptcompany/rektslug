@@ -48,7 +48,7 @@ generation first, not as another frontend-only tweak pass.
 
 ```text
 DuckDB / local model inputs
-  -> dedicated CoinAnK-style public builder
+  -> public liqmap builder
   -> GET /liquidations/coinank-public-map
   -> public-route payload with provider-like grid / ladder / cumulative data
   -> frontend/liq_map_1w.html
@@ -58,7 +58,7 @@ DuckDB / local model inputs
 ### Candidate Implementation Shape
 
 - keep the public URL contract unchanged
-- add a dedicated builder/helper in the API layer or db service for public CoinAnK-style liq-map data
+- add a `public liqmap builder` helper in the API layer or db service for public CoinAnK-style liq-map data
 - expose that builder through `GET /liquidations/coinank-public-map`
 - update `frontend/liq_map_1w.html` to call the new endpoint on canonical CoinAnK-style routes
 - keep legacy `/liquidations/levels` available for existing local workflows if needed
@@ -66,7 +66,7 @@ DuckDB / local model inputs
 
 ### Builder Contract
 
-The builder contract is frozen for implementation and RED tests:
+The `public liqmap builder` contract is frozen for implementation and RED tests:
 
 - response model fields:
   - `schema_version`
@@ -100,6 +100,13 @@ The builder contract is frozen for implementation and RED tests:
   - `1d`: `p05..p95` + padding, bounded `±8%..±12%`
   - `1w`: `p02..p98` + padding, bounded `±12%..±18%`
 
+### Performance Budget
+
+- builder response target, warm: `< 2s`
+- builder response target, cold: `< 10s`
+- single public-route visual validation run: `< 120s`
+- one manifest and one score artifact: `< 1 MB` each
+
 ## What Already Works
 
 - HTML route serving and deploy path
@@ -109,7 +116,7 @@ The builder contract is frozen for implementation and RED tests:
 
 ## What Needs Work
 
-1. Dedicated public data builder
+1. Public liqmap builder
 2. Symbol-aware / timeframe-aware grid generation
 3. Provider-like leverage ladder representation
 4. Cumulative calculation from the dedicated public dataset

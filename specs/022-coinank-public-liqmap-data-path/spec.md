@@ -109,6 +109,10 @@ Rationale:
 - it avoids silently mutating `/liquidations/levels` behavior for existing consumers
 - it gives RED tests an explicit contract to target
 
+Canonical term used by this spec:
+
+- `public liqmap builder`
+
 ## Functional Requirements
 
 - **FR-001**: The public CoinAnK-style route MUST stop depending on the legacy local OI-bucket shape as its direct source of rendered bins.
@@ -212,12 +216,30 @@ Frozen initial range rule:
 
 This rule is intentionally explicit so RED tests can target it.
 
+## Leverage-Ladder Grouping Rule
+
+The first-pass public grouping rule is frozen for this spec:
+
+- `Low`: `25x`, `30x`, `40x`
+- `Medium`: `50x`, `60x`, `70x`
+- `High`: `80x`, `90x`, `100x`
+
+Grouping formula:
+
+1. preserve raw ladder buckets per `(price_level, leverage, side)`
+2. map each leverage tier to exactly one group using the table above
+3. aggregate grouped volumes only after the raw ladder has been materialized
+
+This ensures the backend preserves a measurable richer ladder before the page
+reduces it to display groups.
+
 ## Non-Functional Requirements
 
 - **NFR-001**: A single public-route visual validation run (`BTC 1d`) MUST complete in `< 120s`.
 - **NFR-002**: Public-route payload generation MUST not fall back to the synthetic 5-level dataset when real DuckDB-backed public data is available.
 - **NFR-003**: The public-route implementation MUST preserve backward-compatible URLs and return valid HTML for the existing chart routes.
 - **NFR-004**: Validation artifacts for one route pair MUST remain `< 1 MB` each for manifest and score outputs.
+- **NFR-005**: The `public liqmap builder` response time MUST remain `< 2s` warm and `< 10s` cold for a single `(symbol, timeframe)` request under local validation conditions.
 
 ## Edge Cases
 
@@ -232,7 +254,7 @@ This rule is intentionally explicit so RED tests can target it.
 
 ## Success Criteria
 
-- **SC-001**: The public route for `BTCUSDT 1d` is no longer visually classified as “far” from CoinAnK by manual review.
+- **SC-001**: The first structural pass reaches `>= 90` visual similarity for `BTCUSDT 1d` on the public route and does not fail validator checks for missing distinct timeframe range or broken cumulative anchoring.
 - **SC-002**: The first structural rewrite pass achieves `>= 90` visual similarity on the public route for `BTC/ETH x 1d/1w`, with `95` retained as the official final parity target after tuning.
 - **SC-003**: `BTC/ETH x 1d/1w` public-route validations produce distinct, timeframe-appropriate views rather than near-identical outputs.
 - **SC-004**: The public-route backend contract is documented well enough that future CoinAnK public tuning does not require more blind frontend-only tweaks.

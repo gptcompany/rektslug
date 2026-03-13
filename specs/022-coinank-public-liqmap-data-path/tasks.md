@@ -20,6 +20,7 @@
 - [ ] T008a Write failing regression tests that legacy `/liquidations/levels` behavior remains available for existing workflows
 - [ ] T008b Write failing tests for explicit builder failure behavior: diagnostic error, no misleading silent fallback
 - [ ] T008c Write failing tests that `frontend/liq_map_1w.html` can consume the new payload schema
+- [ ] T008d Write failing tests that BTC and ETH use different grid steps and that `1d` and `1w` use different range envelopes
 
 ## Phase 3: Backend Rewrite
 
@@ -39,7 +40,7 @@
 - [ ] T019 Run public-route validation for `ETHUSDT 1w`
 - [ ] T020 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
 - [ ] T021 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
-- [ ] T022 Measure the first structural pass gates: runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
+- [ ] T022 Measure the first structural pass gates: builder response `< 2s` warm / `< 10s` cold, validation runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
 
 ## Phase 5: Documentation
 
