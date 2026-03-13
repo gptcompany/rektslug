@@ -57,15 +57,33 @@ class TestProfileRegistry:
         from src.liquidationheatmap.models.profiles import get_profile
 
         profile = get_profile("rektslug-ank")
-        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 15.0
+        assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 10.0
+        assert profile.get_bin_size(timeframe_days=7, symbol="BTCUSDT") == 12.0
         assert profile.get_bin_size(timeframe_days=7, symbol="ETHUSDT") == 1.65
 
     def test_ank_profile_supports_side_weight_overrides(self):
         from src.liquidationheatmap.models.profiles import get_profile
 
         profile = get_profile("rektslug-ank")
-        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.52, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.62, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.42, "sell": 1.0}
         assert profile.get_side_weights("DOGEUSDT", 1) == {"buy": 1.0, "sell": 1.0}
+
+    def test_ank_profile_supports_btc_leverage_weight_overrides(self):
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-ank")
+        assert profile.get_leverage_weights("BTCUSDT", 1) == {
+            25: 0.28,
+            50: 0.34,
+            100: 0.38,
+        }
+        assert profile.get_leverage_weights("BTCUSDT", 7) == {
+            25: 0.28,
+            50: 0.34,
+            100: 0.38,
+        }
+        assert profile.get_leverage_weights("ETHUSDT", 1) == profile.leverage_weights
 
     def test_glass_profile_supports_leverage_weight_overrides(self):
         from src.liquidationheatmap.models.profiles import get_profile
