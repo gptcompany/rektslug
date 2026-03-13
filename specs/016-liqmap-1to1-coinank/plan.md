@@ -3,6 +3,21 @@
 **Branch**: `016-liqmap-1to1-coinank` | **Date**: 2026-03-03 | **Spec**: `specs/016-liqmap-1to1-coinank/spec.md`
 **Input**: Feature specification from `/specs/016-liqmap-1to1-coinank/spec.md`
 
+## Status Update
+
+This plan remains useful as the original frontend-only implementation plan, but
+it is no longer the active plan for the remaining public-route parity gap.
+
+Reason:
+
+- the public page now contains most of the template/layout work described here
+- the dominant remaining mismatch versus CoinAnK is backend/data-path related
+
+Active follow-up:
+
+- `specs/022-coinank-public-liqmap-data-path/spec.md`
+- `specs/022-coinank-public-liqmap-data-path/plan.md`
+
 ## Summary
 
 Achieve a near 1:1 visual match between our `liq-map` page and Coinank's liquidation map.
@@ -18,7 +33,8 @@ transformations. Validation target: >= 95% on `/validate-liqmap` (32-element che
 **Target Platform**: Browser (Chrome/Firefox)
 **Project Type**: Single file frontend
 **Performance Goals**: Chart renders in <2s, no regressions from current behavior
-**Constraints**: Single file modification only, no backend changes, no new dependencies
+**Constraints**: Original plan assumption only. The remaining parity work is no
+longer single-file-only and now lives under `spec-022`.
 **Scale/Scope**: BTC/USDT primary, ETH/USDT secondary (same code path, parametric via `?symbol=`)
 
 ## Constitution Check

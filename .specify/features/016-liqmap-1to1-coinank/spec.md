@@ -8,7 +8,11 @@ This mirror exists for `.specify` compatibility.
 The source of truth remains:
 - `specs/016-liqmap-1to1-coinank/spec.md`
 
-The implementation goal is unchanged:
+Status note:
+- `spec-016` now serves mainly as the historical frontend visual checklist
+- the remaining public-route backend/data-path gap is tracked in `spec-022`
+
+The implementation goal is unchanged at a high level:
 - achieve near 1:1 visual match with CoinAnk for `liq-map`
 - keep scope on BTC/ETH using the same page
 - keep `liq-heat-map` out of scope

@@ -1,5 +1,26 @@
 # Spec 016: Liq-Map 1:1 Coinank Visual Match
 
+## Status Update
+
+This spec is now best read as the **historical frontend parity checklist** for
+the public CoinAnK-style liq-map page.
+
+What changed:
+
+- much of the visual/template work originally described here has already been
+  absorbed into `frontend/liq_map_1w.html`
+- the remaining major mismatch is no longer primarily frontend
+- the current blocker to true public-route parity is the backend/public data path
+
+Therefore:
+
+- `spec-016` is **not** the active source of truth for the remaining parity gap
+- the active backend/public-route rewrite is now tracked in `spec-022`
+
+See:
+
+- `specs/022-coinank-public-liqmap-data-path/spec.md`
+
 **Scope**: `frontend/liq_map_1w.html` - BTC/USDT 1W (poi ETH/USDT stessa pagina, stesso codice)
 **Target**: Score >= 95% su `/validate-liqmap`
 **Reference**: `.claude/commands/validate-liqmap.md` (checklist 32 elementi)
@@ -33,6 +54,11 @@ Non servono modifiche a:
 - Backend API (gia restituisce i dati corretti)
 - Script di validazione (gia aggiornati con checklist e threshold 95%)
 - Script Coinank screenshot (gia con capture_info)
+
+Nota storica:
+
+questa assunzione non e piu sufficiente per la parity reale del route pubblico.
+Il backend/public-route gap e ora formalizzato in `spec-022`.
 
 ## Implementazione Step-by-Step
 

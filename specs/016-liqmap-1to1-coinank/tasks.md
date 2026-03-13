@@ -1,5 +1,17 @@
 # Tasks: Spec 016 - Liq-Map 1:1 Coinank Visual Match
 
+> Status note:
+>
+> This file is now primarily a historical frontend checklist.
+>
+> The public route already incorporates much of the visual/template work listed
+> below, but the remaining major mismatch versus CoinAnK is not a pure frontend
+> issue anymore. The active backend/public-route rewrite is tracked in:
+>
+> - `specs/022-coinank-public-liqmap-data-path/tasks.md`
+>
+> Do not treat this file as the primary active backlog for public CoinAnK parity.
+
 **Spec**: `specs/016-liqmap-1to1-coinank/spec.md`
 **Plan**: `specs/016-liqmap-1to1-coinank/plan.md`
 **File**: `frontend/liq_map_1w.html` (ONLY)
