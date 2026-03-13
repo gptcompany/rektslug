@@ -52,10 +52,15 @@ async def _warmup_read_connection():
     """Warms up DuckDB read connection in a background thread."""
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
     try:
+        if DuckDBService.is_ingestion_locked():
+            logger.info("Shared: skipping read warmup while ingestion lock is active")
+            return
         # 440GB DB takes time to read metadata; do it in a thread to keep event loop alive
         db = await asyncio.to_thread(DuckDBService, read_only=True)
         await asyncio.to_thread(db.conn.execute, "SELECT 1")
         logger.info("Shared: read connections restored (background)")
+    except IngestionLockError:
+        logger.info("Shared: read warmup deferred by ingestion lock")
     except Exception as e:
         logger.warning("Shared: failed to restore read connections: %s", e)
 

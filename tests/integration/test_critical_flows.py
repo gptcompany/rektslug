@@ -1,13 +1,13 @@
 """Integration tests for critical lock/fallback flows."""
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
-from src.liquidationheatmap.api.shared import _gap_fill_lock
+from src.liquidationheatmap.api.shared import _gap_fill_lock, _warmup_read_connection
 from src.liquidationheatmap.ingestion.db_service import (
     DuckDBService,
     INGESTION_LOCK_FILE,
@@ -119,6 +119,16 @@ class TestCriticalFlows:
             # Both locks must be released
             assert not DuckDBService.is_ingestion_locked()
             assert not _gap_fill_lock.locked()
+
+    def test_warmup_read_connection_skips_while_ingestion_locked(self):
+        """Background warmup must not reopen DuckDB during an active ingestion lock."""
+        DuckDBService.set_ingestion_lock()
+        try:
+            with patch("src.liquidationheatmap.api.shared.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+                asyncio.run(_warmup_read_connection())
+                mock_to_thread.assert_not_called()
+        finally:
+            DuckDBService.release_ingestion_lock()
 
 
 class TestLifespanStartup:
