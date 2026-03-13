@@ -108,3 +108,60 @@ class TestShellScenariosMocked:
         )
         assert result.returncode == 0
         assert "Database write access confirmed" in result.stdout
+
+    def test_run_ingestion_daily_lock_contention_skips_cleanly(self, mock_env, tmp_path):
+        """Daily ingestion should skip safely when another writer holds the DB lock."""
+        mock_bin = tmp_path / "bin"
+        mock_bin.mkdir(exist_ok=True)
+        uv_script = mock_bin / "uv"
+        uv_script.write_text(
+            """#!/bin/bash
+if [[ "$*" == *"cleanup_duckdb_locks.py"* ]]; then
+    exit 0
+fi
+if [[ "$*" == *"python -c"* ]]; then
+    echo "Lock test failed: Could not set lock on file" >&2
+    exit 1
+fi
+exit 0
+"""
+        )
+        uv_script.chmod(0o755)
+        mock_env["PATH"] = f"{mock_bin}:{mock_env['PATH']}"
+
+        result = subprocess.run(
+            ["bash", "scripts/run-ingestion.sh"],
+            env=mock_env, capture_output=True, text=True
+        )
+
+        assert result.returncode == 0
+        assert "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock" in result.stdout
+        assert "SKIPPED_LOCK_CONTENTION: Daily ingestion skipped before writes" in result.stdout
+
+    def test_run_ingestion_full_lock_contention_still_fails(self, mock_env, tmp_path):
+        """Full ingestion should still fail hard on database lock contention."""
+        mock_bin = tmp_path / "bin"
+        mock_bin.mkdir(exist_ok=True)
+        uv_script = mock_bin / "uv"
+        uv_script.write_text(
+            """#!/bin/bash
+if [[ "$*" == *"cleanup_duckdb_locks.py"* ]]; then
+    exit 0
+fi
+if [[ "$*" == *"python -c"* ]]; then
+    echo "Lock test failed: Could not set lock on file" >&2
+    exit 1
+fi
+exit 0
+"""
+        )
+        uv_script.chmod(0o755)
+        mock_env["PATH"] = f"{mock_bin}:{mock_env['PATH']}"
+
+        result = subprocess.run(
+            ["bash", "scripts/run-ingestion.sh", "--full"],
+            env=mock_env, capture_output=True, text=True
+        )
+
+        assert result.returncode == 1
+        assert "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock" in result.stdout

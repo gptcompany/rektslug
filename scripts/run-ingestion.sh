@@ -150,7 +150,7 @@ prepare_database() {
             if [ $attempt -eq $MAX_RETRIES ]; then
                 log "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock after $MAX_RETRIES attempts"
                 ps aux | grep -E "python.*duckdb|ingest" | grep -v grep || true
-                return 1
+                return 2
             fi
             log "Database locked, waiting ${RETRY_DELAY}s (attempt $attempt/$MAX_RETRIES)..."
             sleep $RETRY_DELAY
@@ -435,7 +435,18 @@ send_discord \
     16776960  # yellow
 
 # Prepare database (lock cleanup, API coordination)
-if ! prepare_database; then
+PREP_RC=0
+prepare_database || PREP_RC=$?
+if [ $PREP_RC -ne 0 ]; then
+    if [ $PREP_RC -eq 2 ] && [ "$MODE" = "daily" ]; then
+        log "SKIPPED_LOCK_CONTENTION: Daily ingestion skipped before writes"
+        send_discord \
+            "DuckDB Ingestion Skipped (${MODE})" \
+            "Cannot acquire database lock; another writer is active. This cycle was skipped safely." \
+            16776960  # yellow
+        exit 0
+    fi
+
     send_discord \
         "DuckDB Ingestion FAILED" \
         "Cannot acquire database lock" \
