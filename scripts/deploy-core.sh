@@ -16,8 +16,11 @@ if [ ! -f ".env" ]; then
     if [ -f "${SHARED_ENV_FILE}" ]; then
         ln -sf "${SHARED_ENV_FILE}" .env
         temp_env_link=1
+    elif [ -f "${PROJECT_DIR}/.env.example" ]; then
+        ln -sf "${PROJECT_DIR}/.env.example" .env
+        temp_env_link=1
     else
-        echo "Missing .env in ${PROJECT_DIR} and shared env file ${SHARED_ENV_FILE}. Configure runtime values first." >&2
+        echo "Missing .env in ${PROJECT_DIR}, shared env file ${SHARED_ENV_FILE}, and .env.example fallback. Configure runtime values first." >&2
         exit 1
     fi
 fi

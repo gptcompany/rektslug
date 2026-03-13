@@ -47,6 +47,7 @@ def test_core_deploy_workflow_targets_core_code():
 
     assert "src/liquidationheatmap/**" in text
     assert "docker-compose.yml" in text
+    assert "frontend/**" in text
     assert "docker/build-push-action" in text
     assert "scripts/deploy-core.sh" in text
     assert "scripts/lib/runtime_env.sh" in text
@@ -58,7 +59,7 @@ def test_core_deploy_workflow_targets_core_code():
 
 
 def test_deploy_core_uses_shared_env_fallback():
-    """deploy-core.sh should reuse the shared runtime env when checkout .env is absent."""
+    """deploy-core.sh should reuse shared env or .env.example when checkout .env is absent."""
     script_path = REPO_ROOT / "scripts" / "deploy-core.sh"
     text = script_path.read_text(encoding="utf-8")
 
@@ -66,4 +67,5 @@ def test_deploy_core_uses_shared_env_fallback():
     assert "lh_load_runtime_env host" in text
     assert "SHARED_ENV_FILE" in text
     assert 'ln -sf "${SHARED_ENV_FILE}" .env' in text
+    assert 'ln -sf "${PROJECT_DIR}/.env.example" .env' in text
     assert 'rm -f "${PROJECT_DIR}/.env"' in text
