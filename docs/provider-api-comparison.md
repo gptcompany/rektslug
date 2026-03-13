@@ -294,7 +294,8 @@ uv run python scripts/run_visual_harness.py \
   --product liq-map \
   --renderer plotly \
   --symbol BTCUSDT \
-  --timeframe 1d
+  --timeframe 1d \
+  --pass-threshold 95
 
 uv run python scripts/run_visual_harness.py \
   --run-id visual_eth_1w \
@@ -302,7 +303,8 @@ uv run python scripts/run_visual_harness.py \
   --product liq-map \
   --renderer plotly \
   --symbol ETHUSDT \
-  --timeframe 1w
+  --timeframe 1w \
+  --pass-threshold 95
 ```
 
 By default this writes to:
@@ -319,6 +321,10 @@ For the frozen MVP contract, a pass means:
 - `status = "pass"`
 - `tier1_pass = true`
 - `score >= 95`
+
+The CLI now exposes `--pass-threshold`, but the accepted range is intentionally
+restricted to `90..100`. The default operational gate for both
+`rektslug vs CoinAnK` and `rektslug vs Coinglass` remains `95`.
 
 ### 3. Internal validation dashboard
 

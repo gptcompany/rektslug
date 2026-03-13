@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from scripts.run_visual_harness import main, parse_args
 
 
@@ -26,6 +28,7 @@ def test_parse_args_accepts_timeframe():
     assert args.exchange == "binance"
     assert args.timeframe == "1d"
     assert args.window is None
+    assert args.pass_threshold == 95
 
 
 def test_parse_args_accepts_window_for_heat_map_and_lightweight():
@@ -47,6 +50,37 @@ def test_parse_args_accepts_window_for_heat_map_and_lightweight():
     assert args.renderer == "lightweight"
     assert args.timeframe is None
     assert args.window == "48h"
+    assert args.pass_threshold == 95
+
+
+def test_parse_args_accepts_explicit_pass_threshold():
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--timeframe",
+            "1d",
+            "--pass-threshold",
+            "90",
+        ],
+    ):
+        args = parse_args()
+
+    assert args.pass_threshold == 90
+
+
+def test_parse_args_rejects_threshold_below_90():
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--timeframe",
+            "1d",
+            "--pass-threshold",
+            "89",
+        ],
+    ), pytest.raises(SystemExit):
+        parse_args()
 
 
 def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
@@ -74,6 +108,7 @@ def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
     assert "manifest=" in output
     assert "score=" in output
     assert mock_run.called
+    assert mock_run.call_args.kwargs["pass_threshold"] == 95
 
 
 def test_main_returns_non_zero_and_prints_manifest_for_unwired_lightweight_path(

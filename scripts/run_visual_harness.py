@@ -28,6 +28,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exchange", default="binance")
     parser.add_argument("--api-base", default="http://localhost:8002")
     parser.add_argument(
+        "--pass-threshold",
+        type=int,
+        default=95,
+        help="Visual similarity threshold (90-100, default: 95).",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("data/validation/visual_harness"),
@@ -35,7 +41,10 @@ def parse_args() -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--timeframe", choices=["1d", "1w"])
     group.add_argument("--window")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.pass_threshold < 90 or args.pass_threshold > 100:
+        parser.error("--pass-threshold must be between 90 and 100")
+    return args
 
 
 def _default_run_id() -> str:
@@ -58,6 +67,7 @@ def main() -> int:
     outcome = run_visual_pair(
         request=request,
         output_dir=args.output_dir,
+        pass_threshold=args.pass_threshold,
     )
     print(f"manifest={outcome.manifest_path}")
     if outcome.score_path is not None:
