@@ -23,14 +23,14 @@
 
         const PROFILE_LEVERAGE_GROUPS = {
             'rektslug-ank': {
-                'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' },
-                'Medium leverage': { tiers: ['50x'], color: '#B37FEB' },
-                'High leverage':   { tiers: ['100x'], color: '#FF9C6E' }
+                'Low leverage':    { tiers: ['25x', '30x', '40x'], color: '#5B8FF9' },
+                'Medium leverage': { tiers: ['50x', '60x', '70x'], color: '#B37FEB' },
+                'High leverage':   { tiers: ['80x', '90x', '100x'], color: '#FF9C6E' }
             },
             'rektslug-ank-public': {
-                'Low leverage':    { tiers: ['25x'], color: '#5B8FF9' },
-                'Medium leverage': { tiers: ['50x'], color: '#B37FEB' },
-                'High leverage':   { tiers: ['100x'], color: '#FF9C6E' }
+                'Low leverage':    { tiers: ['25x', '30x', '40x'], color: '#5B8FF9' },
+                'Medium leverage': { tiers: ['50x', '60x', '70x'], color: '#B37FEB' },
+                'High leverage':   { tiers: ['80x', '90x', '100x'], color: '#FF9C6E' }
             }
         };
 
@@ -85,7 +85,6 @@
 
         function getLeverageGroups(profileName, liquidations) {
             const availableTiers = new Set((liquidations || []).map(liq => liq.leverage));
-            const hasLowerTiers = availableTiers.has('5x') || availableTiers.has('10x');
             const hasCoinankStyleTiers = (
                 availableTiers.has('25x') &&
                 availableTiers.has('50x') &&
@@ -95,29 +94,40 @@
             if (profileName && PROFILE_LEVERAGE_GROUPS[profileName]) {
                 return PROFILE_LEVERAGE_GROUPS[profileName];
             }
-            if (!hasLowerTiers && hasCoinankStyleTiers) {
+            if (hasCoinankStyleTiers) {
                 return PROFILE_LEVERAGE_GROUPS['rektslug-ank-public'];
             }
             return DEFAULT_LEVERAGE_GROUPS;
         }
 
-        function ensureValidLevelsPayload(data) {
+        function ensureValidPublicMapPayload(data) {
             if (!data || typeof data !== 'object') {
-                throw new Error('Invalid liquidation levels payload');
+                throw new Error('Invalid public liqmap payload');
             }
-            if (!Array.isArray(data.long_liquidations) || !Array.isArray(data.short_liquidations)) {
-                throw new Error('Invalid liquidation levels payload');
+            if (!data.grid || typeof data.grid !== 'object') {
+                throw new Error('Invalid public liqmap payload');
+            }
+            if (!Array.isArray(data.long_buckets) || !Array.isArray(data.short_buckets)) {
+                throw new Error('Invalid public liqmap payload');
+            }
+            if (!Array.isArray(data.cumulative_long) || !Array.isArray(data.cumulative_short)) {
+                throw new Error('Invalid public liqmap payload');
             }
             if (data.current_price === undefined || data.current_price === null) {
-                throw new Error('Invalid liquidation levels payload');
+                throw new Error('Invalid public liqmap payload');
             }
             return data;
         }
 
-        async function loadLevels() {
+        function getTimeframeKey() {
+            return getTimeframeDays() === 1 ? '1d' : '1w';
+        }
+
+        async function loadPublicMap() {
             const symbol = getSymbol();
             const exchange = getExchange();
             const timeframeDays = getTimeframeDays();
+            const timeframe = getTimeframeKey();
             const profile = getProfile();
             const displaySymbol = symbol.replace('USDT', '/USDT');
             const exchangeLabel = formatExchangeLabel(exchange);
@@ -130,12 +140,11 @@
             window.__liqMapLoadError = null;
 
             try {
-                let levelsUrl =
-                    `/liquidations/levels?symbol=${symbol}&model=openinterest&timeframe=${timeframeDays}`;
-                if (profile) {
-                    levelsUrl += `&profile=${encodeURIComponent(profile)}`;
-                }
-                const response = await fetch(levelsUrl);
+                const endpointPath = _isCoinankPath
+                    ? '/liquidations/coinank-public-map'
+                    : '/liquidations/coinank-public-map';
+                const requestParams = new URLSearchParams({ symbol, timeframe });
+                const response = await fetch(`${endpointPath}?${requestParams.toString()}`);
                 const rawText = await response.text();
                 let data = null;
 
@@ -145,25 +154,25 @@
                     } catch (_parseError) {
                         throw new Error(
                             response.ok
-                                ? 'Invalid JSON response from /liquidations/levels'
-                                : `Levels request failed (${response.status})`
+                                ? 'Invalid JSON response from /liquidations/coinank-public-map'
+                                : `Public liqmap request failed (${response.status})`
                         );
                     }
                 }
 
                 if (!response.ok) {
                     throw new Error(
-                        (data && (data.message || data.error))
-                            || `Levels request failed (${response.status})`
+                        (data && (data.detail || data.message || data.error))
+                            || `Public liqmap request failed (${response.status})`
                     );
                 }
 
-                ensureValidLevelsPayload(data);
+                ensureValidPublicMapPayload(data);
                 renderLiquidationMap(data, symbol);
             } catch (error) {
                 window.__liqMapLoadError = error.message;
                 document.getElementById('lastDataPoint').textContent = `Error: ${error.message}`;
-                console.error('Error loading levels:', error);
+                console.error('Error loading public liqmap payload:', error);
             }
         }
 
@@ -284,8 +293,7 @@
         }
 
         function renderLiquidationMap(data, symbol) {
-            const currentPrice = parseFloat(data.current_price);
-            const timeframeDays = getTimeframeDays();
+            const currentPrice = Number(data.current_price);
             const profileName = getProfile();
             document.getElementById('currentPrice').textContent = String(currentPrice);
             window.__liqMapLoadError = null;
@@ -299,21 +307,21 @@
             // Group by 3 leverage groups
             const leverageGroups = getLeverageGroups(
                 profileName,
-                [...data.long_liquidations, ...data.short_liquidations],
+                [...data.long_buckets, ...data.short_buckets],
             );
-            const longsGrouped = groupByLeverageGroups(data.long_liquidations, leverageGroups);
-            const shortsGrouped = groupByLeverageGroups(data.short_liquidations, leverageGroups);
+            const longsGrouped = groupByLeverageGroups(data.long_buckets, leverageGroups);
+            const shortsGrouped = groupByLeverageGroups(data.short_buckets, leverageGroups);
 
             let traces = buildBarTraces(longsGrouped, shortsGrouped, leverageGroups);
 
-            // Calculate cumulative distributions (raw data, not grouped)
-            const allPrices = [...new Set([
-                ...data.long_liquidations.map(l => parseFloat(l.price_level)),
-                ...data.short_liquidations.map(l => parseFloat(l.price_level))
-            ])].sort((a, b) => a - b);
-
-            const cumulativeLong = calculateCumulative(data.long_liquidations, allPrices, currentPrice, true);
-            const cumulativeShort = calculateCumulative(data.short_liquidations, allPrices, currentPrice, false);
+            const cumulativeLong = {
+                prices: data.cumulative_long.map(point => Number(point.price_level)),
+                values: data.cumulative_long.map(point => Number(point.value)),
+            };
+            const cumulativeShort = {
+                prices: data.cumulative_short.map(point => Number(point.price_level)),
+                values: data.cumulative_short.map(point => Number(point.value)),
+            };
 
             // Cumulative Long line with fill (red, descending from right)
             traces.push({
@@ -355,7 +363,8 @@
                 yaxis: 'y'
             });
 
-            const [xMin, xMax] = computeDisplayRange(allPrices, currentPrice, timeframeDays);
+            const xMin = Number(data.grid.min_price);
+            const xMax = Number(data.grid.max_price);
 
             const layout = {
                 xaxis: {
@@ -461,45 +470,9 @@
             });
         }
 
-        function calculateCumulative(liquidations, allPrices, currentPrice, isLong = false) {
-            // Pre-build volume map in single pass: O(N)
-            const volumeMap = {};
-            liquidations.forEach(l => {
-                const price = parseFloat(l.price_level);
-                volumeMap[price] = (volumeMap[price] || 0) + parseFloat(l.volume);
-            });
-
-            const sortedPrices = [...allPrices].sort((a, b) => a - b);
-            if (isLong) {
-                const relevantPrices = sortedPrices.filter(price => price < currentPrice);
-                const cumulativeByPrice = new Map();
-                let cumulativeSum = 0;
-                for (let i = relevantPrices.length - 1; i >= 0; i--) {
-                    const price = relevantPrices[i];
-                    cumulativeSum += volumeMap[price] || 0;
-                    cumulativeByPrice.set(price, cumulativeSum);
-                }
-                return {
-                    prices: [...relevantPrices, currentPrice],
-                    values: [...relevantPrices.map(price => cumulativeByPrice.get(price) || 0), 0],
-                };
-            }
-
-            const relevantPrices = sortedPrices.filter(price => price > currentPrice);
-            const prices = [currentPrice];
-            const values = [0];
-            let cumulativeSum = 0;
-            for (const price of relevantPrices) {
-                cumulativeSum += volumeMap[price] || 0;
-                prices.push(price);
-                values.push(cumulativeSum);
-            }
-            return { prices, values };
-        }
-
         // Auto-load on page load
         window.onload = () => {
-            loadLevels();
+            loadPublicMap();
         };
     </script>
 </body>

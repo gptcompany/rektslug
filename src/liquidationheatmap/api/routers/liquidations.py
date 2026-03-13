@@ -10,8 +10,15 @@ from urllib.request import urlopen
 
 import numpy as np
 from fastapi import APIRouter, Query, HTTPException, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from src.liquidationheatmap.api.public_liqmap import (
+    SUPPORTED_PUBLIC_LIQMAP_SYMBOLS,
+    SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES,
+    CoinankPublicMapResponse,
+    build_coinank_public_map_response,
+)
 from src.liquidationheatmap.ingestion.db_service import (
     DuckDBService,
     IngestionLockError,
@@ -466,6 +473,56 @@ async def get_liquidation_levels(
         long_liquidations=long_liqs,
         short_liquidations=short_liqs,
     )
+
+
+@router.get(
+    "/coinank-public-map",
+    response_model=CoinankPublicMapResponse,
+    description="Dedicated public CoinAnK-style liq-map payload for canonical public routes.",
+)
+async def get_coinank_public_map(
+    symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
+    timeframe: str = Query(...),
+):
+    normalized_symbol = symbol.upper()
+    normalized_timeframe = timeframe.lower()
+
+    if normalized_symbol not in SUPPORTED_PUBLIC_LIQMAP_SYMBOLS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported public liqmap symbol '{symbol}'. "
+                f"Supported symbols: {sorted(SUPPORTED_PUBLIC_LIQMAP_SYMBOLS)}"
+            ),
+        )
+    if normalized_timeframe not in SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported public liqmap timeframe '{timeframe}'. "
+                f"Supported timeframes: {sorted(SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES)}"
+            ),
+        )
+
+    try:
+        return build_coinank_public_map_response(
+            symbol=normalized_symbol,
+            timeframe=normalized_timeframe,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Public liqmap builder failed for %s %s: %s",
+            normalized_symbol,
+            normalized_timeframe,
+            exc,
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"error": exc.__class__.__name__, "detail": str(exc)},
+        )
 
 @router.get("/heatmap", response_model=LiquidationResponse)
 async def get_heatmap(

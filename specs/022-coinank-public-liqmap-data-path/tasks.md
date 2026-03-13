@@ -24,12 +24,12 @@
 
 ## Phase 3: Backend Rewrite
 
-- [ ] T009 Implement the dedicated CoinAnK-style public data builder
-- [ ] T010 Implement symbol-aware and timeframe-aware price-grid generation using the frozen step/snap rules from the spec
-- [ ] T011 Implement public-route leverage ladder generation suitable for provider-like grouping
-- [ ] T012 Implement cumulative series generation from the dedicated public dataset
-- [ ] T013 Expose the builder via `GET /liquidations/coinank-public-map`
-- [ ] T014 Update `frontend/liq_map_1w.html` to consume the new endpoint on canonical public CoinAnK-style routes while preserving the existing HTML URL contract
+- [x] T009 Implement the dedicated CoinAnK-style public data builder
+- [x] T010 Implement symbol-aware and timeframe-aware price-grid generation using the frozen step/snap rules from the spec
+- [x] T011 Implement public-route leverage ladder generation suitable for provider-like grouping
+- [x] T012 Implement cumulative series generation from the dedicated public dataset
+- [x] T013 Expose the builder via `GET /liquidations/coinank-public-map`
+- [x] T014 Update `frontend/liq_map_1w.html` to consume the new endpoint on canonical public CoinAnK-style routes while preserving the existing HTML URL contract
 - [ ] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows; update or remove the stale `Sunset: 2025-06-01` header
 
 ## Phase 3b: Refactor
