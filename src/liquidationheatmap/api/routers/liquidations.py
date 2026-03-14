@@ -292,7 +292,6 @@ async def get_liquidation_levels(
 ):
     """Return static liquidation levels grouped by side and leverage tier."""
     response.headers["Deprecation"] = "true"
-    response.headers["Sunset"] = "2025-06-01"
     response.headers["Link"] = '</liquidations/heatmap-timeseries>; rel="successor-version"'
 
     if symbol not in SUPPORTED_SYMBOLS:

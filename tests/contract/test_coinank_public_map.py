@@ -176,3 +176,4 @@ class TestCoinankPublicMapContract:
         data = response.json()
         assert "long_liquidations" in data
         assert "short_liquidations" in data
+        assert "Sunset" not in response.headers

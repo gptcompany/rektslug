@@ -30,7 +30,7 @@
 - [x] T012 Implement cumulative series generation from the dedicated public dataset
 - [x] T013 Expose the builder via `GET /liquidations/coinank-public-map`
 - [x] T014 Update `frontend/liq_map_1w.html` to consume the new endpoint on canonical public CoinAnK-style routes while preserving the existing HTML URL contract
-- [ ] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows; update or remove the stale `Sunset: 2025-06-01` header
+- [x] T015 Keep legacy `/liquidations/levels` regression-green for existing non-public workflows; update or remove the stale `Sunset: 2025-06-01` header
 
 ## Phase 3b: Refactor
 
