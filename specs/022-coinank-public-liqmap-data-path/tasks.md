@@ -34,20 +34,20 @@
 
 ## Phase 3b: Refactor
 
-- [ ] T015b Refactor the public liqmap builder after GREEN tests pass: clean up internal helpers, remove duplication, verify all tests still green
+- [x] T015b Refactor the public liqmap builder after GREEN tests pass: clean up internal helpers, remove duplication, verify all tests still green
 
 ## Phase 4: Validation
 
-- [ ] T016 Run public-route validation for `BTCUSDT 1d`
-- [ ] T017 Run public-route validation for `BTCUSDT 1w`
-- [ ] T018 Run public-route validation for `ETHUSDT 1d`
-- [ ] T019 Run public-route validation for `ETHUSDT 1w`
-- [ ] T020 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
-- [ ] T021 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
-- [ ] T022 Measure the first structural pass gates: builder response `< 2s` warm / `< 10s` cold, validation runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
-- [ ] T022b Verify rollback path: confirm the frontend can revert to legacy `/liquidations/levels` by removing the endpoint switch, and that the legacy path still renders a valid chart
+- [x] T016 Run public-route validation for `BTCUSDT 1d`
+- [x] T017 Run public-route validation for `BTCUSDT 1w`
+- [x] T018 Run public-route validation for `ETHUSDT 1d`
+- [x] T019 Run public-route validation for `ETHUSDT 1w`
+- [x] T020 Confirm `1d` and `1w` public views are materially distinct and no longer collapse into near-identical output
+- [x] T021 Confirm the public route uses stale-real data rather than synthetic fallback whenever DuckDB-backed data is available
+- [x] T022 Measure the first structural pass gates: builder response `< 2s` warm / `< 10s` cold, validation runtime `< 120s`, manifest+score `< 1 MB`, and visual score `>= 90`
+- [x] T022b Verify rollback path: confirm the frontend can revert to legacy `/liquidations/levels` by removing the endpoint switch, and that the legacy path still renders a valid chart
 
 ## Phase 5: Documentation
 
-- [ ] T023 Document the new public-route backend contract and how it supersedes the remaining backend/data-path gap in `spec-016`
-- [ ] T024 Record final validation artifacts and residual differences, if any
+- [x] T023 Document the new public-route backend contract and how it supersedes the remaining backend/data-path gap in `spec-016`
+- [x] T024 Record final validation artifacts and residual differences, if any

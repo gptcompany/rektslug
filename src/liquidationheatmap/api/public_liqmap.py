@@ -56,6 +56,16 @@ _SEEDED_LADDER_EXPANSION = {
 }
 
 
+def _bucket_sort_key(item: tuple[tuple[float, str], float]) -> tuple[float, float]:
+    price_level, leverage = item[0]
+    leverage_order = (
+        COINANK_PUBLIC_LEVERAGE_LADDER.index(leverage)
+        if leverage in COINANK_PUBLIC_LEVERAGE_LADDER
+        else math.inf
+    )
+    return (price_level, leverage_order)
+
+
 class PublicLiqmapBuildError(RuntimeError):
     """Raised when the public liqmap builder cannot return a valid payload."""
 
@@ -160,12 +170,7 @@ def expand_public_leverage_ladder(
         CoinankPublicBucket(price_level=price_level, leverage=leverage, volume=volume)
         for (price_level, leverage), volume in sorted(
             aggregated.items(),
-            key=lambda item: (
-                item[0][0],
-                COINANK_PUBLIC_LEVERAGE_LADDER.index(item[0][1])
-                if item[0][1] in COINANK_PUBLIC_LEVERAGE_LADDER
-                else math.inf,
-            ),
+            key=_bucket_sort_key,
         )
     ]
 
@@ -380,12 +385,7 @@ def _build_side_buckets(
         CoinankPublicBucket(price_level=price_level, leverage=leverage, volume=volume)
         for (price_level, leverage), volume in sorted(
             aggregated.items(),
-            key=lambda item: (
-                item[0][0],
-                COINANK_PUBLIC_LEVERAGE_LADDER.index(item[0][1])
-                if item[0][1] in COINANK_PUBLIC_LEVERAGE_LADDER
-                else math.inf,
-            ),
+            key=_bucket_sort_key,
         )
     ]
 
