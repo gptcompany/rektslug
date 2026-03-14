@@ -74,9 +74,13 @@
             return days === 1 ? '1D' : '1W';
         }
 
-        function getProfile() {
+        function getExplicitProfile() {
             const urlParams = new URLSearchParams(window.location.search);
-            const explicitProfile = urlParams.get('profile');
+            return urlParams.get('profile');
+        }
+
+        function getProfile() {
+            const explicitProfile = getExplicitProfile();
             if (explicitProfile) return explicitProfile;
             // Canonical liq-map route is CoinAnK-style; default it to the calibrated
             // public CoinAnK-style visual profile unless a specific comparison profile is requested.
@@ -223,6 +227,7 @@
             const exchange = getExchange();
             const timeframeDays = getTimeframeDays();
             const timeframe = getTimeframeKey();
+            const explicitProfile = getExplicitProfile();
             const profile = getProfile();
             const displaySymbol = symbol.replace('USDT', '/USDT');
             const exchangeLabel = formatExchangeLabel(exchange);
@@ -237,7 +242,11 @@
             try {
                 const usePublicBuilder = _isCoinankPath
                     && SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)
-                    && (timeframe === '1d' || timeframe === '1w');
+                    && (timeframe === '1d' || timeframe === '1w')
+                    && (
+                        explicitProfile === null
+                        || explicitProfile === 'rektslug-ank-public'
+                    );
                 const endpointPath = usePublicBuilder
                     ? '/liquidations/coinank-public-map'
                     : '/liquidations/levels';

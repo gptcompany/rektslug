@@ -245,3 +245,54 @@ async def test_non_parity_symbol_falls_back_to_legacy_levels(liqmap_server):
         )
 
         await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_explicit_profile_override_preserves_legacy_levels_path(liqmap_server):
+    async with async_playwright() as playwright:
+        browser = await _launch_browser_or_skip(playwright)
+        page = await browser.new_page()
+
+        async def _fulfill_plotly(route):
+            await route.fulfill(
+                content_type="application/javascript",
+                body="""
+                window.Plotly = {
+                    newPlot: function(_id, traces, layout) {
+                        window.__lastPlotlyRender = { traces, layout };
+                        return Promise.resolve({
+                            _fullLayout: {
+                                yaxis: { range: [0, 30] },
+                                yaxis2: { range: [0, 30] }
+                            }
+                        });
+                    },
+                    relayout: function() {
+                        return Promise.resolve();
+                    }
+                };
+                """,
+            )
+
+        _LiqMapHandler.request_log = []
+        await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+        await page.goto(
+            f"{liqmap_server}/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-glass"
+        )
+        await page.wait_for_function(
+            "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
+        )
+
+        assert await page.evaluate("() => window.__liqMapLoadError") is None
+        assert await page.evaluate("() => Boolean(window.__lastPlotlyRender)") is True
+        assert any(
+            "/liquidations/levels" in request_path
+            and "profile=rektslug-glass" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+        assert not any(
+            "/liquidations/coinank-public-map" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+
+        await browser.close()

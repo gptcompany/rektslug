@@ -262,6 +262,9 @@ class TestFrontendStaticFiles:
         assert "'High leverage':   { tiers: ['80x', '90x', '100x'], color: '#FF9C6E' }" in response.text
         assert "/liquidations/coinank-public-map" in response.text
         assert "const usePublicBuilder = _isCoinankPath" in response.text
+        assert "const explicitProfile = getExplicitProfile();" in response.text
+        assert "explicitProfile === null" in response.text
+        assert "explicitProfile === 'rektslug-ank-public'" in response.text
         assert "? '/liquidations/coinank-public-map'" in response.text
         assert ": '/liquidations/levels';" in response.text
         assert "SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)" in response.text
