@@ -105,6 +105,41 @@ EOJSON
 }
 
 # =============================================================================
+# Sync container coordination
+# =============================================================================
+
+SYNC_CONTAINER="rektslug-sync"
+SYNC_WAS_RUNNING=false
+
+stop_sync_container() {
+    if ! command -v docker >/dev/null 2>&1; then
+        log "WARN: docker not available, cannot stop sync container"
+        return 0
+    fi
+
+    local state
+    state=$(docker inspect -f '{{.State.Running}}' "$SYNC_CONTAINER" 2>/dev/null || echo "missing")
+    if [ "$state" = "true" ]; then
+        SYNC_WAS_RUNNING=true
+        log "Stopping ${SYNC_CONTAINER} to prevent DuckDB lock contention..."
+        docker stop --time 30 "$SYNC_CONTAINER" >/dev/null 2>&1 || true
+        # Wait for any in-flight DuckDB writes to drain
+        sleep 3
+        log "${SYNC_CONTAINER} stopped"
+    else
+        log "${SYNC_CONTAINER} not running (state=${state}), skipping stop"
+    fi
+}
+
+start_sync_container() {
+    if [ "$SYNC_WAS_RUNNING" = "true" ]; then
+        log "Restarting ${SYNC_CONTAINER}..."
+        docker start "$SYNC_CONTAINER" >/dev/null 2>&1 || log "WARN: Failed to restart ${SYNC_CONTAINER}"
+        log "${SYNC_CONTAINER} restarted"
+    fi
+}
+
+# =============================================================================
 # DB lock management
 # =============================================================================
 
@@ -434,10 +469,14 @@ send_discord \
     "Symbols: ${SYMBOLS}\nMode: ${MODE}" \
     16776960  # yellow
 
+# Stop sync container to prevent DuckDB lock contention during ingestion
+stop_sync_container
+
 # Prepare database (lock cleanup, API coordination)
 PREP_RC=0
 prepare_database || PREP_RC=$?
 if [ $PREP_RC -ne 0 ]; then
+    start_sync_container
     if [ $PREP_RC -eq 2 ] && [ "$MODE" = "daily" ]; then
         log "SKIPPED_LOCK_CONTENTION: Daily ingestion skipped before writes"
         send_discord \
@@ -521,6 +560,9 @@ set -e
 
 # Refresh API connections
 refresh_api_connections
+
+# Restart sync container
+start_sync_container
 
 # Calculate duration
 END_TIME=$(date +%s)
