@@ -28,10 +28,32 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+
+_SHARED_ENV = Path("/media/sam/1TB/.env")
+
+
+def _get_secret(key: str) -> str | None:
+    """Load secret from env or fall back to dotenvx."""
+    val = os.environ.get(key)
+    if val:
+        return val
+    if not _SHARED_ENV.exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["dotenvx", "get", key, "-f", str(_SHARED_ENV)],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
 from typing import Any
 from urllib.parse import quote, urlparse
 
@@ -351,8 +373,8 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
             CaptureTarget(
                 provider="coinank",
                 url=coinank_url,
-                email=os.environ.get("COINANK_USER"),
-                password=os.environ.get("COINANK_PASSWORD"),
+                email=_get_secret("COINANK_USER"),
+                password=_get_secret("COINANK_PASSWORD"),
                 coin=coin,
             )
         )

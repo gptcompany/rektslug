@@ -182,9 +182,9 @@ _PROFILES: dict[str, CalibrationProfile] = {
             ("BTCUSDT", 7): _ANK_BTC_LEVERAGE_WEIGHTS,
         },
         side_weight_overrides={
-            ("BTCUSDT", 1): {"buy": 0.62, "sell": 1.0},
+            ("BTCUSDT", 1): {"buy": 0.25, "sell": 2.5},
             ("BTCUSDT", 7): {"buy": 0.42, "sell": 1.0},
-            ("ETHUSDT", 1): {"buy": 0.66, "sell": 1.0},
+            ("ETHUSDT", 1): {"buy": 0.25, "sell": 2.5},
             ("ETHUSDT", 7): {"buy": 0.30, "sell": 1.0},
         },
     ),

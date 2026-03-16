@@ -153,5 +153,5 @@ def test_btc_eth_and_1d_1w_use_distinct_range_envelopes():
         timeframe="1w",
     )
 
-    assert one_day_range == (91.04, 108.96)
+    assert one_day_range == (94.0, 106.0)
     assert one_week_range == (88.0, 112.0)

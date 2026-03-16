@@ -81,7 +81,7 @@ class TestProfileRegistry:
         profile = get_profile("rektslug-ank-public")
         assert profile.get_bin_size(timeframe_days=1, symbol="BTCUSDT") == 10.0
         assert profile.get_bin_size(timeframe_days=7, symbol="BTCUSDT") == 12.0
-        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.62, "sell": 1.0}
+        assert profile.get_side_weights("BTCUSDT", 1) == {"buy": 0.25, "sell": 2.5}
         assert profile.get_side_weights("BTCUSDT", 7) == {"buy": 0.42, "sell": 1.0}
         assert profile.get_leverage_weights("BTCUSDT", 1) == {
             25: 0.28,

@@ -22,6 +22,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
+
+_SHARED_ENV = Path("/media/sam/1TB/.env")
+
+
+def _get_secret(key: str) -> str | None:
+    """Load secret from env or fall back to dotenvx."""
+    val = os.environ.get(key)
+    if val:
+        return val
+    if not _SHARED_ENV.exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["dotenvx", "get", key, "-f", str(_SHARED_ENV)],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
 from urllib.request import urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -559,8 +580,8 @@ def main() -> int:
     coinank_path = output_dir / (f"coinank_{ex_tag}_{coin_tag}usdt_{tf_tag}_{timestamp}.png")
     manifest_path = manifest_dir / (f"liqmap_{ex_tag}_{coin_tag}usdt_{tf_tag}_{timestamp}.json")
 
-    email = os.environ.get("COINANK_USER")
-    password = os.environ.get("COINANK_PASSWORD")
+    email = _get_secret("COINANK_USER")
+    password = _get_secret("COINANK_PASSWORD")
 
     proc: subprocess.Popen | None = None
     api_base = f"http://{args.host}:{args.port}"
