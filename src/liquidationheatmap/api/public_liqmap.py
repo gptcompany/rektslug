@@ -38,8 +38,8 @@ _RANGE_RULES = {
     "1d": {
         "lower_quantile": Decimal("0.05"),
         "upper_quantile": Decimal("0.95"),
-        "min_clamp": Decimal("0.04"),
-        "max_clamp": Decimal("0.06"),
+        "min_clamp": Decimal("0.08"),
+        "max_clamp": Decimal("0.12"),
     },
     "1w": {
         "lower_quantile": Decimal("0.02"),

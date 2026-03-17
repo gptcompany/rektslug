@@ -153,5 +153,21 @@ def test_btc_eth_and_1d_1w_use_distinct_range_envelopes():
         timeframe="1w",
     )
 
-    assert one_day_range == (94.0, 106.0)
+    assert one_day_range == (91.04, 108.96)
     assert one_week_range == (88.0, 112.0)
+
+
+def test_one_day_range_keeps_returned_edge_buckets_visible():
+    one_day_range = derive_public_liqmap_range(
+        observed_prices=[
+            Decimal("88"),
+            Decimal("89"),
+            Decimal("111"),
+            Decimal("112"),
+        ],
+        current_price=Decimal("100"),
+        timeframe="1d",
+    )
+
+    assert one_day_range[0] <= 88.0
+    assert one_day_range[1] >= 112.0

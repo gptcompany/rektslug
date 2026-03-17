@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import signal
 import subprocess
 import sys
@@ -23,26 +22,6 @@ from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 
-_SHARED_ENV = Path("/media/sam/1TB/.env")
-
-
-def _get_secret(key: str) -> str | None:
-    """Load secret from env or fall back to dotenvx."""
-    val = os.environ.get(key)
-    if val:
-        return val
-    if not _SHARED_ENV.exists():
-        return None
-    try:
-        result = subprocess.run(
-            ["dotenvx", "get", key, "-f", str(_SHARED_ENV)],
-            capture_output=True, text=True, timeout=5,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-    return None
 from urllib.request import urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.liquidationheatmap.settings import get_settings
+from src.liquidationheatmap.utils.secrets import get_secret
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coinank_screenshot import capture_coinank_liqmap
@@ -580,8 +560,8 @@ def main() -> int:
     coinank_path = output_dir / (f"coinank_{ex_tag}_{coin_tag}usdt_{tf_tag}_{timestamp}.png")
     manifest_path = manifest_dir / (f"liqmap_{ex_tag}_{coin_tag}usdt_{tf_tag}_{timestamp}.json")
 
-    email = _get_secret("COINANK_USER")
-    password = _get_secret("COINANK_PASSWORD")
+    email = get_secret("COINANK_USER")
+    password = get_secret("COINANK_PASSWORD")
 
     proc: subprocess.Popen | None = None
     api_base = f"http://{args.host}:{args.port}"

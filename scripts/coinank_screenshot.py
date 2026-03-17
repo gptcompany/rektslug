@@ -14,30 +14,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
-import subprocess
 from pathlib import Path
 
-_SHARED_ENV = Path("/media/sam/1TB/.env")
-
-
-def _get_secret(key: str) -> str | None:
-    """Load secret from env or fall back to dotenvx."""
-    val = os.environ.get(key)
-    if val:
-        return val
-    if not _SHARED_ENV.exists():
-        return None
-    try:
-        result = subprocess.run(
-            ["dotenvx", "get", key, "-f", str(_SHARED_ENV)],
-            capture_output=True, text=True, timeout=5,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-    return None
+from src.liquidationheatmap.utils.secrets import get_secret
 
 COINANK_URL_TEMPLATE = "https://coinank.com/chart/derivatives/liq-heat-map/{pair}/{timeframe}"
 COINANK_LIQMAP_URL_TEMPLATE = (
@@ -442,8 +421,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    email = _get_secret("COINANK_USER")
-    password = _get_secret("COINANK_PASSWORD")
+    email = get_secret("COINANK_USER")
+    password = get_secret("COINANK_PASSWORD")
     if email and password:
         print("info: COINANK credentials found, will attempt native download")
     else:
