@@ -26,12 +26,13 @@ import asyncio
 import base64
 import hashlib
 import json
+import os
 import re
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-import os
 
 from typing import Any
 from urllib.parse import quote, urlparse
@@ -39,6 +40,10 @@ from urllib.parse import quote, urlparse
 import pyotp
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from coinank_screenshot import build_coinank_liqmap_url, coinank_login, dismiss_common_popups
 from src.liquidationheatmap.utils.secrets import get_secret
