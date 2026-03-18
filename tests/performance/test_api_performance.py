@@ -149,6 +149,9 @@ class TestCachingPerformance:
         """Test that repeated requests have consistent response time."""
         params = {"symbol": "BTCUSDT", "interval": "1h"}
 
+        # Warmup request (cold-start DuckDB metadata load skews variance)
+        client.get("/liquidations/heatmap-timeseries", params=params)
+
         times = []
         for _ in range(5):
             start_time = time.perf_counter()

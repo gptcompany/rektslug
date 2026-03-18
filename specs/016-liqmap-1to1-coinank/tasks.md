@@ -21,14 +21,14 @@
 
 ## Phase 1: Theme & Layout
 
-- [ ] T001 [P1] White background + light grid + neutral font
+- [x] T001 [P1] White background + light grid + neutral font
   - Change `paper_bgcolor` and `plot_bgcolor` to `#ffffff`
   - Change `font.color` to `#333333`, add `family: 'Arial, sans-serif'`
   - Change `gridcolor` to `#f0f0f0` on both axes
   - Add `<body style="background: #fff; margin: 0; padding: 0;">`
   - Checklist: T2-19, T2-21
 
-- [ ] T002 [P1] Remove chart title, axis titles, hide DOM metadata
+- [x] T002 [P1] Remove chart title, axis titles, hide DOM metadata
   - Remove `title` property from `xaxis`, `yaxis`, `yaxis2`
   - Hide `#pageTitle` element (`display: none`)
   - Hide `#currentPrice` element (`display: none`)
@@ -39,17 +39,17 @@
 
 ## Phase 2: Data Grouping
 
-- [ ] T003 [P2] Replace LEVERAGE_COLORS with LEVERAGE_GROUPS
+- [x] T003 [P2] Replace LEVERAGE_COLORS with LEVERAGE_GROUPS
   - Define 3 groups: Low (5x,10x), Medium (25x,50x), High (100x)
   - Colors: Blue `#5B8FF9`, Purple `#B37FEB`, Orange `#FF9C6E`
   - Checklist: T2-02..04
 
-- [ ] T004 [P2] Update groupByLeverage() for 3-group aggregation
+- [x] T004 [P2] Update groupByLeverage() for 3-group aggregation
   - New function: aggregate volumes across tiers within each group
   - Input: raw API data with individual leverage tiers
   - Output: { 'Low leverage': [...], 'Medium leverage': [...], 'High leverage': [...] }
 
-- [ ] T005 [P2] Update buildBarTraces() for 3 groups
+- [x] T005 [P2] Update buildBarTraces() for 3 groups
   - Iterate over LEVERAGE_GROUPS instead of individual tiers
   - Use group colors and group names
   - Keep `barmode: 'stack'` behavior
@@ -57,7 +57,7 @@
 
 ## Phase 3: Cumulative Fill Areas
 
-- [ ] T006 [P3] Add fill to cumulative long trace
+- [x] T006 [P3] Add fill to cumulative long trace
   - `fill: 'tozeroy'`
   - `fillcolor: 'rgba(232, 104, 74, 0.12)'`
   - `line.color: '#E8684A'`, `line.width: 2`
@@ -65,7 +65,7 @@
   - Verify: Long curve descends L-to-R (cumulative from right)
   - Checklist: T2-05, T2-07
 
-- [ ] T007 [P3] Add fill to cumulative short trace
+- [x] T007 [P3] Add fill to cumulative short trace
   - `fill: 'tozeroy'`
   - `fillcolor: 'rgba(90, 216, 166, 0.12)'`
   - `line.color: '#5AD8A6'`, `line.width: 2`
@@ -75,7 +75,7 @@
 
 ## Phase 4: Current Price Annotation
 
-- [ ] T008 [P4] Replace current price scatter with annotation system
+- [x] T008 [P4] Replace current price scatter with annotation system
   - Remove the 2-point scatter trace for current price (lines 218-227)
   - Add `layout.shapes`: dashed vertical line, full-height (`yref: 'paper'`)
   - Add `layout.annotations`: label text with arrow, positioned above chart
@@ -85,34 +85,34 @@
 
 ## Phase 5: Legend & Range Slider
 
-- [ ] T009 [P5] Center legend, limit to 3 items
+- [x] T009 [P5] Center legend, limit to 3 items
   - `xanchor: 'center', x: 0.5`
   - Keep existing `yanchor: 'bottom', y: 1.02`
   - Ensure all non-group traces have `showlegend: false`
   - Adjust `margin.t` if needed for legend clearance
   - Checklist: T2-17, T2-18
 
-- [ ] T010 [P5] Enable x-axis range slider
+- [x] T010 [P5] Enable x-axis range slider
   - `xaxis.rangeslider: { visible: true, thickness: 0.05 }`
   - Adjust `margin.b` if slider gets clipped
   - Checklist: T2-20
 
 ## Phase 6: Runtime & Freshness Gate
 
-- [ ] T011 [Gate] Verify `rektslug-api` and `rektslug-sync` are up before visual validation
+- [x] T011 [Gate] Verify `rektslug-api` and `rektslug-sync` are up before visual validation
   - Check `docker ps` shows both containers running
   - Check `rektslug-api` is healthy on port `8002`
   - Check recent `rektslug-sync` logs show 5-minute gap-fill cycles completing successfully
   - If either service is down, stop visual validation and fix runtime first
 
-- [ ] T012 [Gate] Verify DuckDB is caught up to the latest upstream values for BTCUSDT and ETHUSDT
+- [x] T012 [Gate] Verify DuckDB is caught up to the latest upstream values for BTCUSDT and ETHUSDT
   - Check `GET /data/date-range?symbol=BTCUSDT` and `GET /data/date-range?symbol=ETHUSDT`
   - Confirm latest Open Interest timestamps in DuckDB match the latest values made available by the ccxt -> DuckDB bridge
   - Confirm `klines_1m` / `klines_5m` are aligned to the latest closed candles available upstream
   - Treat OI/funding provider latency as acceptable if DuckDB already reflects the latest upstream timestamps
   - If freshness gate fails, run ccxt -> DuckDB bridge and re-check before comparing with providers
 
-- [ ] T013 [Gate] Verify `/liquidations/levels` preflight is non-empty for BTC and ETH 1W
+- [x] T013 [Gate] Verify `/liquidations/levels` preflight is non-empty for BTC and ETH 1W
   - Call `/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=7`
   - Call `/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7`
   - Confirm both responses return current price plus non-empty long/short liquidation arrays
@@ -120,12 +120,12 @@
 
 ## Validation
 
-- [ ] T014 Visual verification: BTC/USDT 1W
+- [x] T014 Visual verification: BTC/USDT 1W
   - Run `scripts/validate_liqmap_visual.py --exchange binance --coin BTC --coinank-timeframe 1w`
   - Run `/validate-liqmap`
   - Target: >= 95% score
 
-- [ ] T015 Visual verification: ETH/USDT 1W
+- [x] T015 Visual verification: ETH/USDT 1W
   - Same page with `?symbol=ETHUSDT`
   - Run validation with `--coin ETH --symbol ETHUSDT`
   - Target: >= 95% score
