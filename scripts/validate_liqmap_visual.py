@@ -540,8 +540,25 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+_COINANK_TF_TO_DAYS = {"1d": 1, "1w": 7}
+
+
 def main() -> int:
     args = parse_args()
+
+    # Derive --symbol and --timeframe from --coin / --coinank-timeframe when
+    # the user only changed the CoinAnK side but forgot the local side.
+    coin_upper = args.coin.strip().upper()
+    if coin_upper != "BTC" and args.symbol == DEFAULT_SYMBOL:
+        args.symbol = f"{coin_upper}USDT"
+    coinank_tf_days = _COINANK_TF_TO_DAYS.get(args.coinank_timeframe.strip().lower())
+    if (
+        coinank_tf_days is not None
+        and args.timeframe == DEFAULT_TIMEFRAME
+        and coinank_tf_days != DEFAULT_TIMEFRAME
+    ):
+        args.timeframe = coinank_tf_days
+
     repo_root = Path(__file__).resolve().parents[1]
     output_dir = (
         (repo_root / args.output_dir).resolve()
