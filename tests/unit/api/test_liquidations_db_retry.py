@@ -1,4 +1,7 @@
 import asyncio
+import json
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -139,3 +142,98 @@ def test_synthetic_legacy_levels_keep_longs_below_price_and_shorts_above():
         "10x",
         "25x",
     }
+
+
+def _cached_ts_row(ts: datetime, *, computed_at: datetime | None = None) -> dict:
+    if computed_at is None:
+        computed_at = datetime.now(timezone.utc)
+    payload = {
+        "timestamp": ts.isoformat(),
+        "levels": [],
+        "meta": {
+            "positions_created": 0,
+            "positions_consumed": 0,
+            "total_long_volume": 0,
+            "total_short_volume": 0,
+        },
+    }
+    return {
+        "timestamp": ts,
+        "payload_json": json.dumps(payload),
+        "computed_at": computed_at,
+    }
+
+
+def test_try_duckdb_ts_cache_rejects_missing_leading_window(monkeypatch):
+    start_dt = datetime(2026, 3, 19, 0, 0, tzinfo=timezone.utc)
+    rows = [
+        _cached_ts_row(start_dt + timedelta(minutes=15 * step))
+        for step in range(1, 7)
+    ]
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.__exit__.return_value = False
+    mock_db.get_cached_ts_snapshots.return_value = rows
+    monkeypatch.setattr(liquidations, "DuckDBService", MagicMock(return_value=mock_db))
+
+    result = liquidations._try_duckdb_ts_cache(
+        symbol="BTCUSDT",
+        interval="15m",
+        start_ts=start_dt.isoformat(),
+        end_ts=(start_dt + timedelta(minutes=90)).isoformat(),
+        price_bin_size=100.0,
+    )
+
+    assert result is None
+
+
+def test_try_duckdb_ts_cache_rejects_gap_inside_range(monkeypatch):
+    start_dt = datetime(2026, 3, 19, 0, 0, tzinfo=timezone.utc)
+    rows = [
+        _cached_ts_row(start_dt + timedelta(minutes=0)),
+        _cached_ts_row(start_dt + timedelta(minutes=15)),
+        _cached_ts_row(start_dt + timedelta(minutes=45)),
+        _cached_ts_row(start_dt + timedelta(minutes=60)),
+    ]
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.__exit__.return_value = False
+    mock_db.get_cached_ts_snapshots.return_value = rows
+    monkeypatch.setattr(liquidations, "DuckDBService", MagicMock(return_value=mock_db))
+
+    result = liquidations._try_duckdb_ts_cache(
+        symbol="BTCUSDT",
+        interval="15m",
+        start_ts=start_dt.isoformat(),
+        end_ts=(start_dt + timedelta(minutes=60)).isoformat(),
+        price_bin_size=100.0,
+    )
+
+    assert result is None
+
+
+def test_try_duckdb_ts_cache_accepts_contiguous_coverage(monkeypatch):
+    start_dt = datetime(2026, 3, 19, 0, 0, tzinfo=timezone.utc)
+    rows = [
+        _cached_ts_row(start_dt + timedelta(minutes=15 * step))
+        for step in range(0, 5)
+    ]
+
+    mock_db = MagicMock()
+    mock_db.__enter__.return_value = mock_db
+    mock_db.__exit__.return_value = False
+    mock_db.get_cached_ts_snapshots.return_value = rows
+    monkeypatch.setattr(liquidations, "DuckDBService", MagicMock(return_value=mock_db))
+
+    result = liquidations._try_duckdb_ts_cache(
+        symbol="BTCUSDT",
+        interval="15m",
+        start_ts=start_dt.isoformat(),
+        end_ts=(start_dt + timedelta(minutes=60)).isoformat(),
+        price_bin_size=100.0,
+    )
+
+    assert result is not None
+    assert result.meta.total_snapshots == 5

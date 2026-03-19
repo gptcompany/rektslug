@@ -119,6 +119,20 @@ class TestGetLastCachedTsTimestamp:
         last = cache_db.get_last_cached_ts_timestamp("BTCUSDT", "15m")
         assert "2026-03-19 14:00:00" in last
 
+    def test_filters_by_price_bin_size_when_requested(self, cache_db):
+        payload = json.dumps({"data": "test"})
+        cache_db.put_cached_ts_snapshots([
+            ("BTCUSDT", "15m", "2026-03-19 12:00:00", 100.0, payload),
+            ("BTCUSDT", "15m", "2026-03-19 14:00:00", 50.0, payload),
+            ("BTCUSDT", "15m", "2026-03-19 13:00:00", 100.0, payload),
+        ])
+
+        last_100 = cache_db.get_last_cached_ts_timestamp("BTCUSDT", "15m", 100.0)
+        last_50 = cache_db.get_last_cached_ts_timestamp("BTCUSDT", "15m", 50.0)
+
+        assert "2026-03-19 13:00:00" in last_100
+        assert "2026-03-19 14:00:00" in last_50
+
 
 class TestDeleteStaleTsCache:
     def test_deletes_old_entries(self, cache_db):

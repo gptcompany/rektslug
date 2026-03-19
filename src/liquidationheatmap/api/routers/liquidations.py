@@ -647,21 +647,52 @@ def _try_duckdb_ts_cache(
     if not rows:
         return None
 
-    # Verify coverage: expected snapshot count vs actual
     interval_td = {"15m": timedelta(minutes=15), "1h": timedelta(hours=1)}.get(
         interval, timedelta(minutes=15)
     )
-    start_dt = datetime.fromisoformat(start_ts.replace("Z", "+00:00")) if "T" in start_ts or "-" in start_ts else datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S")
-    end_dt = datetime.fromisoformat(eff_end_ts.replace("Z", "+00:00")) if "T" in eff_end_ts or "-" in eff_end_ts else datetime.strptime(eff_end_ts, "%Y-%m-%d %H:%M:%S")
-    if start_dt.tzinfo is None:
-        start_dt = start_dt.replace(tzinfo=timezone.utc)
-    if end_dt.tzinfo is None:
-        end_dt = end_dt.replace(tzinfo=timezone.utc)
-    expected_count = max(1, int((end_dt - start_dt) / interval_td))
-    # Allow 20% tolerance for edge timestamps, but reject clearly partial results
-    if len(rows) < expected_count * 0.8:
-        logger.debug(f"Partial cache: {len(rows)}/{expected_count} snapshots, falling back to live")
+
+    def _parse_cache_dt(value: str | datetime) -> datetime:
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            normalized = value.replace("Z", "+00:00")
+            parsed = (
+                datetime.fromisoformat(normalized)
+                if "T" in normalized or "-" in normalized
+                else datetime.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+            )
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+
+    start_dt = _parse_cache_dt(start_ts)
+    end_dt = _parse_cache_dt(eff_end_ts)
+    row_timestamps = sorted(_parse_cache_dt(row["timestamp"]) for row in rows)
+
+    if row_timestamps[0] - start_dt >= interval_td:
+        logger.debug(
+            "Partial cache: first snapshot %s too far after requested start %s",
+            row_timestamps[0],
+            start_dt,
+        )
         return None
+    if end_dt - row_timestamps[-1] >= interval_td:
+        logger.debug(
+            "Partial cache: last snapshot %s too far before requested end %s",
+            row_timestamps[-1],
+            end_dt,
+        )
+        return None
+    for prev_ts, next_ts in zip(row_timestamps, row_timestamps[1:]):
+        if next_ts - prev_ts > interval_td:
+            logger.debug(
+                "Partial cache: gap detected between %s and %s for %s/%s",
+                prev_ts,
+                next_ts,
+                symbol,
+                interval,
+            )
+            return None
 
     # Check staleness — reject if any entry is too old
     for row in rows:
