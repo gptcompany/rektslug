@@ -7,10 +7,31 @@ price levels from the Y-axis of heatmap screenshots.
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except (ImportError, AttributeError):
+    cv2 = None
+    np = None  # type: ignore
+
 import pytesseract
+
+
+def _require_image_dependencies() -> None:
+    """Raise a clear error when OpenCV/numpy-backed OCR preprocessing is unavailable."""
+
+    missing = []
+    if cv2 is None:
+        missing.append("opencv-python")
+    if np is None:
+        missing.append("numpy")
+    if missing:
+        missing_list = ", ".join(missing)
+        raise RuntimeError(
+            f"OCR image preprocessing requires {missing_list} to be installed"
+        )
 
 
 @dataclass
@@ -80,7 +101,7 @@ class OCRExtractor:
         self.use_easyocr_fallback = use_easyocr_fallback
         self._easyocr_reader = None  # Lazy load
 
-    def _preprocess_image(self, image_path: str) -> np.ndarray:
+    def _preprocess_image(self, image_path: str) -> Any:
         """Preprocess image for OCR.
 
         Steps:
@@ -89,6 +110,8 @@ class OCRExtractor:
         3. Convert to grayscale
         4. Apply adaptive thresholding
         """
+        _require_image_dependencies()
+
         # Load image
         img = cv2.imread(image_path)
         if img is None:
@@ -103,7 +126,7 @@ class OCRExtractor:
 
         return gray
 
-    def _extract_with_pytesseract(self, preprocessed_img: np.ndarray) -> tuple[str, float]:
+    def _extract_with_pytesseract(self, preprocessed_img: Any) -> tuple[str, float]:
         """Extract text using Pytesseract.
 
         Args:
@@ -138,6 +161,8 @@ class OCRExtractor:
         Returns:
             Tuple of (extracted_text, confidence_score)
         """
+        _require_image_dependencies()
+
         if self._easyocr_reader is None:
             import easyocr
 

@@ -5,6 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from src.liquidationheatmap.validation import ocr_extractor
 from src.liquidationheatmap.validation.ocr_extractor import (
     ExtractedPriceLevels,
     OCRExtractor,
@@ -173,6 +174,16 @@ class TestOCRExtractorPreprocessing:
 
         with pytest.raises(ValueError, match="Could not load image"):
             extractor._preprocess_image("/path/to/invalid.png")
+
+    def test_preprocess_raises_clear_error_without_image_dependencies(self, monkeypatch):
+        """Missing cv2/numpy should fail with a clear, actionable error."""
+        monkeypatch.setattr(ocr_extractor, "cv2", None)
+        monkeypatch.setattr(ocr_extractor, "np", None)
+
+        extractor = OCRExtractor()
+
+        with pytest.raises(RuntimeError, match="opencv-python, numpy"):
+            extractor._preprocess_image("/path/to/image.png")
 
 
 class TestOCRExtractorIntegration:
