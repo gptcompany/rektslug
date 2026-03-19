@@ -1,7 +1,9 @@
 """Integration tests for shell script scenarios using curl mocking (non-interactive)."""
 
 import os
+import signal
 import subprocess
+import time
 import pytest
 from pathlib import Path
 
@@ -165,3 +167,157 @@ exit 0
 
         assert result.returncode == 1
         assert "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock" in result.stdout
+
+    def test_run_ingestion_restores_sync_container_on_sigterm(self, mock_env, tmp_path):
+        """SIGTERM should restore rektslug-sync if this run stopped it."""
+        mock_bin = tmp_path / "bin"
+        mock_bin.mkdir(exist_ok=True)
+        docker_state = tmp_path / "docker-state.txt"
+        docker_state.write_text("true")
+        docker_events = tmp_path / "docker-events.log"
+        ready_flag = tmp_path / "ingest-ready.flag"
+
+        docker_script = mock_bin / "docker"
+        docker_script.write_text(
+            """#!/bin/bash
+set -euo pipefail
+state_file="${MOCK_DOCKER_STATE_FILE:?}"
+events_file="${MOCK_DOCKER_EVENTS_FILE:?}"
+cmd="$1"
+shift || true
+
+case "$cmd" in
+  inspect)
+    cat "$state_file"
+    ;;
+  stop)
+    echo "stop" >> "$events_file"
+    echo "false" > "$state_file"
+    ;;
+  start)
+    echo "start" >> "$events_file"
+    echo "true" > "$state_file"
+    ;;
+  *)
+    echo "unexpected docker command: $cmd" >&2
+    exit 1
+    ;;
+esac
+"""
+        )
+        docker_script.chmod(0o755)
+
+        uv_script = mock_bin / "uv"
+        uv_script.write_text(
+            """#!/bin/bash
+if [[ "$*" == *"cleanup_duckdb_locks.py"* ]]; then
+    exit 0
+fi
+if [[ "$*" == *"python -c"* ]]; then
+    exit 0
+fi
+if [[ "$*" == *"ingest_full_history_n8n.py"* ]]; then
+    touch "${MOCK_INGEST_READY_FLAG:?}"
+    sleep 30
+    exit 0
+fi
+exit 0
+"""
+        )
+        uv_script.chmod(0o755)
+
+        mock_env["PATH"] = f"{mock_bin}:{mock_env['PATH']}"
+        mock_env["MOCK_DOCKER_STATE_FILE"] = str(docker_state)
+        mock_env["MOCK_DOCKER_EVENTS_FILE"] = str(docker_events)
+        mock_env["MOCK_INGEST_READY_FLAG"] = str(ready_flag)
+
+        proc = subprocess.Popen(
+            ["bash", "scripts/run-ingestion.sh", "--dry-run"],
+            env=mock_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+
+        try:
+            deadline = time.time() + 10
+            while not ready_flag.exists():
+                if proc.poll() is not None:
+                    raise AssertionError(proc.stdout.read())
+                if time.time() >= deadline:
+                    raise AssertionError("Timed out waiting for mocked ingestion to start")
+                time.sleep(0.1)
+
+            os.killpg(proc.pid, signal.SIGTERM)
+            stdout, _ = proc.communicate(timeout=10)
+        finally:
+            if proc.poll() is None:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait(timeout=5)
+
+        assert proc.returncode != 0
+        assert docker_state.read_text().strip() == "true"
+        assert docker_events.read_text().strip().splitlines() == ["stop", "start"]
+        assert "Ingesting BTCUSDT aggTrades..." in stdout
+
+    def test_run_ingestion_fails_when_sync_restart_fails(self, mock_env, tmp_path):
+        """Restart failures must fail the job instead of logging success."""
+        mock_bin = tmp_path / "bin"
+        mock_bin.mkdir(exist_ok=True)
+        docker_state = tmp_path / "docker-state.txt"
+        docker_state.write_text("true")
+        docker_events = tmp_path / "docker-events.log"
+
+        docker_script = mock_bin / "docker"
+        docker_script.write_text(
+            """#!/bin/bash
+set -euo pipefail
+state_file="${MOCK_DOCKER_STATE_FILE:?}"
+events_file="${MOCK_DOCKER_EVENTS_FILE:?}"
+cmd="$1"
+shift || true
+
+case "$cmd" in
+  inspect)
+    cat "$state_file"
+    ;;
+  stop)
+    echo "stop" >> "$events_file"
+    echo "false" > "$state_file"
+    ;;
+  start)
+    echo "start" >> "$events_file"
+    exit 1
+    ;;
+  *)
+    echo "unexpected docker command: $cmd" >&2
+    exit 1
+    ;;
+esac
+"""
+        )
+        docker_script.chmod(0o755)
+
+        uv_script = mock_bin / "uv"
+        uv_script.write_text(
+            """#!/bin/bash
+exit 0
+"""
+        )
+        uv_script.chmod(0o755)
+
+        mock_env["PATH"] = f"{mock_bin}:{mock_env['PATH']}"
+        mock_env["MOCK_DOCKER_STATE_FILE"] = str(docker_state)
+        mock_env["MOCK_DOCKER_EVENTS_FILE"] = str(docker_events)
+
+        result = subprocess.run(
+            ["bash", "scripts/run-ingestion.sh", "--dry-run"],
+            env=mock_env,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1
+        assert "ERROR: Failed to restart rektslug-sync" in result.stdout
+        assert "Sync container restart: FAILED" in result.stdout

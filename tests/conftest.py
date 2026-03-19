@@ -5,10 +5,21 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-import duckdb
+try:
+    import duckdb
+except ImportError:
+    duckdb = None
+
 import pytest
 
-from src.liquidationheatmap.ingestion.db_service import DuckDBService
+_HAS_DUCKDB = duckdb is not None
+
+try:
+    from src.liquidationheatmap.ingestion.db_service import DuckDBService
+except ImportError:
+    if _HAS_DUCKDB:
+        raise
+    DuckDBService = None
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +29,10 @@ def reset_db_singletons():
     This ensures test isolation - each test gets a fresh connection.
     Prevents 'different configuration' errors when mixing read-only/read-write.
     """
+    if DuckDBService is None:
+        yield
+        return
+
     # Reset before test
     DuckDBService.release_ingestion_lock()
     DuckDBService.reset_singletons()
@@ -37,6 +52,8 @@ def temp_dir():
 @pytest.fixture
 def test_db(temp_dir):
     """Create a temporary DuckDB database with schema."""
+    if not _HAS_DUCKDB or DuckDBService is None:
+        pytest.skip("duckdb not available")
     db_path = temp_dir / "test_liquidations.duckdb"
     conn = duckdb.connect(str(db_path))
 

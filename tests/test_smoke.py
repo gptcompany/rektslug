@@ -22,3 +22,10 @@ def test_pytest_fixtures(temp_dir, sample_csv_data, sample_trade_data):
     assert "timestamp,price,volume,side" in sample_csv_data
     assert len(sample_trade_data) == 3
     assert sample_trade_data[0]["price"] == 42000.50
+
+
+def test_test_db_fixture_smoke(test_db):
+    """Verify the DuckDB-backed test fixture initializes a working schema."""
+    count = test_db.execute("SELECT COUNT(*) FROM information_schema.tables").fetchone()[0]
+
+    assert count >= 3

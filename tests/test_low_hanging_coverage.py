@@ -52,17 +52,19 @@ def test_validation_pipeline_exports_surface_expected_symbols():
 
 def test_validation_pipeline_module_tolerates_missing_optional_imports(monkeypatch):
     original_import = builtins.__import__
+    blocked = {
+        "src.validation.pipeline.metrics_aggregator",
+        "src.validation.pipeline.models",
+        "src.validation.pipeline.orchestrator",
+    }
 
     def _fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        blocked = {
-            "src.validation.pipeline.metrics_aggregator",
-            "src.validation.pipeline.models",
-            "src.validation.pipeline.orchestrator",
-        }
         if name in blocked:
             raise ImportError(name)
         return original_import(name, globals, locals, fromlist, level)
 
+    for name in blocked:
+        monkeypatch.delitem(sys.modules, name, raising=False)
     monkeypatch.setattr(builtins, "__import__", _fake_import)
 
     namespace = runpy.run_path(
@@ -71,6 +73,8 @@ def test_validation_pipeline_module_tolerates_missing_optional_imports(monkeypat
     )
 
     assert namespace["__all__"][-2:] == ["MetricsAggregator", "get_dashboard_metrics"]
+    with pytest.raises(ImportError, match="failed to import"):
+        namespace["__getattr__"]("MetricsAggregator")
 
 
 def test_setup_logging_configures_handlers_and_named_loggers(monkeypatch, tmp_path):
