@@ -110,6 +110,7 @@ EOJSON
 
 SYNC_CONTAINER="rektslug-sync"
 SYNC_WAS_RUNNING=false
+SYNC_RESTART_PENDING=false
 
 stop_sync_container() {
     if ! command -v docker >/dev/null 2>&1; then
@@ -121,6 +122,7 @@ stop_sync_container() {
     state=$(docker inspect -f '{{.State.Running}}' "$SYNC_CONTAINER" 2>/dev/null || echo "missing")
     if [ "$state" = "true" ]; then
         SYNC_WAS_RUNNING=true
+        SYNC_RESTART_PENDING=true
         log "Stopping ${SYNC_CONTAINER} to prevent DuckDB lock contention..."
         docker stop --time 30 "$SYNC_CONTAINER" >/dev/null 2>&1 || true
         # Wait for any in-flight DuckDB writes to drain
@@ -132,12 +134,67 @@ stop_sync_container() {
 }
 
 start_sync_container() {
-    if [ "$SYNC_WAS_RUNNING" = "true" ]; then
-        log "Restarting ${SYNC_CONTAINER}..."
-        docker start "$SYNC_CONTAINER" >/dev/null 2>&1 || log "WARN: Failed to restart ${SYNC_CONTAINER}"
-        log "${SYNC_CONTAINER} restarted"
+    if [ "$SYNC_WAS_RUNNING" != "true" ] || [ "$SYNC_RESTART_PENDING" != "true" ]; then
+        return 0
     fi
+
+    if ! command -v docker >/dev/null 2>&1; then
+        log "ERROR: docker not available, cannot restart ${SYNC_CONTAINER}"
+        return 1
+    fi
+
+    log "Restarting ${SYNC_CONTAINER}..."
+    if ! docker start "$SYNC_CONTAINER" >/dev/null 2>&1; then
+        log "ERROR: Failed to restart ${SYNC_CONTAINER}"
+        return 1
+    fi
+
+    SYNC_RESTART_PENDING=false
+    log "${SYNC_CONTAINER} restarted"
 }
+
+restore_sync_container_on_exit() {
+    local exit_code="$1"
+    local reason="$2"
+
+    if [ "$SYNC_RESTART_PENDING" = "true" ]; then
+        log "Ensuring ${SYNC_CONTAINER} is restored during ${reason} cleanup..."
+        if ! start_sync_container; then
+            log "ERROR: ${SYNC_CONTAINER} could not be restored during ${reason} cleanup"
+            if [ "$exit_code" -eq 0 ]; then
+                return 1
+            fi
+        fi
+    fi
+
+    return "$exit_code"
+}
+
+handle_script_exit() {
+    local exit_code=$?
+
+    trap - EXIT INT TERM
+    restore_sync_container_on_exit "$exit_code" "EXIT"
+    exit $?
+}
+
+handle_script_signal() {
+    local signal_name="$1"
+    local signal_exit_code=143
+
+    if [ "$signal_name" = "INT" ]; then
+        signal_exit_code=130
+    fi
+
+    trap - EXIT INT TERM
+    log "Received ${signal_name}, running cleanup before exit"
+    restore_sync_container_on_exit "$signal_exit_code" "$signal_name"
+    exit $?
+}
+
+trap handle_script_exit EXIT
+trap 'handle_script_signal INT' INT
+trap 'handle_script_signal TERM' TERM
 
 # =============================================================================
 # DB lock management
@@ -558,11 +615,35 @@ else
 fi
 set -e
 
+# Phase 7: Pre-compute heatmap timeseries cache (spec-024)
+log_section "Heatmap Timeseries Pre-computation"
+if [ "$MODE" != "dry-run" ]; then
+    log "Pre-computing heatmap timeseries cache (BTC+ETH, 15m+1h)..."
+    set +e
+    uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/precompute_heatmap_timeseries.py" --all
+    PC_FAILED=$?
+    set -e
+    if [ $PC_FAILED -eq 0 ]; then
+        RESULTS="${RESULTS}Heatmap Precompute: OK\n"
+        log "Heatmap timeseries pre-computation complete"
+    else
+        RESULTS="${RESULTS}Heatmap Precompute: FAILED\n"
+        log "WARNING: Heatmap timeseries pre-computation failed (non-fatal)"
+        # Non-fatal: don't increment TOTAL_FAILED, cache miss falls back to live
+    fi
+else
+    log "Skipping pre-computation (dry-run mode)"
+    RESULTS="${RESULTS}Heatmap Precompute: skipped (dry-run)\n"
+fi
+
 # Refresh API connections
 refresh_api_connections
 
 # Restart sync container
-start_sync_container
+if ! start_sync_container; then
+    TOTAL_FAILED=$((TOTAL_FAILED + 1))
+    RESULTS="${RESULTS}Sync container restart: FAILED\n"
+fi
 
 # Calculate duration
 END_TIME=$(date +%s)

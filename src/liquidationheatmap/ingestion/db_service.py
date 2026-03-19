@@ -1,17 +1,18 @@
 """DuckDB service for querying Open Interest and market data."""
 
-from dataclasses import dataclass
 import json
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+
 try:
     from datetime import UTC
 except ImportError:
     UTC = timezone.utc
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional, Tuple
 from urllib.request import urlopen
 
 import duckdb
@@ -186,7 +187,12 @@ def _resample_heatmap_candles(
     for candle in sorted(candles, key=lambda item: _as_naive_utc(item.open_time)):
         candle_bucket = _floor_timestamp_to_interval(candle.open_time, target_interval)
         if bucket_start != candle_bucket:
-            if bucket_start is not None and None not in {open_value, high_value, low_value, close_value}:
+            if bucket_start is not None and None not in {
+                open_value,
+                high_value,
+                low_value,
+                close_value,
+            }:
                 resampled.append(
                     _HeatmapCandle(
                         open_time=bucket_start,
@@ -235,10 +241,7 @@ def _align_oi_deltas_to_candles(
     if not candles:
         return []
 
-    candle_buckets = {
-        _as_naive_utc(candle.open_time): Decimal("0")
-        for candle in candles
-    }
+    candle_buckets = {_as_naive_utc(candle.open_time): Decimal("0") for candle in candles}
 
     if oi_df.empty:
         return [Decimal("0")] * len(candles)
@@ -246,7 +249,9 @@ def _align_oi_deltas_to_candles(
     for _, row in oi_df.iterrows():
         oi_timestamp = row["timestamp"]
         oi_bucket = _floor_timestamp_to_interval(
-            oi_timestamp.to_pydatetime() if hasattr(oi_timestamp, "to_pydatetime") else oi_timestamp,
+            oi_timestamp.to_pydatetime()
+            if hasattr(oi_timestamp, "to_pydatetime")
+            else oi_timestamp,
             alignment_interval,
         )
         if oi_bucket not in candle_buckets:
@@ -520,7 +525,9 @@ class DuckDBService:
                     current_price = _fetch_binance_price(symbol)
                 except Exception as e:
                     logger.warning(f"Binance API price fetch failed for {symbol}: {e}")
-                    current_price = _get_latest_local_price(self.conn, symbol) or _get_fallback_price(symbol)
+                    current_price = _get_latest_local_price(
+                        self.conn, symbol
+                    ) or _get_fallback_price(symbol)
                 return current_price, oi_value
         except duckdb.CatalogException as e:
             # Table doesn't exist, load from CSV
@@ -533,7 +540,9 @@ class DuckDBService:
             try:
                 current_price = _fetch_binance_price(symbol)
             except Exception:
-                current_price = _get_latest_local_price(self.conn, symbol) or _get_fallback_price(symbol)
+                current_price = _get_latest_local_price(self.conn, symbol) or _get_fallback_price(
+                    symbol
+                )
             return current_price, Decimal("0")
 
         return self._load_and_cache_data(symbol)
@@ -993,7 +1002,9 @@ class DuckDBService:
 
         max_ts = max_ts_row[0]
         now_utc = datetime.now(UTC).replace(tzinfo=None)
-        if freshness_minutes is not None and max_ts < now_utc - timedelta(minutes=freshness_minutes):
+        if freshness_minutes is not None and max_ts < now_utc - timedelta(
+            minutes=freshness_minutes
+        ):
             return False
 
         start_ts = max_ts - timedelta(days=lookback_days)
@@ -1028,7 +1039,7 @@ class DuckDBService:
         if requested in {"1h", "4h", "1d"}:
             # Map higher granularity to best available
             requested = "15m"
-            
+
         if requested not in {"auto", "1m", "5m", "15m"}:
             raise ValueError(f"Unsupported kline_interval={kline_interval!r}")
 
@@ -1714,17 +1725,19 @@ class DuckDBService:
         Returns:
             List of HeatmapSnapshot objects
         """
-        from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
+        from src.liquidationheatmap.models.time_evolving_heatmap import (
+            calculate_time_evolving_heatmap,
+        )
 
         # Determine table name
-        lookback_days = 30 # Default for source resolution
+        lookback_days = 30  # Default for source resolution
         if start_time:
             try:
                 dt_start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
                 lookback_days = (datetime.now(timezone.utc) - dt_start).days
             except:
                 pass
-        
+
         table_name, source_interval = self._resolve_oi_kline_source(symbol, lookback_days, interval)
 
         # 1. Fetch Candles
@@ -1743,9 +1756,9 @@ class DuckDBService:
         if end_time:
             candle_query += " AND open_time <= ?"
             params.append(end_time)
-        
+
         candle_query += " ORDER BY open_time"
-        
+
         candles_df = self.conn.execute(candle_query, params).df()
         if candles_df.empty:
             return []
@@ -1753,7 +1766,9 @@ class DuckDBService:
         candles = [
             _HeatmapCandle(
                 open_time=_as_naive_utc(
-                    row["open_time"].to_pydatetime() if hasattr(row["open_time"], "to_pydatetime") else row["open_time"]
+                    row["open_time"].to_pydatetime()
+                    if hasattr(row["open_time"], "to_pydatetime")
+                    else row["open_time"]
                 ),
                 open=Decimal(str(row["open"])),
                 high=Decimal(str(row["high"])),
@@ -1797,11 +1812,11 @@ class DuckDBService:
         if end_time:
             oi_query += " AND timestamp <= ?"
             oi_params.append(end_time)
-        
+
         oi_query += " ORDER BY timestamp"
-        
+
         oi_df = self.conn.execute(oi_query, oi_params).df()
-        
+
         # 3. Align OI deltas to candles without duplicating the same OI sample across neighbors
         if not oi_df.empty:
             oi_df["oi_delta"] = oi_df["oi_delta"].fillna(0)
@@ -1901,3 +1916,123 @@ class DuckDBService:
         except Exception as e:
             logger.warning(f"Failed to load snapshots: {e}")
             return []
+
+    # ── Heatmap Timeseries Cache (spec-024) ──────────────────────────
+
+    def ensure_heatmap_ts_cache_table(self) -> None:
+        """Create heatmap_timeseries_cache table if it doesn't exist."""
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS heatmap_timeseries_cache (
+                symbol              VARCHAR NOT NULL,
+                interval            VARCHAR NOT NULL,
+                timestamp           TIMESTAMP NOT NULL,
+                price_bin_size      DOUBLE NOT NULL,
+                payload_json        VARCHAR NOT NULL,
+                computed_at         TIMESTAMP DEFAULT now(),
+                PRIMARY KEY (symbol, interval, timestamp, price_bin_size)
+            )
+        """)
+        try:
+            self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_htc_symbol_interval
+                ON heatmap_timeseries_cache(symbol, interval)
+            """)
+        except Exception:
+            pass  # Index may already exist
+        logger.info("heatmap_timeseries_cache table ensured")
+
+    def get_cached_ts_snapshots(
+        self,
+        symbol: str,
+        interval: str,
+        start_ts: str,
+        end_ts: str,
+        price_bin_size: float,
+    ) -> list[dict] | None:
+        """Fetch cached timeseries snapshots for a time range.
+
+        Returns None if no cached data covers the range (caller should
+        fall back to live computation). Returns list of dicts with
+        payload_json and computed_at for each timestamp.
+        """
+        result = self.conn.execute(
+            """
+            SELECT timestamp, payload_json, computed_at
+            FROM heatmap_timeseries_cache
+            WHERE symbol = ?
+              AND interval = ?
+              AND timestamp >= ?::TIMESTAMP
+              AND timestamp <= ?::TIMESTAMP
+              AND price_bin_size = ?
+            ORDER BY timestamp
+            """,
+            [symbol, interval, start_ts, end_ts, price_bin_size],
+        ).fetchall()
+        if not result:
+            return None
+        return [
+            {
+                "timestamp": row[0],
+                "payload_json": row[1],
+                "computed_at": row[2],
+            }
+            for row in result
+        ]
+
+    def put_cached_ts_snapshots(
+        self,
+        rows: list[tuple],
+    ) -> int:
+        """Batch-insert pre-computed timeseries snapshots into cache.
+
+        Args:
+            rows: List of (symbol, interval, timestamp, price_bin_size, payload_json) tuples.
+
+        Returns:
+            Number of rows inserted.
+        """
+        if not rows:
+            return 0
+        self.conn.executemany(
+            """
+            INSERT OR REPLACE INTO heatmap_timeseries_cache
+                (symbol, interval, timestamp, price_bin_size, payload_json, computed_at)
+            VALUES (?, ?, ?, ?, ?, now())
+            """,
+            rows,
+        )
+        logger.debug(f"Inserted {len(rows)} heatmap timeseries cache rows")
+        return len(rows)
+
+    def delete_stale_ts_cache(
+        self, retention_15m_days: int = 30, retention_1h_days: int = 90
+    ) -> int:
+        """Delete cached timeseries entries older than retention policy."""
+        deleted = 0
+        for interval, days in [("15m", retention_15m_days), ("1h", retention_1h_days)]:
+            result = self.conn.execute(
+                f"""
+                DELETE FROM heatmap_timeseries_cache
+                WHERE interval = ?
+                  AND timestamp < now() - INTERVAL '{days} days'
+                """,
+                [interval],
+            )
+            count = result.fetchone()
+            if count:
+                deleted += count[0]
+        logger.info(f"Deleted {deleted} stale heatmap timeseries cache rows")
+        return deleted
+
+    def get_last_cached_ts_timestamp(self, symbol: str, interval: str) -> str | None:
+        """Get the most recent cached timestamp for a symbol/interval pair."""
+        result = self.conn.execute(
+            """
+            SELECT MAX(timestamp) FROM heatmap_timeseries_cache
+            WHERE symbol = ? AND interval = ?
+            """,
+            [symbol, interval],
+        ).fetchone()
+        if result and result[0]:
+            return str(result[0])
+        return None

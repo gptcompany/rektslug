@@ -2,22 +2,34 @@ import asyncio
 import json
 import logging
 import math
-from decimal import Decimal, ROUND_HALF_UP
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Any
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Optional
 from urllib.request import urlopen
 
-import numpy as np
-from fastapi import APIRouter, Query, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from src.liquidationheatmap.api.cache import heatmap_cache
+from src.liquidationheatmap.api.heatmap_models import (
+    HeatmapLevel,
+    HeatmapSnapshotResponse,
+    HeatmapTimeseriesMetadata,
+    HeatmapTimeseriesResponse,
+    LiquidationResponse,
+    TimeWindow,
+)
 from src.liquidationheatmap.api.public_liqmap import (
     SUPPORTED_PUBLIC_LIQMAP_SYMBOLS,
     SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES,
     CoinankPublicMapResponse,
     build_coinank_public_map_response,
+)
+from src.liquidationheatmap.api.shared import (
+    SUPPORTED_EXCHANGES,
+    SUPPORTED_SYMBOLS,
+    TIME_WINDOW_CONFIG,
 )
 from src.liquidationheatmap.ingestion.db_service import (
     DuckDBService,
@@ -28,18 +40,7 @@ from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
 from src.liquidationheatmap.models.profiles import get_profile
-from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
 from src.liquidationheatmap.settings import get_settings
-from src.liquidationheatmap.api.shared import SUPPORTED_SYMBOLS, SUPPORTED_EXCHANGES, TIME_WINDOW_CONFIG
-from src.liquidationheatmap.api.cache import heatmap_cache
-from src.liquidationheatmap.api.heatmap_models import (
-    LiquidationResponse, 
-    HeatmapTimeseriesResponse, 
-    HeatmapSnapshotResponse,
-    HeatmapTimeseriesMetadata,
-    HeatmapLevel,
-    TimeWindow
-)
 
 router = APIRouter(prefix="/liquidations", tags=["Liquidations"])
 logger = logging.getLogger(__name__)
@@ -95,10 +96,9 @@ def _round_to_bucket(value: float, bin_size: float) -> Decimal:
     if bin_decimal <= 0:
         return value_decimal
 
-    return (
-        (value_decimal / bin_decimal).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        * bin_decimal
-    )
+    return (value_decimal / bin_decimal).quantize(
+        Decimal("1"), rounding=ROUND_HALF_UP
+    ) * bin_decimal
 
 
 def _aggregate_legacy_levels(bins_df, bin_size: float):
@@ -109,9 +109,15 @@ def _aggregate_legacy_levels(bins_df, bin_size: float):
     agg_df["price_bucket"] = agg_df["liq_price"].apply(
         lambda value: _round_to_bucket(float(value), bin_size)
     )
-    return agg_df.groupby(["price_bucket", "side", "leverage"]).agg({
-        "volume": "sum",
-    }).reset_index()
+    return (
+        agg_df.groupby(["price_bucket", "side", "leverage"])
+        .agg(
+            {
+                "volume": "sum",
+            }
+        )
+        .reset_index()
+    )
 
 
 def _is_transient_contention_http_error(exc: HTTPException) -> bool:
@@ -246,6 +252,7 @@ async def _run_read_operation_with_retry(
             )
             await asyncio.sleep(delay_seconds)
 
+
 def parse_leverage_weights(weights_str: str | None) -> dict[int, float] | None:
     if not weights_str:
         return None
@@ -288,7 +295,9 @@ async def get_liquidation_levels(
     timeframe: int = Query(..., ge=1, le=365),
     whale_threshold: float = Query(500000.0, ge=0.0),
     kline_interval: Optional[str] = Query(None, pattern="^(auto|1m|5m)$"),
-    profile: Optional[str] = Query(None, description="Calibration profile name (e.g. rektslug-ank)."),
+    profile: Optional[str] = Query(
+        None, description="Calibration profile name (e.g. rektslug-ank)."
+    ),
 ):
     """Return static liquidation levels grouped by side and leverage tier."""
     response.headers["Deprecation"] = "true"
@@ -301,10 +310,13 @@ async def get_liquidation_levels(
         )
 
     try:
-        with urlopen(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", timeout=5) as resp:
+        with urlopen(
+            f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", timeout=5
+        ) as resp:
             current_price = float(json.loads(resp.read().decode())["price"])
     except Exception as e:
         logger.warning("Binance API price fetch failed for %s: %s", symbol, e)
+
         def _load_current_price():
             with DuckDBService(read_only=True) as db_fallback:
                 price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
@@ -326,7 +338,7 @@ async def get_liquidation_levels(
             cal_profile = get_profile(profile)
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Unknown profile: {profile!r}")
-        
+
         bin_size = cal_profile.get_bin_size(
             timeframe,
             current_price=current_price,
@@ -353,7 +365,9 @@ async def get_liquidation_levels(
                     [symbol, symbol],
                 ).fetchone()
 
-                price_range = float(range_row[0]) if range_row and range_row[0] else current_price * 0.2
+                price_range = (
+                    float(range_row[0]) if range_row and range_row[0] else current_price * 0.2
+                )
 
                 if symbol == "BTCUSDT" and price_range < 10001.0:
                     price_range = 10001.0
@@ -377,7 +391,7 @@ async def get_liquidation_levels(
             if not _is_missing_kline_coverage_error(exc):
                 raise
             bin_size = _fallback_bin_size(symbol, current_price)
-            
+
         leverage_weights = None
         side_weights = None
 
@@ -452,7 +466,9 @@ async def get_liquidation_levels(
     short_liqs: list[dict] = []
     for _, row in agg_df.iterrows():
         liq_entry = {
-            "price_level": _format_bucket_price(float(row["price_bucket"]), _bucket_price_precision(bin_size)),
+            "price_level": _format_bucket_price(
+                float(row["price_bucket"]), _bucket_price_precision(bin_size)
+            ),
             "volume": str(row["volume"]),
             "count": 1,
             "leverage": f"{int(row['leverage'])}x",
@@ -533,6 +549,7 @@ async def get_coinank_public_map(
             content={"error": exc.__class__.__name__, "detail": str(exc)},
         )
 
+
 @router.get("/heatmap", response_model=LiquidationResponse)
 async def get_heatmap(
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
@@ -547,14 +564,22 @@ async def get_heatmap(
             calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
             liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
 
-            long_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "long"]
-            short_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "short"]
+            long_liqs = [
+                {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+                for l in liqs
+                if l.side == "long"
+            ]
+            short_liqs = [
+                {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+                for l in liqs
+                if l.side == "short"
+            ]
 
             return LiquidationResponse(
                 symbol=symbol,
                 current_price=float(current_price),
                 longs=long_liqs,
-                shorts=short_liqs
+                shorts=short_liqs,
             )
 
     try:
@@ -573,8 +598,16 @@ async def get_heatmap(
             open_interest,
             symbol=symbol,
         )
-        long_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "long"]
-        short_liqs = [{"price_level": float(l.price_level), "volume": float(l.liquidation_volume)} for l in liqs if l.side == "short"]
+        long_liqs = [
+            {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+            for l in liqs
+            if l.side == "long"
+        ]
+        short_liqs = [
+            {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+            for l in liqs
+            if l.side == "short"
+        ]
         return LiquidationResponse(
             symbol=symbol,
             current_price=current_price,
@@ -582,16 +615,118 @@ async def get_heatmap(
             shorts=short_liqs,
         )
 
+
+def _try_duckdb_ts_cache(
+    symbol: str,
+    interval: str,
+    start_ts: str,
+    end_ts: str | None,
+    price_bin_size: float,
+) -> HeatmapTimeseriesResponse | None:
+    """Try to serve heatmap timeseries from DuckDB pre-computed cache.
+
+    Returns None on cache miss or stale data. Validates staleness:
+    entries with computed_at older than 2x interval are discarded.
+    """
+    staleness_limit = {"15m": timedelta(minutes=30), "1h": timedelta(hours=2)}.get(
+        interval, timedelta(hours=2)
+    )
+    now = datetime.now(timezone.utc)
+    eff_end_ts = end_ts or now.isoformat()
+
+    with DuckDBService(read_only=True) as db:
+        db.ensure_heatmap_ts_cache_table()
+        rows = db.get_cached_ts_snapshots(
+            symbol=symbol,
+            interval=interval,
+            start_ts=start_ts,
+            end_ts=eff_end_ts,
+            price_bin_size=price_bin_size,
+        )
+
+    if not rows:
+        return None
+
+    # Check staleness — reject if any entry is too old
+    for row in rows:
+        computed_at = row["computed_at"]
+        if hasattr(computed_at, "tzinfo") and computed_at.tzinfo is None:
+            computed_at = computed_at.replace(tzinfo=timezone.utc)
+        if now - computed_at > staleness_limit:
+            logger.debug(f"Stale cache entry at {row['timestamp']}, falling back to live")
+            return None
+
+    # Build response from cached payloads
+    data = []
+    total_long = 0.0
+    total_short = 0.0
+    total_consumed = 0
+    min_price = float("inf")
+    max_price = 0.0
+
+    for row in rows:
+        snapshot = json.loads(row["payload_json"])
+        levels = [
+            HeatmapLevel(
+                price=l["price"],
+                long_density=l["long_density"],
+                short_density=l["short_density"],
+            )
+            for l in snapshot.get("levels", [])
+        ]
+        meta = snapshot.get("meta", {})
+        data.append(
+            HeatmapSnapshotResponse(
+                timestamp=snapshot["timestamp"],
+                levels=levels,
+                positions_created=meta.get("positions_created", 0),
+                positions_consumed=meta.get("positions_consumed", 0),
+            )
+        )
+        total_long += meta.get("total_long_volume", 0)
+        total_short += meta.get("total_short_volume", 0)
+        total_consumed += meta.get("positions_consumed", 0)
+        for l in levels:
+            if l.price < min_price:
+                min_price = l.price
+            if l.price > max_price:
+                max_price = l.price
+
+    return HeatmapTimeseriesResponse(
+        data=data,
+        meta=HeatmapTimeseriesMetadata(
+            symbol=symbol,
+            start_time=start_ts,
+            end_time=end_ts or rows[-1]["timestamp"].isoformat()
+            if hasattr(rows[-1]["timestamp"], "isoformat")
+            else str(rows[-1]["timestamp"]),
+            interval=interval,
+            total_snapshots=len(data),
+            price_range={"min": min_price if min_price != float("inf") else 0, "max": max_price},
+            total_long_volume=total_long,
+            total_short_volume=total_short,
+            total_consumed=total_consumed,
+        ),
+    )
+
+
 @router.get("/heatmap-timeseries", response_model=HeatmapTimeseriesResponse)
 async def get_heatmap_timeseries(
+    response: Response,
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
     time_window: Optional[TimeWindow] = Query(None),
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
     interval: Optional[str] = None,
-    price_bin_size: Optional[float] = Query(None, description="Price bin size. If not provided, profile-based sizing is used."),
-    leverage_weights: Optional[str] = Query(None, description="Optional JSON or key:val leverage weights."),
-    exchanges: Optional[str] = Query(None, description="Comma-separated list of exchanges to filter by."),
+    price_bin_size: Optional[float] = Query(
+        None, description="Price bin size. If not provided, profile-based sizing is used."
+    ),
+    leverage_weights: Optional[str] = Query(
+        None, description="Optional JSON or key:val leverage weights."
+    ),
+    exchanges: Optional[str] = Query(
+        None, description="Comma-separated list of exchanges to filter by."
+    ),
 ):
     if symbol not in SUPPORTED_SYMBOLS:
         raise HTTPException(status_code=400, detail=f"Invalid symbol '{symbol}'")
@@ -600,14 +735,22 @@ async def get_heatmap_timeseries(
         requested_exchanges = [e.strip().lower() for e in exchanges.split(",")]
         for e in requested_exchanges:
             if e not in SUPPORTED_EXCHANGES:
-                raise HTTPException(status_code=400, detail=f"Invalid exchange '{e}'. Supported: {sorted(SUPPORTED_EXCHANGES.keys())}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid exchange '{e}'. Supported: {sorted(SUPPORTED_EXCHANGES.keys())}",
+                )
 
     if interval and interval not in ("1m", "5m", "15m", "1h", "4h", "1d"):
-        raise HTTPException(status_code=422, detail=f"Invalid interval '{interval}'. Supported: 1m, 5m, 15m, 1h, 4h, 1d")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid interval '{interval}'. Supported: 1m, 5m, 15m, 1h, 4h, 1d",
+        )
 
     eff_leverage_weights = parse_leverage_weights(leverage_weights)
     if leverage_weights and not eff_leverage_weights:
-        raise HTTPException(status_code=400, detail=f"Invalid leverage_weights format: {leverage_weights}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid leverage_weights format: {leverage_weights}"
+        )
 
     # Resolve time window logic from main.py
     eff_interval = interval or "15m"
@@ -628,27 +771,63 @@ async def get_heatmap_timeseries(
     if eff_price_bin_size is None:
         try:
             profile = get_profile("rektslug-ank")
+
             def _resolve_dynamic_bin_size():
                 with DuckDBService(read_only=True) as db:
                     current_price, _ = db.get_latest_open_interest(symbol)
-                    return current_price, profile.get_bin_size(lookback_days, float(current_price), symbol)
+                    return current_price, profile.get_bin_size(
+                        lookback_days, float(current_price), symbol
+                    )
 
             current_price, eff_price_bin_size = await _run_read_operation_with_retry(
                 _resolve_dynamic_bin_size,
                 exhausted_status_detail="Temporary database contention while resolving dynamic bin size.",
             )
-            logger.info(f"Dynamic binning for {symbol}: {eff_price_bin_size} (price={current_price}, days={lookback_days})")
+            logger.info(
+                f"Dynamic binning for {symbol}: {eff_price_bin_size} (price={current_price}, days={lookback_days})"
+            )
         except Exception as e:
             logger.warning(f"Failed to resolve dynamic bin size: {e}")
             eff_price_bin_size = 100.0
 
-    # Caching
+    # Caching (in-memory)
     eff_start_time_str = str(eff_start_time)
-    cached = heatmap_cache.get(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights)
-    if cached: 
+    cached = heatmap_cache.get(
+        symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights
+    )
+    if cached:
+        response.headers["X-Heatmap-Source"] = "memory"
         return cached
 
-    # Query DB
+    # DuckDB pre-computed cache (spec-024): only for default params
+    uses_custom_params = leverage_weights is not None or price_bin_size is not None
+    if not uses_custom_params and eff_interval in ("15m", "1h"):
+        try:
+            db_cached_response = _try_duckdb_ts_cache(
+                symbol=symbol,
+                interval=eff_interval,
+                start_ts=eff_start_time_str,
+                end_ts=end_time,
+                price_bin_size=eff_price_bin_size,
+            )
+            if db_cached_response is not None:
+                response.headers["X-Heatmap-Source"] = "cache"
+                heatmap_cache.set(
+                    symbol,
+                    eff_start_time_str,
+                    end_time,
+                    eff_interval,
+                    eff_price_bin_size,
+                    leverage_weights,
+                    db_cached_response,
+                )
+                return db_cached_response
+        except Exception as e:
+            logger.warning(f"DuckDB ts cache lookup failed, falling back to live: {e}")
+
+    # Query DB (live computation)
+    response.headers["X-Heatmap-Source"] = "live"
+
     def _load_heatmap_snapshots():
         with DuckDBService(read_only=True) as db:
             return db.get_heatmap_timeseries(
@@ -674,7 +853,15 @@ async def get_heatmap_timeseries(
             end_time=end_time,
             interval=eff_interval,
         )
-        heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
+        heatmap_cache.set(
+            symbol,
+            eff_start_time_str,
+            end_time,
+            eff_interval,
+            eff_price_bin_size,
+            leverage_weights,
+            response,
+        )
         return response
     except ValueError as exc:
         if not _is_missing_kline_coverage_error(exc):
@@ -685,9 +872,17 @@ async def get_heatmap_timeseries(
             end_time=end_time,
             interval=eff_interval,
         )
-        heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
+        heatmap_cache.set(
+            symbol,
+            eff_start_time_str,
+            end_time,
+            eff_interval,
+            eff_price_bin_size,
+            leverage_weights,
+            response,
+        )
         return response
-        
+
     if not snapshots:
         response = _build_empty_heatmap_timeseries_response(
             symbol=symbol,
@@ -695,7 +890,15 @@ async def get_heatmap_timeseries(
             end_time=end_time,
             interval=eff_interval,
         )
-        heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
+        heatmap_cache.set(
+            symbol,
+            eff_start_time_str,
+            end_time,
+            eff_interval,
+            eff_price_bin_size,
+            leverage_weights,
+            response,
+        )
         return response
 
     data = []
@@ -707,18 +910,21 @@ async def get_heatmap_timeseries(
 
     for s in snapshots:
         snapshot_dict = s.to_dict()
-        data.append(HeatmapSnapshotResponse(
-            timestamp=snapshot_dict["timestamp"],
-            levels=[
-                HeatmapLevel(
-                    price=l["price"],
-                    long_density=l["long_density"],
-                    short_density=l["short_density"]
-                ) for l in snapshot_dict["levels"]
-            ],
-            positions_created=s.positions_created,
-            positions_consumed=s.positions_consumed
-        ))
+        data.append(
+            HeatmapSnapshotResponse(
+                timestamp=snapshot_dict["timestamp"],
+                levels=[
+                    HeatmapLevel(
+                        price=l["price"],
+                        long_density=l["long_density"],
+                        short_density=l["short_density"],
+                    )
+                    for l in snapshot_dict["levels"]
+                ],
+                positions_created=s.positions_created,
+                positions_consumed=s.positions_consumed,
+            )
+        )
         total_long += s.total_long_volume
         total_short += s.total_short_volume
         total_consumed += s.positions_consumed
@@ -742,24 +948,36 @@ async def get_heatmap_timeseries(
             total_long_volume=float(total_long),
             total_short_volume=float(total_short),
             total_consumed=total_consumed,
-        )
+        ),
     )
 
-    heatmap_cache.set(symbol, eff_start_time_str, end_time, eff_interval, eff_price_bin_size, leverage_weights, response)
+    heatmap_cache.set(
+        symbol,
+        eff_start_time_str,
+        end_time,
+        eff_interval,
+        eff_price_bin_size,
+        leverage_weights,
+        response,
+    )
     return response
+
 
 @router.get("/history")
 async def get_liquidation_history(
-    symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
-    limit: int = 100
+    symbol: str = Query(..., pattern="^[A-Z]{6,12}$"), limit: int = 100
 ):
     def _load_history():
         with DuckDBService(read_only=True) as db:
             if db._table_exists("liquidation_history"):
-                df = db.conn.execute("SELECT * FROM liquidation_history WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
+                df = db.conn.execute(
+                    "SELECT * FROM liquidation_history WHERE symbol = ? LIMIT ?", [symbol, limit]
+                ).df()
                 return df.to_dict(orient="records")
             if db._table_exists("position_events"):
-                df = db.conn.execute("SELECT * FROM position_events WHERE symbol = ? LIMIT ?", [symbol, limit]).df()
+                df = db.conn.execute(
+                    "SELECT * FROM position_events WHERE symbol = ? LIMIT ?", [symbol, limit]
+                ).df()
                 if not df.empty:
                     df.rename(columns={"liq_price": "price", "volume": "quantity"}, inplace=True)
                 return df.to_dict(orient="records")
@@ -774,6 +992,7 @@ async def get_liquidation_history(
         if not _is_transient_contention_http_error(exc):
             raise
         return []
+
 
 @router.get("/compare-models")
 async def compare_models(symbol: str = "BTCUSDT"):
@@ -794,14 +1013,19 @@ async def compare_models(symbol: str = "BTCUSDT"):
                 if name == "ensemble":
                     avg_conf = 0.98
 
-                models.append({
-                    "name": name,
-                    "avg_confidence": avg_conf,
-                    "liquidations": [
-                        {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
-                        for l in liqs
-                    ]
-                })
+                models.append(
+                    {
+                        "name": name,
+                        "avg_confidence": avg_conf,
+                        "liquidations": [
+                            {
+                                "price_level": float(l.price_level),
+                                "volume": float(l.liquidation_volume),
+                            }
+                            for l in liqs
+                        ],
+                    }
+                )
 
             return {"symbol": symbol, "current_price": float(current_price), "models": models}
 
@@ -827,12 +1051,14 @@ async def compare_models(symbol: str = "BTCUSDT"):
             avg_conf = 0.95
             if name == "ensemble":
                 avg_conf = 0.98
-            models.append({
-                "name": name,
-                "avg_confidence": avg_conf,
-                "liquidations": [
-                    {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
-                    for l in liqs
-                ],
-            })
+            models.append(
+                {
+                    "name": name,
+                    "avg_confidence": avg_conf,
+                    "liquidations": [
+                        {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+                        for l in liqs
+                    ],
+                }
+            )
         return {"symbol": symbol, "current_price": float(current_price), "models": models}

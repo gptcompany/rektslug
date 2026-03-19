@@ -40,9 +40,10 @@ standard time windows.
 
 - Cache table lives in the same DuckDB file as other tables.
 - Pipeline runs as a post-gap-fill step (appends new snapshots after fresh data lands).
-- Cache key: `(symbol, interval, timestamp, price_bin_size, leverage_weights_hash)` — unique constraint.
+- Cache key: `(symbol, interval, timestamp, price_bin_size)` — unique constraint. No `leverage_weights_hash` since cache only stores default weights; custom params always bypass cache.
 - The cached path only serves requests using default binning/weights. Custom `price_bin_size` or `leverage_weights` bypass cache and compute on-the-fly.
-- Staleness window: cache entries older than 2x interval are skipped by API (fall back to live).
+- Staleness window: cache entries with `computed_at` older than 2x interval are skipped by API (fall back to live).
+- Partial cache hits (range partially covered): fall back to full on-the-fly for MVP. Optimization deferred.
 
 ## Functional Requirements
 
