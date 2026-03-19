@@ -6,20 +6,30 @@ spec-016/017/022.
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
+from src.liquidationheatmap.api import public_liqmap
 from src.liquidationheatmap.api.main import app
 from src.liquidationheatmap.api.public_liqmap import (
+    _BuilderMetadata,
     _STEP_TABLE,
     CoinankPublicMapResponse,
 )
-from src.liquidationheatmap.api.routers import liquidations
 
-# ---------------------------------------------------------------------------
-# Fixtures & helpers
-# ---------------------------------------------------------------------------
+_CURRENT_PRICES = {
+    "BTCUSDT": Decimal("60000"),
+    "ETHUSDT": Decimal("2000"),
+}
+_TIMEFRAME_OFFSETS = {
+    "1d": [1, 2, 3, 4, 5],
+    "1w": [2, 4, 6, 8, 10],
+}
+_SEEDED_LEVERAGES = (25, 50, 100)
+_FIXED_TIMESTAMP = datetime(2026, 3, 19, 12, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -27,83 +37,120 @@ def client():
     return TestClient(app)
 
 
-def _eth_sample_payload(timeframe: str = "1d") -> dict:
-    """Realistic ETH public map payload for contract-level tests."""
-    step = float(_STEP_TABLE[("ETHUSDT", timeframe)])
-    current_price = 1985.50
-    # Generate enough buckets to pass >= 15 long + 15 short threshold
-    long_buckets = [
-        {
-            "price_level": round(current_price - step * i, 2),
-            "leverage": lev,
-            "volume": 50000.0 + i * 1000,
-        }
-        for i in range(1, 6)
-        for lev in ["25x", "50x", "100x"]
-    ]
-    short_buckets = [
-        {
-            "price_level": round(current_price + step * i, 2),
-            "leverage": lev,
-            "volume": 45000.0 + i * 1000,
-        }
-        for i in range(1, 6)
-        for lev in ["25x", "50x", "100x"]
-    ]
-
-    long_prices_sorted = sorted({b["price_level"] for b in long_buckets})
-    short_prices_sorted = sorted({b["price_level"] for b in short_buckets})
-
-    cumulative_long = []
-    running = 0.0
-    for p in reversed(long_prices_sorted):
-        running += sum(b["volume"] for b in long_buckets if b["price_level"] == p)
-        cumulative_long.append({"price_level": p, "value": running})
-    cumulative_long.reverse()
-    cumulative_long.append({"price_level": current_price, "value": 0.0})
-
-    cumulative_short = [{"price_level": current_price, "value": 0.0}]
-    running = 0.0
-    for p in short_prices_sorted:
-        running += sum(b["volume"] for b in short_buckets if b["price_level"] == p)
-        cumulative_short.append({"price_level": p, "value": running})
-
-    min_price = round(current_price * 0.88, 2)
-    max_price = round(current_price * 1.12, 2)
-
-    return {
-        "schema_version": "1.0",
-        "source": "coinank-public-builder",
-        "symbol": "ETHUSDT",
-        "timeframe": timeframe,
-        "profile": "rektslug-ank-public",
-        "current_price": current_price,
-        "grid": {
-            "step": step,
-            "anchor_price": current_price,
-            "min_price": min_price,
-            "max_price": max_price,
-        },
-        "leverage_ladder": ["25x", "30x", "40x", "50x", "60x", "70x", "80x", "90x", "100x"],
-        "long_buckets": long_buckets,
-        "short_buckets": short_buckets,
-        "cumulative_long": cumulative_long,
-        "cumulative_short": cumulative_short,
-        "last_data_timestamp": datetime(2026, 3, 19, 12, 0, tzinfo=timezone.utc).isoformat(),
-        "is_stale_real_data": False,
-    }
+def _metadata_for(symbol: str, timeframe: str) -> _BuilderMetadata:
+    return _BuilderMetadata(
+        current_price=_CURRENT_PRICES[symbol],
+        last_data_timestamp=_FIXED_TIMESTAMP,
+        is_stale_real_data=False,
+        timeframe_days=public_liqmap.SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES[timeframe],
+        step=_STEP_TABLE[(symbol, timeframe)],
+    )
 
 
-def _monkeypatch_builder(monkeypatch, timeframe: str = "1d"):
-    """Patch the builder to return ETH sample data for the given timeframe."""
-    payload = _eth_sample_payload(timeframe)
+def _synthetic_builder_rows(symbol: str, timeframe: str) -> list[dict]:
+    current_price = float(_CURRENT_PRICES[symbol])
+    step = float(_STEP_TABLE[(symbol, timeframe)])
+    offsets = _TIMEFRAME_OFFSETS[timeframe]
+    rows: list[dict] = []
 
-    def _fake_builder(**kwargs):
-        tf = kwargs.get("timeframe", timeframe)
-        return _eth_sample_payload(tf)
+    for side, direction, base_volume in (
+        ("buy", -1, 120000.0),
+        ("sell", 1, 110000.0),
+    ):
+        for offset_idx, offset in enumerate(offsets, start=1):
+            snapped_price = round(current_price + (direction * step * offset), 2)
+            for leverage_idx, leverage in enumerate(_SEEDED_LEVERAGES, start=1):
+                rows.append(
+                    {
+                        "side": side,
+                        "liq_price": snapped_price,
+                        "leverage": leverage,
+                        "volume": base_volume + (offset_idx * 5000.0) + (leverage_idx * 1000.0),
+                    }
+                )
 
-    monkeypatch.setattr(liquidations, "build_coinank_public_map_response", _fake_builder)
-    return payload
+    return rows
+
+
+def _fetch_public_map(client: TestClient, *, symbol: str, timeframe: str) -> dict:
+    response = client.get(
+        "/liquidations/coinank-public-map",
+        params={"symbol": symbol, "timeframe": timeframe},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def _normalize_shape(values: list[float]) -> list[float]:
+    if not values:
+        return []
+    peak = max(values)
+    if peak <= 0:
+        return [0.0 for _ in values]
+    return [value / peak for value in values]
+
+
+def _relative_delta(candidate: float, baseline: float) -> float:
+    if baseline == 0:
+        return 0.0 if candidate == 0 else float("inf")
+    return abs(candidate - baseline) / abs(baseline)
+
+
+def _assert_within_tolerance(
+    *,
+    metric_name: str,
+    candidate: float,
+    baseline: float,
+    tolerance: float = 0.20,
+) -> None:
+    delta = _relative_delta(candidate, baseline)
+    assert delta <= tolerance, (
+        f"{metric_name} delta {delta:.2%} exceeds {tolerance:.0%}: "
+        f"candidate={candidate}, baseline={baseline}"
+    )
+
+
+def _assert_shape_within_tolerance(
+    *,
+    metric_name: str,
+    candidate: list[float],
+    baseline: list[float],
+    tolerance: float = 0.20,
+) -> None:
+    assert len(candidate) == len(baseline), (
+        f"{metric_name} point count mismatch: candidate={len(candidate)} baseline={len(baseline)}"
+    )
+    for idx, (candidate_value, baseline_value) in enumerate(zip(candidate, baseline, strict=True)):
+        delta = _relative_delta(candidate_value, baseline_value)
+        assert delta <= tolerance, (
+            f"{metric_name}[{idx}] delta {delta:.2%} exceeds {tolerance:.0%}: "
+            f"candidate={candidate_value}, baseline={baseline_value}"
+        )
+
+
+@pytest.fixture
+def public_builder_env(monkeypatch):
+    def _fake_load_public_liqmap_metadata(*, symbol: str, timeframe: str, step: Decimal):
+        expected = _STEP_TABLE[(symbol, timeframe)]
+        assert step == expected
+        return _metadata_for(symbol, timeframe)
+
+    class _FakeDuckDBService:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def calculate_liquidations_oi_based(self, **kwargs):
+            timeframe = "1d" if kwargs["lookback_days"] == 1 else "1w"
+            return pd.DataFrame(_synthetic_builder_rows(kwargs["symbol"], timeframe))
+
+    monkeypatch.setattr(public_liqmap, "_load_public_liqmap_metadata", _fake_load_public_liqmap_metadata)
+    monkeypatch.setattr(public_liqmap, "DuckDBService", _FakeDuckDBService)
 
 
 # ---------------------------------------------------------------------------
@@ -115,15 +162,9 @@ class TestEthSchemaCompliance:
     """T001-T002: Response schema matches CoinankPublicMapResponse."""
 
     @pytest.mark.parametrize("timeframe", ["1d", "1w"])
-    def test_eth_endpoint_returns_valid_schema(self, client, monkeypatch, timeframe):
-        _monkeypatch_builder(monkeypatch, timeframe)
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": timeframe},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        # Validate against Pydantic model (will raise on schema mismatch)
+    def test_eth_endpoint_returns_valid_schema(self, client, public_builder_env, timeframe):
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
+
         parsed = CoinankPublicMapResponse(**data)
         assert parsed.symbol == "ETHUSDT"
         assert parsed.timeframe == timeframe
@@ -139,26 +180,14 @@ class TestEthSchemaCompliance:
 class TestEthGridStep:
     """T003: ETH grid steps are correct and distinct from BTC."""
 
-    def test_eth_1d_grid_step_is_0_5(self, client, monkeypatch):
-        _monkeypatch_builder(monkeypatch, "1d")
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": "1d"},
-        )
-        data = response.json()
+    def test_eth_1d_grid_step_is_0_5(self, client, public_builder_env):
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe="1d")
         assert data["grid"]["step"] == 0.5
-        # BTC 1d step is 10.0 -- must be distinct
         assert data["grid"]["step"] != float(_STEP_TABLE[("BTCUSDT", "1d")])
 
-    def test_eth_1w_grid_step_is_2_0(self, client, monkeypatch):
-        _monkeypatch_builder(monkeypatch, "1w")
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": "1w"},
-        )
-        data = response.json()
+    def test_eth_1w_grid_step_is_2_0(self, client, public_builder_env):
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe="1w")
         assert data["grid"]["step"] == 2.0
-        # BTC 1w step is 25.0 -- must be distinct
         assert data["grid"]["step"] != float(_STEP_TABLE[("BTCUSDT", "1w")])
 
 
@@ -171,13 +200,9 @@ class TestEthBucketCounts:
     """T004: ETH bucket counts >= 15 long + 15 short."""
 
     @pytest.mark.parametrize("timeframe", ["1d", "1w"])
-    def test_eth_has_sufficient_buckets(self, client, monkeypatch, timeframe):
-        _monkeypatch_builder(monkeypatch, timeframe)
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": timeframe},
-        )
-        data = response.json()
+    def test_eth_has_sufficient_buckets(self, client, public_builder_env, timeframe):
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
+
         assert len(data["long_buckets"]) >= 15, (
             f"ETH {timeframe} long buckets: {len(data['long_buckets'])} < 15"
         )
@@ -196,44 +221,35 @@ class TestEthCumulativeCurves:
 
     @pytest.mark.parametrize("timeframe", ["1d", "1w"])
     def test_cumulative_long_is_monotonic_decreasing_toward_price(
-        self, client, monkeypatch, timeframe
+        self, client, public_builder_env, timeframe
     ):
-        _monkeypatch_builder(monkeypatch, timeframe)
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": timeframe},
-        )
-        data = response.json()
-        cum_long = data["cumulative_long"]
-        assert len(cum_long) >= 2
-        # Values should decrease as price approaches current_price (last point = 0)
-        values = [pt["value"] for pt in cum_long]
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
+        values = [point["value"] for point in data["cumulative_long"]]
+
+        assert len(values) >= 2
         assert values[-1] == 0.0, "Cumulative long must end at 0 at current price"
-        # Non-zero points should be monotonically decreasing
-        nonzero_values = [v for v in values if v > 0]
-        for i in range(1, len(nonzero_values)):
-            assert nonzero_values[i] <= nonzero_values[i - 1], (
-                f"Cumulative long not monotonic at index {i}: {nonzero_values[i]} > {nonzero_values[i - 1]}"
+
+        nonzero_values = [value for value in values if value > 0]
+        for idx in range(1, len(nonzero_values)):
+            assert nonzero_values[idx] <= nonzero_values[idx - 1], (
+                "Cumulative long not monotonic at "
+                f"index {idx}: {nonzero_values[idx]} > {nonzero_values[idx - 1]}"
             )
 
     @pytest.mark.parametrize("timeframe", ["1d", "1w"])
     def test_cumulative_short_is_monotonic_increasing_from_price(
-        self, client, monkeypatch, timeframe
+        self, client, public_builder_env, timeframe
     ):
-        _monkeypatch_builder(monkeypatch, timeframe)
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": timeframe},
-        )
-        data = response.json()
-        cum_short = data["cumulative_short"]
-        assert len(cum_short) >= 2
-        # Values should increase from 0 at current_price
-        values = [pt["value"] for pt in cum_short]
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
+        values = [point["value"] for point in data["cumulative_short"]]
+
+        assert len(values) >= 2
         assert values[0] == 0.0, "Cumulative short must start at 0 at current price"
-        for i in range(1, len(values)):
-            assert values[i] >= values[i - 1], (
-                f"Cumulative short not monotonic at index {i}: {values[i]} < {values[i - 1]}"
+
+        for idx in range(1, len(values)):
+            assert values[idx] >= values[idx - 1], (
+                f"Cumulative short not monotonic at index {idx}: "
+                f"{values[idx]} < {values[idx - 1]}"
             )
 
 
@@ -245,36 +261,13 @@ class TestEthCumulativeCurves:
 class TestEthRangeEnvelope:
     """T006: ETH 1d range is narrower than 1w range."""
 
-    def test_1w_range_is_wider_than_1d(self, client, monkeypatch):
-        payload_1d = _eth_sample_payload("1d")
-        payload_1w = _eth_sample_payload("1w")
+    def test_1w_range_is_wider_than_1d(self, client, public_builder_env):
+        data_1d = _fetch_public_map(client, symbol="ETHUSDT", timeframe="1d")
+        data_1w = _fetch_public_map(client, symbol="ETHUSDT", timeframe="1w")
 
-        def _fake_builder(**kwargs):
-            tf = kwargs.get("timeframe", "1d")
-            if tf == "1w":
-                # Widen the 1w range to reflect real behavior
-                p = dict(payload_1w)
-                p["grid"] = dict(p["grid"])
-                p["grid"]["min_price"] = round(p["current_price"] * 0.82, 2)
-                p["grid"]["max_price"] = round(p["current_price"] * 1.18, 2)
-                return p
-            return payload_1d
+        range_1d = data_1d["grid"]["max_price"] - data_1d["grid"]["min_price"]
+        range_1w = data_1w["grid"]["max_price"] - data_1w["grid"]["min_price"]
 
-        monkeypatch.setattr(liquidations, "build_coinank_public_map_response", _fake_builder)
-
-        resp_1d = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": "1d"},
-        )
-        resp_1w = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": "1w"},
-        )
-        grid_1d = resp_1d.json()["grid"]
-        grid_1w = resp_1w.json()["grid"]
-
-        range_1d = grid_1d["max_price"] - grid_1d["min_price"]
-        range_1w = grid_1w["max_price"] - grid_1w["min_price"]
         assert range_1w > range_1d, (
             f"1w range ({range_1w:.2f}) should be wider than 1d range ({range_1d:.2f})"
         )
@@ -289,13 +282,8 @@ class TestEthDataFreshness:
     """T007: is_stale_real_data must be false for valid validation."""
 
     @pytest.mark.parametrize("timeframe", ["1d", "1w"])
-    def test_fresh_data_flag(self, client, monkeypatch, timeframe):
-        _monkeypatch_builder(monkeypatch, timeframe)
-        response = client.get(
-            "/liquidations/coinank-public-map",
-            params={"symbol": "ETHUSDT", "timeframe": timeframe},
-        )
-        data = response.json()
+    def test_fresh_data_flag(self, client, public_builder_env, timeframe):
+        data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
         assert data["is_stale_real_data"] is False, (
             f"ETH {timeframe} data is stale — run gap-fill before validation"
         )
@@ -311,35 +299,49 @@ class TestEthVsBtcStructuralComparison:
 
     def _get_structural_metrics(self, data: dict) -> dict:
         grid = data["grid"]
+        current_price = data["current_price"]
         return {
-            "long_bucket_count": len(data["long_buckets"]),
-            "short_bucket_count": len(data["short_buckets"]),
-            "range_span": grid["max_price"] - grid["min_price"],
-            "cumulative_long_points": len(data["cumulative_long"]),
-            "cumulative_short_points": len(data["cumulative_short"]),
+            "long_bucket_count": float(len(data["long_buckets"])),
+            "short_bucket_count": float(len(data["short_buckets"])),
+            "normalized_range_span": (grid["max_price"] - grid["min_price"]) / current_price,
+            "cumulative_long_points": float(len(data["cumulative_long"])),
+            "cumulative_short_points": float(len(data["cumulative_short"])),
+            "cumulative_long_shape": _normalize_shape(
+                [point["value"] for point in data["cumulative_long"][:-1]]
+            ),
+            "cumulative_short_shape": _normalize_shape(
+                [point["value"] for point in data["cumulative_short"][1:]]
+            ),
         }
 
-    def test_eth_btc_bucket_counts_within_tolerance(self, client, monkeypatch):
-        """Bucket counts should be in the same order of magnitude (20% tolerance)."""
-        from tests.contract.test_coinank_public_map import _sample_public_map_payload
+    @pytest.mark.parametrize("timeframe", ["1d", "1w"])
+    def test_eth_metrics_within_20_percent_of_btc(self, client, public_builder_env, timeframe):
+        btc_data = _fetch_public_map(client, symbol="BTCUSDT", timeframe=timeframe)
+        eth_data = _fetch_public_map(client, symbol="ETHUSDT", timeframe=timeframe)
 
-        btc_payload = _sample_public_map_payload()
-        eth_payload = _eth_sample_payload("1d")
+        btc_metrics = self._get_structural_metrics(btc_data)
+        eth_metrics = self._get_structural_metrics(eth_data)
 
-        # For this structural comparison, we use relative bucket count ratio
-        # ETH and BTC have different market dynamics, so we check they're
-        # both non-trivial rather than exact match
-        btc_long = len(btc_payload["long_buckets"])
-        eth_long = len(eth_payload["long_buckets"])
-        eth_short = len(eth_payload["short_buckets"])
+        for metric_name in (
+            "long_bucket_count",
+            "short_bucket_count",
+            "normalized_range_span",
+            "cumulative_long_points",
+            "cumulative_short_points",
+        ):
+            _assert_within_tolerance(
+                metric_name=metric_name,
+                candidate=eth_metrics[metric_name],
+                baseline=btc_metrics[metric_name],
+            )
 
-        # Both must have non-trivial counts
-        assert eth_long >= 15
-        assert eth_short >= 15
-        assert btc_long >= 1  # BTC sample has minimal buckets
-
-        # Cumulative curve shape: both must have >= 2 points per side
-        assert len(eth_payload["cumulative_long"]) >= 2
-        assert len(eth_payload["cumulative_short"]) >= 2
-        assert len(btc_payload["cumulative_long"]) >= 2
-        assert len(btc_payload["cumulative_short"]) >= 2
+        _assert_shape_within_tolerance(
+            metric_name="cumulative_long_shape",
+            candidate=eth_metrics["cumulative_long_shape"],
+            baseline=btc_metrics["cumulative_long_shape"],
+        )
+        _assert_shape_within_tolerance(
+            metric_name="cumulative_short_shape",
+            candidate=eth_metrics["cumulative_short_shape"],
+            baseline=btc_metrics["cumulative_short_shape"],
+        )
