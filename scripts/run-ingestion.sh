@@ -615,7 +615,11 @@ else
 fi
 set -e
 
+# Refresh API connections (releases ingestion lock)
+refresh_api_connections
+
 # Phase 7: Pre-compute heatmap timeseries cache (spec-024)
+# MUST run after refresh_api_connections so the ingestion lock is released.
 log_section "Heatmap Timeseries Pre-computation"
 if [ "$MODE" != "dry-run" ]; then
     log "Pre-computing heatmap timeseries cache (BTC+ETH, 15m+1h)..."
@@ -635,9 +639,6 @@ else
     log "Skipping pre-computation (dry-run mode)"
     RESULTS="${RESULTS}Heatmap Precompute: skipped (dry-run)\n"
 fi
-
-# Refresh API connections
-refresh_api_connections
 
 # Restart sync container
 if ! start_sync_container; then

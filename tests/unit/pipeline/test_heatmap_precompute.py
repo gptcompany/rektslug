@@ -14,14 +14,20 @@ class TestPrecomputeSingle:
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
         with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as MockDB:
+            mock_rw = MagicMock()
+            mock_rw.__enter__ = MagicMock(return_value=mock_rw)
+            mock_rw.__exit__ = MagicMock(return_value=False)
+
             mock_ro = MagicMock()
             mock_ro.get_last_cached_ts_timestamp.return_value = now_str
             mock_ro.__enter__ = MagicMock(return_value=mock_ro)
             mock_ro.__exit__ = MagicMock(return_value=False)
-            MockDB.return_value = mock_ro
+
+            # Flow: rw(bootstrap) → ro(last_cached) → early return
+            MockDB.side_effect = [mock_rw, mock_ro]
 
             from scripts.precompute_heatmap_timeseries import precompute_single
-            result = precompute_single("BTCUSDT", "15m", 30, 100.0)
+            result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
             assert result == 0
 
     def test_computes_when_no_cache(self, tmp_path):
@@ -36,21 +42,23 @@ class TestPrecomputeSingle:
         mock_snapshot.timestamp = datetime(2026, 3, 19, 12, 0, tzinfo=timezone.utc)
 
         with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as MockDB:
+            mock_rw = MagicMock()
+            mock_rw.put_cached_ts_snapshots.return_value = 1
+            mock_rw.__enter__ = MagicMock(return_value=mock_rw)
+            mock_rw.__exit__ = MagicMock(return_value=False)
+
             mock_ro = MagicMock()
             mock_ro.get_last_cached_ts_timestamp.return_value = None
             mock_ro.get_heatmap_timeseries.return_value = [mock_snapshot]
             mock_ro.__enter__ = MagicMock(return_value=mock_ro)
             mock_ro.__exit__ = MagicMock(return_value=False)
 
-            mock_rw = MagicMock()
-            mock_rw.put_cached_ts_snapshots.return_value = 1
-            mock_rw.__enter__ = MagicMock(return_value=mock_rw)
-            mock_rw.__exit__ = MagicMock(return_value=False)
-
-            MockDB.side_effect = [mock_ro, mock_ro, mock_rw]
+            # Flow: rw(bootstrap) → ro(last_cached) → ro(compute) → rw(insert)
+            MockDB.side_effect = [mock_rw, mock_ro, mock_ro, mock_rw]
 
             from scripts.precompute_heatmap_timeseries import precompute_single
-            result = precompute_single("BTCUSDT", "15m", 30, 100.0)
+            # Pass explicit price_bin_size to skip profile resolution
+            result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
             assert result == 1
             mock_rw.put_cached_ts_snapshots.assert_called_once()
 

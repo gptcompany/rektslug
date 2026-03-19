@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 
 INGESTION_LOCK_FILE = Path("/tmp/duckdb-ingestion.lock")
 
-# Default configs for pre-computation
+# Default configs for pre-computation (price_bin_size=None → resolved dynamically)
 DEFAULT_CONFIGS = [
-    {"symbol": "BTCUSDT", "interval": "15m", "days": 30, "price_bin_size": 100.0},
-    {"symbol": "BTCUSDT", "interval": "1h", "days": 90, "price_bin_size": 100.0},
-    {"symbol": "ETHUSDT", "interval": "15m", "days": 30, "price_bin_size": 10.0},
-    {"symbol": "ETHUSDT", "interval": "1h", "days": 90, "price_bin_size": 10.0},
+    {"symbol": "BTCUSDT", "interval": "15m", "days": 30},
+    {"symbol": "BTCUSDT", "interval": "1h", "days": 90},
+    {"symbol": "ETHUSDT", "interval": "15m", "days": 30},
+    {"symbol": "ETHUSDT", "interval": "1h", "days": 90},
 ]
 
 
@@ -49,11 +49,35 @@ def check_ingestion_lock() -> bool:
     return False
 
 
+def _resolve_profile_bin_size(symbol: str, lookback_days: int) -> float:
+    """Resolve the same dynamic bin_size the API endpoint uses.
+
+    This ensures pre-computed rows match the cache key the API looks up.
+    Falls back to 100.0 (BTC) / 10.0 (ETH) if profile resolution fails.
+    """
+    try:
+        from src.liquidationheatmap.ingestion.db_service import DuckDBService
+        from src.liquidationheatmap.models.profiles import get_profile
+
+        profile = get_profile("rektslug-ank")
+        with DuckDBService(read_only=True) as db:
+            current_price, _ = db.get_latest_open_interest(symbol)
+        bin_size = profile.get_bin_size(lookback_days, float(current_price), symbol)
+        logger.info(f"[{symbol}] Resolved profile bin_size={bin_size} (price={current_price})")
+        return float(bin_size)
+    except Exception as e:
+        fallback = 10.0 if "ETH" in symbol else 100.0
+        logger.warning(
+            f"[{symbol}] Profile bin_size resolution failed ({e}), using fallback={fallback}"
+        )
+        return fallback
+
+
 def precompute_single(
     symbol: str,
     interval: str,
     days: int,
-    price_bin_size: float,
+    price_bin_size: float | None = None,
 ) -> int:
     """Pre-compute missing heatmap timeseries snapshots for one config.
 
@@ -61,9 +85,18 @@ def precompute_single(
     """
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
 
-    # Phase 1: Find what's missing
+    # Phase 1: Bootstrap cache table (needs write), then find what's missing
+    DuckDBService.reset_singletons()
+    with DuckDBService(read_only=False) as db_rw:
+        db_rw.conn.execute("SET memory_limit='1GB'")
+        db_rw.ensure_heatmap_ts_cache_table()
+    DuckDBService.reset_singletons()
+
+    # Resolve bin_size from profile (same logic as API endpoint)
+    if price_bin_size is None:
+        price_bin_size = _resolve_profile_bin_size(symbol, days)
+
     with DuckDBService(read_only=True) as db_ro:
-        db_ro.ensure_heatmap_ts_cache_table()
         last_cached = db_ro.get_last_cached_ts_timestamp(symbol, interval)
 
     now = datetime.now(timezone.utc)
@@ -84,7 +117,9 @@ def precompute_single(
     # Phase 2: Compute missing snapshots
     start_str = start.strftime("%Y-%m-%d %H:%M:%S")
     end_str = now.strftime("%Y-%m-%d %H:%M:%S")
-    logger.info(f"[{symbol}/{interval}] Computing snapshots from {start_str} to {end_str}")
+    logger.info(
+        f"[{symbol}/{interval}] Computing snapshots from {start_str} to {end_str} (bin_size={price_bin_size})"
+    )
 
     with DuckDBService(read_only=True) as db_ro:
         snapshots = db_ro.get_heatmap_timeseries(
@@ -131,7 +166,12 @@ def main():
     parser.add_argument("--symbol", type=str, help="Trading pair (e.g. BTCUSDT)")
     parser.add_argument("--interval", type=str, choices=["15m", "1h"], help="Interval")
     parser.add_argument("--days", type=int, default=30, help="Lookback days (default: 30)")
-    parser.add_argument("--price-bin-size", type=float, default=100.0, help="Price bin size")
+    parser.add_argument(
+        "--price-bin-size",
+        type=float,
+        default=None,
+        help="Price bin size (default: resolved from profile)",
+    )
     parser.add_argument(
         "--all", action="store_true", help="Run all default configs (BTC+ETH, 15m+1h)"
     )

@@ -102,6 +102,7 @@ async def precompute_heatmap(
     symbol: str = Query("BTCUSDT", pattern="^[A-Z]{6,12}$"),
     interval: str = Query("15m", pattern="^(15m|1h)$"),
     days: int = Query(30, ge=1, le=90),
+    token_valid: None = Depends(_require_internal_token),
 ):
     """Trigger heatmap timeseries pre-computation manually."""
     import subprocess
