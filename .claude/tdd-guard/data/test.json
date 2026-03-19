@@ -1,46 +1,116 @@
 {
   "testModules": [
     {
-      "moduleId": "tests/test_api/test_routes_robustness.py",
+      "moduleId": "tests/validation/test_eth_public_builder.py",
       "tests": [
         {
-          "name": "test_health_check",
-          "fullName": "tests/test_api/test_routes_robustness.py::TestApiRobustness::test_health_check",
+          "name": "test_eth_endpoint_returns_valid_schema[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthSchemaCompliance::test_eth_endpoint_returns_valid_schema[1d]",
           "state": "passed"
         },
         {
-          "name": "test_heatmap_with_real_data",
-          "fullName": "tests/test_api/test_routes_robustness.py::TestApiRobustness::test_heatmap_with_real_data",
+          "name": "test_eth_endpoint_returns_valid_schema[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthSchemaCompliance::test_eth_endpoint_returns_valid_schema[1w]",
           "state": "passed"
         },
         {
-          "name": "test_klines_aggregation_real",
-          "fullName": "tests/test_api/test_routes_robustness.py::TestApiRobustness::test_klines_aggregation_real",
+          "name": "test_eth_1d_grid_step_is_0_5",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthGridStep::test_eth_1d_grid_step_is_0_5",
+          "state": "passed"
+        },
+        {
+          "name": "test_eth_1w_grid_step_is_2_0",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthGridStep::test_eth_1w_grid_step_is_2_0",
+          "state": "passed"
+        },
+        {
+          "name": "test_eth_has_sufficient_buckets[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthBucketCounts::test_eth_has_sufficient_buckets[1d]",
+          "state": "passed"
+        },
+        {
+          "name": "test_eth_has_sufficient_buckets[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthBucketCounts::test_eth_has_sufficient_buckets[1w]",
+          "state": "passed"
+        },
+        {
+          "name": "test_cumulative_long_is_monotonic_decreasing_toward_price[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_long_is_monotonic_decreasing_toward_price[1d]",
+          "state": "passed"
+        },
+        {
+          "name": "test_cumulative_long_is_monotonic_decreasing_toward_price[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_long_is_monotonic_decreasing_toward_price[1w]",
+          "state": "passed"
+        },
+        {
+          "name": "test_cumulative_short_is_monotonic_increasing_from_price[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_short_is_monotonic_increasing_from_price[1d]",
+          "state": "passed"
+        },
+        {
+          "name": "test_cumulative_short_is_monotonic_increasing_from_price[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_short_is_monotonic_increasing_from_price[1w]",
+          "state": "passed"
+        },
+        {
+          "name": "test_1w_range_is_wider_than_1d",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthRangeEnvelope::test_1w_range_is_wider_than_1d",
+          "state": "passed"
+        },
+        {
+          "name": "test_fresh_data_flag[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthDataFreshness::test_fresh_data_flag[1d]",
+          "state": "passed"
+        },
+        {
+          "name": "test_fresh_data_flag[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthDataFreshness::test_fresh_data_flag[1w]",
+          "state": "passed"
+        },
+        {
+          "name": "test_eth_metrics_within_20_percent_of_btc[1d]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthVsBtcStructuralComparison::test_eth_metrics_within_20_percent_of_btc[1d]",
+          "state": "passed"
+        },
+        {
+          "name": "test_eth_metrics_within_20_percent_of_btc[1w]",
+          "fullName": "tests/validation/test_eth_public_builder.py::TestEthVsBtcStructuralComparison::test_eth_metrics_within_20_percent_of_btc[1w]",
           "state": "passed"
         }
       ]
     },
     {
-      "moduleId": "tests/test_coverage_booster.py",
+      "moduleId": "tests/contract/test_coinank_public_map.py",
       "tests": [
         {
-          "name": "test_heatmap_timeseries_basic",
-          "fullName": "tests/test_coverage_booster.py::TestApiBooster::test_heatmap_timeseries_basic",
+          "name": "test_endpoint_exists_and_returns_typed_schema",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_endpoint_exists_and_returns_typed_schema",
           "state": "passed"
         },
         {
-          "name": "test_klines_variants",
-          "fullName": "tests/test_coverage_booster.py::TestApiBooster::test_klines_variants",
+          "name": "test_unsupported_symbol_is_rejected",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_unsupported_symbol_is_rejected",
           "state": "passed"
         },
         {
-          "name": "test_admin_auth",
-          "fullName": "tests/test_coverage_booster.py::TestApiBooster::test_admin_auth",
+          "name": "test_unsupported_timeframe_is_rejected",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_unsupported_timeframe_is_rejected",
           "state": "passed"
         },
         {
-          "name": "test_metrics",
-          "fullName": "tests/test_coverage_booster.py::TestApiBooster::test_metrics",
+          "name": "test_builder_failure_returns_explicit_json_500",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_builder_failure_returns_explicit_json_500",
+          "state": "passed"
+        },
+        {
+          "name": "test_transient_duckdb_lock_is_retried",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_transient_duckdb_lock_is_retried",
+          "state": "passed"
+        },
+        {
+          "name": "test_legacy_levels_endpoint_remains_available",
+          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_legacy_levels_endpoint_remains_available",
           "state": "passed"
         }
       ]
