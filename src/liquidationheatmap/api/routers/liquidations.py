@@ -647,6 +647,22 @@ def _try_duckdb_ts_cache(
     if not rows:
         return None
 
+    # Verify coverage: expected snapshot count vs actual
+    interval_td = {"15m": timedelta(minutes=15), "1h": timedelta(hours=1)}.get(
+        interval, timedelta(minutes=15)
+    )
+    start_dt = datetime.fromisoformat(start_ts.replace("Z", "+00:00")) if "T" in start_ts or "-" in start_ts else datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.fromisoformat(eff_end_ts.replace("Z", "+00:00")) if "T" in eff_end_ts or "-" in eff_end_ts else datetime.strptime(eff_end_ts, "%Y-%m-%d %H:%M:%S")
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=timezone.utc)
+    if end_dt.tzinfo is None:
+        end_dt = end_dt.replace(tzinfo=timezone.utc)
+    expected_count = max(1, int((end_dt - start_dt) / interval_td))
+    # Allow 20% tolerance for edge timestamps, but reject clearly partial results
+    if len(rows) < expected_count * 0.8:
+        logger.debug(f"Partial cache: {len(rows)}/{expected_count} snapshots, falling back to live")
+        return None
+
     # Check staleness — reject if any entry is too old
     for row in rows:
         computed_at = row["computed_at"]

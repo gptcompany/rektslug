@@ -2024,15 +2024,24 @@ class DuckDBService:
         logger.info(f"Deleted {deleted} stale heatmap timeseries cache rows")
         return deleted
 
-    def get_last_cached_ts_timestamp(self, symbol: str, interval: str) -> str | None:
-        """Get the most recent cached timestamp for a symbol/interval pair."""
-        result = self.conn.execute(
-            """
-            SELECT MAX(timestamp) FROM heatmap_timeseries_cache
-            WHERE symbol = ? AND interval = ?
-            """,
-            [symbol, interval],
-        ).fetchone()
+    def get_last_cached_ts_timestamp(self, symbol: str, interval: str, price_bin_size: float | None = None) -> str | None:
+        """Get the most recent cached timestamp for a symbol/interval/bin_size triple."""
+        if price_bin_size is not None:
+            result = self.conn.execute(
+                """
+                SELECT MAX(timestamp) FROM heatmap_timeseries_cache
+                WHERE symbol = ? AND interval = ? AND price_bin_size = ?
+                """,
+                [symbol, interval, price_bin_size],
+            ).fetchone()
+        else:
+            result = self.conn.execute(
+                """
+                SELECT MAX(timestamp) FROM heatmap_timeseries_cache
+                WHERE symbol = ? AND interval = ?
+                """,
+                [symbol, interval],
+            ).fetchone()
         if result and result[0]:
             return str(result[0])
         return None

@@ -97,7 +97,7 @@ def precompute_single(
         price_bin_size = _resolve_profile_bin_size(symbol, days)
 
     with DuckDBService(read_only=True) as db_ro:
-        last_cached = db_ro.get_last_cached_ts_timestamp(symbol, interval)
+        last_cached = db_ro.get_last_cached_ts_timestamp(symbol, interval, price_bin_size)
 
     now = datetime.now(timezone.utc)
     if last_cached:
