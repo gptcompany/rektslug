@@ -167,6 +167,45 @@ Absolute dollar values are less important than relative distribution.
   open positions, recently closed positions, top-position cohorts, or another
   provider-specific construction?
 
+### Findings To Date
+- F-001: The correct Rektslug-side source for Hyperliquid discovery is the
+  filtered node dataset, especially `filtered/node_fills_by_block`, not only
+  the derived DuckDB views. The node docs describe this dataset as `fills +
+  liquidations`, and `scripts/ingest_hl_fills.py` already converts it into
+  `hl_fills_l4` / `hl_liquidations_l4`.
+- F-002: The current local CoinGlass browser harness is not yet a trustworthy
+  Hyperliquid `ETH` capture path. A run requested as `ETH` / `1w` still saved
+  `api/hyperliquid/topPosition/liqMap?symbol=BTC`, with `symbol_applied = None`
+  and `timeframe_applied = false`, which means the existing automation is still
+  coupled to the default page state rather than a verified Hyperliquid widget
+  selection.
+- F-003: The current CoinGlass browser automation targets the main
+  per-exchange/Binance widget. `apply_coinglass_symbol()` looks for a combobox
+  containing `Perpetual`, and `coinglass_direct_fetch()` rewrites only
+  `api/index/5/liqMap`, so neither step is Hyperliquid-specific yet.
+- F-004: Decoded CoinGlass Hyperliquid payloads are not shaped like a
+  pre-bucketed heatmap. Successful decodes yield an object with top-level keys
+  like `price` and `list`, and list items include fields such as `entryPrice`,
+  `leverage`, `liquidationPrice`, `margin`, `positionUsd`, and `userId`.
+  Inference: the endpoint currently looks closer to a top-position /
+  position-risk feed than to a ready-made liquidation surface.
+- F-005: First Rektslug-side candidate windows were generated from filtered
+  Hyperliquid node data for `1d` and `7d`. `7d` produces a much richer
+  distribution than `1d`, especially for `ETH`, so `7d` is a plausible
+  candidate window to test against CoinGlass Hyperliquid. This is only a
+  candidate, not evidence that CoinGlass actually uses `7d`.
+- F-006: Current evidence argues against the hypothesis that CoinGlass
+  Hyperliquid is based only on public `L2` websocket data. The decoded payload
+  contains account/position-level fields such as `margin`, `leverage`, and
+  `liquidationPrice`, which are not explained by plain order-book depth alone.
+  This is still an inference, not a confirmed statement about CoinGlass internals.
+- F-007: For our node data, stronger candidate models than a simple histogram of
+  recent liquidations are:
+  1. position-state reconstruction
+  2. position-cohort risk surface
+  3. book-aware impact overlay
+  These are modeling directions for future work, not yet implemented features.
+
 ### Investigation Plan
 - IP-001: Build an evidence matrix for CoinGlass Hyperliquid `BTC` and `ETH`
   captures. For each capture, record request URL, headers, decoded payload
