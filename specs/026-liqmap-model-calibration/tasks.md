@@ -26,9 +26,35 @@
 
 - [X] T013 Confirm filtered node retention also includes `node_order_statuses_by_block` and `node_raw_book_diffs_by_block`
 - [X] T014 Confirm the canonical Hyperliquid candidate-window baseline artifact exists in repo and is structurally valid
-- [ ] T015 Inspect schema/sample payloads for `node_order_statuses_by_block`
-- [ ] T016 Inspect schema/sample payloads for `node_raw_book_diffs_by_block`
-- [ ] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
+- [X] T015 Inspect schema/sample payloads for `node_order_statuses_by_block`
+  - **Schema**: `{local_time, block_time, block_number, events[]}`
+  - **Event fields**: `{time, user, hash, builder, status, order{coin, side, limitPx, sz, oid, timestamp, orderType, origSz, tif, cloid, reduceOnly, isPositionTpsl, isTrigger, triggerPx, triggerCondition, children}}`
+  - **Statuses**: badAloPxRejected (986k), open (131k), canceled (125k), perpMarginRejected (88k), filled (4.4k), reduceOnlyRejected, scheduledCancel, minTradeNtlRejected, triggered, etc.
+  - **Coins**: BTC, ETH, HYPE | **Sides**: A (ask/sell), B (bid/buy)
+  - **Order types**: Limit, Market, Stop Limit, Stop Market, Take Profit Limit, Take Profit Market
+  - **Relevance**: `filled` events give exact execution prices and sizes; `open` orders give resting limit orders (potential liquidation walls)
+- [X] T016 Inspect schema/sample payloads for `node_raw_book_diffs_by_block`
+  - **Schema**: `{local_time, block_time, block_number, events[]}`
+  - **Event fields**: `{user, oid, coin, side, px, raw_book_diff}`
+  - **diff types**: `new` (new order, subkey: sz), `update` (size change)
+  - **Coins**: BTC, ETH, HYPE | **Sides**: A, B
+  - **Relevance**: Full order book reconstruction possible; per-price-level depth snapshots for book-aware impact overlay
+- [X] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
+  - **Available locally** (9 days: 2026-03-12 → 2026-03-20):
+    - `node_fills_by_block/hourly/` — exact fill prices, sizes, directions (Close Long/Short for liquidations)
+    - `node_order_statuses_by_block/hourly/` — order lifecycle including `filled` events with limitPx/sz
+    - `node_raw_book_diffs_by_block/hourly/` — per-user book deltas at block granularity
+    - `hip3_oracle_updates_by_block/hourly/` — mark_px + oracle_px per coin (BTC as `cash:BTC`, ETH as `hyna:ETH`)
+  - **Also available via ccxt-data-pipeline** (Docker, `/data/catalog/`):
+    - `funding_rate/BTCUSDT-PERP.HYPERLIQUID/` — 52 days of parquet (2026-01-28 → 2026-03-20)
+    - `funding_rate/ETHUSDT-PERP.HYPERLIQUID/` — same coverage
+    - `open_interest/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — OI history
+    - `ohlcv/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — candles
+    - `trades/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — trade ticks
+  - **NOT available locally**:
+    - **Account equity/collateral** — not available (would need per-user clearinghouse state)
+    - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
+  - **Conclusion**: fills + oracle + funding + OI = all locally available; book diffs = bonus for density overlay; only account equity is missing (not reconstructable)
 
 ## Phase 4: Reconstruction Design
 
