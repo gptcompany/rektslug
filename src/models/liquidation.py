@@ -15,8 +15,11 @@ class BinanceLiquidationModel:
         Calculate liquidation price using Binance formula.
 
         Formula:
-        - Long:  liq_price = entry_price * (1 - 1/leverage + mmr/leverage)
-        - Short: liq_price = entry_price * (1 + 1/leverage - mmr/leverage)
+        - Long:  liq_price = entry_price * (1 - 1/leverage + mmr)
+        - Short: liq_price = entry_price * (1 + 1/leverage - mmr)
+
+        This helper accepts a single maintenance margin rate. Tier selection is
+        handled by higher-level models such as BinanceStandardModel.
 
         Args:
             entry_price: Entry price of the position
@@ -29,9 +32,9 @@ class BinanceLiquidationModel:
         """
         # Calculate liquidation price based on position type
         if position_type == "long":
-            liq_price = entry_price * (1 - 1 / leverage + maintenance_margin_rate / leverage)
+            liq_price = entry_price * (1 - 1 / leverage + maintenance_margin_rate)
         elif position_type == "short":
-            liq_price = entry_price * (1 + 1 / leverage - maintenance_margin_rate / leverage)
+            liq_price = entry_price * (1 + 1 / leverage - maintenance_margin_rate)
         else:
             raise ValueError(f"position_type must be 'long' or 'short', got: {position_type}")
 

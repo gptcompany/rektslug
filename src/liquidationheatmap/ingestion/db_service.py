@@ -1250,9 +1250,11 @@ class DuckDBService:
             kline_table,
         )
 
-        # MMR (Maintenance Margin Rate) - dynamically computed per-bucket
-        # from official Binance BTC/USDT tiers via MMRTiers CTE in SQL.
-        # See src/liquidationheatmap/models/binance_standard.py lines 22-33.
+        # Bucket notionals are estimated against official Binance BTC/USDT MMR
+        # tiers for sizing visibility, but the aggregated heatmap intentionally
+        # keeps liquidation distance on the base 0.4% MMR. We do not have enough
+        # information at this stage to assign an exact tiered MMR per synthetic
+        # position without overstating precision.
 
         query = f"""
         WITH Params AS (
@@ -1449,7 +1451,9 @@ class DuckDBService:
         ),
 
         -- STEP 5: Calculate liquidation prices
-        -- Use base MMR (0.4%) as maps are aggregated and individual position sizes are unknown
+        -- Keep base MMR (0.4%) for aggregated synthetic maps. BucketMMR above is
+        -- retained for bucket-notional sizing and future tuning, not for current
+        -- liquidation-distance calculation.
         AllLiquidations AS (
             SELECT
                 price_bucket,

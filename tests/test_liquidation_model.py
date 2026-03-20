@@ -4,6 +4,8 @@ Tests for Binance liquidation calculation model.
 Following TDD approach - tests written first, ONE at a time.
 """
 
+import pytest
+
 from src.models.liquidation import BinanceLiquidationModel
 
 
@@ -59,6 +61,28 @@ class TestBinanceLiquidationModel:
         assert result["liq_price"] == 110.0
         assert result["leverage"] == 10
         assert result["position_type"] == "short"
+
+    def test_long_liquidation_10x_with_default_maintenance_margin(self):
+        """Default 0.4% MMR must be added directly, not divided by leverage."""
+        model = BinanceLiquidationModel()
+
+        result = model.calculate_liquidation_price(
+            entry_price=100.0, leverage=10, position_type="long"
+        )
+
+        assert result["liq_price"] == pytest.approx(90.4)
+        assert result["distance_percent"] == pytest.approx(9.6)
+
+    def test_short_liquidation_10x_with_default_maintenance_margin(self):
+        """Default 0.4% MMR must be subtracted directly for shorts too."""
+        model = BinanceLiquidationModel()
+
+        result = model.calculate_liquidation_price(
+            entry_price=100.0, leverage=10, position_type="short"
+        )
+
+        assert result["liq_price"] == pytest.approx(109.6)
+        assert result["distance_percent"] == pytest.approx(9.6)
 
     def test_distance_percent_and_usd_calculation(self):
         """
