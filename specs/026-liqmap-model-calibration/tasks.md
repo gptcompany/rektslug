@@ -62,31 +62,34 @@
         - Per-position: `l.C` (cross leverage), `l.I` (isolated leverage), `M` (margin), `f.a` (cumulative funding)
       - `users_with_positions`: **59,596** active users
       - `asset_to_oi_szi`: aggregate OI per asset (BTC=2.85B szi, ETH=5.89B szi)
-    - **Account equity IS reconstructable** from these snapshots: balance + unrealized PnL (position × mark_px delta) + cumulative funding
+    - **Account equity is directly anchorable at snapshot times** from balances plus position/funding state; this is confirmed for the retained `2d` ABCI window
+    - **Open proof item**: exact `7d` replay still needs to be demonstrated from snapshots + filtered streams across the full candidate window
   - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
-  - **Conclusion**: ALL inputs for full-fidelity liqmap reconstruction are locally available — fills, oracle, funding, OI, book diffs, AND per-user position/equity state
+  - **Conclusion**: ALL major inputs for high-fidelity reconstruction are locally available, but the certainty level differs: `2d` is snapshot-anchored, while exact `7d` replay remains to be proven
 
 ## Phase 4: Reconstruction Design
 
-- [ ] T018 Document which quantities are exact, approximate, or not reconstructable from local data
-- [ ] T019 Choose the first reconstruction target: `position-state reconstruction`, `position-cohort risk surface`, or `book-aware impact overlay`
-- [ ] T020 Define bucket size, accumulation metric, and side split for the first `ETH` builder
-- [ ] T021 Record the current retention constraint explicitly: immediate comparison windows are `1d` and `7d`, not `30d+`
-- [ ] T022 Write a short design note for the first prototype builder and its validation metrics
+- [X] T018 Document which quantities are `snapshot-exact`, `replay-exact`, `approximate`, or still not reconstructable from local data, and tie that envelope to the chosen sidecar-vs-node boundary
+- [X] T019 Choose the first reconstruction target: `position-state reconstruction`
+  - Rationale: exact BTC/ETH parity for multi-asset cross-margin accounts requires account-level state; cohort-only approximations are insufficient
+- [X] T020 Define the sidecar retained account-state format so BTC/ETH-relevant accounts keep the off-target exposure needed for exact cross-margin liquidation semantics
+- [X] T021 Define bucket size, accumulation metric, and side split for the first `ETH` builder
+- [X] T022 Record the current retention constraint explicitly: immediate comparison windows are `1d` and `7d`, not `30d+`, while ABCI anchors are only confirmed locally for `2d`
+- [X] T023 Write a short sidecar design note for the first prototype builder, including the minimal generic `hyperliquid-node` changes allowed, if any
 
 ## Phase 5: ETH Prototype Builder
 
-- [ ] T023 Implement the first local `ETH 7d` prototype builder
-- [ ] T024 Generate a local `ETH 7d` risk-surface artifact from filtered node data
-- [ ] T025 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
-- [ ] T026 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
+- [ ] T024 Implement the first local `ETH 7d` prototype builder
+- [ ] T025 Generate a local `ETH 7d` risk-surface artifact from filtered node data
+- [ ] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
+- [ ] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
 
 ## Phase 6: BTC Extension And Decision
 
-- [ ] T027 Extend the same reconstruction path to `BTC`
-- [ ] T028 Write a Rektslug-vs-CoinGlass Hyperliquid comparison memo for `BTC` and `ETH`
-- [ ] T029 Record whether `1:1` Hyperliquid parity is viable, best-effort only, or rejected
-- [ ] T030 Document repeatable capture, decode, and comparison commands for future reruns
+- [ ] T028 Extend the same reconstruction path to `BTC`
+- [ ] T029 Write a Rektslug-vs-CoinGlass Hyperliquid comparison memo for `BTC` and `ETH`
+- [ ] T030 Record whether `1:1` Hyperliquid parity is viable, best-effort only, or rejected
+- [ ] T031 Document repeatable capture, decode, and comparison commands for future reruns
 
 ## Completion Notes
 
@@ -105,3 +108,10 @@
   - simple recent-liquidation histograms are not sufficient to explain CoinGlass Hyperliquid
 - Reconstruction-input decision:
   - the target high-fidelity path should include mark/oracle, funding, and collateral/equity adjustments in addition to fills, order statuses, and raw book diffs
+  - exact BTC/ETH parity must preserve account-level cross-margin semantics even when the relevant wallets hold off-target assets
+- Architecture decision:
+  - implement the BTC/ETH parity/reconstruction engine as a sidecar over canonical node outputs
+  - keep `hyperliquid-node` limited to canonical collection/filtering/state export responsibilities, with only generic infrastructure changes allowed if the sidecar proves they are needed
+- Phase 4 design artifact:
+  - `specs/026-liqmap-model-calibration/sidecar-design.md` defines the exactness envelope, relevant-account rule, retained account state, replay proof rules, and the minimal allowed node-side changes
+  - the same design note also fixes the first builder parameters: profile-resolved bin size, target-notional accumulation, and side split from target-position sign

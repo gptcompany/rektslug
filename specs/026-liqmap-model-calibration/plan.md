@@ -10,7 +10,11 @@
 Hyperliquid/CoinGlass discovery track. The immediate goal is to freeze the
 current evidence, track what is already verified, and organize the next
 implementation work required to build a credible Rektslug Hyperliquid
-liquidation map from local node data. This plan is intended to serve as the
+liquidation map from local node data. The parity target is now explicit: BTC
+and ETH support must remain exact even for accounts that carry additional
+non-target cross-margin exposure. The architectural boundary is also explicit:
+`hyperliquid-node` stays the canonical data/state layer, while the parity and
+risk-surface engine lives in a sidecar. This plan is intended to serve as the
 current handoff index for continuing implementation in Claude.
 
 ## Technical Context
@@ -50,6 +54,7 @@ current handoff index for continuing implementation in Claude.
 ### Source Documents
 
 - `specs/026-liqmap-model-calibration/spec.md`
+- `specs/026-liqmap-model-calibration/sidecar-design.md`
 - `data/validation/manifests/hyperliquid_coinglass_checkpoint_20260320.md`
 - `data/validation/manifests/hyperliquid_filtered_candidate_windows_20260320.json`
 - `data/validation/manifests/coinglass_hyperliquid_capture_manifest_20260320.md`
@@ -95,6 +100,7 @@ current handoff index for continuing implementation in Claude.
 - `data/validation/manifests/coinglass_hyperliquid_capture_manifest_20260320.json`
 - `data/validation/manifests/coinglass_hyperliquid_decode_audit_20260320.json`
 - `data/validation/manifests/coinglass_hyperliquid_live_findings_20260320.md`
+- `specs/026-liqmap-model-calibration/sidecar-design.md`
 
 ## Architecture
 
@@ -106,7 +112,7 @@ decoded top-position payloads (`price` + `list`)
 local filtered Hyperliquid node streams
 (`fills`, `order_statuses`, `raw_book_diffs`, `oracle/mark`, `funding`, `collateral`)
         ->
-candidate reconstruction models
+sidecar account-level reconstruction with cross-margin-safe retained state
         ->
 bucketed ETH/BTC risk-surface artifacts
         ->
@@ -114,6 +120,18 @@ CoinGlass-vs-Rektslug comparison
         ->
 go / no-go Hyperliquid parity decision
 ```
+
+## Architecture Boundary
+
+- Keep `hyperliquid-node` focused on canonical collection, filtering, and
+  state anchoring.
+- Implement BTC/ETH parity reconstruction, retained account-state modeling,
+  and CoinGlass-facing comparison logic in a sidecar.
+- Allow node-side changes only when they are generic infrastructure
+  improvements, such as exporting or retaining state anchors/checkpoints that
+  are broadly useful beyond this spec.
+- Do not embed CoinGlass-specific heuristics or BTC/ETH-specific liquidation
+  modeling into `hyperliquid-node`.
 
 ## What Already Works
 
@@ -123,6 +141,8 @@ go / no-go Hyperliquid parity decision
   distinct `1 day` vs `7 day` historical series
 - local filtered node retention includes more than fills alone, which makes a
   stronger reconstruction path realistic
+- periodic ABCI snapshots provide direct per-user clearinghouse state anchors,
+  but only for the currently retained `2d` window
 - the saved candidate-window baseline artifact is present locally and can be
   reused as the current `1d` / `7d` comparison baseline
 
@@ -131,19 +151,23 @@ go / no-go Hyperliquid parity decision
 1. inventory the actual schema and local availability of
    `node_order_statuses_by_block`, `node_raw_book_diffs_by_block`, mark/oracle,
    funding, and collateral/equity-adjustment inputs
-2. choose the first reconstruction target and weighting model for ETH
-3. generate a first local `ETH 7d` risk-surface artifact
-4. compare shape, peak buckets, long/short balance, and stability against
+2. prove the exactness envelope: `snapshot-exact` over retained ABCI anchors vs
+   `7d replay exactness` still to be demonstrated
+3. formalize the sidecar retained account-state format needed to preserve exact
+   cross-margin semantics for BTC/ETH-relevant accounts
+4. generate a first local `ETH 7d` risk-surface artifact
+5. compare shape, peak buckets, long/short balance, and stability against
    CoinGlass Hyperliquid
-5. document exactly which parts of the reconstruction are exact vs approximate
 6. turn the saved candidate-window baseline into an explicit input of the next
    comparison/reporting steps
+7. define the smallest possible generic node-side export/retention change, if
+   any, that the sidecar actually needs
 
 ## Phases
 
 1. Evidence freeze and reference index.
 2. Node-stream inventory and reconstruction requirements.
-3. ETH `7d` prototype risk-surface builder.
+3. Sidecar reconstruction design and exactness proof strategy.
 4. ETH `1d` sensitivity check and retention-aware refinement.
 5. BTC extension, comparison report, and parity decision.
 
@@ -155,14 +179,22 @@ go / no-go Hyperliquid parity decision
   timeframe unless a primary signal changes.
 - Use local filtered Hyperliquid data as the canonical source; CoinGlass is a
   reference output, not ground truth.
+- No accepted parity path may discard off-target exposure for accounts that are
+  relevant to BTC/ETH liquidation under cross-margin.
+- No accepted implementation path may move BTC/ETH-specific parity logic into
+  `hyperliquid-node`; keep that logic in the sidecar.
 - Local success is not just visual similarity. Record peak buckets,
   long/short balance, scale, and stability explicitly.
 
 ## Risks
 
 - assuming fills alone are sufficient to reconstruct future liquidation risk
-- assuming exact account-state reconstruction before oracle/funding/collateral
-  inputs are bounded
+- approximating away non-target positions for BTC/ETH-relevant accounts and
+  silently breaking cross-margin liquidation semantics
+- pushing parity-specific reconstruction logic into `hyperliquid-node` and
+  coupling a general-purpose collector to an evolving research model
+- assuming exact account-state reconstruction across `7d` before the replay
+  path is validated against the `2d` ABCI anchors
 - overfitting to CoinGlass visual smoothing instead of modeling real
   Hyperliquid risk
 - assuming full source coverage for oracle/funding/collateral before verifying

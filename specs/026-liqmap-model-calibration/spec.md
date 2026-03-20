@@ -139,6 +139,15 @@ Absolute dollar values are less important than relative distribution.
   section
 - Compare Rektslug Hyperliquid candidate windows against CoinGlass Hyperliquid
   BTC/ETH only after symbol semantics and timeframe assumptions are bounded
+- For BTC/ETH parity, preserve exact account-level cross-margin semantics even
+  when the relevant accounts also hold non-BTC/ETH positions; dropping those
+  off-target exposures is explicitly out of bounds for the parity path
+- Implement the reconstruction/parity engine as a sidecar over the canonical
+  node outputs, not as BTC/ETH-specific business logic inside
+  `hyperliquid-node`
+- Limit any `hyperliquid-node` changes to generic infrastructure support only
+  (for example retention/export of state anchors or a generic derived
+  checkpoint), not CoinGlass-specific or parity-specific modeling logic
 - Produce an explicit decision on whether 1:1 Rektslug vs CoinGlass
   Hyperliquid parity is supportable or only best-effort
 
@@ -166,6 +175,8 @@ Absolute dollar values are less important than relative distribution.
 - Are CoinGlass Hyperliquid BTC/ETH maps based on liquidation risk for current
   open positions, recently closed positions, top-position cohorts, or another
   provider-specific construction?
+- What is the smallest derived account-state representation that still preserves
+  exact BTC/ETH liquidation semantics for multi-asset cross-margin accounts?
 
 
 ### Findings To Date
@@ -208,22 +219,37 @@ Absolute dollar values are less important than relative distribution.
   This is still an inference, not a confirmed statement about CoinGlass
   internals.
 - F-008: The filtered Hyperliquid dataset also retains
-  `node_order_statuses_by_block` and `node_raw_book_diffs_by_block`, so the
-  remaining gap is no longer raw collection but model construction. For the
-  target high-fidelity reconstruction path, mark/oracle, funding, and
+  `node_order_statuses_by_block` and `node_raw_book_diffs_by_block`, and local
+  periodic ABCI snapshots provide direct per-user clearinghouse state anchors
+  (balances, positions, margin/funding fields) for `20260319-20260320`. For
+  the target high-fidelity reconstruction path, mark/oracle, funding, and
   collateral/equity adjustments should be treated as required inputs rather
   than optional refinements.
-- F-009: A preliminary `ETH` comparison shows no overlap between CoinGlass
+- F-009: The strongest local reconstruction claim is currently
+  `snapshot-exact for ~2d`, not yet `proven exact for 7d`. The ABCI snapshots
+  confirm that account equity/state is observable locally, but extending that
+  to an exact `7d` replay still requires proof that filtered streams plus the
+  retained anchors are sufficient across the whole window.
+- F-010: A preliminary `ETH` comparison shows no overlap between CoinGlass
   bucketized `liquidationPrice` peaks from the top-position feed and Rektslug
   `1d` / `7d` peaks derived from recent liquidation events. Therefore a simple
   histogram of recent liquidations is not sufficient to explain CoinGlass
   Hyperliquid.
-- F-010: For our node data, stronger candidate models than a simple histogram
+- F-011: The required parity target has now been tightened: BTC/ETH parity
+  must remain exact even for accounts that also hold off-target assets under
+  cross-margin. Therefore any model that drops non-BTC/ETH exposures from those
+  accounts is unacceptable for the parity path.
+- F-012: For our node data, stronger candidate models than a simple histogram
   of recent liquidations are:
   1. position-state reconstruction
   2. position-cohort risk surface
   3. book-aware impact overlay
   These are modeling directions for future work, not yet implemented features.
+- F-013: The implementation boundary should keep `hyperliquid-node` as the
+  canonical collection/state source and move the parity/risk-surface builder
+  into a sidecar. This keeps BTC/ETH- and CoinGlass-specific reconstruction
+  logic out of the node while still allowing generic node-side retention/export
+  improvements if they become necessary.
 
 ### Investigation Plan
 - IP-001: Build an evidence matrix for CoinGlass Hyperliquid `BTC` and `ETH`
@@ -249,7 +275,9 @@ Absolute dollar values are less important than relative distribution.
   Hyperliquid discovery window sweep.
 - IP-005: Compare CoinGlass Hyperliquid vs Rektslug candidate windows on shape,
   scale, L/S ratio, peak location, and stability over repeated captures for
-  both `BTC` and `ETH`.
+  both `BTC` and `ETH`. For the exact-parity path, this comparison must be
+  driven by account-level state that preserves off-target cross-margin
+  exposures for the relevant accounts.
 - IP-006: Record a final decision memo: either the inferred assumptions are
   strong enough to support a 1:1 Hyperliquid parity mode, or the feature stays
   explicitly best-effort.
@@ -265,6 +293,11 @@ Absolute dollar values are less important than relative distribution.
   the metrics used to choose or reject them.
 - A go/no-go parity recommendation for implementing Hyperliquid support in the
   public model layer.
+- A sidecar architecture note that defines the boundary between
+  `hyperliquid-node` and the parity/reconstruction engine, including which
+  generic node-side exports are allowed and which modeling logic must remain
+  outside the node.
+- A concrete Phase 4 sidecar design artifact (`specs/026-liqmap-model-calibration/sidecar-design.md`) that defines the exactness envelope, retained account state, and replay proof rules.
 
 ## Dependencies
 - spec-024 heatmap cache (completed)
@@ -288,3 +321,9 @@ Absolute dollar values are less important than relative distribution.
   ETH using documented candidate windows/assumptions
 - SC-010: Spec records a go/no-go decision for 1:1 Rektslug vs CoinGlass
   Hyperliquid parity
+- SC-011: Any accepted BTC/ETH parity path preserves exact account-level
+  cross-margin semantics for accounts with mixed-asset exposure, rather than
+  approximating away the non-target side of those books
+- SC-012: Any accepted implementation path keeps `hyperliquid-node` focused on
+  canonical data/state collection, with the BTC/ETH parity engine implemented
+  as a sidecar and any node changes limited to generic infrastructure support
