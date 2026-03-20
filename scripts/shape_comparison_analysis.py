@@ -226,6 +226,21 @@ def load_coinglass(capture_cfg: dict) -> LiqDistribution:
     return dist
 
 
+def _parse_rektslug_bucket(entry: Any) -> tuple[float, float] | None:
+    """Parse one Rektslug bucket entry from schema v2 responses."""
+    if isinstance(entry, dict):
+        raw_price = entry.get("price_level", entry.get("price"))
+        raw_volume = entry.get("volume")
+        if raw_price is None or raw_volume is None:
+            return None
+        return float(raw_price), float(raw_volume)
+
+    if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+        return float(entry[0]), float(entry[1])
+
+    return None
+
+
 def load_rektslug(capture_cfg: dict) -> LiqDistribution:
     """Load Rektslug data from local API (may fail if DB locked)."""
     dist = LiqDistribution(
@@ -271,23 +286,17 @@ def load_rektslug(capture_cfg: dict) -> LiqDistribution:
 
             all_entries: dict[float, float] = {}
             for entry in long_b:
-                if isinstance(entry, dict):
-                    p = float(entry.get("price", 0))
-                    v = float(entry.get("volume", 0))
-                elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
-                    p, v = float(entry[0]), float(entry[1])
-                else:
+                parsed = _parse_rektslug_bucket(entry)
+                if parsed is None:
                     continue
+                p, v = parsed
                 all_entries[p] = all_entries.get(p, 0) + v
 
             for entry in short_b:
-                if isinstance(entry, dict):
-                    p = float(entry.get("price", 0))
-                    v = float(entry.get("volume", 0))
-                elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
-                    p, v = float(entry[0]), float(entry[1])
-                else:
+                parsed = _parse_rektslug_bucket(entry)
+                if parsed is None:
                     continue
+                p, v = parsed
                 all_entries[p] = all_entries.get(p, 0) + v
 
             if not all_entries:

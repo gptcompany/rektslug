@@ -11,6 +11,7 @@
  */
 
 const fs = require("fs");
+const path = require("path");
 const CryptoJS = require("crypto-js");
 const pako = require("pako");
 
@@ -50,6 +51,45 @@ function decrypt(ciphertext, key) {
   return text;
 }
 
+function isEncryptedCapture(capture) {
+  const encryption = String(capture?.response_headers?.encryption || "").toLowerCase();
+  return encryption === "true" || encryption === "1";
+}
+
+function isLiqMapCapture(capture) {
+  const haystacks = [capture?.source_url, capture?.saved_file]
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+  return haystacks.some((value) => value.includes("/liqmap") || value.includes("liqmap"));
+}
+
+function selectSummaryCapture(summary) {
+  const captures = Array.isArray(summary?.captures) ? summary.captures : [];
+  if (!captures.length) return null;
+
+  const encrypted = captures.filter(
+    (capture) => isEncryptedCapture(capture) && capture?.response_headers?.user
+  );
+  const liqMapCaptures = encrypted.filter(isLiqMapCapture);
+
+  return liqMapCaptures[0] || encrypted[0] || captures[0];
+}
+
+function resolveCaptureTime(capture) {
+  return (
+    capture?.response_headers?.time ||
+    capture?.request_headers?.time ||
+    capture?.request_headers?.["cache-ts-v2"] ||
+    ""
+  );
+}
+
+function resolveSavedFile(summaryPath, savedFile) {
+  if (!savedFile) return "";
+  if (fs.existsSync(savedFile)) return savedFile;
+  return path.resolve(path.dirname(summaryPath), savedFile);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -57,10 +97,15 @@ function main() {
 
   if (args.summary) {
     const summary = JSON.parse(fs.readFileSync(args.summary, "utf8"));
-    const capture = summary.captures[0];
-    userHeader = capture.response_headers.user;
-    timeHeader = capture.response_headers.time;
-    const dataFile = capture.saved_file;
+    const capture = selectSummaryCapture(summary);
+    if (!capture) {
+      process.stderr.write("No captures found in summary\n");
+      process.exit(1);
+    }
+
+    userHeader = capture.response_headers?.user;
+    timeHeader = resolveCaptureTime(capture);
+    const dataFile = resolveSavedFile(args.summary, capture.saved_file);
     const payload = JSON.parse(fs.readFileSync(dataFile, "utf8"));
     ciphertext = payload.data;
   } else {
@@ -94,4 +139,15 @@ function main() {
   process.stdout.write(result);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  decrypt,
+  deriveKey,
+  parseArgs,
+  resolveCaptureTime,
+  resolveSavedFile,
+  selectSummaryCapture,
+};
