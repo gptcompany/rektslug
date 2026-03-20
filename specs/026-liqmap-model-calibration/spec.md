@@ -17,6 +17,18 @@ shape similarity.
 - CoinAnK: captured via `capture_provider_api.py` (REST API, plaintext JSON)
 - CoinGlass: captured via same script (AES-encrypted, decoded with `coinglass_decode_standalone.js`)
 
+**Important CoinGlass scope distinction**:
+- CoinGlass exposes multiple liquidation map views on the same product page, and
+  they are NOT interchangeable:
+  1. Per-exchange view (for example `Binance_BTCUSDT`, `Binance_ETHUSDT`)
+  2. Aggregated exchange view (`BTC`, `ETH` across exchanges)
+  3. Hyperliquid-specific view (`BTC`, `ETH`) via a separate endpoint
+- For this spec, Binance was selected as the CoinGlass reference for convenience
+  and comparability with our current public builder. This is an exchange-specific
+  comparison, not an aggregate-market comparison.
+- Do not compare Rektslug/CoinGlass Binance-style results against the CoinGlass
+  aggregated view. They are different datasets with different semantics.
+
 ### Volume Scale Discrepancy
 
 | Provider | ETH 1d Long | ETH 1d Short | Total | L/S Ratio |
@@ -114,10 +126,86 @@ Absolute dollar values are less important than relative distribution.
 - Integrate `coinglass_decode_standalone.js` into comparison pipeline
 - Add scheduled comparison (weekly) with automated shape metrics
 
+#### P5: Investigate CoinGlass Hyperliquid Parity
+- Treat CoinGlass Hyperliquid as a separate dataset from both the CoinGlass
+  per-exchange liq map and the CoinGlass aggregated exchange liq map
+- Investigate `api/hyperliquid/topPosition/liqMap?symbol=BTC|ETH` separately from
+  `index/5/liqMap` and `index/2/exLiqMap` flows
+- Determine what CoinGlass means by Hyperliquid symbols `BTC` and `ETH`
+  (likely perp/futures-oriented, but do not assume exact contract semantics
+  without evidence)
+- Determine whether CoinGlass Hyperliquid uses a fixed, implicit, or
+  server-side timeframe, since the page does not expose one visually for that
+  section
+- Compare Rektslug Hyperliquid candidate windows against CoinGlass Hyperliquid
+  BTC/ETH only after symbol semantics and timeframe assumptions are bounded
+- Produce an explicit decision on whether 1:1 Rektslug vs CoinGlass
+  Hyperliquid parity is supportable or only best-effort
+
 ### Out of Scope
 - Real-time CoinGlass data (encrypted, requires periodic bundle refresh)
 - Matching CoinAnK exactly (no ground truth, different methodology)
+- Shipping a production Hyperliquid CoinGlass parity mode before symbol
+  semantics and timeframe behavior are verified
 - New frontend views (defer to spec-025 WebSocket)
+
+### Open Questions
+- What exactly do CoinGlass Hyperliquid symbols `BTC` and `ETH` represent?
+  They likely refer to Hyperliquid perp/futures-oriented markets, but the
+  exact contract semantics should not be assumed without evidence from payloads,
+  docs, or repeatable capture behavior.
+- What timeframe or lookback window does CoinGlass Hyperliquid use for
+  `api/hyperliquid/topPosition/liqMap`? The page exposes no visible timeframe
+  selector for that section, unlike the per-exchange and aggregated liq-map
+  sections.
+- Is the Hyperliquid timeframe fixed, symbol-specific, account-tier-specific,
+  or server-derived from another hidden state on the page?
+- Can Rektslug derive a comparable Hyperliquid map from our L4/node data using
+  a bounded candidate set of windows, or does CoinGlass use additional vendor
+  inputs we cannot infer?
+- Are CoinGlass Hyperliquid BTC/ETH maps based on liquidation risk for current
+  open positions, recently closed positions, top-position cohorts, or another
+  provider-specific construction?
+
+### Investigation Plan
+- IP-001: Build an evidence matrix for CoinGlass Hyperliquid `BTC` and `ETH`
+  captures. For each capture, record request URL, headers, decoded payload
+  structure, visible UI state, and whether any page-level timeframe change
+  affects the Hyperliquid endpoint.
+- IP-002: Investigate symbol semantics. Compare CoinGlass Hyperliquid `BTC` and
+  `ETH` payload fields against Hyperliquid market naming, contract metadata,
+  and any page labels to determine whether the maps refer to perp/open-interest
+  risk, top-position cohorts, or another construction.
+- IP-003: Investigate timeframe behavior. Re-run captures while changing the
+  main page timeframe, reloading sessions, and varying symbol selection to test
+  whether `api/hyperliquid/topPosition/liqMap` is fixed, implicit, or tied to
+  hidden state.
+- IP-004: Generate Rektslug Hyperliquid candidate maps from our L4/node data for
+  a bounded set of windows, at minimum `1h`, `4h`, `12h`, `1d`, `3d`, `7d`,
+  `14d`, and `30d`, so CoinGlass can be compared against concrete alternatives
+  instead of a single guessed window. This sweep is for Hyperliquid timeframe
+  discovery only.
+- IP-004a: Keep canonical Binance/CoinAnK/CoinGlass comparisons on `1d` and
+  `1w` (`7 day` in CoinGlass UI), rather than mixing them with the broader
+  Hyperliquid discovery window sweep.
+- IP-005: Compare CoinGlass Hyperliquid vs Rektslug candidate windows on shape,
+  scale, L/S ratio, peak location, and stability over repeated captures for
+  both `BTC` and `ETH`.
+- IP-006: Record a final decision memo: either the inferred assumptions are
+  strong enough to support a 1:1 Hyperliquid parity mode, or the feature stays
+  explicitly best-effort.
+
+### Expected Deliverables
+- A capture manifest for CoinGlass Hyperliquid `BTC` and `ETH`, including raw
+  request metadata and decoded payload summaries.
+- A short symbol-semantics note describing what `BTC` and `ETH` most likely map
+  to, plus any unresolved ambiguity.
+- A timeframe-discovery note documenting what was tested, what changed, what did
+  not change, and the bounded hypotheses that remain.
+- A Rektslug-vs-CoinGlass comparison report covering the candidate windows and
+  the metrics used to choose or reject them.
+- A go/no-go parity recommendation for implementing Hyperliquid support in the
+  public model layer.
 
 ## Dependencies
 - spec-024 heatmap cache (completed)
@@ -130,3 +218,14 @@ Absolute dollar values are less important than relative distribution.
 - SC-003: Shape metrics vs CoinAnK improve (Pearson r > 0.4 after calibration)
 - SC-004: Multi-model endpoint works with `?model=coinank` and `?model=coinglass`
 - SC-005: Automated weekly comparison pipeline produces reports
+- SC-006: CoinGlass Hyperliquid is documented as distinct from CoinGlass
+  aggregated and per-exchange liq-map views
+- SC-007: CoinGlass Hyperliquid symbol semantics for `BTC` and `ETH` are either
+  identified with evidence or explicitly marked unresolved with bounded
+  hypotheses
+- SC-008: CoinGlass Hyperliquid timeframe behavior is either identified with
+  evidence or explicitly marked unresolved with bounded hypotheses
+- SC-009: Rektslug vs CoinGlass Hyperliquid comparison report exists for BTC and
+  ETH using documented candidate windows/assumptions
+- SC-010: Spec records a go/no-go decision for 1:1 Rektslug vs CoinGlass
+  Hyperliquid parity

@@ -1,0 +1,754 @@
+{
+  "as_of_date": "2026-03-20",
+  "total_hyperliquid_runs": 23,
+  "decode_successes": 15,
+  "decode_failures": 8,
+  "success_runs": [
+    "20260303T163818Z",
+    "20260303T164013Z",
+    "20260303T164114Z",
+    "20260303T164211Z",
+    "20260303T164322Z",
+    "20260303T164548Z",
+    "20260303T164646Z",
+    "20260303T165247Z",
+    "20260303T165345Z",
+    "20260303T172006Z",
+    "20260303T172122Z",
+    "20260303T172217Z",
+    "20260303T172313Z",
+    "20260303T172412Z",
+    "20260303T174247Z"
+  ],
+  "failure_runs": [
+    {
+      "run": "20260303T140645Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T141655Z",
+      "error": "/media/sam/1TB/rektslug/node_modules/pako/lib/inflate.js:384\n  if (inflator.err) throw inflator.msg || msg[inflator.err];\n                    ^\nincorrect header check\n(Use `node --trace-uncaught ...` to show where the exception was thrown)\n\nNode.js v22.22.1"
+    },
+    {
+      "run": "20260303T142724Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143204Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143413Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143602Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143706Z",
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143915Z",
+      "error": "Failed to decrypt user header (empty result)"
+    }
+  ],
+  "rows": [
+    {
+      "run": "20260303T140645Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T140645Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T140645Z/coinglass/06_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772546843646",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T141655Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T141655Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T141655Z/coinglass/09_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772547726869",
+      "decode_ok": false,
+      "error": "/media/sam/1TB/rektslug/node_modules/pako/lib/inflate.js:384\n  if (inflator.err) throw inflator.msg || msg[inflator.err];\n                    ^\nincorrect header check\n(Use `node --trace-uncaught ...` to show where the exception was thrown)\n\nNode.js v22.22.1"
+    },
+    {
+      "run": "20260303T142724Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T142724Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T142724Z/coinglass/09_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548050659",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143204Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T143204Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T143204Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548330783",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143413Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T143413Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T143413Z/coinglass/11_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548460578",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143602Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T143602Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T143602Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548568616",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143706Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T143706Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T143706Z/coinglass/09_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548672063",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T143915Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T143915Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T143915Z/coinglass/11_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772548799650",
+      "decode_ok": false,
+      "error": "Failed to decrypt user header (empty result)"
+    },
+    {
+      "run": "20260303T163818Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T163818Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T163818Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772555907156",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67959.0,
+      "list_len": 268,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164013Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164013Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164013Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556020575",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67800.0,
+      "list_len": 261,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164114Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164114Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164114Z/coinglass/11_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556082831",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67877.0,
+      "list_len": 260,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164211Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164211Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164211Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556138589",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67541.0,
+      "list_len": 259,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164322Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164322Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164322Z/coinglass/10_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556210444",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67546.0,
+      "list_len": 256,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164548Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164548Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164548Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556355867",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67863.0,
+      "list_len": 255,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T164646Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T164646Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T164646Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556413278",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68064.0,
+      "list_len": 255,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T165247Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T165247Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T165247Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556776354",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68061.0,
+      "list_len": 255,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T165345Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T165345Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T165345Z/coinglass/10_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772556836283",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68155.0,
+      "list_len": 255,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T172006Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T172006Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T172006Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772558414808",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68085.0,
+      "list_len": 256,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T172122Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T172122Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T172122Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772558489916",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 67928.0,
+      "list_len": 254,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T172217Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T172217Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T172217Z/coinglass/11_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772558548367",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68055.0,
+      "list_len": 255,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T172313Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T172313Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T172313Z/coinglass/12_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772558600487",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68207.0,
+      "list_len": 256,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T172412Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T172412Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T172412Z/coinglass/09_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772558699858",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68196.0,
+      "list_len": 257,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    },
+    {
+      "run": "20260303T174247Z",
+      "summary_path": "data/validation/raw_provider_api/20260303T174247Z/coinglass/summary.json",
+      "payload_path": "data/validation/raw_provider_api/20260303T174247Z/coinglass/05_liqmap.json",
+      "url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+      "has_user": true,
+      "time": "1772559776445",
+      "decode_ok": true,
+      "top_level_keys": [
+        "list",
+        "price"
+      ],
+      "price": 68028.0,
+      "list_len": 254,
+      "coins": [
+        "BTC"
+      ],
+      "sample_item_keys": [
+        "coin",
+        "createTime",
+        "entryPrice",
+        "fundingFee",
+        "id",
+        "isFavorite",
+        "leverage",
+        "liquidationPrice",
+        "margin",
+        "positionType",
+        "positionUsd",
+        "price",
+        "size",
+        "type",
+        "unrealizedPnl",
+        "updateTime",
+        "userId"
+      ],
+      "position_types": [
+        "cross",
+        "isolated"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,219 @@
+{
+  "generated_at_utc": "2026-03-20T17:??:??Z",
+  "source_root": "/media/sam/4TB-NVMe/hyperliquid/filtered/node_fills_by_block/hourly",
+  "selection": {
+    "coins": [
+      "BTC",
+      "ETH"
+    ],
+    "liquidation_filter": {
+      "direction_in": [
+        "Close Long",
+        "Close Short"
+      ],
+      "closed_pnl_lt": 0,
+      "crossed_eq": true
+    },
+    "bucket_step": {
+      "BTC": 100.0,
+      "ETH": 10.0
+    }
+  },
+  "windows": {
+    "1d": {
+      "files": 61,
+      "BTC": {
+        "fills_seen": 2909740,
+        "liq_events": 69,
+        "top_buckets_by_notional": [
+          {
+            "bucket": 70700.0,
+            "notional": 34987.5,
+            "count": 14
+          },
+          {
+            "bucket": 70300.0,
+            "notional": 12806.07,
+            "count": 11
+          },
+          {
+            "bucket": 70500.0,
+            "notional": 8132.5,
+            "count": 5
+          },
+          {
+            "bucket": 70400.0,
+            "notional": 5330.81,
+            "count": 2
+          },
+          {
+            "bucket": 70000.0,
+            "notional": 4442.01,
+            "count": 9
+          },
+          {
+            "bucket": 70100.0,
+            "notional": 1666.32,
+            "count": 5
+          },
+          {
+            "bucket": 69900.0,
+            "notional": 1303.21,
+            "count": 4
+          },
+          {
+            "bucket": 69800.0,
+            "notional": 1100.33,
+            "count": 3
+          },
+          {
+            "bucket": 69700.0,
+            "notional": 887.18,
+            "count": 3
+          },
+          {
+            "bucket": 70600.0,
+            "notional": 753.51,
+            "count": 1
+          }
+        ]
+      },
+      "ETH": {
+        "fills_seen": 1200254,
+        "liq_events": 17,
+        "top_buckets_by_notional": [
+          {
+            "bucket": 2140.0,
+            "notional": 10693.28,
+            "count": 10
+          },
+          {
+            "bucket": 2150.0,
+            "notional": 3722.66,
+            "count": 4
+          },
+          {
+            "bucket": 2130.0,
+            "notional": 167.61,
+            "count": 3
+          }
+        ]
+      }
+    },
+    "7d": {
+      "files": 181,
+      "BTC": {
+        "fills_seen": 8137854,
+        "liq_events": 711,
+        "top_buckets_by_notional": [
+          {
+            "bucket": 70700.0,
+            "notional": 252021.26,
+            "count": 81
+          },
+          {
+            "bucket": 69600.0,
+            "notional": 194323.76,
+            "count": 72
+          },
+          {
+            "bucket": 73600.0,
+            "notional": 184147.2,
+            "count": 27
+          },
+          {
+            "bucket": 71300.0,
+            "notional": 92933.84,
+            "count": 18
+          },
+          {
+            "bucket": 73800.0,
+            "notional": 84443.08,
+            "count": 38
+          },
+          {
+            "bucket": 69900.0,
+            "notional": 81910.15,
+            "count": 15
+          },
+          {
+            "bucket": 74000.0,
+            "notional": 68971.92,
+            "count": 16
+          },
+          {
+            "bucket": 69300.0,
+            "notional": 56864.14,
+            "count": 10
+          },
+          {
+            "bucket": 70500.0,
+            "notional": 54659.91,
+            "count": 20
+          },
+          {
+            "bucket": 71600.0,
+            "notional": 41849.77,
+            "count": 17
+          }
+        ]
+      },
+      "ETH": {
+        "fills_seen": 3239352,
+        "liq_events": 224,
+        "top_buckets_by_notional": [
+          {
+            "bucket": 2260.0,
+            "notional": 93209.6,
+            "count": 7
+          },
+          {
+            "bucket": 2310.0,
+            "notional": 68823.2,
+            "count": 9
+          },
+          {
+            "bucket": 2320.0,
+            "notional": 49109.69,
+            "count": 12
+          },
+          {
+            "bucket": 2300.0,
+            "notional": 44856.39,
+            "count": 7
+          },
+          {
+            "bucket": 2340.0,
+            "notional": 36267.02,
+            "count": 20
+          },
+          {
+            "bucket": 2280.0,
+            "notional": 35015.17,
+            "count": 12
+          },
+          {
+            "bucket": 2100.0,
+            "notional": 30414.61,
+            "count": 30
+          },
+          {
+            "bucket": 2200.0,
+            "notional": 23571.44,
+            "count": 2
+          },
+          {
+            "bucket": 2170.0,
+            "notional": 22083.02,
+            "count": 21
+          },
+          {
+            "bucket": 2110.0,
+            "notional": 18119.54,
+            "count": 6
+          }
+        ]
+      }
+    }
+  }
+}

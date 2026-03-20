@@ -1,0 +1,592 @@
+{
+  "as_of_date": "2026-03-20",
+  "dataset": "CoinGlass LiquidationMap Hyperliquid capture inventory",
+  "total_runs_with_hyperliquid_request": 23,
+  "runs_with_timeframe_applied_true": 11,
+  "runs_with_timeframe_applied_false": 8,
+  "runs_with_timeframe_applied_null": 4,
+  "hyperliquid_symbols_observed": [
+    "BTC"
+  ],
+  "hyperliquid_eth_observed": false,
+  "all_binance_liqmap_intervals_observed": [
+    "1",
+    "180d",
+    "30",
+    "365d",
+    "5",
+    "90d"
+  ],
+  "all_aggregate_exliqmap_intervals_observed": [
+    "1"
+  ],
+  "requested_ui_timeframes_observed": {
+    "None": 4,
+    "7 day": 5,
+    "1 day": 10,
+    "30 day": 1,
+    "90 day": 1,
+    "180 day": 1,
+    "1y": 1
+  },
+  "rows": [
+    {
+      "run": "20260303T140645Z",
+      "requested_ui_timeframe": null,
+      "timeframe_applied": null,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T140645Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T141655Z",
+      "requested_ui_timeframe": null,
+      "timeframe_applied": null,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T141655Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T142724Z",
+      "requested_ui_timeframe": null,
+      "timeframe_applied": null,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T142724Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T143204Z",
+      "requested_ui_timeframe": null,
+      "timeframe_applied": null,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T143204Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T143413Z",
+      "requested_ui_timeframe": "7 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T143413Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T143602Z",
+      "requested_ui_timeframe": "7 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "5"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T143602Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T143706Z",
+      "requested_ui_timeframe": "7 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "5"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T143706Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T143915Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T143915Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T163818Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T163818Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164013Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164013Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164114Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164114Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164211Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164211Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164322Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164322Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164548Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164548Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T164646Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": false,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T164646Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T165247Z",
+      "requested_ui_timeframe": "7 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "5"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T165247Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T165345Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T165345Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T172006Z",
+      "requested_ui_timeframe": "30 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "30"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T172006Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T172122Z",
+      "requested_ui_timeframe": "90 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "90d"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T172122Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T172217Z",
+      "requested_ui_timeframe": "180 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "180d"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T172217Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T172313Z",
+      "requested_ui_timeframe": "1y",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1",
+        "365d"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T172313Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T172412Z",
+      "requested_ui_timeframe": "7 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "5"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T172412Z/coinglass/summary.json"
+    },
+    {
+      "run": "20260303T174247Z",
+      "requested_ui_timeframe": "1 day",
+      "timeframe_applied": true,
+      "hyper_symbols": [
+        "BTC"
+      ],
+      "hyper_urls": [
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+      ],
+      "binance_symbols": [
+        "Binance_BTCUSDT"
+      ],
+      "binance_intervals": [
+        "1"
+      ],
+      "aggregate_symbols": [
+        "BTC"
+      ],
+      "aggregate_intervals": [
+        "1"
+      ],
+      "summary_path": "data/validation/raw_provider_api/20260303T174247Z/coinglass/summary.json"
+    }
+  ]
+}
