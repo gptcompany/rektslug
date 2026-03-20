@@ -297,15 +297,21 @@ class TestOIBasedLiquidationsRegression:
 
 
 class TestSideInferenceFourQuadrants:
-    """Test the 4-quadrant side inference logic used by CandleWithSide CTE."""
+    """Test the 4-quadrant side inference logic used by CandleWithSide CTE.
 
+    Side represents the type of POSITION at the price bin (not trade direction):
+    - buy  = long position existed here  → downstream: long_liquidations
+    - sell = short position existed here  → downstream: short_liquidations
+    """
+
+    # Must mirror the CASE in db_service.py CandleWithSide CTE
     SIDE_SQL = """
         SELECT
             CASE
                 WHEN oi_delta > 0 AND close > open THEN 'buy'
                 WHEN oi_delta > 0 AND close < open THEN 'sell'
-                WHEN oi_delta < 0 AND close > open THEN 'buy'
-                WHEN oi_delta < 0 AND close < open THEN 'sell'
+                WHEN oi_delta < 0 AND close > open THEN 'sell'
+                WHEN oi_delta < 0 AND close < open THEN 'buy'
                 ELSE NULL
             END as inferred_side
         FROM test_candles
@@ -324,28 +330,28 @@ class TestSideInferenceFourQuadrants:
         conn.close()
 
     def test_oi_up_bullish_is_buy(self, duckdb_conn):
-        """OI increase + bullish candle = new longs = buy."""
+        """OI up + bullish = new longs opened → buy (long position here)."""
         duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, 1000)")
         result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
         assert result == "buy"
 
     def test_oi_up_bearish_is_sell(self, duckdb_conn):
-        """OI increase + bearish candle = new shorts = sell."""
+        """OI up + bearish = new shorts opened → sell (short position here)."""
         duckdb_conn.execute("INSERT INTO test_candles VALUES (105, 100, 1000)")
         result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
         assert result == "sell"
 
-    def test_oi_down_bullish_is_buy(self, duckdb_conn):
-        """OI decrease + bullish candle = shorts closed = buy pressure."""
+    def test_oi_down_bullish_is_sell(self, duckdb_conn):
+        """OI down + bullish = shorts closed → sell (short position existed here)."""
         duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, -1000)")
         result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
-        assert result == "buy"
+        assert result == "sell"
 
-    def test_oi_down_bearish_is_sell(self, duckdb_conn):
-        """OI decrease + bearish candle = longs closed = sell pressure."""
+    def test_oi_down_bearish_is_buy(self, duckdb_conn):
+        """OI down + bearish = longs closed → buy (long position existed here)."""
         duckdb_conn.execute("INSERT INTO test_candles VALUES (105, 100, -1000)")
         result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
-        assert result == "sell"
+        assert result == "buy"
 
     def test_doji_excluded(self, duckdb_conn):
         """Doji candle (close == open) should be NULL regardless of OI."""
@@ -378,3 +384,107 @@ class TestSideInferenceFourQuadrants:
         sides = [r[0] for r in rows]
         assert sides.count("buy") == 2
         assert sides.count("sell") == 2
+
+
+class TestSideInferenceE2E:
+    """End-to-end test: verify L/S ratio from calculate_liquidations_oi_based.
+
+    Uses a controlled dataset where we know the expected side distribution.
+    This catches semantic regressions that unit SQL tests miss.
+    """
+
+    def test_balanced_market_produces_both_sides(self, tmp_path):
+        """A market with equal bullish/bearish candles and OI changes
+        should produce both buy and sell in the final output.
+
+        Generates 200 candles (>50% of 288 expected per day for 5m klines)
+        alternating: OI up+bullish, OI up+bearish, OI down+bullish, OI down+bearish.
+        """
+        db_path = tmp_path / "e2e_side.duckdb"
+        symbol = "BTCUSDT"
+        now = datetime.now(timezone.utc).replace(second=0, microsecond=0, tzinfo=None)
+        n_candles = 200
+
+        with DuckDBService(str(db_path)) as db:
+            db.conn.execute("""
+                CREATE TABLE open_interest_history (
+                    id BIGINT,
+                    timestamp TIMESTAMP NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    open_interest_value DECIMAL(20, 8) NOT NULL,
+                    open_interest_contracts DECIMAL(20, 8),
+                    source VARCHAR DEFAULT 'test'
+                )
+            """)
+            db.conn.execute("""
+                CREATE TABLE klines_5m_history (
+                    open_time TIMESTAMP NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    open DECIMAL(18, 8) NOT NULL,
+                    high DECIMAL(18, 8) NOT NULL,
+                    low DECIMAL(18, 8) NOT NULL,
+                    close DECIMAL(18, 8) NOT NULL,
+                    volume DECIMAL(18, 8) NOT NULL,
+                    quote_volume DECIMAL(20, 8),
+                    PRIMARY KEY (open_time, symbol)
+                )
+            """)
+
+            # Generate n_candles+1 OI snapshots alternating up/down
+            base_oi = 8_000_000_000.0
+            oi_data = []
+            for i in range(n_candles + 1):
+                t = now - timedelta(minutes=5 * (n_candles - i))
+                # Cycle: up, up, down, down
+                cycle = i % 4
+                if cycle < 2:
+                    base_oi += 200_000_000  # OI up
+                else:
+                    base_oi -= 200_000_000  # OI down
+                oi_data.append((i + 1, t, symbol, base_oi, 100000.0, "test"))
+
+            db.conn.executemany(
+                "INSERT INTO open_interest_history VALUES (?, ?, ?, ?, ?, ?)",
+                oi_data,
+            )
+
+            # Generate klines alternating bullish/bearish
+            kline_data = []
+            for i in range(n_candles):
+                t = now - timedelta(minutes=5 * (n_candles - 1 - i))
+                base_price = 100000.0
+                if i % 2 == 0:
+                    # Bullish candle
+                    o, h, l, c = base_price, base_price + 300, base_price - 100, base_price + 200
+                else:
+                    # Bearish candle
+                    o, h, l, c = base_price + 200, base_price + 300, base_price - 100, base_price
+                v = 5_000_000.0
+                kline_data.append((t, symbol, o, h, l, c, v, v * 100))
+
+            db.conn.executemany(
+                "INSERT INTO klines_5m_history VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                kline_data,
+            )
+
+            df = db.calculate_liquidations_oi_based(
+                symbol=symbol,
+                current_price=100000.0,
+                bin_size=100.0,
+                lookback_days=1,
+                leverage_weights={10: 1.0},
+                kline_interval="5m",
+            )
+
+        assert not df.empty, "Should produce liquidation levels"
+        sides = set(df["side"])
+        assert "buy" in sides, "Should have long (buy) liquidations"
+        assert "sell" in sides, "Should have short (sell) liquidations"
+
+        buy_vol = df[df["side"] == "buy"]["volume"].sum()
+        sell_vol = df[df["side"] == "sell"]["volume"].sum()
+        ratio = buy_vol / sell_vol if sell_vol > 0 else float("inf")
+        # Balanced input → ratio should be near 1.0 (0.3 to 3.0 is generous)
+        assert 0.3 < ratio < 3.0, (
+            f"L/S ratio {ratio:.2f} outside expected range for balanced market"
+        )
