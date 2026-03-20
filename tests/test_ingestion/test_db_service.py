@@ -294,3 +294,87 @@ class TestOIBasedLiquidationsRegression:
         assert not df.empty
         assert set(df["side"]) == {"buy"}
         assert all(df["volume"] > 0)
+
+
+class TestSideInferenceFourQuadrants:
+    """Test the 4-quadrant side inference logic used by CandleWithSide CTE."""
+
+    SIDE_SQL = """
+        SELECT
+            CASE
+                WHEN oi_delta > 0 AND close > open THEN 'buy'
+                WHEN oi_delta > 0 AND close < open THEN 'sell'
+                WHEN oi_delta < 0 AND close > open THEN 'buy'
+                WHEN oi_delta < 0 AND close < open THEN 'sell'
+                ELSE NULL
+            END as inferred_side
+        FROM test_candles
+    """
+
+    @pytest.fixture
+    def duckdb_conn(self):
+        import duckdb
+        conn = duckdb.connect(":memory:")
+        conn.execute("""
+            CREATE TABLE test_candles (
+                open DOUBLE, close DOUBLE, oi_delta DOUBLE
+            )
+        """)
+        yield conn
+        conn.close()
+
+    def test_oi_up_bullish_is_buy(self, duckdb_conn):
+        """OI increase + bullish candle = new longs = buy."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, 1000)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result == "buy"
+
+    def test_oi_up_bearish_is_sell(self, duckdb_conn):
+        """OI increase + bearish candle = new shorts = sell."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (105, 100, 1000)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result == "sell"
+
+    def test_oi_down_bullish_is_buy(self, duckdb_conn):
+        """OI decrease + bullish candle = shorts closed = buy pressure."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, -1000)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result == "buy"
+
+    def test_oi_down_bearish_is_sell(self, duckdb_conn):
+        """OI decrease + bearish candle = longs closed = sell pressure."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (105, 100, -1000)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result == "sell"
+
+    def test_doji_excluded(self, duckdb_conn):
+        """Doji candle (close == open) should be NULL regardless of OI."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 100, 1000)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result is None
+
+    def test_flat_oi_excluded(self, duckdb_conn):
+        """Flat OI (oi_delta == 0) should be NULL regardless of candle."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, 0)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result is None
+
+    def test_null_oi_excluded(self, duckdb_conn):
+        """NULL OI delta (no OI data) should be NULL."""
+        duckdb_conn.execute("INSERT INTO test_candles VALUES (100, 105, NULL)")
+        result = duckdb_conn.execute(self.SIDE_SQL).fetchone()[0]
+        assert result is None
+
+    def test_four_quadrants_balanced(self, duckdb_conn):
+        """All 4 quadrants produce 2 buy + 2 sell (symmetric)."""
+        duckdb_conn.execute("""
+            INSERT INTO test_candles VALUES
+                (100, 105, 1000),
+                (105, 100, 1000),
+                (100, 105, -1000),
+                (105, 100, -1000)
+        """)
+        rows = duckdb_conn.execute(self.SIDE_SQL).fetchall()
+        sides = [r[0] for r in rows]
+        assert sides.count("buy") == 2
+        assert sides.count("sell") == 2

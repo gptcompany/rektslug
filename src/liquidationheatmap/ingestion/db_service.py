@@ -1318,9 +1318,12 @@ class DuckDBService:
         ),
 
         -- STEP 3: Infer position SIDE from candle direction + OI delta
-        -- Industry-standard logic:
-        -- - Bullish candle (close > open) + OI increase → LONG positions opened
-        -- - Bearish candle (close < open) + OI increase → SHORT positions opened
+        -- 4-quadrant logic (symmetric):
+        -- OI up   + bullish = new longs opened   → buy
+        -- OI up   + bearish = new shorts opened   → sell
+        -- OI down + bullish = shorts closed        → buy
+        -- OI down + bearish = longs closed         → sell
+        -- Doji (close==open) or flat OI (oi_delta==0) → NULL (excluded)
         CandleWithSide AS (
             SELECT
                 c.candle_time,
@@ -1332,17 +1335,21 @@ class DuckDBService:
                 c.volume,
                 o.oi_delta,
                 CASE
-                    WHEN c.close > c.open AND o.oi_delta > 0 THEN 'buy'   -- Bullish + OI up = LONG
-                    WHEN c.close < c.open AND o.oi_delta > 0 THEN 'sell'  -- Bearish + OI up = SHORT
-                    ELSE NULL  -- Ignore neutral candles or OI decrease
+                    WHEN o.oi_delta > 0 AND c.close > c.open THEN 'buy'
+                    WHEN o.oi_delta > 0 AND c.close < c.open THEN 'sell'
+                    WHEN o.oi_delta < 0 AND c.close > c.open THEN 'buy'
+                    WHEN o.oi_delta < 0 AND c.close < c.open THEN 'sell'
+                    ELSE NULL
                 END as inferred_side
             FROM CandleOHLC c
             LEFT JOIN OIDelta o ON c.oi_bucket_time = o.oi_bucket_time
             WHERE
                 -- Only keep candles with clear signal (non-null side)
                 CASE
-                    WHEN c.close > c.open AND o.oi_delta > 0 THEN 'buy'
-                    WHEN c.close < c.open AND o.oi_delta > 0 THEN 'sell'
+                    WHEN o.oi_delta > 0 AND c.close > c.open THEN 'buy'
+                    WHEN o.oi_delta > 0 AND c.close < c.open THEN 'sell'
+                    WHEN o.oi_delta < 0 AND c.close > c.open THEN 'buy'
+                    WHEN o.oi_delta < 0 AND c.close < c.open THEN 'sell'
                     ELSE NULL
                 END IS NOT NULL
         ),
