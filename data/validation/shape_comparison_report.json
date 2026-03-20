@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-03-20T00:39:58.955655+00:00",
+  "description": "Shape comparison of liquidation distributions (normalized)",
+  "scenarios": {
+    "ETH_1d": {
+      "symbol": "ETHUSDT",
+      "timeframe": "1d",
+      "capture_timestamp": "20260319T192254Z",
+      "providers_loaded": {
+        "coinank": {
+          "valid": true,
+          "error": null,
+          "nonzero_bins": 551,
+          "total_volume": 17736156157.0,
+          "price_range": [
+            2024.0,
+            2309.9
+          ],
+          "current_price": 2154.5,
+          "skewness": -0.1155
+        },
+        "coinglass": {
+          "valid": true,
+          "error": null,
+          "nonzero_bins": 217,
+          "total_volume": 743662562.15,
+          "price_range": [
+            1898.4,
+            2375.9
+          ],
+          "current_price": 2151.1,
+          "skewness": -0.4093
+        },
+        "rektslug": {
+          "valid": false,
+          "error": "Too few nonzero bins (1)",
+          "nonzero_bins": 0,
+          "total_volume": 0,
+          "price_range": null,
+          "current_price": 2148.51,
+          "skewness": null
+        }
+      },
+      "comparisons": [
+        {
+          "providers": "rektslug vs coinank",
+          "a_valid": false,
+          "b_valid": true,
+          "skip_reason": "rektslug: Too few nonzero bins (1)",
+          "assessment": "SKIPPED: rektslug: Too few nonzero bins (1)"
+        },
+        {
+          "providers": "rektslug vs coinglass",
+          "a_valid": false,
+          "b_valid": true,
+          "skip_reason": "rektslug: Too few nonzero bins (1)",
+          "assessment": "SKIPPED: rektslug: Too few nonzero bins (1)"
+        },
+        {
+          "providers": "coinank vs coinglass",
+          "a_valid": true,
+          "b_valid": true,
+          "pearson_r": 0.2085,
+          "pearson_p": 2.57e-06,
+          "ks_statistic": 0.2141,
+          "ks_2samp_stat": 0.232,
+          "ks_2samp_p": 2.31e-118,
+          "wasserstein_distance": 0.1021,
+          "peak_mean_distance": 0.1538,
+          "peak_max_distance": 0.3058,
+          "a_peak_locations": [
+            -0.3968,
+            -0.3774,
+            -0.3677,
+            0.0613,
+            0.2935
+          ],
+          "b_peak_locations": [
+            -0.2529,
+            -0.2402,
+            -0.2339,
+            -0.0123,
+            0.0131
+          ],
+          "a_skewness": -0.1155,
+          "b_skewness": -0.4093,
+          "skewness_diff": 0.2938,
+          "overlap_coefficient": 0.6459,
+          "overlap_price_range": [
+            -0.8419,
+            0.8896
+          ],
+          "a_nonzero_bins": 551,
+          "b_nonzero_bins": 217,
+          "assessment": "Pearson=WEAK(0.208) | KS=DIFFERENT(0.214) | Wasserstein=CLOSE(0.102) | Overlap=MEDIUM(0.646)"
+        }
+      ]
+    },
+    "ETH_1w": {
+      "symbol": "ETHUSDT",
+      "timeframe": "1w",
+      "capture_timestamp": "20260319T192350Z",
+      "providers_loaded": {
+        "coinank": {
+          "valid": true,
+          "error": null,
+          "nonzero_bins": 471,
+          "total_volume": 29899061858.0,
+          "price_range": [
+            1987.0,
+            2467.9
+          ],
+          "current_price": 2151.7,
+          "skewness": -0.0184
+        },
+        "coinglass": {
+          "valid": true,
+          "error": null,
+          "nonzero_bins": 202,
+          "total_volume": 2337214709.12,
+          "price_range": [
+            1880.7,
+            2420.3
+          ],
+          "current_price": 2151.8,
+          "skewness": -0.23
+        },
+        "rektslug": {
+          "valid": false,
+          "error": "HTTP 503: {\"error\":\"Service Unavailable\",\"message\":\"Database is locked for gap-fill ingestion. Retry shortly.\"}",
+          "nonzero_bins": 0,
+          "total_volume": 0,
+          "price_range": null,
+          "current_price": 0.0,
+          "skewness": null
+        }
+      },
+      "comparisons": [
+        {
+          "providers": "rektslug vs coinank",
+          "a_valid": false,
+          "b_valid": true,
+          "skip_reason": "rektslug: HTTP 503: {\"error\":\"Service Unavailable\",\"message\":\"Database is locked for gap-fill ingestion. Retry shortly.\"}",
+          "assessment": "SKIPPED: rektslug: HTTP 503: {\"error\":\"Service Unavailable\",\"message\":\"Database is locked for gap-fill ingestion. Retry shortly.\"}"
+        },
+        {
+          "providers": "rektslug vs coinglass",
+          "a_valid": false,
+          "b_valid": true,
+          "skip_reason": "rektslug: HTTP 503: {\"error\":\"Service Unavailable\",\"message\":\"Database is locked for gap-fill ingestion. Retry shortly.\"}",
+          "assessment": "SKIPPED: rektslug: HTTP 503: {\"error\":\"Service Unavailable\",\"message\":\"Database is locked for gap-fill ingestion. Retry shortly.\"}"
+        },
+        {
+          "providers": "coinank vs coinglass",
+          "a_valid": true,
+          "b_valid": true,
+          "pearson_r": 0.0145,
+          "pearson_p": 0.747,
+          "ks_statistic": 0.1077,
+          "ks_2samp_stat": 0.1132,
+          "ks_2samp_p": 2.62e-28,
+          "wasserstein_distance": 0.0579,
+          "peak_mean_distance": 0.4956,
+          "peak_max_distance": 0.6835,
+          "a_peak_locations": [
+            -0.3257,
+            -0.2972,
+            -0.2179,
+            -0.1767,
+            0.667
+          ],
+          "b_peak_locations": [
+            0.2405,
+            0.2475,
+            0.2755,
+            0.5068,
+            0.8572
+          ],
+          "a_skewness": -0.0184,
+          "b_skewness": -0.23,
+          "skewness_diff": 0.2116,
+          "overlap_coefficient": 0.7007,
+          "overlap_price_range": [
+            -0.5224,
+            0.9904
+          ],
+          "a_nonzero_bins": 471,
+          "b_nonzero_bins": 202,
+          "assessment": "Pearson=NONE(0.015) | KS=SIMILAR(0.108) | Wasserstein=CLOSE(0.058) | Overlap=HIGH(0.701)"
+        }
+      ]
+    }
+  },
+  "summary": [
+    {
+      "scenario": "ETH_1d",
+      "pair": "coinank vs coinglass",
+      "pearson_r": 0.2085,
+      "ks_statistic": 0.2141,
+      "wasserstein_distance": 0.1021,
+      "overlap_coefficient": 0.6459,
+      "assessment": "Pearson=WEAK(0.208) | KS=DIFFERENT(0.214) | Wasserstein=CLOSE(0.102) | Overlap=MEDIUM(0.646)"
+    },
+    {
+      "scenario": "ETH_1w",
+      "pair": "coinank vs coinglass",
+      "pearson_r": 0.0145,
+      "ks_statistic": 0.1077,
+      "wasserstein_distance": 0.0579,
+      "overlap_coefficient": 0.7007,
+      "assessment": "Pearson=NONE(0.015) | KS=SIMILAR(0.108) | Wasserstein=CLOSE(0.058) | Overlap=HIGH(0.701)"
+    }
+  ]
+}
