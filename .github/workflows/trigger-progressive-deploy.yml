@@ -1,17 +1,6 @@
 name: Trigger Progressive Deploy
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/liquidationheatmap/**"
-      - "scripts/run-ccxt-gap-fill.sh"
-      - "scripts/run-gapfill-daemon.sh"
-      - ".github/workflows/trigger-progressive-deploy.yml"
   workflow_dispatch:
 
 permissions:
