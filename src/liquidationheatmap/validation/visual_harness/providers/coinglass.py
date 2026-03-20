@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import datetime, timezone
 from importlib import import_module
 from pathlib import Path
 
+from src.liquidationheatmap.utils.secrets import get_secret
 
 def capture_coinglass_liqmap_capture(request, output_path: Path) -> dict:
     module = import_module("scripts.capture_provider_api")
     capture_info: dict = {}
-    email = os.environ.get("COINGLASS_USER_LOGIN")
-    password = os.environ.get("COINGLASS_USER_PASSWORD")
+    email = get_secret("COINGLASS_USER_LOGIN")
+    password = get_secret("COINGLASS_USER_PASSWORD")
     coin = request.symbol.removesuffix("USDT")
 
     try:

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import argparse
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 for p in (str(REPO_ROOT), str(SCRIPTS_DIR)):
@@ -95,6 +96,13 @@ class _FakePage:
             text="1 day",
             tag_name="button",
         )
+        self.hyperliquid_combobox = _FakeElement(
+            page=self,
+            value="BTC",
+            text="BTC",
+            tag_name="input",
+        )
+        self.buttons = [_FakeElement(page=self, value="") for _ in range(6)]
 
     @classmethod
     def empty(cls) -> "_FakePage":
@@ -102,9 +110,18 @@ class _FakePage:
         page.heading = ""
         page.symbol_combobox = None
         page.timeframe_combobox = None
+        page.hyperliquid_combobox = None
+        page.buttons = []
         return page
 
     async def wait_for_timeout(self, ms: int) -> None:
+        return None
+
+    async def evaluate(self, expression: str, arg: str | None = None):
+        if arg == "Hyperliquid Liquidation Map" and "querySelectorAll('button')" in expression:
+            return 5
+        if arg == "Hyperliquid Liquidation Map":
+            return 5
         return None
 
     def locator(self, selector: str) -> _FakeLocatorCollection:
@@ -116,9 +133,12 @@ class _FakePage:
                     _FakeElement(page=self, value=""),
                     self.timeframe_combobox,
                     _FakeElement(page=self, value=""),
-                    _FakeElement(page=self, value=""),
+                    self.hyperliquid_combobox,
                 ]
             )
+
+        if selector == "button":
+            return _FakeLocatorCollection(self.buttons)
 
         if selector == "h1":
             return _FakeLocatorCollection([_FakeHeadingElement(page=self)])
@@ -130,6 +150,17 @@ class _FakePage:
                         page=self,
                         value="Binance ETH/USDT Perpetual",
                         on_click=self._apply_eth_symbol,
+                    )
+                ]
+            )
+
+        if selector == '[role="option"]:has-text("ETH")':
+            return _FakeLocatorCollection(
+                [
+                    _FakeElement(
+                        page=self,
+                        value="ETH",
+                        on_click=self._apply_hyperliquid_eth,
                     )
                 ]
             )
@@ -150,6 +181,10 @@ class _FakePage:
     def _apply_eth_symbol(self) -> None:
         self.symbol_combobox.value = "Binance ETH/USDT Perpetual"
         self.heading = "Binance ETH/USDT Liquidation Map"
+
+    def _apply_hyperliquid_eth(self) -> None:
+        self.hyperliquid_combobox.value = "ETH"
+        self.hyperliquid_combobox.text = "ETH"
 
     def _apply_one_week(self) -> None:
         self.timeframe_combobox.value = ""
@@ -180,6 +215,30 @@ async def test_apply_coinglass_symbol_uses_exact_option_fast_path():
 
 
 @pytest.mark.asyncio
+async def test_apply_coinglass_symbol_targets_hyperliquid_widget():
+    from scripts.capture_provider_api import (
+        COINGLASS_LIQMAP_PAGE_URL,
+        CaptureTarget,
+        apply_coinglass_symbol,
+    )
+
+    page = _FakePage()
+    target = CaptureTarget(
+        provider="coinglass",
+        url=COINGLASS_LIQMAP_PAGE_URL,
+        coin="ETH",
+        ui_timeframe="7 day",
+        exchange="hyperliquid",
+    )
+
+    applied = await apply_coinglass_symbol(target, page)
+
+    assert applied is True
+    assert page.hyperliquid_combobox.value == "ETH"
+    assert page.symbol_combobox.value == "Binance BTC/USDT Perpetual"
+
+
+@pytest.mark.asyncio
 async def test_apply_coinglass_timeframe_uses_exact_option_fast_path():
     from scripts.capture_provider_api import (
         COINGLASS_LIQMAP_PAGE_URL,
@@ -199,3 +258,71 @@ async def test_apply_coinglass_timeframe_uses_exact_option_fast_path():
 
     assert applied is True
     assert page.timeframe_combobox.text == "1 week"
+
+
+def test_build_targets_uses_liqmap_page_for_hyperliquid():
+    from scripts.capture_provider_api import COINGLASS_LIQMAP_PAGE_URL, build_targets
+
+    args = argparse.Namespace(
+        provider="coinglass",
+        coin="ETH",
+        timeframe="1w",
+        exchange="hyperliquid",
+        coinank_url=None,
+        coinglass_url=None,
+        bitcoincounterflow_url=None,
+        coinglass_timeframe=None,
+    )
+
+    targets = build_targets(args)
+
+    assert len(targets) == 1
+    assert targets[0].provider == "coinglass"
+    assert targets[0].url == COINGLASS_LIQMAP_PAGE_URL
+    assert targets[0].exchange == "hyperliquid"
+
+
+def test_build_targets_loads_coinglass_secrets_from_get_secret(monkeypatch: pytest.MonkeyPatch):
+    import scripts.capture_provider_api as module
+
+    secret_map = {
+        "COINGLASS_USER_LOGIN": "user@example.com",
+        "COINGLASS_USER_PASSWORD": "super-secret",
+    }
+    monkeypatch.setattr(module, "get_secret", lambda key: secret_map.get(key))
+
+    args = argparse.Namespace(
+        provider="coinglass",
+        coin="ETH",
+        timeframe="1w",
+        exchange="binance",
+        coinank_url=None,
+        coinglass_url=None,
+        bitcoincounterflow_url=None,
+        coinglass_timeframe=None,
+    )
+
+    targets = module.build_targets(args)
+
+    assert len(targets) == 1
+    assert targets[0].email == "user@example.com"
+    assert targets[0].password == "super-secret"
+
+
+def test_capture_coinglass_rest_rejects_hyperliquid(tmp_path: Path):
+    from scripts.capture_provider_api import (
+        COINGLASS_LIQMAP_PAGE_URL,
+        CaptureTarget,
+        capture_coinglass_rest,
+    )
+
+    target = CaptureTarget(
+        provider="coinglass",
+        url=COINGLASS_LIQMAP_PAGE_URL,
+        coin="ETH",
+        ui_timeframe="7 day",
+        exchange="hyperliquid",
+    )
+
+    with pytest.raises(RuntimeError, match="exchange=hyperliquid"):
+        capture_coinglass_rest(target, tmp_path)

@@ -41,6 +41,7 @@ import pyotp
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -250,6 +251,7 @@ class CaptureTarget:
     password: str | None = None
     ui_timeframe: str | None = None
     coin: str = "BTC"
+    exchange: str = "binance"
 
 
 def utc_timestamp_slug() -> str:
@@ -366,16 +368,22 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
 
     if args.provider in {"coinglass", "both", "all"}:
         coinglass_url = args.coinglass_url or DEFAULT_COINGLASS_URL
+        if (
+            getattr(args, "exchange", "binance").strip().lower() == "hyperliquid"
+            and coinglass_url == DEFAULT_COINGLASS_URL
+        ):
+            coinglass_url = COINGLASS_LIQMAP_PAGE_URL
         targets.append(
             CaptureTarget(
                 provider="coinglass",
                 url=coinglass_url,
-                email=os.environ.get("COINGLASS_USER_LOGIN"),
-                password=os.environ.get("COINGLASS_USER_PASSWORD"),
+                email=get_secret("COINGLASS_USER_LOGIN"),
+                password=get_secret("COINGLASS_USER_PASSWORD"),
                 ui_timeframe=normalize_coinglass_timeframe_label(
                     args.coinglass_timeframe or args.timeframe
                 ),
                 coin=coin,
+                exchange=getattr(args, "exchange", "binance"),
             )
         )
 
@@ -454,21 +462,153 @@ def normalize_coinglass_timeframe_label(value: str | None) -> str | None:
     return f"{amount} {suffix}"
 
 
+def is_coinglass_hyperliquid_target(target: CaptureTarget) -> bool:
+    """Return True when the CoinGlass target should use the Hyperliquid widget."""
+    return (
+        target.provider == "coinglass"
+        and target.exchange.strip().lower() == "hyperliquid"
+    )
+
+
+def rewrite_url_query_params(url: str, updates: dict[str, str]) -> str:
+    """Replace or append URL query parameters while preserving the base path."""
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update({key: str(value) for key, value in updates.items()})
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query, doseq=True),
+            parts.fragment,
+        )
+    )
+
+
+async def find_coinglass_widget_combobox_index(
+    page,
+    heading_text: str,
+) -> int | None:
+    """Locate the combobox anchored to a specific widget heading."""
+    try:
+        index = await page.evaluate(
+            """
+            (targetHeading) => {
+                const allComboboxes = Array.from(
+                    document.querySelectorAll('[role="combobox"]')
+                );
+                const heading = Array.from(document.querySelectorAll('h1, h2, h3'))
+                    .find((el) => ((el.textContent || '').trim() === targetHeading));
+                if (!heading) {
+                    return null;
+                }
+
+                let node = heading.parentElement;
+                while (node && node !== document.body) {
+                    const localComboboxes = Array.from(
+                        node.querySelectorAll('[role="combobox"]')
+                    );
+                    if (localComboboxes.length == 1) {
+                        const matchIndex = allComboboxes.indexOf(localComboboxes[0]);
+                        return matchIndex >= 0 ? matchIndex : null;
+                    }
+                    node = node.parentElement;
+                }
+                return null;
+            }
+            """,
+            heading_text,
+        )
+    except Exception:
+        return None
+
+    if isinstance(index, int) and index >= 0:
+        return index
+    return None
+
+
+async def find_coinglass_widget_button_index(
+    page,
+    heading_text: str,
+) -> int | None:
+    """Locate the first widget-local button anchored to a specific heading."""
+    try:
+        index = await page.evaluate(
+            """
+            (targetHeading) => {
+                const allButtons = Array.from(document.querySelectorAll('button'));
+                const heading = Array.from(document.querySelectorAll('h1, h2, h3'))
+                    .find((el) => ((el.textContent || '').trim() === targetHeading));
+                if (!heading) {
+                    return null;
+                }
+
+                let node = heading.parentElement;
+                while (node && node !== document.body) {
+                    const localComboboxes = Array.from(
+                        node.querySelectorAll('[role="combobox"]')
+                    );
+                    const localButtons = Array.from(node.querySelectorAll('button'));
+                    if (localComboboxes.length == 1 && localButtons.length >= 1) {
+                        const matchIndex = allButtons.indexOf(localButtons[0]);
+                        return matchIndex >= 0 ? matchIndex : null;
+                    }
+                    node = node.parentElement;
+                }
+                return null;
+            }
+            """,
+            heading_text,
+        )
+    except Exception:
+        return None
+
+    if isinstance(index, int) and index >= 0:
+        return index
+    return None
+
+
+async def read_combobox_value(locator) -> str:
+    """Read the current text/value of a Playwright combobox locator."""
+    try:
+        value = (
+            await locator.evaluate(
+                "(el) => ((el.value ?? el.innerText ?? el.textContent) || '').trim()"
+            )
+        ).strip()
+        if value:
+            return value
+    except Exception:
+        pass
+    try:
+        return (await locator.inner_text()).strip()
+    except Exception:
+        return ""
+
+
 async def dismiss_coinglass_popups(page) -> None:
     """Dismiss consent/login overlays that block the underlying page."""
-    for selector in (
+    selectors = (
+        '[role="dialog"] button',
         'button:has-text("Consent")',
         'button:has-text("Do not consent")',
         'button[aria-label="Close"]',
         'button:has-text("Close")',
-    ):
-        try:
-            locator = page.locator(selector).first
-            if await locator.is_visible(timeout=1000):
-                await locator.click(timeout=2000)
-                await page.wait_for_timeout(300)
-        except Exception:
-            continue
+    )
+    for _ in range(4):
+        dismissed_any = False
+        for selector in selectors:
+            try:
+                locator = page.locator(selector).first
+                if await locator.is_visible(timeout=1000):
+                    await locator.click(timeout=2000)
+                    dismissed_any = True
+                    await page.wait_for_timeout(300)
+            except Exception:
+                continue
+        if not dismissed_any:
+            break
 
 
 async def fill_and_commit(locator, value: str) -> None:
@@ -572,35 +712,33 @@ async def apply_coinglass_timeframe(target: CaptureTarget, page) -> bool:
 async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
     """Set the main Coinglass LiquidationMap symbol via the visible combobox."""
     desired_coin = target.coin.upper()
-    desired = f"Binance {desired_coin}/USDT Perpetual"
-
-    async def read_combobox_value(locator) -> str:
-        try:
-            value = (
-                await locator.evaluate(
-                    "(el) => ((el.value ?? el.innerText ?? el.textContent) || '').trim()"
-                )
-            ).strip()
-            if value:
-                return value
-        except Exception:
-            pass
-        try:
-            return (await locator.inner_text()).strip()
-        except Exception:
-            return ""
+    hyperliquid_target = is_coinglass_hyperliquid_target(target)
+    desired = desired_coin if hyperliquid_target else f"Binance {desired_coin}/USDT Perpetual"
 
     comboboxes = page.locator('[role="combobox"]')
     combobox_count = await comboboxes.count()
     symbol_index = None
+    widget_button_index = None
     current_value = None
 
-    for idx in range(combobox_count):
-        text = await read_combobox_value(comboboxes.nth(idx))
-        if "perpetual" in text.lower():
-            symbol_index = idx
-            current_value = text
-            break
+    if hyperliquid_target:
+        symbol_index = await find_coinglass_widget_combobox_index(
+            page,
+            "Hyperliquid Liquidation Map",
+        )
+        widget_button_index = await find_coinglass_widget_button_index(
+            page,
+            "Hyperliquid Liquidation Map",
+        )
+        if symbol_index is not None and symbol_index < combobox_count:
+            current_value = await read_combobox_value(comboboxes.nth(symbol_index))
+    else:
+        for idx in range(combobox_count):
+            text = await read_combobox_value(comboboxes.nth(idx))
+            if "perpetual" in text.lower():
+                symbol_index = idx
+                current_value = text
+                break
 
     if symbol_index is None:
         return False
@@ -608,16 +746,26 @@ async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
     if current_value and desired_coin in current_value.upper():
         return True
 
-    try:
-        await comboboxes.nth(symbol_index).click(timeout=5000)
-        tag_name = await comboboxes.nth(symbol_index).evaluate("(el) => el.tagName.toLowerCase()")
-        if tag_name == "input":
-            await comboboxes.nth(symbol_index).press("Control+A", timeout=3000)
-            await comboboxes.nth(symbol_index).fill(desired_coin, timeout=5000)
-    except Exception:
-        return False
+    openers = [comboboxes.nth(symbol_index)]
+    if hyperliquid_target and widget_button_index is not None:
+        openers.append(page.locator("button").nth(widget_button_index))
 
-    await page.wait_for_timeout(1500)
+    for opener in openers:
+        try:
+            await opener.click(timeout=5000)
+            tag_name = await comboboxes.nth(symbol_index).evaluate(
+                "(el) => el.tagName.toLowerCase()"
+            )
+            if tag_name == "input" and not hyperliquid_target:
+                await comboboxes.nth(symbol_index).press("Control+A", timeout=3000)
+                await comboboxes.nth(symbol_index).fill(desired_coin, timeout=5000)
+                await comboboxes.nth(symbol_index).press("ArrowDown", timeout=3000)
+            await page.wait_for_timeout(1500)
+            option = page.locator(f'[role="option"]:has-text("{desired}")').first
+            await option.wait_for(state="visible", timeout=1500)
+            break
+        except Exception:
+            continue
 
     try:
         exact_option = page.locator(
@@ -629,17 +777,18 @@ async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
         selected_text = await read_combobox_value(comboboxes.nth(symbol_index))
         if desired_coin in selected_text.upper():
             return True
-        try:
-            heading_text = (await page.locator("h1").first.inner_text()).strip()
-        except Exception:
-            heading_text = ""
-        if desired_coin in heading_text.upper():
-            return True
+        if not hyperliquid_target:
+            try:
+                heading_text = (await page.locator("h1").first.inner_text()).strip()
+            except Exception:
+                heading_text = ""
+            if desired_coin in heading_text.upper():
+                return True
     except Exception:
         pass
 
     option_selectors = (
-        f'[role="option"]:has-text("{desired_coin}/USDT")',
+        f'[role="option"]:has-text("{desired_coin}")',
         f'li:has-text("{desired}")',
         f'div:has-text("{desired}")',
         f'button:has-text("{desired}")',
@@ -654,12 +803,13 @@ async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
             selected_text = await read_combobox_value(comboboxes.nth(symbol_index))
             if desired_coin in selected_text.upper():
                 return True
-            try:
-                heading_text = (await page.locator("h1").first.inner_text()).strip()
-            except Exception:
-                heading_text = ""
-            if desired_coin in heading_text.upper():
-                return True
+            if not hyperliquid_target:
+                try:
+                    heading_text = (await page.locator("h1").first.inner_text()).strip()
+                except Exception:
+                    heading_text = ""
+                if desired_coin in heading_text.upper():
+                    return True
         except Exception:
             continue
 
@@ -828,36 +978,39 @@ async def coinglass_direct_fetch(
     - The corresponding response contains ``success: true`` with matching
       ``interval``/``limit``.
     """
-    timeframe_key = target.ui_timeframe or "1d"
-    interval, limit = resolve_coinglass_interval_limit(timeframe_key)
-    data_param = generate_coinglass_data_param()
-    symbol = f"Binance_{target.coin.upper()}USDT"
+    hyperliquid_target = is_coinglass_hyperliquid_target(target)
+    if hyperliquid_target:
+        symbol = target.coin.upper()
+        route_pattern = "**/api/hyperliquid/topPosition/liqMap*"
+        rewrite_params = {"symbol": symbol}
+    else:
+        timeframe_key = target.ui_timeframe or "1d"
+        interval, limit = resolve_coinglass_interval_limit(timeframe_key)
+        data_param = generate_coinglass_data_param()
+        symbol = f"Binance_{target.coin.upper()}USDT"
+        route_pattern = "**/api/index/5/liqMap*"
+        rewrite_params = {
+            "interval": interval,
+            "limit": str(limit),
+            "symbol": symbol,
+            "data": data_param,
+        }
 
-    data_encoded = quote(data_param, safe="")
-
-    # Intercept and rewrite the page's own liqMap requests via Playwright
-    # route API.  This lets us change the interval/limit without clicking the
-    # dropdown while reusing the page's authenticated axios instance.
     rewritten = False
 
     async def rewrite_liqmap(route):
         nonlocal rewritten
         url = route.request.url
-        new_url = re.sub(r"interval=[^&]+", f"interval={interval}", url)
-        new_url = re.sub(r"limit=\d+", f"limit={limit}", new_url)
-        new_url = re.sub(r"symbol=[^&]+", f"symbol={quote(symbol, safe='')}", new_url)
-        new_url = re.sub(r"data=[^&]+", f"data={data_encoded}", new_url)
+        new_url = rewrite_url_query_params(url, rewrite_params)
         rewritten = True
         await route.continue_(url=new_url)
 
     try:
-        await page.route("**/api/index/5/liqMap*", rewrite_liqmap)
+        await page.route(route_pattern, rewrite_liqmap)
     except Exception as exc:
         print(f"  coinglass route setup error: {exc}")
         return False
 
-    # Trigger a page refresh to re-fire the liqMap request, which our route
-    # handler will intercept and rewrite with the desired params.
     try:
         await page.reload(timeout=30000)
         await page.wait_for_load_state("load", timeout=30000)
@@ -865,9 +1018,8 @@ async def coinglass_direct_fetch(
     except Exception:
         pass
 
-    # Clean up route
     try:
-        await page.unroute("**/api/index/5/liqMap*", rewrite_liqmap)
+        await page.unroute(route_pattern, rewrite_liqmap)
     except Exception:
         pass
 
@@ -875,8 +1027,6 @@ async def coinglass_direct_fetch(
         print("  coinglass route: no liqMap request intercepted")
         return False
 
-    # Verify that the main response handler actually captured a successful
-    # liqMap response with the expected interval/limit.
     verified = False
     for cap in captured:
         url = cap.get("source_url", "")
@@ -884,20 +1034,27 @@ async def coinglass_direct_fetch(
             continue
         if f"symbol={symbol.lower()}".lower() not in url.lower():
             continue
-        if f"interval={interval}" not in url:
-            continue
-        if f"limit={limit}" not in url:
-            continue
+        if not hyperliquid_target:
+            if f"interval={interval}" not in url:
+                continue
+            if f"limit={limit}" not in url:
+                continue
         summary = cap.get("summary", {})
         if summary.get("success") is True:
             verified = True
             break
 
     if not verified:
-        print(
-            f"  coinglass route: request rewritten but no verified liqMap "
-            f"response with interval={interval}&limit={limit} and success=true"
-        )
+        if hyperliquid_target:
+            print(
+                "  coinglass route: request rewritten but no verified "
+                f"Hyperliquid liqMap response for symbol={symbol}"
+            )
+        else:
+            print(
+                f"  coinglass route: request rewritten but no verified liqMap "
+                f"response with interval={interval}&limit={limit} and success=true"
+            )
 
     return verified
 
@@ -939,6 +1096,7 @@ async def capture_coinglass_liqmap_visual(
     headless: bool = True,
     email: str | None = None,
     password: str | None = None,
+    exchange: str = "binance",
     capture_info: dict | None = None,
 ) -> Path:
     """Capture a Coinglass liq-map screenshot and return the saved path.
@@ -964,8 +1122,10 @@ async def capture_coinglass_liqmap_visual(
     info["login_success"] = False
     info["symbol_applied"] = False
     info["timeframe_applied"] = False
+    info["request_verified"] = False
     info["requested_symbol"] = f"{coin.upper()}USDT"
     info["requested_timeframe"] = timeframe
+    info["requested_exchange"] = exchange
     info["method"] = "screenshot_viewport"
 
     target = CaptureTarget(
@@ -975,6 +1135,7 @@ async def capture_coinglass_liqmap_visual(
         password=password,
         ui_timeframe=normalize_coinglass_timeframe_label(timeframe),
         coin=coin.upper(),
+        exchange=exchange,
     )
 
     captured: list[dict[str, Any]] = []
@@ -1053,22 +1214,33 @@ async def capture_coinglass_liqmap_visual(
             )
             info["symbol_applied"] = symbol_applied
 
-            timeframe_applied = False
-            if symbol_applied and target.coin.upper() == "BTC":
-                timeframe_applied = await asyncio.wait_for(
+            timeframe_applied: bool | None = False
+            request_verified = False
+            if is_coinglass_hyperliquid_target(target):
+                request_verified = await asyncio.wait_for(
                     coinglass_direct_fetch(target, page, captured),
                     timeout=45,
                 )
-            if not timeframe_applied:
+                timeframe_applied = None
+            elif symbol_applied and target.coin.upper() == "BTC":
+                request_verified = await asyncio.wait_for(
+                    coinglass_direct_fetch(target, page, captured),
+                    timeout=45,
+                )
+                timeframe_applied = request_verified
+            if timeframe_applied is False:
                 timeframe_applied = await asyncio.wait_for(
                     apply_coinglass_timeframe(target, page),
                     timeout=15,
                 )
+                request_verified = bool(timeframe_applied)
             info["timeframe_applied"] = timeframe_applied
+            info["request_verified"] = request_verified
 
-            if not symbol_applied or not timeframe_applied:
+            if not symbol_applied or not request_verified:
                 raise RuntimeError(
-                    f"coinglass timeframe/symbol not verified for {target.coin.upper()} {timeframe}"
+                    f"coinglass symbol/request not verified for {target.exchange} "
+                    f"{target.coin.upper()} {timeframe}"
                 )
 
             try:
@@ -1114,7 +1286,9 @@ async def capture_target(
     capture_tasks: set[asyncio.Task[Any]] = set()
     capture_lock = asyncio.Lock()
     counter = 0
-    timeframe_applied = False
+    timeframe_applied: bool | None = False
+    symbol_applied: bool | None = None
+    request_verified = False
 
     async def handle_response(response) -> None:
         nonlocal counter
@@ -1220,11 +1394,23 @@ async def capture_target(
             if target.provider != "coinglass":
                 login_success = await maybe_log_in(target, page)
 
-            if target.provider == "coinglass" and login_success:
+            if target.provider == "coinglass":
                 await dismiss_coinglass_popups(page)
-                timeframe_applied = await coinglass_direct_fetch(
-                    target, page, captured,
-                )
+                symbol_applied = await apply_coinglass_symbol(target, page)
+                if is_coinglass_hyperliquid_target(target):
+                    request_verified = await coinglass_direct_fetch(
+                        target,
+                        page,
+                        captured,
+                    )
+                    timeframe_applied = None
+                elif login_success:
+                    request_verified = await coinglass_direct_fetch(
+                        target,
+                        page,
+                        captured,
+                    )
+                    timeframe_applied = request_verified
 
             if target.provider == "bitcoincounterflow":
                 await prime_bitcoincounterflow_capture(page)
@@ -1246,7 +1432,9 @@ async def capture_target(
         "login_attempted": bool(target.email and target.password),
         "login_success": login_success,
         "requested_ui_timeframe": target.ui_timeframe,
+        "symbol_applied": symbol_applied,
         "timeframe_applied": timeframe_applied,
+        "request_verified": request_verified,
         "capture_count": len(captured),
         "captures": captured,
     }
@@ -1319,6 +1507,12 @@ def capture_coinglass_rest(
     """
     provider_dir = run_dir / target.provider
     provider_dir.mkdir(parents=True, exist_ok=True)
+
+    if is_coinglass_hyperliquid_target(target):
+        raise RuntimeError(
+            "CoinGlass REST capture does not support exchange=hyperliquid; "
+            "use --coinglass-mode browser."
+        )
 
     if not target.email or not target.password:
         raise RuntimeError(

@@ -167,40 +167,59 @@ Absolute dollar values are less important than relative distribution.
   open positions, recently closed positions, top-position cohorts, or another
   provider-specific construction?
 
+
 ### Findings To Date
 - F-001: The correct Rektslug-side source for Hyperliquid discovery is the
   filtered node dataset, especially `filtered/node_fills_by_block`, not only
   the derived DuckDB views. The node docs describe this dataset as `fills +
   liquidations`, and `scripts/ingest_hl_fills.py` already converts it into
   `hl_fills_l4` / `hl_liquidations_l4`.
-- F-002: The current local CoinGlass browser harness is not yet a trustworthy
-  Hyperliquid `ETH` capture path. A run requested as `ETH` / `1w` still saved
-  `api/hyperliquid/topPosition/liqMap?symbol=BTC`, with `symbol_applied = None`
-  and `timeframe_applied = false`, which means the existing automation is still
-  coupled to the default page state rather than a verified Hyperliquid widget
-  selection.
-- F-003: The current CoinGlass browser automation targets the main
-  per-exchange/Binance widget. `apply_coinglass_symbol()` looks for a combobox
-  containing `Perpetual`, and `coinglass_direct_fetch()` rewrites only
-  `api/index/5/liqMap`, so neither step is Hyperliquid-specific yet.
+- F-002: The local CoinGlass browser harness is now a verified Hyperliquid
+  `ETH` capture path. Verified runs `20260320T181726Z`, `20260320T183040Z`,
+  and `20260320T183129Z` all recorded `login_attempted = true`,
+  `login_success = true`, `symbol_applied = true`, and
+  `request_verified = true`, and saved
+  `api/hyperliquid/topPosition/liqMap?symbol=ETH`.
+- F-003: The CoinGlass browser automation is no longer coupled only to the
+  main per-exchange/Binance widget. `scripts/capture_provider_api.py` now has
+  a Hyperliquid-specific widget-selection path, and CoinGlass credentials load
+  through the shared secret path (`get_secret()` / `dotenvx`) rather than only
+  through ad hoc shell environment injection.
 - F-004: Decoded CoinGlass Hyperliquid payloads are not shaped like a
   pre-bucketed heatmap. Successful decodes yield an object with top-level keys
-  like `price` and `list`, and list items include fields such as `entryPrice`,
-  `leverage`, `liquidationPrice`, `margin`, `positionUsd`, and `userId`.
-  Inference: the endpoint currently looks closer to a top-position /
+  `price` and `list`, and list items include fields such as `entryPrice`,
+  `leverage`, `liquidationPrice`, `margin`, `positionUsd`, `size`, and
+  `userId`. Inference: the endpoint currently looks closer to a top-position /
   position-risk feed than to a ready-made liquidation surface.
-- F-005: First Rektslug-side candidate windows were generated from filtered
-  Hyperliquid node data for `1d` and `7d`. `7d` produces a much richer
-  distribution than `1d`, especially for `ETH`, so `7d` is a plausible
-  candidate window to test against CoinGlass Hyperliquid. This is only a
-  candidate, not evidence that CoinGlass actually uses `7d`.
-- F-006: Current evidence argues against the hypothesis that CoinGlass
+- F-005: CoinGlass Hyperliquid timeframe behavior remains unresolved, but the
+  verified `ETH` `1 day` and `7 day` runs decode to the same logical object
+  shape, the same `153` IDs, and no explicit timeframe field. The remaining
+  differences look like live mark-to-market updates rather than two distinct
+  historical windows.
+- F-006: Rektslug-side candidate windows for immediate testing remain `1d` and
+  `7d`, and current local node retention only supports roughly `7d` of history.
+  `7d` already produces a much richer `ETH` distribution than `1d`, so it is
+  the correct first prototype window. This is still a candidate, not evidence
+  that CoinGlass actually uses `7d`.
+- F-007: Current evidence argues against the hypothesis that CoinGlass
   Hyperliquid is based only on public `L2` websocket data. The decoded payload
   contains account/position-level fields such as `margin`, `leverage`, and
   `liquidationPrice`, which are not explained by plain order-book depth alone.
-  This is still an inference, not a confirmed statement about CoinGlass internals.
-- F-007: For our node data, stronger candidate models than a simple histogram of
-  recent liquidations are:
+  This is still an inference, not a confirmed statement about CoinGlass
+  internals.
+- F-008: The filtered Hyperliquid dataset also retains
+  `node_order_statuses_by_block` and `node_raw_book_diffs_by_block`, so the
+  remaining gap is no longer raw collection but model construction. For the
+  target high-fidelity reconstruction path, mark/oracle, funding, and
+  collateral/equity adjustments should be treated as required inputs rather
+  than optional refinements.
+- F-009: A preliminary `ETH` comparison shows no overlap between CoinGlass
+  bucketized `liquidationPrice` peaks from the top-position feed and Rektslug
+  `1d` / `7d` peaks derived from recent liquidation events. Therefore a simple
+  histogram of recent liquidations is not sufficient to explain CoinGlass
+  Hyperliquid.
+- F-010: For our node data, stronger candidate models than a simple histogram
+  of recent liquidations are:
   1. position-state reconstruction
   2. position-cohort risk surface
   3. book-aware impact overlay
@@ -219,11 +238,12 @@ Absolute dollar values are less important than relative distribution.
   main page timeframe, reloading sessions, and varying symbol selection to test
   whether `api/hyperliquid/topPosition/liqMap` is fixed, implicit, or tied to
   hidden state.
-- IP-004: Generate Rektslug Hyperliquid candidate maps from our L4/node data for
-  a bounded set of windows, at minimum `1h`, `4h`, `12h`, `1d`, `3d`, `7d`,
-  `14d`, and `30d`, so CoinGlass can be compared against concrete alternatives
-  instead of a single guessed window. This sweep is for Hyperliquid timeframe
-  discovery only.
+- IP-004: Generate Rektslug Hyperliquid candidate maps from our L4/node data
+  for the windows currently supported by local retention, at minimum `1d` and
+  `7d` today, so CoinGlass can be compared against concrete alternatives
+  instead of a single guessed window. Expand to `14d` / `30d` only after the
+  node retention window actually supports them. This sweep is for Hyperliquid
+  timeframe discovery only.
 - IP-004a: Keep canonical Binance/CoinAnK/CoinGlass comparisons on `1d` and
   `1w` (`7 day` in CoinGlass UI), rather than mixing them with the broader
   Hyperliquid discovery window sweep.
