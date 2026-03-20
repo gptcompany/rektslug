@@ -23,6 +23,7 @@ def capture_coinglass_liqmap_capture(request, output_path: Path) -> dict:
                 headless=True,
                 email=email,
                 password=password,
+                exchange=request.exchange or "binance",
                 capture_info=capture_info,
             )
         )

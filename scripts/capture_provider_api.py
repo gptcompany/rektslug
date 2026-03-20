@@ -787,13 +787,22 @@ async def apply_coinglass_symbol(target: CaptureTarget, page) -> bool:
     except Exception:
         pass
 
-    option_selectors = (
-        f'[role="option"]:has-text("{desired_coin}")',
-        f'li:has-text("{desired}")',
-        f'div:has-text("{desired}")',
-        f'button:has-text("{desired}")',
-        f'text="{desired}"',
-    )
+    if hyperliquid_target:
+        option_selectors = (
+            f'[role="option"]:text-is("{desired_coin}")',
+            f'li:text-is("{desired_coin}")',
+            f'div:text-is("{desired_coin}")',
+            f'button:text-is("{desired_coin}")',
+            f'text="{desired_coin}"',
+        )
+    else:
+        option_selectors = (
+            f'[role="option"]:has-text("{desired_coin}")',
+            f'li:has-text("{desired}")',
+            f'div:has-text("{desired}")',
+            f'button:has-text("{desired}")',
+            f'text="{desired}"',
+        )
     for selector in option_selectors:
         try:
             option = page.locator(selector).first
