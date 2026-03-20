@@ -51,10 +51,20 @@
     - `open_interest/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — OI history
     - `ohlcv/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — candles
     - `trades/{BTC,ETH}USDT-PERP.HYPERLIQUID/` — trade ticks
-  - **NOT available locally**:
-    - **Account equity/collateral** — not available (would need per-user clearinghouse state)
-    - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
-  - **Conclusion**: fills + oracle + funding + OI = all locally available; book diffs = bonus for density overlay; only account equity is missing (not reconstructable)
+  - **Also available via periodic ABCI state snapshots** (`periodic_abci_states/`):
+    - Path: `/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/`
+    - Format: MessagePack (`.rmp`), ~1.1GB each, ~80-100/day (~15min cadence)
+    - Retention: 2 days (20260319-20260320)
+    - Content: full clearinghouse state — `exchange.locus.cls[0].user_states`
+      - `user_to_state`: **1,488,930 users**, each with:
+        - `S.s` / `S.r` — USDC balance (scaled integers)
+        - `p.p[]` — positions by asset index (`[0]=BTC`, `[1]=ETH`, `[5]=SOL`, 229 total)
+        - Per-position: `l.C` (cross leverage), `l.I` (isolated leverage), `M` (margin), `f.a` (cumulative funding)
+      - `users_with_positions`: **59,596** active users
+      - `asset_to_oi_szi`: aggregate OI per asset (BTC=2.85B szi, ETH=5.89B szi)
+    - **Account equity IS reconstructable** from these snapshots: balance + unrealized PnL (position × mark_px delta) + cumulative funding
+  - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
+  - **Conclusion**: ALL inputs for full-fidelity liqmap reconstruction are locally available — fills, oracle, funding, OI, book diffs, AND per-user position/equity state
 
 ## Phase 4: Reconstruction Design
 
