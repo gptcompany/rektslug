@@ -86,7 +86,7 @@ class SidecarState:
     timestamp: datetime
     users: dict[str, UserState]
     mark_prices: dict[int, float]
-    mmr_rates: dict[int, float]
+    asset_margin_tiers: dict[int, list[dict]]
 
 
 @dataclass(frozen=True)
@@ -482,19 +482,31 @@ class SidecarPositionReconstructor:
 
         # Extract MMR rates from margin tables
         margin_tables_raw = meta.get("marginTableIdToMarginTable", [])
-        table_to_mmr: dict[int, float] = {}
+        table_to_tiers: dict[int, list[dict]] = {}
         for item in margin_tables_raw:
             if not isinstance(item, (list, tuple)) or len(item) < 2:
                 continue
             table_id, table_data = item[0], item[1]
-            tiers = table_data.get("margin_tiers", [])
-            if tiers:
-                # MMR = 1 / max_leverage (standard for cross-margin)
-                table_to_mmr[table_id] = 1.0 / float(tiers[0].get("max_leverage", 50))
+            tiers_raw = table_data.get("margin_tiers", [])
+            
+            parsed_tiers = []
+            for t in tiers_raw:
+                # MMR is exactly 1 / (2 * max_leverage) based on Hyperliquid spec
+                # maintenance_deduction and lower_bound are scaled by 1e6
+                max_lev = float(t.get("max_leverage", 50))
+                parsed_tiers.append({
+                    "lower_bound": float(t.get("lower_bound", 0)) / 1e6,
+                    "mmr_rate": 1.0 / (2.0 * max_lev) if max_lev > 0 else 0.01,
+                    "maintenance_deduction": float(t.get("maintenance_deduction", 0)) / 1e6,
+                })
+            
+            # Sort tiers descending to easily find active tier
+            parsed_tiers.sort(key=lambda x: x["lower_bound"], reverse=True)
+            table_to_tiers[table_id] = parsed_tiers
 
-        mmr_rates: dict[int, float] = {}
+        asset_margin_tiers: dict[int, list[dict]] = {}
         for idx, m in asset_meta.items():
-            mmr_rates[idx] = table_to_mmr.get(m["marginTableId"], 0.01)
+            asset_margin_tiers[idx] = table_to_tiers.get(m["marginTableId"], [{"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}])
 
         # Extract Oracle prices
         pxs_raw = cls0.get("oracle", {}).get("pxs", [])
@@ -582,15 +594,21 @@ class SidecarPositionReconstructor:
             timestamp=timestamp,
             users=reconstructed_users,
             mark_prices=mark_prices,
-            mmr_rates=mmr_rates,
+            asset_margin_tiers=asset_margin_tiers,
         )
+
+    def _get_margin_tier(self, notional: float, tiers: list[dict]) -> dict:
+        for t in tiers:
+            if notional >= t["lower_bound"]:
+                return t
+        return tiers[-1] if tiers else {"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}
 
     def solve_liquidation_price(
         self,
         user_state: UserState,
         target_coin: str,
         mark_prices: dict[int, float],
-        mmr_rates: dict[int, float],
+        asset_margin_tiers: dict[int, list[dict]],
     ) -> float | None:
         """Solve the cross-margin liquidation price for a target coin."""
         target_pos = next((p for p in user_state.positions if p.coin == target_coin), None)
@@ -599,24 +617,40 @@ class SidecarPositionReconstructor:
 
         other_pnl = 0.0
         other_mmr = 0.0
+        cum_funding_total = 0.0
+        
         for p in user_state.positions:
+            cum_funding_total += p.cum_funding
             if p.coin == target_coin:
                 continue
             
             mark = mark_prices.get(p.asset_idx, p.entry_px)
+            notional = abs(p.size) * mark
             other_pnl += p.size * (mark - p.entry_px)
-            other_mmr += abs(p.size) * mark * mmr_rates.get(p.asset_idx, 0.01)
+            
+            tiers = asset_margin_tiers.get(p.asset_idx, [])
+            tier = self._get_margin_tier(notional, tiers)
+            other_mmr += notional * tier["mmr_rate"] - tier["maintenance_deduction"]
 
         balance = user_state.balance
-        mmr_target = mmr_rates.get(target_pos.asset_idx, 0.01)
+        # Use current target notional to estimate target MMR tier
+        target_mark = mark_prices.get(target_pos.asset_idx, target_pos.entry_px)
+        target_notional = abs(target_pos.size) * target_mark
+        target_tiers = asset_margin_tiers.get(target_pos.asset_idx, [])
+        target_tier = self._get_margin_tier(target_notional, target_tiers)
+        
+        mmr_rate = target_tier["mmr_rate"]
+        m_deduct = target_tier["maintenance_deduction"]
         
         # Cross-margin equation solving for P_target
+        account_base = balance + other_pnl - cum_funding_total
+        
         if target_pos.size > 0:
-            denom = target_pos.size * (1.0 - mmr_target)
-            numerator = other_mmr + (target_pos.size * target_pos.entry_px) - balance - other_pnl
+            denom = target_pos.size * (1.0 - mmr_rate)
+            numerator = other_mmr - m_deduct + (target_pos.size * target_pos.entry_px) - account_base
         else:
-            denom = target_pos.size * (1.0 + mmr_target)
-            numerator = other_mmr + (target_pos.size * target_pos.entry_px) - balance - other_pnl
+            denom = target_pos.size * (1.0 + mmr_rate)
+            numerator = other_mmr - m_deduct + (target_pos.size * target_pos.entry_px) - account_base
 
         if abs(denom) < 1e-9:
             return 0.0

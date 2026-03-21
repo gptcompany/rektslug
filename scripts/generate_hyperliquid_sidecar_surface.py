@@ -71,7 +71,7 @@ def main() -> int:
             user_state=user_state,
             target_coin=request.target_coin,
             mark_prices=state.mark_prices,
-            mmr_rates=state.mmr_rates
+            asset_margin_tiers=state.asset_margin_tiers
         )
         
         if liq_px is None or liq_px <= 0:
