@@ -137,32 +137,20 @@ go / no-go Hyperliquid parity decision
 
 - local Hyperliquid `ETH` CoinGlass capture is verified end-to-end
 - CoinGlass Hyperliquid payload decoding works for saved artifacts
-- timeframe behavior is bounded enough to say the payload is not exposing a
-  distinct `1 day` vs `7 day` historical series
 - local filtered node retention includes more than fills alone, which makes a
   stronger reconstruction path realistic
-- periodic ABCI snapshots provide direct per-user clearinghouse state anchors,
-  but only for the currently retained `2d` window
-- the saved candidate-window baseline artifact is present locally and can be
-  reused as the current `1d` / `7d` comparison baseline
+- periodic ABCI snapshots provide direct per-user clearinghouse state anchors
+- **Cross-Margin Solver V1** implemented: exact equity calculation including Balance, PnL, Funding, and MMR Tiers
+- **ETH 7d risk-surface artifact** generated from 13k+ active accounts, with unliquidatable positions filtered out
 
 ## What Needs Work
 
-1. inventory the actual schema and local availability of
-   `node_order_statuses_by_block`, `node_raw_book_diffs_by_block`, mark/oracle,
-   transfer/collateral-adjustment coverage, funding-rate inputs, and funding
-   application timing
-2. prove the exactness envelope: `snapshot-exact` over retained ABCI anchors vs
-   replay between anchors, which is still unproven until collateral/funding
-   gaps are bounded
-3. formalize the sidecar retained account-state format needed to preserve exact
-   cross-margin semantics for BTC/ETH-relevant accounts
-4. generate a first local `ETH 7d` risk-surface artifact
-5. compare shape, peak buckets, long/short balance, and stability against
-   CoinGlass Hyperliquid
-6. turn the saved candidate-window baseline into an explicit input of the next
-   comparison/reporting steps
-7. define the smallest possible generic node-side export/retention change, if
+1. extend the reconstruction path to **BTC** (Phase 6)
+2. compare shape, peak buckets, long/short balance, and stability against
+   CoinGlass Hyperliquid (Task T026)
+3. investigate **Open Orders** impact: current solver ignores reserved margin from resting orders, which may cause slight drift vs real node state
+4. prove the replay-exact path: bridge the gap between snapshots by ingesting transfer/collateral events once the stream is identified
+5. define the smallest possible generic node-side export/retention change, if
    any, that the sidecar actually needs
 
 ## Phases

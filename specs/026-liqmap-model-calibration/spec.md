@@ -258,6 +258,9 @@ Absolute dollar values are less important than relative distribution.
   application schedule is still unproven. Therefore replay-exact claims between
   anchors must remain bounded until those gaps are explicitly closed or shown
   to be zero-drift at re-anchor time.
+- F-015: ABCI snapshot math confirmed: field `e` is **Total Position Cost** (scaled `1e6` USDC), not Entry Price. Token size `s` uses `szDecimals` from universe metadata. Formula `entry_px = (e / 1e6) / abs(size_scaled)` produces accurate price-levels and volumes consistent with Open Interest.
+- F-016: ABCI MessagePack structure confirmed: massive collections like `user_to_state` and position lists `p.p` are encoded as **lists of pairs** `[[key, val], ...]` rather than native maps, requiring sequential iteration for decoding.
+- F-017: Cross-Margin Solver V1 successfully integrated: by calculating `AccountValue = Balance + sum(PnL) - Funding` and `MMR = sum(Notional * Rate - Deduction)`, the solver correctly filters unliquidatable accounts (liq_price <= 0), reducing the artificial volume spike at price 0.0 by 99.99%.
 
 ### Investigation Plan
 - IP-001: Build an evidence matrix for CoinGlass Hyperliquid `BTC` and `ETH`

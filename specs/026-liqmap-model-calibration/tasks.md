@@ -84,9 +84,11 @@
 
 - [X] T024 Implement the first local `ETH 7d` prototype builder
 - [X] T025 Generate a local `ETH 7d` risk-surface artifact from filtered node data
+- [X] T033 Refine the V0 liquidation solver to handle multi-asset cross-margin equity/margin adjustments rather than simple 1-asset shock
 - [ ] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
 - [ ] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
-- [ ] T033 Refine the V0 liquidation solver to handle multi-asset cross-margin equity/margin adjustments rather than simple 1-asset shock
+- [ ] T034 Investigate Open Orders impact: quantify the reserved-margin gap by comparing snapshot `M` field vs current solver MMR
+- [ ] T035 Refactor `load_abci_anchor` to use `msgpack.Unpacker` for streaming decoding (memory optimization)
 
 ## Phase 6: BTC Extension And Decision
 
@@ -109,8 +111,9 @@
 - Current bounded conclusion:
   - harness fixed and verified for local `ETH`
   - CoinGlass Hyperliquid payload decoded successfully
-  - timeframe still unresolved, but payload-level `1 day` vs `7 day` split is not visible
-  - simple recent-liquidation histograms are not sufficient to explain CoinGlass Hyperliquid
+  - **Cross-Margin Solver V1** implemented and validated: correctly handles Balance, multi-asset PnL, Funding, and MMR Tiers
+  - artificial volume spike at price 0.0 removed (99.99% reduction)
+  - simple recent-liquidation histograms are not sufficient to explain CoinGlass Hyperliquid; full account-state reconstruction is mandatory
 - Reconstruction-input decision:
   - the target high-fidelity path should include mark/oracle, funding, and collateral/equity adjustments in addition to fills, order statuses, and raw book diffs
   - exact BTC/ETH parity must preserve account-level cross-margin semantics even when the relevant wallets hold off-target assets
