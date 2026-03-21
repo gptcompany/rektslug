@@ -67,8 +67,8 @@
   - **Missing / unconfirmed for replay-exact between snapshots**:
     - no transfer / deposit / withdrawal / collateral-adjustment stream has been identified in the current filtered inventory
     - no node-side funding application / heartbeat event has been confirmed; local funding-rate history exists, but the application schedule into account state is not yet proven
-  - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
-  - **Conclusion**: snapshot anchoring is locally strong, but replay-exact between snapshots is still unproven and T017 stays open until collateral-adjustment coverage and funding-application timing are bounded
+  - **Maintenance margin rates** — Hyperliquid margin requirements are asset-specific and tier-dependent (derived from `marginTables` / max leverage); the sidecar must perform metadata lookups for these rules rather than assuming fixed rates.
+  - **Conclusion**: snapshot anchoring is locally strong, but replay-exact between snapshots is still unproven and T017 stays open until path-drift risks (transfers, funding application timing, off-target activity) are bounded.
 
 ## Phase 4: Reconstruction Design
 

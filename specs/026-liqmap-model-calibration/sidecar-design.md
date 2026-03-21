@@ -19,12 +19,12 @@ relevant account, including accounts that also carry off-target asset exposure.
 |----------|--------|----------------|-------|
 | Account raw state at snapshot time | `snapshot-exact` | `periodic_abci_states` | Applies only at retained ABCI timestamps |
 | Multi-asset positions, margin, leverage, funding fields at snapshot time | `snapshot-exact` | `periodic_abci_states` | Relevant accounts must retain all assets, not just BTC/ETH |
-| BTC/ETH fills and liquidation events inside filtered retention | `replay-exact candidate` | `filtered/node_fills_by_block` | Event ordering is block-native, but exactness still depends on collateral/funding coverage between anchors |
-| BTC/ETH order lifecycle and open-order deltas | `replay-exact candidate` | `filtered/node_order_statuses_by_block`, `filtered/node_raw_book_diffs_by_block` | Needed for open-order and reserved-margin state |
+| BTC/ETH fills and liquidation events inside filtered retention | `replay-exact candidate` | `filtered/node_fills_by_block` | Event ordering is block-native, but exactness also requires fills/liquidations for any *other* asset held by the relevant account to preserve cross-margin equity |
+| BTC/ETH order lifecycle and open-order deltas | `replay-exact candidate` | `filtered/node_order_statuses_by_block`, `filtered/node_raw_book_diffs_by_block` | Needed for open-order state; also requires non-BTC/ETH order activity for relevant accounts to preserve reserved-margin exactness |
 | Oracle / mark price updates | `replay-exact candidate` | `filtered/hip3_oracle_updates_by_block` | For Hyperliquid perps this must use the perp deployer mark stream (`hyna:BTC`, `hyna:ETH`), not `cash:BTC` |
-| Collateral adjustments / deposits / withdrawals | `not reconstructable between snapshots` | no confirmed local stream yet | No filtered transfer/collateral-adjustment stream has been identified in the current inventory |
-| Funding rates | `available, application timing unproven` | `ccxt-data-pipeline/data/catalog/funding_rate/*HYPERLIQUID` | Rate history is local, but the exact node-side application schedule into account state is not yet confirmed |
-| Exact replay across the currently retained ~2d anchor window | `not yet proven` | ABCI + filtered + funding | Re-anchor proof is blocked until collateral-adjustment coverage and funding application timing are bounded |
+| Collateral adjustments / deposits / withdrawals | `not reconstructable between snapshots` | no confirmed local stream yet | Missing this stream blocks replay exactness because intra-window deposits/withdrawals change the liquidation threshold |
+| Funding rates | `available, application timing unproven` | `ccxt-data-pipeline/data/catalog/funding_rate/*HYPERLIQUID` | Rate history is local, but the exact node-side application schedule into account state is not yet confirmed; path-drift risk exists between anchors |
+| Exact replay across the currently retained ~2d anchor window | `not yet proven` | ABCI + filtered + funding | Re-anchor proof is blocked until collateral-adjustment coverage, funding application timing, and off-target activity are bounded |
 | Exact replay across `7d` | `not yet proven` | needs anchor at or before window start | Current local ABCI retention is only ~2d, so exact `7d` parity cannot be claimed yet |
 | CoinGlass-like visual smoothing / palette / chart rendering | `approximate` | sidecar only | Presentation layer, never source truth |
 | CoinGlass parity judgment | `derived` | comparison report | Depends on replay proof plus modeling choices |
@@ -108,20 +108,22 @@ account subtree needed to re-check or re-parse state later.
 A replay window can be called exact only if all of the following hold:
 
 - there is an anchor at or before the window start
-- relevant accounts are selected without dropping off-target exposures
-- all collateral adjustments and funding applications affecting those accounts are either observed directly or zero-drift-proven against the next anchor
-- sidecar state at later anchors matches the raw anchor state for these target fields:
+- relevant accounts are selected without dropping off-target exposures (positions OR orders)
+- all collateral adjustments and funding applications for those accounts are captured; matching a later anchor only validates the endpoint, not the path between anchors (intra-window drift risk)
+- sidecar state at later anchors matches the raw anchor state for these **Target Invariants**:
   - USDC balance / collateral state
   - position size for all assets retained on the account
   - per-position funding accumulator / margin-mode state
-  - open-order / reserved-margin state when present
+  - open-order / reserved-margin state
 - any remaining mismatches are explained as parser/decoder gaps and driven to zero before claiming parity
+
+Next-anchor zero-drift is a necessary but not sufficient condition for 'replay-exact' status. Without path-exactness (observed transfers and funding applications), the replay status remains bounded to the anchors.
 
 Without an anchor covering the window start, exact parity is not claimable. In the
 current local setup this means:
 
 - snapshot exactness is hard-confirmed at retained ABCI anchors over the current ~2d window
-- replay exactness between those anchors is still unproven until collateral-adjustment coverage and funding-application timing are bounded
+- replay exactness between those anchors is still unproven until path-drift risks (transfers, funding, off-target activity) are bounded
 - exact `7d` parity needs either longer-lived anchors or a generic compact checkpoint retained for at least `7d`
 
 ## First Builder V0 Parameters
