@@ -23,6 +23,7 @@ import json
 import math
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,6 +93,10 @@ def decode_coinglass_capture(capture_dir: Path, symbol: str) -> dict | None:
     with open(manifest_path) as f:
         manifest = json.load(f)
 
+    if not symbol.isalpha():
+        print(f"  WARNING: Invalid symbol: {symbol}", file=sys.stderr)
+        return None
+
     target_url = f"hyperliquid/topPosition/liqMap?symbol={symbol}"
     capture = None
     for prov in manifest.get("providers", []):
@@ -105,21 +110,31 @@ def decode_coinglass_capture(capture_dir: Path, symbol: str) -> dict | None:
         return None
 
     summary = {"captures": [capture]}
-    tmp_summary = Path("/tmp") / f"cg_{symbol.lower()}_compare.json"
-    with open(tmp_summary, "w") as f:
-        json.dump(summary, f)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        json.dump(summary, tmp)
+        tmp_path = tmp.name
 
     decode_script = PROJECT_ROOT / "scripts" / "coinglass_decode_standalone.js"
-    result = subprocess.run(
-        ["node", str(decode_script), "--summary", str(tmp_summary)],
-        capture_output=True, text=True, timeout=30,
-    )
+    try:
+        result = subprocess.run(
+            ["node", str(decode_script), "--summary", tmp_path],
+            capture_output=True, text=True, timeout=30,
+        )
+    except FileNotFoundError:
+        print("  WARNING: 'node' not found in PATH", file=sys.stderr)
+        return None
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
     if result.returncode != 0:
         print(f"  WARNING: Decode failed: {result.stderr[:200]}", file=sys.stderr)
         return None
 
-    return json.loads(result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        print(f"  WARNING: Decode output is not valid JSON: {result.stdout[:100]}", file=sys.stderr)
+        return None
 
 
 def load_coinglass_hyperliquid(
@@ -148,7 +163,7 @@ def load_coinglass_hyperliquid(
         if liq_px <= 0 or notional <= 0:
             continue
 
-        rounded_bin = math.floor(liq_px / bin_size) * bin_size
+        rounded_bin = round(math.floor(liq_px / bin_size + 1e-9) * bin_size, 10)
 
         if size > 0:
             dist.long_buckets[rounded_bin] = dist.long_buckets.get(rounded_bin, 0) + notional
@@ -469,7 +484,8 @@ def main() -> int:
     print_report(all_metrics)
 
     # Save combined report
-    combined_path = PROJECT_ROOT / "data/validation/comparison_hl_combined.json"
+    combined_path = PROJECT_ROOT / "data" / "validation" / "comparison_hl_combined.json"
+    combined_path.parent.mkdir(parents=True, exist_ok=True)
     combined = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "comparisons": all_metrics,

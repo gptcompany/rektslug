@@ -515,8 +515,8 @@ class SidecarPositionReconstructor:
             if oracles and isinstance(oracles, list):
                 raw_px = float(oracles[0].get("px", 0))
                 sz_dec = asset_meta.get(idx, {}).get("szDecimals", 0)
-                # Scaling confirmed: price * 10^(7 - szDecimals)
-                mark_prices[idx] = raw_px / (10 ** (7 - sz_dec))
+                # Oracle stores: actual_price * 10^(6 - szDecimals)
+                mark_prices[idx] = raw_px / (10 ** (6 - sz_dec))
 
         user_states_wrapper = cls0.get("user_states", {})
         user_to_state = user_states_wrapper.get("user_to_state", [])
@@ -580,7 +580,13 @@ class SidecarPositionReconstructor:
             if target_coin and not has_target:
                 continue
 
-            balance_raw = float(state.get("S", {}).get("r", 0))
+            # Balance = (u - sum(e)) / USDC_SCALE
+            # u: total account value numerator (deposits + realized + funding + position costs)
+            # e: total cost locked per position (|size| * entry * USDC_SCALE)
+            # Subtracting sum(e) gives the net USDC balance for equity calculation
+            u_raw = float(state.get("u", 0))
+            sum_e_raw = sum(float(p.get("e", 0)) for _, p in positions_raw if isinstance(p, dict))
+            balance_raw = u_raw - sum_e_raw
             user_str = to_user_str(user)
             reconstructed_users[user_str] = UserState(
                 user=user_str,
@@ -617,33 +623,31 @@ class SidecarPositionReconstructor:
 
         other_pnl = 0.0
         other_mmr = 0.0
-        cum_funding_total = 0.0
-        
+
         for p in user_state.positions:
-            cum_funding_total += p.cum_funding
             if p.coin == target_coin:
                 continue
-            
+
             mark = mark_prices.get(p.asset_idx, p.entry_px)
             notional = abs(p.size) * mark
             other_pnl += p.size * (mark - p.entry_px)
-            
+
             tiers = asset_margin_tiers.get(p.asset_idx, [])
             tier = self._get_margin_tier(notional, tiers)
             other_mmr += notional * tier["mmr_rate"] - tier["maintenance_deduction"]
 
+        # balance already reflects all past funding (stored as (u - sum(e)) / scale)
         balance = user_state.balance
-        # Use current target notional to estimate target MMR tier
         target_mark = mark_prices.get(target_pos.asset_idx, target_pos.entry_px)
         target_notional = abs(target_pos.size) * target_mark
         target_tiers = asset_margin_tiers.get(target_pos.asset_idx, [])
         target_tier = self._get_margin_tier(target_notional, target_tiers)
-        
+
         mmr_rate = target_tier["mmr_rate"]
         m_deduct = target_tier["maintenance_deduction"]
-        
-        # Cross-margin equation solving for P_target
-        account_base = balance + other_pnl - cum_funding_total
+
+        # Cross-margin: equity = balance + other_pnl + target_size*(P - entry) = total_mmr
+        account_base = balance + other_pnl
         
         if target_pos.size > 0:
             denom = target_pos.size * (1.0 - mmr_rate)

@@ -162,8 +162,8 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
                                 [
                                     b"\x01" * 20, # 20-byte address
                                     {
-
-                                        "S": {"r": 5444084712.0}, # 5444.08 USDC
+                                        "u": 16444084712.0, # u = balance*1e6 + sum(e) = 5444084712 + 11000000000
+                                        "S": {"r": 5444084712.0},
                                         "p": {
                                             "p": [
                                                 [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0}}], # 2.5 ETH, entry 2000, funding 0.1
@@ -175,7 +175,8 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
                                 [
                                     "0xuser2_string",
                                     {
-                                        "S": {"r": 500000000.0}, # 500.0 USDC
+                                        "u": 510000000.0, # u = 500000000 + 10000000
+                                        "S": {"r": 500000000.0},
                                         "p": {
                                             "p": [
                                                 [4, {"s": 10000, "e": 10000000, "M": 20.0, "l": {"C": 10.0}, "f": {"a": 0.0}}] # 100.0 SOL

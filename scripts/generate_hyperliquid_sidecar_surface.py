@@ -78,7 +78,7 @@ def main() -> int:
             # If no liquidation price or price is 0, they don't appear on the visible risk surface
             continue
             
-        rounded_bin = math.floor(liq_px / bin_size) * bin_size
+        rounded_bin = round(math.floor(liq_px / bin_size + 1e-9) * bin_size, 10)
         # Volume is current notional: abs(size) * mark
         mark = state.mark_prices.get(target_pos.asset_idx, target_pos.entry_px)
         notional = abs(target_pos.size) * mark
