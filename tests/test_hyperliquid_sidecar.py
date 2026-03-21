@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import msgpack
+
 from src.liquidationheatmap.hyperliquid.sidecar import (
     ExactnessGap,
     HyperliquidSidecarPrototypeBuilder,
     SidecarBuildRequest,
+    SidecarPositionReconstructor,
 )
 
 
@@ -133,3 +136,84 @@ def test_build_reports_anchor_candidate_without_overclaiming_snapshot_alignment(
     assert ExactnessGap.MISSING_START_ANCHOR not in plan.exactness_gaps
     assert plan.anchor_coverage.selection_granularity == "day"
     assert plan.anchor_coverage.start_anchor_candidate == anchor_day / "920000000.rmp"
+
+
+def test_load_abci_anchor_extracts_user_state(tmp_path):
+    anchor_file = tmp_path / "test.rmp"
+
+    # Mock snapshot structure: user_to_state and positions are lists of pairs
+    # metadata included for scaling
+    snapshot = {
+        "exchange": {
+            "locus": {
+                "cls": [
+                    {
+                        "meta": {
+                            "universe": [
+                                {"name": "BTC", "szDecimals": 5},
+                                {"name": "ETH", "szDecimals": 4},
+                                {"name": "ATOM", "szDecimals": 2},
+                                {"name": "HYPE", "szDecimals": 1},
+                                {"name": "SOL", "szDecimals": 2}
+                            ]
+                        },
+                        "user_states": {
+                            "user_to_state": [
+                                [
+                                    b"\x01" * 20, # 20-byte address
+                                    {
+
+                                        "S": {"r": 5444084712.0}, # 5444.08 USDC
+                                        "p": {
+                                            "p": [
+                                                [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0}}], # 2.5 ETH, entry 2000, funding 0.1
+                                                [0, {"s": 10000, "e": 6000000000, "M": 100.0, "l": {"C": 50.0}, "f": {"a": 500000.0}}] # 0.1 BTC, entry 60000, funding 0.5
+                                            ]
+                                        }
+                                    }
+                                ],
+                                [
+                                    "0xuser2_string",
+                                    {
+                                        "S": {"r": 500000000.0}, # 500.0 USDC
+                                        "p": {
+                                            "p": [
+                                                [4, {"s": 10000, "e": 10000000, "M": 20.0, "l": {"C": 10.0}, "f": {"a": 0.0}}] # 100.0 SOL
+                                            ]
+                                        }
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    anchor_file.write_bytes(msgpack.packb(snapshot))
+
+    reconstructor = SidecarPositionReconstructor()
+
+    # Test filtering for ETH (index 1)
+    state = reconstructor.load_abci_anchor(anchor_file, target_coin="ETH")
+
+    assert len(state.users) == 1
+    expected_user = "0x" + ("01" * 20)
+    assert expected_user in state.users
+    user1 = state.users[expected_user]
+    assert user1.balance == 5444.084712
+    assert len(user1.positions) == 2
+
+    eth_pos = next(p for p in user1.positions if p.coin == "ETH")
+    assert eth_pos.size == 2.5
+    assert eth_pos.entry_px == 2000.0
+    assert eth_pos.leverage == 20.0
+    assert eth_pos.cum_funding == 0.1
+
+    # Test filtering for SOL (index 4)
+    state_sol = reconstructor.load_abci_anchor(anchor_file, target_coin="SOL")
+    assert len(state_sol.users) == 1
+    assert "0xuser2_string" in state_sol.users
+    user2 = state_sol.users["0xuser2_string"]
+    assert user2.positions[0].size == 100.0

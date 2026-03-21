@@ -82,10 +82,11 @@
 
 ## Phase 5: ETH Prototype Builder
 
-- [ ] T024 Implement the first local `ETH 7d` prototype builder
-- [ ] T025 Generate a local `ETH 7d` risk-surface artifact from filtered node data
+- [X] T024 Implement the first local `ETH 7d` prototype builder
+- [X] T025 Generate a local `ETH 7d` risk-surface artifact from filtered node data
 - [ ] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
 - [ ] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
+- [ ] T033 Refine the V0 liquidation solver to handle multi-asset cross-margin equity/margin adjustments rather than simple 1-asset shock
 
 ## Phase 6: BTC Extension And Decision
 

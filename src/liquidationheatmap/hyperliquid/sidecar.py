@@ -15,6 +15,8 @@ from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 
+import msgpack
+
 from src.liquidationheatmap.models.profiles import get_profile
 
 DEFAULT_FILTERED_ROOT = Path("/media/sam/4TB-NVMe/hyperliquid/filtered")
@@ -49,6 +51,42 @@ class ExactnessGap(StrEnum):
     MISSING_COLLATERAL_STREAM = "missing_collateral_adjustment_stream"
     FUNDING_APPLICATION_UNPROVEN = "funding_application_timing_unproven"
     OFF_TARGET_ACTIVITY_UNBOUNDED = "off_target_activity_unbounded"
+
+
+@dataclass(frozen=True)
+class UserPosition:
+    """Reconstructed position state."""
+
+    coin: str
+    asset_idx: int
+    size: float
+    entry_px: float
+    leverage: float
+    cum_funding: float
+    margin: float
+
+
+@dataclass(frozen=True)
+class UserState:
+    """Reconstructed per-user state."""
+
+    user: str
+    balance: float
+    positions: tuple[UserPosition, ...]
+
+    @property
+    def has_active_positions(self) -> bool:
+        return any(p.size != 0 for p in self.positions)
+
+
+@dataclass(frozen=True)
+class SidecarState:
+    """The full reconstructed state for a set of relevant accounts."""
+
+    timestamp: datetime
+    users: dict[str, UserState]
+    mark_prices: dict[int, float]
+    mmr_rates: dict[int, float]
 
 
 @dataclass(frozen=True)
@@ -215,6 +253,22 @@ class HyperliquidSidecarPrototypeBuilder:
             catalog_sources=catalog_sources,
             exactness_gaps=tuple(gaps),
             notes=notes,
+        )
+
+    def reconstruct(self, request: SidecarBuildRequest) -> SidecarState:
+        """Perform the first position-state reconstruction iteration.
+
+        Currently this is 'snapshot-only' - it loads the latest anchor in the window
+        and builds the risk surface from it, without replaying events yet.
+        """
+        plan = self.build(request)
+        if not plan.anchor_coverage.latest_anchor_in_window:
+            raise ValueError(f"No anchors available in window for {request.symbol}")
+
+        reconstructor = SidecarPositionReconstructor()
+        return reconstructor.load_abci_anchor(
+            plan.anchor_coverage.latest_anchor_in_window,
+            target_coin=request.target_coin,
         )
 
     def resolve_bin_size(self, request: SidecarBuildRequest) -> float:
@@ -398,3 +452,174 @@ def parse_day_dir(value: str) -> date | None:
 def latest_file(root: Path, file_glob: str) -> Path | None:
     files = sorted(root.glob(file_glob))
     return files[-1] if files else None
+
+
+class SidecarPositionReconstructor:
+    """Engine for account-level state reconstruction from Hyperliquid sources."""
+
+    def load_abci_anchor(self, path: Path, *, target_coin: str | None = None) -> SidecarState:
+        """Load and decode a MessagePack ABCI snapshot."""
+        with path.open("rb") as f:
+            raw_data = f.read()
+
+        snapshot = msgpack.unpackb(raw_data, strict_map_key=False)
+
+        locus = snapshot.get("exchange", {}).get("locus", {})
+        cls_list = locus.get("cls", [])
+        if not cls_list or not isinstance(cls_list, list):
+            raise ValueError(f"Invalid ABCI snapshot format at {path}: missing cls")
+
+        cls0 = cls_list[0]
+        meta = cls0.get("meta", {})
+        universe_raw = meta.get("universe", [])
+        asset_meta: dict[int, dict] = {}
+        for idx, asset in enumerate(universe_raw):
+            asset_meta[idx] = {
+                "name": asset.get("name"),
+                "szDecimals": asset.get("szDecimals", 0),
+                "marginTableId": asset.get("marginTableId"),
+            }
+
+        # Extract MMR rates from margin tables
+        margin_tables_raw = meta.get("marginTableIdToMarginTable", [])
+        table_to_mmr: dict[int, float] = {}
+        for item in margin_tables_raw:
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                continue
+            table_id, table_data = item[0], item[1]
+            tiers = table_data.get("margin_tiers", [])
+            if tiers:
+                # MMR = 1 / max_leverage (standard for cross-margin)
+                table_to_mmr[table_id] = 1.0 / float(tiers[0].get("max_leverage", 50))
+
+        mmr_rates: dict[int, float] = {}
+        for idx, m in asset_meta.items():
+            mmr_rates[idx] = table_to_mmr.get(m["marginTableId"], 0.01)
+
+        # Extract Oracle prices
+        pxs_raw = cls0.get("oracle", {}).get("pxs", [])
+        mark_prices: dict[int, float] = {}
+        for idx, oracles in enumerate(pxs_raw):
+            if oracles and isinstance(oracles, list):
+                raw_px = float(oracles[0].get("px", 0))
+                sz_dec = asset_meta.get(idx, {}).get("szDecimals", 0)
+                # Scaling confirmed: price * 10^(7 - szDecimals)
+                mark_prices[idx] = raw_px / (10 ** (7 - sz_dec))
+
+        user_states_wrapper = cls0.get("user_states", {})
+        user_to_state = user_states_wrapper.get("user_to_state", [])
+
+        USDC_SCALE = 1e6
+        reconstructed_users: dict[str, UserState] = {}
+
+        def to_user_str(u) -> str:
+            if isinstance(u, bytes):
+                if len(u) == 20:
+                    return "0x" + u.hex()
+                try:
+                    return u.decode()
+                except UnicodeDecodeError:
+                    return u.hex()
+            return str(u)
+
+        for item in user_to_state:
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                continue
+            
+            user, state = item[0], item[1]
+            positions_raw = state.get("p", {}).get("p", [])
+            if not positions_raw:
+                continue
+
+            positions: list[UserPosition] = []
+            has_target = False
+
+            for p_item in positions_raw:
+                if not isinstance(p_item, (list, tuple)) or len(p_item) < 2:
+                    continue
+                
+                asset_idx, p = p_item[0], p_item[1]
+                m = asset_meta.get(asset_idx)
+                if not m or not m["name"]:
+                    continue
+                
+                if target_coin and m["name"] == target_coin:
+                    has_target = True
+
+                size_raw = float(p.get("s", 0))
+                if size_raw == 0:
+                    continue
+
+                size_scaled = size_raw / (10 ** m["szDecimals"])
+                total_cost_scaled = float(p.get("e", 0)) / USDC_SCALE
+                entry_px = total_cost_scaled / abs(size_scaled)
+                
+                pos = UserPosition(
+                    coin=m["name"],
+                    asset_idx=asset_idx,
+                    size=size_scaled,
+                    entry_px=entry_px,
+                    margin=float(p.get("M", 0)),
+                    leverage=float(p.get("l", {}).get("C", 1.0)),
+                    cum_funding=float(p.get("f", {}).get("a", 0)) / USDC_SCALE,
+                )
+                positions.append(pos)
+
+            if target_coin and not has_target:
+                continue
+
+            balance_raw = float(state.get("S", {}).get("r", 0))
+            user_str = to_user_str(user)
+            reconstructed_users[user_str] = UserState(
+                user=user_str,
+                balance=balance_raw / USDC_SCALE,
+                positions=tuple(positions),
+            )
+
+        timestamp = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+
+        return SidecarState(
+            timestamp=timestamp,
+            users=reconstructed_users,
+            mark_prices=mark_prices,
+            mmr_rates=mmr_rates,
+        )
+
+    def solve_liquidation_price(
+        self,
+        user_state: UserState,
+        target_coin: str,
+        mark_prices: dict[int, float],
+        mmr_rates: dict[int, float],
+    ) -> float | None:
+        """Solve the cross-margin liquidation price for a target coin."""
+        target_pos = next((p for p in user_state.positions if p.coin == target_coin), None)
+        if not target_pos or target_pos.size == 0:
+            return None
+
+        other_pnl = 0.0
+        other_mmr = 0.0
+        for p in user_state.positions:
+            if p.coin == target_coin:
+                continue
+            
+            mark = mark_prices.get(p.asset_idx, p.entry_px)
+            other_pnl += p.size * (mark - p.entry_px)
+            other_mmr += abs(p.size) * mark * mmr_rates.get(p.asset_idx, 0.01)
+
+        balance = user_state.balance
+        mmr_target = mmr_rates.get(target_pos.asset_idx, 0.01)
+        
+        # Cross-margin equation solving for P_target
+        if target_pos.size > 0:
+            denom = target_pos.size * (1.0 - mmr_target)
+            numerator = other_mmr + (target_pos.size * target_pos.entry_px) - balance - other_pnl
+        else:
+            denom = target_pos.size * (1.0 + mmr_target)
+            numerator = other_mmr + (target_pos.size * target_pos.entry_px) - balance - other_pnl
+
+        if abs(denom) < 1e-9:
+            return 0.0
+            
+        liq_px = numerator / denom
+        return max(0.0, liq_px)
