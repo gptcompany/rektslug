@@ -19,11 +19,12 @@ relevant account, including accounts that also carry off-target asset exposure.
 |----------|--------|----------------|-------|
 | Account raw state at snapshot time | `snapshot-exact` | `periodic_abci_states` | Applies only at retained ABCI timestamps |
 | Multi-asset positions, margin, leverage, funding fields at snapshot time | `snapshot-exact` | `periodic_abci_states` | Relevant accounts must retain all assets, not just BTC/ETH |
-| BTC/ETH fills and liquidation events inside filtered retention | `replay-exact candidate` | `filtered/node_fills_by_block` | Event ordering is block-native; exactness still depends on anchor coverage |
+| BTC/ETH fills and liquidation events inside filtered retention | `replay-exact candidate` | `filtered/node_fills_by_block` | Event ordering is block-native, but exactness still depends on collateral/funding coverage between anchors |
 | BTC/ETH order lifecycle and open-order deltas | `replay-exact candidate` | `filtered/node_order_statuses_by_block`, `filtered/node_raw_book_diffs_by_block` | Needed for open-order and reserved-margin state |
-| Oracle / mark price updates | `replay-exact candidate` | `filtered/hip3_oracle_updates_by_block` | Used to revalue positions and recompute liq thresholds |
-| Funding updates across the retained window | `replay-exact candidate` | `ccxt-data-pipeline/data/catalog/funding_rate/*HYPERLIQUID` | Local mirror exists, but exact application schedule must match replay logic |
-| Exact replay across the currently retained ~2d anchor window | `provable-now` | ABCI + filtered + funding | Must be validated by re-anchoring against later ABCI snapshots |
+| Oracle / mark price updates | `replay-exact candidate` | `filtered/hip3_oracle_updates_by_block` | For Hyperliquid perps this must use the perp deployer mark stream (`hyna:BTC`, `hyna:ETH`), not `cash:BTC` |
+| Collateral adjustments / deposits / withdrawals | `not reconstructable between snapshots` | no confirmed local stream yet | No filtered transfer/collateral-adjustment stream has been identified in the current inventory |
+| Funding rates | `available, application timing unproven` | `ccxt-data-pipeline/data/catalog/funding_rate/*HYPERLIQUID` | Rate history is local, but the exact node-side application schedule into account state is not yet confirmed |
+| Exact replay across the currently retained ~2d anchor window | `not yet proven` | ABCI + filtered + funding | Re-anchor proof is blocked until collateral-adjustment coverage and funding application timing are bounded |
 | Exact replay across `7d` | `not yet proven` | needs anchor at or before window start | Current local ABCI retention is only ~2d, so exact `7d` parity cannot be claimed yet |
 | CoinGlass-like visual smoothing / palette / chart rendering | `approximate` | sidecar only | Presentation layer, never source truth |
 | CoinGlass parity judgment | `derived` | comparison report | Depends on replay proof plus modeling choices |
@@ -35,10 +36,10 @@ An account becomes BTC/ETH-relevant for a given analysis window if any of the fo
 - it holds a BTC or ETH position in an ABCI anchor inside or immediately before the window
 - it appears in BTC or ETH fills/liquidations during the window
 - it appears in BTC or ETH order-status or raw-book-diff events during the window
-- it contributes to BTC/ETH liquidation semantics through cross-margin because the same account also carries off-target exposure while being BTC/ETH-relevant
 
-Relevance is sticky for the whole analysis window. Once an account is marked relevant,
-the sidecar must retain its full account state, including off-target assets.
+Relevance is sticky for the whole analysis window. If primary BTC/ETH relevance is true,
+the sidecar must retain the full account state, including off-target assets and any
+margin-affecting open-order state needed for cross-margin exactness.
 
 ## Retained Account State V0
 
@@ -51,7 +52,7 @@ Lossless per-account state captured from ABCI anchors for each relevant account:
 
 - `snapshot_ref`: source path, block identifier, snapshot timestamp, universe/version hash
 - `user_state_raw`: full decoded `user_to_state` entry for that account
-- `open_order_tracker_raw`: any matching open-order / reserved-margin subtree needed for exact replay
+- `open_order_tracker_raw`: any matching open-order / reserved-margin subtree from `user_states.open_order_tracker`; presence is confirmed in the ABCI snapshots, but structured extraction still needs explicit inventory
 - `users_with_positions_flag`: whether the account is active in the anchor
 - `raw_hash`: stable digest of the retained raw subtree for later drift checks
 
@@ -108,13 +109,19 @@ A replay window can be called exact only if all of the following hold:
 
 - there is an anchor at or before the window start
 - relevant accounts are selected without dropping off-target exposures
-- sidecar state at later anchors matches the raw anchor state for invariant account fields
+- all collateral adjustments and funding applications affecting those accounts are either observed directly or zero-drift-proven against the next anchor
+- sidecar state at later anchors matches the raw anchor state for these target fields:
+  - USDC balance / collateral state
+  - position size for all assets retained on the account
+  - per-position funding accumulator / margin-mode state
+  - open-order / reserved-margin state when present
 - any remaining mismatches are explained as parser/decoder gaps and driven to zero before claiming parity
 
 Without an anchor covering the window start, exact parity is not claimable. In the
 current local setup this means:
 
-- exactness is provable now for the retained ~2d ABCI window
+- snapshot exactness is hard-confirmed at retained ABCI anchors over the current ~2d window
+- replay exactness between those anchors is still unproven until collateral-adjustment coverage and funding-application timing are bounded
 - exact `7d` parity needs either longer-lived anchors or a generic compact checkpoint retained for at least `7d`
 
 ## First Builder V0 Parameters
@@ -145,6 +152,7 @@ Not allowed inside the node:
 
 ## Immediate Implementation Consequences
 
+- `T017` must remain open until transfer/collateral coverage and funding-application timing are explicitly bounded.
 - `T018` is satisfied by the exactness envelope above.
 - `T020` is satisfied by `Retained Account State V0` and the relevant-account rule.
 - `T022` is satisfied by the explicit anchor/retention constraint for `2d` vs `7d`.

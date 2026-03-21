@@ -150,9 +150,11 @@ go / no-go Hyperliquid parity decision
 
 1. inventory the actual schema and local availability of
    `node_order_statuses_by_block`, `node_raw_book_diffs_by_block`, mark/oracle,
-   funding, and collateral/equity-adjustment inputs
+   transfer/collateral-adjustment coverage, funding-rate inputs, and funding
+   application timing
 2. prove the exactness envelope: `snapshot-exact` over retained ABCI anchors vs
-   `7d replay exactness` still to be demonstrated
+   replay between anchors, which is still unproven until collateral/funding
+   gaps are bounded
 3. formalize the sidecar retained account-state format needed to preserve exact
    cross-margin semantics for BTC/ETH-relevant accounts
 4. generate a first local `ETH 7d` risk-surface artifact
@@ -189,6 +191,10 @@ go / no-go Hyperliquid parity decision
 ## Risks
 
 - assuming fills alone are sufficient to reconstruct future liquidation risk
+- missing transfer / deposit / withdrawal / collateral-adjustment events and
+  silently drifting account equity between anchors
+- treating funding-rate history as sufficient without proving the exact node-side
+  funding application timing
 - approximating away non-target positions for BTC/ETH-relevant accounts and
   silently breaking cross-margin liquidation semantics
 - pushing parity-specific reconstruction logic into `hyperliquid-node` and

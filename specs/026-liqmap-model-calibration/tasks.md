@@ -39,12 +39,12 @@
   - **diff types**: `new` (new order, subkey: sz), `update` (size change)
   - **Coins**: BTC, ETH, HYPE | **Sides**: A, B
   - **Relevance**: Full order book reconstruction possible; per-price-level depth snapshots for book-aware impact overlay
-- [X] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
+- [ ] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
   - **Available locally** (9 days: 2026-03-12 → 2026-03-20):
     - `node_fills_by_block/hourly/` — exact fill prices, sizes, directions (Close Long/Short for liquidations)
     - `node_order_statuses_by_block/hourly/` — order lifecycle including `filled` events with limitPx/sz
     - `node_raw_book_diffs_by_block/hourly/` — per-user book deltas at block granularity
-    - `hip3_oracle_updates_by_block/hourly/` — mark_px + oracle_px per coin (BTC as `cash:BTC`, ETH as `hyna:ETH`)
+    - `hip3_oracle_updates_by_block/hourly/` — `coin_to_mark_px`, `coin_to_oracle_px`, and `coin_to_external_perp_px`; for Hyperliquid perps the current target mapping is `hyna:BTC` / `hyna:ETH`, not `cash:BTC`
   - **Also available via ccxt-data-pipeline** (Docker, `/data/catalog/`):
     - `funding_rate/BTCUSDT-PERP.HYPERLIQUID/` — 52 days of parquet (2026-01-28 → 2026-03-20)
     - `funding_rate/ETHUSDT-PERP.HYPERLIQUID/` — same coverage
@@ -60,12 +60,15 @@
         - `S.s` / `S.r` — USDC balance (scaled integers)
         - `p.p[]` — positions by asset index (`[0]=BTC`, `[1]=ETH`, `[5]=SOL`, 229 total)
         - Per-position: `l.C` (cross leverage), `l.I` (isolated leverage), `M` (margin), `f.a` (cumulative funding)
+      - `open_order_tracker`: key presence confirmed in the `.rmp` snapshots; structured extraction/inventory still needs explicit parser work
       - `users_with_positions`: **59,596** active users
       - `asset_to_oi_szi`: aggregate OI per asset (BTC=2.85B szi, ETH=5.89B szi)
     - **Account equity is directly anchorable at snapshot times** from balances plus position/funding state; this is confirmed for the retained `2d` ABCI window
-    - **Open proof item**: exact `7d` replay still needs to be demonstrated from snapshots + filtered streams across the full candidate window
+  - **Missing / unconfirmed for replay-exact between snapshots**:
+    - no transfer / deposit / withdrawal / collateral-adjustment stream has been identified in the current filtered inventory
+    - no node-side funding application / heartbeat event has been confirmed; local funding-rate history exists, but the application schedule into account state is not yet proven
   - **Maintenance margin rates** — Hyperliquid uses cross-margin with fixed 3% initial / 1% maintenance; no per-tier lookup needed
-  - **Conclusion**: ALL major inputs for high-fidelity reconstruction are locally available, but the certainty level differs: `2d` is snapshot-anchored, while exact `7d` replay remains to be proven
+  - **Conclusion**: snapshot anchoring is locally strong, but replay-exact between snapshots is still unproven and T017 stays open until collateral-adjustment coverage and funding-application timing are bounded
 
 ## Phase 4: Reconstruction Design
 
@@ -90,6 +93,7 @@
 - [ ] T029 Write a Rektslug-vs-CoinGlass Hyperliquid comparison memo for `BTC` and `ETH`
 - [ ] T030 Record whether `1:1` Hyperliquid parity is viable, best-effort only, or rejected
 - [ ] T031 Document repeatable capture, decode, and comparison commands for future reruns
+- [ ] T032 If exact `7d` parity still depends on longer-lived anchors or a generic checkpoint exporter, track that node-side dependency explicitly as blocked infrastructure work
 
 ## Completion Notes
 
@@ -109,6 +113,7 @@
 - Reconstruction-input decision:
   - the target high-fidelity path should include mark/oracle, funding, and collateral/equity adjustments in addition to fills, order statuses, and raw book diffs
   - exact BTC/ETH parity must preserve account-level cross-margin semantics even when the relevant wallets hold off-target assets
+  - replay-exact between ABCI anchors remains unproven until collateral-adjustment coverage and funding-application timing are explicitly bounded
 - Architecture decision:
   - implement the BTC/ETH parity/reconstruction engine as a sidecar over canonical node outputs
   - keep `hyperliquid-node` limited to canonical collection/filtering/state export responsibilities, with only generic infrastructure changes allowed if the sidecar proves they are needed

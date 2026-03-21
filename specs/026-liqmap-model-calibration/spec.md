@@ -225,11 +225,12 @@ Absolute dollar values are less important than relative distribution.
   the target high-fidelity reconstruction path, mark/oracle, funding, and
   collateral/equity adjustments should be treated as required inputs rather
   than optional refinements.
-- F-009: The strongest local reconstruction claim is currently
-  `snapshot-exact for ~2d`, not yet `proven exact for 7d`. The ABCI snapshots
-  confirm that account equity/state is observable locally, but extending that
-  to an exact `7d` replay still requires proof that filtered streams plus the
-  retained anchors are sufficient across the whole window.
+- F-009: The strongest hard local reconstruction claim is currently
+  `snapshot-exact at retained ABCI anchor times over ~2d`, not replay-exact
+  across the full `~2d` window and not proven exact for `7d`. Extending this
+  to replay-exact requires proof that collateral adjustments, funding
+  application timing, and other balance-moving events are fully observed
+  between anchors.
 - F-010: A preliminary `ETH` comparison shows no overlap between CoinGlass
   bucketized `liquidationPrice` peaks from the top-position feed and Rektslug
   `1d` / `7d` peaks derived from recent liquidation events. Therefore a simple
@@ -250,6 +251,13 @@ Absolute dollar values are less important than relative distribution.
   into a sidecar. This keeps BTC/ETH- and CoinGlass-specific reconstruction
   logic out of the node while still allowing generic node-side retention/export
   improvements if they become necessary.
+- F-014: Current local inventory does not yet identify a transfer / deposit /
+  withdrawal / collateral-adjustment stream, and the node docs mark funding
+  rate signals as missing from the core filtered outputs. Local funding-rate
+  history exists via `ccxt-data-pipeline`, but the exact node-side funding
+  application schedule is still unproven. Therefore replay-exact claims between
+  anchors must remain bounded until those gaps are explicitly closed or shown
+  to be zero-drift at re-anchor time.
 
 ### Investigation Plan
 - IP-001: Build an evidence matrix for CoinGlass Hyperliquid `BTC` and `ETH`
@@ -264,6 +272,10 @@ Absolute dollar values are less important than relative distribution.
   main page timeframe, reloading sessions, and varying symbol selection to test
   whether `api/hyperliquid/topPosition/liqMap` is fixed, implicit, or tied to
   hidden state.
+- IP-003a: Identify whether the local node/exported datasets include
+  collateral-adjustment events and an explicit funding-application signal. If
+  either remains missing, bound the parity path as snapshot-anchored rather
+  than replay-exact between anchors.
 - IP-004: Generate Rektslug Hyperliquid candidate maps from our L4/node data
   for the windows currently supported by local retention, at minimum `1d` and
   `7d` today, so CoinGlass can be compared against concrete alternatives
