@@ -4,6 +4,7 @@ import logging
 import math
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 from typing import Any, Optional
 from urllib.request import urlopen
 
@@ -17,6 +18,7 @@ from src.liquidationheatmap.api.heatmap_models import (
     HeatmapSnapshotResponse,
     HeatmapTimeseriesMetadata,
     HeatmapTimeseriesResponse,
+    HyperliquidPublicMapResponse,
     LiquidationResponse,
     TimeWindow,
 )
@@ -548,6 +550,77 @@ async def get_coinank_public_map(
             status_code=500,
             content={"error": exc.__class__.__name__, "detail": str(exc)},
         )
+
+
+_HL_CACHE_DIR = Path("data/cache")
+_HL_SUPPORTED_SYMBOLS = {"BTCUSDT", "ETHUSDT"}
+_HL_STALE_MINUTES = 30
+
+
+@router.get(
+    "/hl-public-map",
+    response_model=HyperliquidPublicMapResponse,
+    description="Hyperliquid sidecar liq-map from pre-computed ABCI snapshot data.",
+)
+async def get_hl_public_map(
+    symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
+    timeframe: str = Query("1w"),
+):
+    normalized_symbol = symbol.upper()
+    if normalized_symbol not in _HL_SUPPORTED_SYMBOLS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported Hyperliquid symbol '{symbol}'. "
+                f"Supported: {sorted(_HL_SUPPORTED_SYMBOLS)}"
+            ),
+        )
+    if timeframe.lower() not in ("1w",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported timeframe '{timeframe}'. Supported: ['1w']",
+        )
+
+    cache_file = _HL_CACHE_DIR / f"hl_sidecar_{normalized_symbol.lower()}.json"
+    if not cache_file.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Hyperliquid sidecar data not yet available. Pre-computation pending.",
+            headers={"Retry-After": "60"},
+        )
+
+    try:
+        raw = cache_file.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        logger.error("Corrupted HL sidecar cache %s: %s", cache_file, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Hyperliquid sidecar cache is temporarily corrupted. Retry shortly.",
+            headers={"Retry-After": "60"},
+        )
+
+    generated_at_str = data.get("generated_at", "")
+    try:
+        if generated_at_str.endswith("Z"):
+            generated_at_str_parse = generated_at_str[:-1] + "+00:00"
+        else:
+            generated_at_str_parse = generated_at_str
+        generated_at = datetime.fromisoformat(generated_at_str_parse)
+        if generated_at.tzinfo is None:
+            generated_at = generated_at.replace(tzinfo=timezone.utc)
+    except (ValueError, AttributeError):
+        generated_at = datetime.min.replace(tzinfo=timezone.utc)
+
+    age = datetime.now(timezone.utc) - generated_at
+    if age > timedelta(minutes=_HL_STALE_MINUTES):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Hyperliquid sidecar data is stale (last update: {generated_at_str}).",
+            headers={"Retry-After": "60"},
+        )
+
+    return HyperliquidPublicMapResponse(**data)
 
 
 @router.get("/heatmap", response_model=LiquidationResponse)

@@ -240,6 +240,7 @@
             window.__liqMapLoadError = null;
 
             try {
+                const isHyperliquid = exchange === 'hyperliquid';
                 const usePublicBuilder = _isCoinankPath
                     && SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)
                     && (timeframe === '1d' || timeframe === '1w')
@@ -247,18 +248,23 @@
                         explicitProfile === null
                         || explicitProfile === 'rektslug-ank-public'
                     );
-                const endpointPath = usePublicBuilder
-                    ? '/liquidations/coinank-public-map'
-                    : '/liquidations/levels';
-                const requestParams = usePublicBuilder
-                    ? new URLSearchParams({ symbol, timeframe })
-                    : new URLSearchParams({
+                let endpointPath, requestParams;
+                if (isHyperliquid) {
+                    endpointPath = '/liquidations/hl-public-map';
+                    requestParams = new URLSearchParams({ symbol, timeframe });
+                } else if (usePublicBuilder) {
+                    endpointPath = '/liquidations/coinank-public-map';
+                    requestParams = new URLSearchParams({ symbol, timeframe });
+                } else {
+                    endpointPath = '/liquidations/levels';
+                    requestParams = new URLSearchParams({
                         symbol,
                         model: 'openinterest',
                         timeframe: String(timeframeDays)
                     });
-                if (!usePublicBuilder && profile) {
-                    requestParams.set('profile', profile);
+                    if (profile) {
+                        requestParams.set('profile', profile);
+                    }
                 }
                 const response = await fetch(`${endpointPath}?${requestParams.toString()}`);
                 const rawText = await response.text();
@@ -283,7 +289,19 @@
                     );
                 }
 
-                const normalizedData = usePublicBuilder
+                // Stale warning for Hyperliquid data
+                if (isHyperliquid && data && data.generated_at) {
+                    const genTime = new Date(data.generated_at);
+                    const ageMinutes = (Date.now() - genTime.getTime()) / 60000;
+                    if (ageMinutes > 30) {
+                        const warningDiv = document.createElement('div');
+                        warningDiv.style.cssText = 'background:#fff3cd;color:#856404;padding:8px 16px;text-align:center;font-size:13px;border-bottom:1px solid #ffc107;';
+                        warningDiv.textContent = `Data may be outdated (last update: ${Math.round(ageMinutes)} min ago)`;
+                        document.body.prepend(warningDiv);
+                    }
+                }
+
+                const normalizedData = (isHyperliquid || usePublicBuilder)
                     ? ensureValidPublicMapPayload(data)
                     : normalizeLegacyLevelsPayload(ensureValidLegacyLevelsPayload(data), timeframeDays);
                 renderLiquidationMap(normalizedData, symbol);

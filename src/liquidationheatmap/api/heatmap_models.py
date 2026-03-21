@@ -65,3 +65,51 @@ class HeatmapTimeseriesResponse(BaseModel):
 
 # Re-add TimeWindow enum/literal if needed
 TimeWindow = Literal["1h", "4h", "12h", "1d", "48h", "3d", "7d", "14d", "30d", "90d", "1y"]
+
+
+class HyperliquidPublicBucket(BaseModel):
+    """Single price bucket in the Hyperliquid sidecar liq-map."""
+    price_level: float
+    leverage: str
+    volume: float
+
+
+class HyperliquidPublicCumulativePoint(BaseModel):
+    price_level: float
+    value: float
+
+
+class HyperliquidPublicGrid(BaseModel):
+    step: float
+    anchor_price: float
+    min_price: float
+    max_price: float
+
+
+class HyperliquidOutOfRangeVolume(BaseModel):
+    long: float = 0.0
+    short: float = 0.0
+
+
+class HyperliquidPublicMapResponse(BaseModel):
+    """Dedicated response model for Hyperliquid sidecar liquidation map.
+
+    NOT reusing CoinankPublicMapResponse because it has different fields
+    (account_count, generated_at, mark_price, out_of_range_volume).
+    """
+    source: str = "hyperliquid-sidecar"
+    symbol: str
+    timeframe: str
+    current_price: float
+    mark_price: float
+    account_count: int
+    generated_at: str
+    grid: HyperliquidPublicGrid
+    leverage_ladder: List[str]
+    long_buckets: List[HyperliquidPublicBucket]
+    short_buckets: List[HyperliquidPublicBucket]
+    cumulative_long: List[HyperliquidPublicCumulativePoint]
+    cumulative_short: List[HyperliquidPublicCumulativePoint]
+    out_of_range_volume: HyperliquidOutOfRangeVolume
+    source_anchor: str
+    bin_size: float
