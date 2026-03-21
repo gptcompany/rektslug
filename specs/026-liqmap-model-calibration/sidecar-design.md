@@ -76,3 +76,63 @@ current local setup this means:
 - `T022` is satisfied by the logic distinguishing `1d` vs `7d` for `2d` vs `7d`.
 - `T023` is satisfied by this note and the node/sidecar boundary it defines.
 - `T021` is satisfied by `First Builder V0 Parameters`, which reuses the repo bin-size resolver and fixes the first accumulation/side-split choice.
+
+## Repeatable Commands
+
+### 1. Generate sidecar risk-surface artifact
+
+```bash
+# ETH 7d
+uv run python scripts/generate_hyperliquid_sidecar_surface.py \
+  --symbol ETH --timeframe-days 7 \
+  --analysis-end "2026-03-21T00:00:00Z" \
+  --output data/validation/liqmap_hl_eth_7d.json
+
+# BTC 7d
+uv run python scripts/generate_hyperliquid_sidecar_surface.py \
+  --symbol BTC --timeframe-days 7 \
+  --analysis-end "2026-03-21T00:00:00Z" \
+  --output data/validation/liqmap_hl_btc_7d.json
+```
+
+### 2. Capture CoinGlass Hyperliquid reference
+
+```bash
+# Browser capture (ETH+BTC in same session via Hyperliquid widget)
+uv run python scripts/capture_provider_api.py \
+  --provider coinglass --coin ETH --timeframe 1w \
+  --exchange hyperliquid --coinglass-mode browser
+```
+
+The browser capture automatically fetches both `liqMap?symbol=BTC` and `liqMap?symbol=ETH` endpoints in a single session.
+
+### 3. Decode CoinGlass payload
+
+```bash
+# Decode a specific capture file using manifest info
+python3 -c "
+import json
+with open('data/validation/raw_provider_api/<TIMESTAMP>/manifest.json') as f:
+    m = json.load(f)
+for cap in m['providers'][0]['captures']:
+    if 'hyperliquid/topPosition/liqMap?symbol=BTC' in cap.get('source_url', ''):
+        with open('/tmp/cg_btc_summary.json', 'w') as f:
+            json.dump({'captures': [cap]}, f)
+        break
+"
+node scripts/coinglass_decode_standalone.js --summary /tmp/cg_btc_summary.json | python3 -m json.tool
+```
+
+### 4. Run comparison
+
+```bash
+# Both ETH and BTC with default paths
+uv run python scripts/compare_hl_sidecar_vs_coinglass.py --all
+
+# Single symbol
+uv run python scripts/compare_hl_sidecar_vs_coinglass.py \
+  --symbol ETH \
+  --sidecar data/validation/liqmap_hl_eth_7d.json \
+  --capture-dir data/validation/raw_provider_api/20260320T183129Z \
+  --output data/validation/comparison_hl_eth.json
+```

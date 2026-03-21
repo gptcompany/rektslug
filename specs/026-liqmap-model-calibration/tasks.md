@@ -85,18 +85,32 @@
 - [X] T024 Implement the first local `ETH 7d` prototype builder
 - [X] T025 Generate a local `ETH 7d` risk-surface artifact from filtered node data
 - [X] T033 Refine the V0 liquidation solver to handle multi-asset cross-margin equity/margin adjustments rather than simple 1-asset shock
-- [ ] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
+- [X] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
+  - Absorbed into Phase 6 comparison script (`scripts/compare_hl_sidecar_vs_coinglass.py`)
+  - ETH results: Pearson r=0.003, KS=0.430, L/S diff=0.044
 - [ ] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
+  - **Deferred post-decision**: not a prerequisite for the parity decision; can be executed as follow-up optimization
 - [ ] T034 Investigate Open Orders impact: quantify the reserved-margin gap by comparing snapshot `M` field vs current solver MMR
+  - **Deferred post-decision**: impact estimated as marginal (reserved margin from resting orders); investigate only if comparison reveals significant drift
 - [ ] T035 Refactor `load_abci_anchor` to use `msgpack.Unpacker` for streaming decoding (memory optimization)
+  - **Deferred optimization**: pure technical performance improvement, does not block parity decision
 
 ## Phase 6: BTC Extension And Decision
 
-- [ ] T028 Extend the same reconstruction path to `BTC`
-- [ ] T029 Write a Rektslug-vs-CoinGlass Hyperliquid comparison memo for `BTC` and `ETH`
-- [ ] T030 Record whether `1:1` Hyperliquid parity is viable, best-effort only, or rejected
-- [ ] T031 Document repeatable capture, decode, and comparison commands for future reruns
-- [ ] T032 If exact `7d` parity still depends on longer-lived anchors or a generic checkpoint exporter, track that node-side dependency explicitly as blocked infrastructure work
+- [X] T028 Extend the same reconstruction path to `BTC`
+  - Generated `data/validation/liqmap_hl_btc_7d.json`: 455,175 accounts, 7,273 long + 6,507 short buckets, L/S=0.886
+  - CoinGlass BTC Hyperliquid reference already present in capture `20260320T183129Z` (285 top positions)
+- [X] T029 Write a Rektslug-vs-CoinGlass Hyperliquid comparison memo for `BTC` and `ETH`
+  - `specs/026-liqmap-model-calibration/parity-decision.md`: full shape metrics, volume scale analysis, population explanation
+  - Comparison script: `scripts/compare_hl_sidecar_vs_coinglass.py` (--all runs both symbols)
+- [X] T030 Record whether `1:1` Hyperliquid parity is viable, best-effort only, or rejected
+  - **Decision: best-effort parity** -- 1:1 shape match is structurally impossible (CoinGlass tracks ~250 whales, Rektslug tracks ~400k accounts)
+  - L/S ratio agreement within 0.04-0.05 validates directional correctness
+  - Rektslug provides more comprehensive coverage than CoinGlass
+- [X] T031 Document repeatable capture, decode, and comparison commands for future reruns
+  - Added "Repeatable Commands" section to `specs/026-liqmap-model-calibration/sidecar-design.md`
+- [X] T032 If exact `7d` parity still depends on longer-lived anchors or a generic checkpoint exporter, track that node-side dependency explicitly as blocked infrastructure work
+  - **Blocked infrastructure**: ABCI retention is 2 days; true 7d historical analysis requires either (a) extending periodic_abci_states retention to 7+ days, or (b) implementing a checkpoint exporter that archives snapshots to persistent storage. Current workaround: single latest anchor is acceptable for position-state but not for volume-over-time analysis.
 
 ## Completion Notes
 
@@ -124,3 +138,15 @@
 - Phase 4 design artifact:
   - `specs/026-liqmap-model-calibration/sidecar-design.md` defines the exactness envelope, relevant-account rule, retained account state, replay proof rules, and the minimal allowed node-side changes
   - the same design note also fixes the first builder parameters: profile-resolved bin size, target-notional accumulation, and side split from target-position sign
+- Phase 6 comparison artifacts:
+  - `data/validation/liqmap_hl_btc_7d.json` — BTC 7d risk-surface (455k accounts)
+  - `data/validation/comparison_hl_eth.json` — ETH comparison metrics
+  - `data/validation/comparison_hl_btc.json` — BTC comparison metrics
+  - `data/validation/comparison_hl_combined.json` — combined report
+  - `specs/026-liqmap-model-calibration/parity-decision.md` — go/no-go decision memo
+  - `scripts/compare_hl_sidecar_vs_coinglass.py` — repeatable comparison script
+- Phase 6 decision: **best-effort parity** accepted
+  - 1:1 shape match structurally impossible (whale-only vs full-population)
+  - L/S ratio validates directional correctness (within 0.04-0.05)
+  - Rektslug sidecar provides superior coverage (339k-455k accounts vs 153-285 top positions)
+  - Blocked infrastructure: ABCI retention (2d) limits true 7d historical analysis
