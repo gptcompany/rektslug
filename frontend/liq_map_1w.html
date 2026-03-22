@@ -96,6 +96,14 @@
 
         function getLeverageGroups(profileName, liquidations) {
             const availableTiers = new Set((liquidations || []).map(liq => liq.leverage));
+
+            // Hyperliquid sidecar uses 'cross' as single leverage tier
+            if (availableTiers.has('cross')) {
+                return {
+                    'Cross margin': { tiers: ['cross'], color: '#5B8FF9' }
+                };
+            }
+
             const hasCoinankStyleTiers = (
                 availableTiers.has('25x') &&
                 availableTiers.has('50x') &&

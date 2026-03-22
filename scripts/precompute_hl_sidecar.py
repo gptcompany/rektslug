@@ -37,10 +37,6 @@ TIMEFRAME_DAYS = 7
 # Outlier threshold: bins beyond 5x or below 0.1x mark price are segregated
 OUTLIER_HIGH_MULT = 5.0
 OUTLIER_LOW_MULT = 0.1
-# CoinAnK-compatible leverage ladder
-LEVERAGE_LADDER = [
-    "25x", "30x", "40x", "50x", "60x", "70x", "80x", "90x", "100x",
-]
 
 
 def _compute_display_range(
@@ -130,7 +126,14 @@ def generate_symbol(symbol: str) -> dict | None:
         if target_asset_idx is not None:
             break
 
-    mark_price = state.mark_prices.get(target_asset_idx, 0.0) if target_asset_idx is not None else 0.0
+    if target_asset_idx is None:
+        logger.warning("%s: no user has a %s position, skipping", symbol, target_coin)
+        return None
+
+    mark_price = state.mark_prices.get(target_asset_idx)
+    if not mark_price or mark_price <= 0:
+        logger.warning("%s: mark price unavailable for asset %d, skipping", symbol, target_asset_idx)
+        return None
     current_price = mark_price
 
     long_buckets: dict[float, float] = {}
