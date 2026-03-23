@@ -61,6 +61,21 @@ def parse_analysis_end(raw: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def to_jsonable(value: object) -> object:
+    if isinstance(value, dict):
+        return {str(key): to_jsonable(val) for key, val in value.items()}
+    if hasattr(value, "items") and not isinstance(value, (str, bytes, bytearray)):
+        try:
+            return {str(key): to_jsonable(val) for key, val in value.items()}
+        except TypeError:
+            pass
+    if isinstance(value, tuple):
+        return [to_jsonable(item) for item in value]
+    if isinstance(value, list):
+        return [to_jsonable(item) for item in value]
+    return value
+
+
 def main() -> int:
     args = parse_args()
     request = SidecarBuildRequest(
@@ -159,7 +174,7 @@ def main() -> int:
                 "target_coin_exposure_increasing_upper_bound": bounds.target_coin_exposure_increasing_upper_bound,
                 "off_target_exposure_increasing_lower_bound": bounds.off_target_exposure_increasing_lower_bound,
                 "off_target_exposure_increasing_upper_bound": bounds.off_target_exposure_increasing_upper_bound,
-                "per_coin": bounds.per_coin,
+                "per_coin": to_jsonable(bounds.per_coin),
             }
         )
 

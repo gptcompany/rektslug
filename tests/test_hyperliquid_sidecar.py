@@ -525,6 +525,110 @@ def test_reconstruct_resting_orders_from_blocks_tracks_active_orders_and_filters
     assert active_order.extra_fields["block_number"] == 101
 
 
+def test_reconstruct_resting_orders_from_blocks_drops_stale_metadata_after_terminal_or_remove():
+    reconstructor = SidecarPositionReconstructor()
+    order_status_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {
+                    "user": "0xkeep",
+                    "status": "open",
+                    "hash": "0xabc",
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "B",
+                        "limitPx": "2000.0",
+                        "sz": "1.0",
+                        "origSz": "1.0",
+                        "oid": 11,
+                        "timestamp": 1234,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": False,
+                        "orderType": "Limit",
+                        "tif": "Gtc",
+                        "cloid": None,
+                    },
+                },
+                {
+                    "user": "0xkeep",
+                    "status": "canceled",
+                    "hash": None,
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "B",
+                        "limitPx": "2000.0",
+                        "sz": "1.0",
+                        "origSz": "1.0",
+                        "oid": 11,
+                        "timestamp": 1235,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": False,
+                        "orderType": "Limit",
+                        "tif": "Gtc",
+                        "cloid": None,
+                    },
+                },
+            ],
+        }
+    ]
+    raw_book_diff_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {
+                    "user": "0xkeep",
+                    "oid": 11,
+                    "coin": "ETH",
+                    "side": "B",
+                    "px": "2000.0",
+                    "raw_book_diff": {"new": {"sz": "1.0"}},
+                },
+                {
+                    "user": "0xkeep",
+                    "oid": 11,
+                    "coin": "ETH",
+                    "side": "A",
+                    "px": "1990.0",
+                    "raw_book_diff": "remove",
+                },
+                {
+                    "user": "0xkeep",
+                    "oid": 11,
+                    "coin": "ETH",
+                    "side": "A",
+                    "px": "1990.0",
+                    "raw_book_diff": {"new": {"sz": "0.4"}},
+                },
+            ],
+        }
+    ]
+
+    orders = reconstructor.reconstruct_resting_orders_from_blocks(
+        order_status_blocks=order_status_blocks,
+        raw_book_diff_blocks=raw_book_diff_blocks,
+        target_users={"0xkeep"},
+        target_coin="ETH",
+    )
+
+    assert set(orders) == {"0xkeep"}
+    active_order = orders["0xkeep"][0]
+    assert active_order.limit_px == 1990.0
+    assert active_order.side == "A"
+    assert active_order.status == "open"
+    assert active_order.orig_size == 0.4
+
+
 
 def test_collect_active_order_users_from_blocks_tracks_final_active_users():
     reconstructor = SidecarPositionReconstructor()

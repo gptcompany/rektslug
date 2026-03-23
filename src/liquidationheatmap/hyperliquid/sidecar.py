@@ -973,6 +973,7 @@ class SidecarPositionReconstructor:
             status = str(event.get("status") or "")
             if status in terminal_statuses:
                 active_orders.pop(key, None)
+                metadata_by_key.pop(key, None)
 
         def handle_book_event(block_number: int, event: dict) -> None:
             user = str(event.get("user") or "")
@@ -994,6 +995,7 @@ class SidecarPositionReconstructor:
             raw_diff = event.get("raw_book_diff")
             if raw_diff == "remove":
                 active_orders.pop(key, None)
+                metadata_by_key.pop(key, None)
                 return
             if not isinstance(raw_diff, dict):
                 return
