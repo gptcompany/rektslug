@@ -102,7 +102,7 @@ The BTC whale verification proves the solver is correct:
 - L/S ratio diverges moderately between whale vs full populations
 
 **Remaining gaps**:
-- Open-order attribution is partially unblocked: a bounded parser over explicit `order_statuses` + `raw_book_diffs` now reconstructs visible resting orders for anchor-relevant users, but reserved-margin semantics and carry-in orders from earlier retained files are still unresolved
+- Open-order attribution is partially unblocked: a bounded parser over explicit `order_statuses` + `raw_book_diffs` now reconstructs visible resting orders for anchor-relevant users, and consumer code now computes exposure-opening lower/upper bounds, but full-scale reserved-margin analysis is still blocked by full ABCI snapshot materialization during decode and by carry-in orders from earlier retained files
 - Outlier/extreme-leverage bin filtering
 - Consumer-side ABCI retention/archive is still 2 days locally; true 7d window reproducibility requires consumer-owned persistence work
 

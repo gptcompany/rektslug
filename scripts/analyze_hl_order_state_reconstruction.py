@@ -147,8 +147,8 @@ def main() -> int:
     sidecar_state = builder.reconstruct(request)
     reconstructor = SidecarPositionReconstructor()
 
-    order_status_blocks = list(iter_zst_jsonl(args.order_status_file))
-    raw_book_diff_blocks = list(iter_zst_jsonl(args.raw_book_diff_file))
+    order_status_blocks = iter_zst_jsonl(args.order_status_file)
+    raw_book_diff_blocks = iter_zst_jsonl(args.raw_book_diff_file)
     orders_by_user = reconstructor.reconstruct_resting_orders_from_blocks(
         order_status_blocks=order_status_blocks,
         raw_book_diff_blocks=raw_book_diff_blocks,
@@ -166,8 +166,8 @@ def main() -> int:
             "order_status_file": str(args.order_status_file),
             "raw_book_diff_file": str(args.raw_book_diff_file),
             "target_user_count": len(sidecar_state.users),
-            "order_status_block_count": len(order_status_blocks),
-            "raw_book_diff_block_count": len(raw_book_diff_blocks),
+            "order_status_block_count": None,
+            "raw_book_diff_block_count": None,
         },
         "summary": {
             "active_order_count": summary["active_order_count"],

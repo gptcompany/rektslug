@@ -63,6 +63,8 @@ A sampled retained snapshot (`20260321/931220000.rmp`) currently exposes `cls[0]
 
 A first bounded consumer-side parser now reconstructs visible resting orders directly from explicit `node_order_statuses_by_block` + `node_raw_book_diffs_by_block` files via `scripts/analyze_hl_order_state_reconstruction.py`. On the sampled retained pair `20260321/2.zst` filtered to `ETH`-relevant anchor users, it recovered `4,636` active orders across `370` users, including `2,496` off-target orders (`BTC`/`HYPE`). This proves off-target resting-order state is materially present for relevant accounts even before reserved-margin semantics are derived.
 
+A bounded exposure-opening proxy is now implemented in consumer code (`compute_resting_order_exposure_bounds` and `scripts/analyze_hl_reserved_margin_proxy.py`), but running it at the retained full-snapshot scale surfaced the next blocker: `load_abci_anchor` still materializes the full MessagePack snapshot before filtering users, so true low-memory reserved-margin analysis needs partial user-state decode rather than post-decode filtering.
+
 Next-anchor zero-drift is a necessary but not sufficient condition for 'replay-exact' status. Without path-exactness (observed transfers and funding applications), the replay status remains bounded to the anchors.
 
 Without an anchor covering the window start, exact parity is not claimable. In the

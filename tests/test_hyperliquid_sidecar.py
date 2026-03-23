@@ -9,7 +9,9 @@ from src.liquidationheatmap.hyperliquid.sidecar import (
     HyperliquidSidecarPrototypeBuilder,
     SidecarBuildRequest,
     SidecarPositionReconstructor,
+    UserOrder,
     UserPosition,
+    UserState,
 )
 
 def test_sidecar_build_request_normalizes_symbol_and_timestamp():
@@ -250,6 +252,46 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     assert user2.balance_state_r == 500.0
 
 
+
+def test_load_abci_anchor_filters_target_users(tmp_path):
+    anchor_file = tmp_path / "users_filter.rmp"
+    snapshot = {
+        "exchange": {
+            "locus": {
+                "cls": [
+                    {
+                        "meta": {
+                            "universe": [
+                                {"name": "ETH", "szDecimals": 4, "marginTableId": 20},
+                            ],
+                            "marginTableIdToMarginTable": [
+                                [20, {"margin_tiers": [{"lower_bound": 0, "max_leverage": 20, "maintenance_deduction": 0}]}],
+                            ],
+                        },
+                        "oracle": {"pxs": [[{"px": 250000}]]},
+                        "user_states": {
+                            "user_to_state": [
+                                ["0xkeep", {"u": 300000000.0, "S": {"s": 100000000.0}, "p": {"p": [[0, {"s": 10000, "e": 200000000.0, "M": 25.0, "l": {"C": 20.0}, "f": {"a": 0.0}}]]}}],
+                                ["0xdrop", {"u": 400000000.0, "S": {"s": 150000000.0}, "p": {"p": [[0, {"s": 20000, "e": 400000000.0, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 0.0}}]]}}],
+                            ]
+                        },
+                    }
+                ]
+            }
+        }
+    }
+    anchor_file.write_bytes(msgpack.packb(snapshot))
+
+    reconstructor = SidecarPositionReconstructor()
+    state = reconstructor.load_abci_anchor(
+        anchor_file,
+        target_coin="ETH",
+        target_users={"0xkeep"},
+    )
+
+    assert set(state.users) == {"0xkeep"}
+
+
 def test_load_abci_anchor_rejects_empty_payload(tmp_path):
     anchor_file = tmp_path / "empty.rmp"
     anchor_file.write_bytes(b"")
@@ -481,3 +523,75 @@ def test_reconstruct_resting_orders_from_blocks_tracks_active_orders_and_filters
     assert active_order.tif == "Gtc"
     assert active_order.status == "open"
     assert active_order.extra_fields["block_number"] == 101
+
+
+
+def test_compute_resting_order_exposure_bounds_handles_same_side_and_excess_opposite_side():
+    reconstructor = SidecarPositionReconstructor()
+    user_state = UserState(
+        user="0xuser",
+        balance=1000.0,
+        positions=(
+            UserPosition(
+                coin="ETH",
+                asset_idx=1,
+                size=5.0,
+                entry_px=2000.0,
+                leverage=10.0,
+                cum_funding=0.0,
+                margin=100.0,
+            ),
+        ),
+    )
+    orders = (
+        UserOrder(user="0xuser", oid=1, coin="ETH", side="B", limit_px=2000.0, size=2.0, reduce_only=False),
+        UserOrder(user="0xuser", oid=2, coin="ETH", side="A", limit_px=2100.0, size=3.0, reduce_only=False),
+        UserOrder(user="0xuser", oid=3, coin="ETH", side="A", limit_px=2200.0, size=4.0, reduce_only=False),
+        UserOrder(user="0xuser", oid=4, coin="ETH", side="A", limit_px=2300.0, size=1.0, reduce_only=True),
+        UserOrder(user="0xuser", oid=5, coin="HYPE", side="B", limit_px=40.0, size=10.0, reduce_only=False),
+    )
+
+    bounds = reconstructor.compute_resting_order_exposure_bounds(
+        user_state,
+        orders,
+        target_coin="ETH",
+    )
+
+    assert bounds.active_order_count == 5
+    assert bounds.non_reduce_only_order_count == 4
+    assert bounds.reduce_only_order_count == 1
+    assert bounds.total_active_notional == 21800.0
+    assert bounds.non_reduce_only_notional == 19500.0
+    assert bounds.reduce_only_notional == 2300.0
+    assert bounds.exposure_increasing_notional_lower_bound == 8600.0
+    assert bounds.exposure_increasing_notional_upper_bound == 8800.0
+    assert bounds.target_coin_exposure_increasing_lower_bound == 8200.0
+    assert bounds.target_coin_exposure_increasing_upper_bound == 8400.0
+    assert bounds.off_target_exposure_increasing_lower_bound == 400.0
+    assert bounds.off_target_exposure_increasing_upper_bound == 400.0
+    assert bounds.per_coin["ETH"]["position_size"] == 5.0
+    assert bounds.per_coin["ETH"]["reduce_only_order_count"] == 1
+
+
+
+def test_compute_resting_order_exposure_bounds_with_flat_position_counts_all_non_reduce_only_as_opening():
+    reconstructor = SidecarPositionReconstructor()
+    user_state = UserState(user="0xflat", balance=500.0, positions=())
+    orders = (
+        UserOrder(user="0xflat", oid=1, coin="BTC", side="B", limit_px=70000.0, size=0.1, reduce_only=False),
+        UserOrder(user="0xflat", oid=2, coin="BTC", side="A", limit_px=71000.0, size=0.2, reduce_only=False),
+        UserOrder(user="0xflat", oid=3, coin="BTC", side="A", limit_px=72000.0, size=0.05, reduce_only=True),
+    )
+
+    bounds = reconstructor.compute_resting_order_exposure_bounds(
+        user_state,
+        orders,
+        target_coin="ETH",
+    )
+
+    assert bounds.total_active_notional == 24800.0
+    assert bounds.non_reduce_only_notional == 21200.0
+    assert bounds.exposure_increasing_notional_lower_bound == 21200.0
+    assert bounds.exposure_increasing_notional_upper_bound == 21200.0
+    assert bounds.off_target_exposure_increasing_lower_bound == 21200.0
+    assert bounds.off_target_exposure_increasing_upper_bound == 21200.0
