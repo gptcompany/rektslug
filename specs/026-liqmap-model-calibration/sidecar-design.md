@@ -61,6 +61,8 @@ The `T034` margin-gap analysis shows that per-position snapshot `M` is not a rel
 
 A sampled retained snapshot (`20260321/931220000.rmp`) currently exposes `cls[0]` keys `{meta, user_states, oracle, ...}` and `user_states` entries with `u`, `p`, `S`, and sometimes `D`, but no top-level `open_order_tracker` branch in the path the sidecar decodes today. The consumer-side next step is therefore to locate the real order-state branch or reconstruct it from the order-status/book-diff streams without assuming the current ABCI shape carries it directly.
 
+A first bounded consumer-side parser now reconstructs visible resting orders directly from explicit `node_order_statuses_by_block` + `node_raw_book_diffs_by_block` files via `scripts/analyze_hl_order_state_reconstruction.py`. On the sampled retained pair `20260321/2.zst` filtered to `ETH`-relevant anchor users, it recovered `4,636` active orders across `370` users, including `2,496` off-target orders (`BTC`/`HYPE`). This proves off-target resting-order state is materially present for relevant accounts even before reserved-margin semantics are derived.
+
 Next-anchor zero-drift is a necessary but not sufficient condition for 'replay-exact' status. Without path-exactness (observed transfers and funding applications), the replay status remains bounded to the anchors.
 
 Without an anchor covering the window start, exact parity is not claimable. In the

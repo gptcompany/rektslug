@@ -102,7 +102,7 @@ The BTC whale verification proves the solver is correct:
 - L/S ratio diverges moderately between whale vs full populations
 
 **Remaining gaps**:
-- Open-order attribution still needs explicit order-state parsing; `T034` shows snapshot `M` is not a direct maintenance-margin proxy, and the sampled retained `20260321/931220000.rmp` payload does not expose a top-level `open_order_tracker` branch where the current sidecar decodes it
+- Open-order attribution is partially unblocked: a bounded parser over explicit `order_statuses` + `raw_book_diffs` now reconstructs visible resting orders for anchor-relevant users, but reserved-margin semantics and carry-in orders from earlier retained files are still unresolved
 - Outlier/extreme-leverage bin filtering
 - Consumer-side ABCI retention/archive is still 2 days locally; true 7d window reproducibility requires consumer-owned persistence work
 
@@ -116,4 +116,4 @@ The BTC whale verification proves the solver is correct:
 | Shape parity with CoinGlass | NOT APPLICABLE (different populations) |
 | Infrastructure for production 7d | BLOCKED (consumer-side ABCI retention = 2d) |
 
-**Recommendation**: Proceed with Rektslug sidecar as the Hyperliquid liquidation model. The solver is mathematically correct (0.02% error vs live API). Shape comparison with CoinGlass is not meaningful due to fundamentally different populations (top-250 whales vs all accounts). The follow-up `ETH 1d` pass kept L/S close to the `7d` baseline (diff=0.044) but remained more fragmented/concentrated, and the `T034` margin-gap run showed that snapshot `M` cannot be used as a direct open-order reserve proxy. Next steps: parse explicit open-order state, filter extreme outlier bins, and extend consumer-side ABCI retention.
+**Recommendation**: Proceed with Rektslug sidecar as the Hyperliquid liquidation model. The solver is mathematically correct (0.02% error vs live API). Shape comparison with CoinGlass is not meaningful due to fundamentally different populations (top-250 whales vs all accounts). The follow-up `ETH 1d` pass kept L/S close to the `7d` baseline (diff=0.044) but remained more fragmented/concentrated, and the `T034` margin-gap run showed that snapshot `M` cannot be used as a direct open-order reserve proxy. A first bounded order-state reconstruction over retained `20260321/2.zst` recovered `4,636` active orders across `370` anchor-relevant users, with `2,496` off-target orders, so the next steps are to derive reserved-margin semantics from that order state, filter extreme outlier bins, and extend consumer-side ABCI retention.

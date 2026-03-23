@@ -1,0 +1,572 @@
+{
+  "metadata": {
+    "symbol": "ETHUSDT",
+    "target_coin": "ETH",
+    "timeframe_days": 7,
+    "analysis_end_utc": "2026-03-21T00:00:00+00:00",
+    "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260321/931220000.rmp",
+    "order_status_file": "/media/sam/4TB-NVMe/hyperliquid/filtered/node_order_statuses_by_block/hourly/20260321/2.zst",
+    "raw_book_diff_file": "/media/sam/4TB-NVMe/hyperliquid/filtered/node_raw_book_diffs_by_block/hourly/20260321/2.zst",
+    "target_user_count": 32199,
+    "order_status_block_count": 37914,
+    "raw_book_diff_block_count": 38080
+  },
+  "summary": {
+    "active_order_count": 4636,
+    "active_user_count": 370,
+    "active_target_coin_order_count": 2140,
+    "active_off_target_order_count": 2496,
+    "users_with_off_target_orders": 228
+  },
+  "coin_breakdown": {
+    "BTC": {
+      "order_count": 1656,
+      "user_count": 173,
+      "total_size": 2070.27769,
+      "total_notional": 146380972.5518
+    },
+    "ETH": {
+      "order_count": 2140,
+      "user_count": 244,
+      "total_size": 51926.0551,
+      "total_notional": 111547166.55149
+    },
+    "HYPE": {
+      "order_count": 840,
+      "user_count": 89,
+      "total_size": 246688.8,
+      "total_notional": 9769869.343
+    }
+  },
+  "top_orders_by_notional": [
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206688996,
+      "coin": "ETH",
+      "side": "B",
+      "limit_px": 2104.3,
+      "size": 3365.6388,
+      "orig_size": 3365.6388,
+      "notional": 7082313.72684,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061998796
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663295,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 69661.0,
+      "size": 95.63104,
+      "orig_size": 95.63104,
+      "notional": 6661753.87744,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663284,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 70011.0,
+      "size": 79.73058,
+      "orig_size": 79.73058,
+      "notional": 5582017.63638,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206675275,
+      "coin": "ETH",
+      "side": "B",
+      "limit_px": 2121.3,
+      "size": 2376.7636,
+      "orig_size": 2376.7636,
+      "notional": 5041828.62468,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061995571
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663274,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 70187.0,
+      "size": 70.60422,
+      "orig_size": 70.60422,
+      "notional": 4955498.38914,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663297,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 71755.0,
+      "size": 62.69763,
+      "orig_size": 62.69763,
+      "notional": 4498868.44065,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+      "oid": 356202814004,
+      "coin": "ETH",
+      "side": "A",
+      "limit_px": 2170.0,
+      "size": 2009.6104,
+      "orig_size": 2009.6104,
+      "notional": 4360854.568,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061560561
+    },
+    {
+      "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+      "oid": 356189817224,
+      "coin": "ETH",
+      "side": "B",
+      "limit_px": 2135.9,
+      "size": 2012.309,
+      "orig_size": 2012.309,
+      "notional": 4298090.7931,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774060057426
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663270,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 70320.0,
+      "size": 60.6147,
+      "orig_size": 60.6147,
+      "notional": 4262425.704,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663259,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 70426.0,
+      "size": 54.45462,
+      "orig_size": 54.45462,
+      "notional": 3835021.06812,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663294,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 71398.0,
+      "size": 52.14881,
+      "orig_size": 52.14881,
+      "notional": 3723320.73638,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663245,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 70504.0,
+      "size": 46.71487,
+      "orig_size": 46.71487,
+      "notional": 3293585.19448,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663275,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 71220.0,
+      "size": 45.5672,
+      "orig_size": 45.5672,
+      "notional": 3245295.984,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663272,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 71085.0,
+      "size": 40.79012,
+      "orig_size": 40.79012,
+      "notional": 2899565.6802,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206688992,
+      "coin": "ETH",
+      "side": "B",
+      "limit_px": 2137.5,
+      "size": 1205.8707,
+      "orig_size": 1205.8707,
+      "notional": 2577548.62125,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061998796
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "oid": 356206663264,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 70979.0,
+      "size": 36.19441,
+      "orig_size": 36.19441,
+      "notional": 2569043.02739,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061993436
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "oid": 356185007033,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 72632.0,
+      "size": 34.42643,
+      "orig_size": 34.42643,
+      "notional": 2500460.46376,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774059428044
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "oid": 356201194561,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 72833.0,
+      "size": 34.33141,
+      "orig_size": 34.33141,
+      "notional": 2500459.58453,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061367220
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "oid": 356205417633,
+      "coin": "BTC",
+      "side": "A",
+      "limit_px": 72833.0,
+      "size": 34.33141,
+      "orig_size": 34.33141,
+      "notional": 2500459.58453,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061844561
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "oid": 356205150457,
+      "coin": "BTC",
+      "side": "B",
+      "limit_px": 68604.0,
+      "size": 36.44725,
+      "orig_size": 36.44725,
+      "notional": 2500427.139,
+      "tif": "Alo",
+      "order_type": "Limit",
+      "reduce_only": false,
+      "status": "open",
+      "order_timestamp_ms": 1774061824365
+    }
+  ],
+  "top_users_by_notional": [
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "order_count": 208,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 73235046.36477,
+      "target_coin_notional": 30130407.34219,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "order_count": 50,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 71064426.1602,
+      "target_coin_notional": 20168219.57577,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+      "order_count": 620,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 25949398.43268,
+      "target_coin_notional": 7221851.18673,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+      "order_count": 89,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 17793522.72082,
+      "target_coin_notional": 8179866.553,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x2025137a136bea7446deba681cbfc7cf1970840e",
+      "order_count": 107,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 15689047.81542,
+      "target_coin_notional": 3488300.62361,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+      "order_count": 4,
+      "coins": [
+        "ETH"
+      ],
+      "total_notional": 13076595.6111,
+      "target_coin_notional": 13076595.6111,
+      "has_off_target_orders": false
+    },
+    {
+      "user": "0xd911e53d53b663972254e086450fd6198a25961e",
+      "order_count": 8,
+      "coins": [
+        "ETH"
+      ],
+      "total_notional": 5919030.62909,
+      "target_coin_notional": 5919030.62909,
+      "has_off_target_orders": false
+    },
+    {
+      "user": "0xe3b6e3443c8f2080704e7421bad9340f13950acb",
+      "order_count": 34,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 4893499.3764,
+      "target_coin_notional": 4892894.19804,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x39475d17bcd20adc540e647dae6781b153fbf3b1",
+      "order_count": 12,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 3281943.01593,
+      "target_coin_notional": 800352.11383,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0xb8eb97eaed8367079894d2f1bed69bd220ec1dd5",
+      "order_count": 8,
+      "coins": [
+        "ETH"
+      ],
+      "total_notional": 3128683.04166,
+      "target_coin_notional": 3128683.04166,
+      "has_off_target_orders": false
+    },
+    {
+      "user": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+      "order_count": 24,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 3121305.9224,
+      "target_coin_notional": 1191103.11561,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x4ef1c5ae65ab5b37629b7aa523e7e95e7da528e3",
+      "order_count": 42,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 2331332.80527,
+      "target_coin_notional": 1158587.33854,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x76bf72092bbfe1c935b6d834f70dd9e75b057fd6",
+      "order_count": 12,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 2283789.95876,
+      "target_coin_notional": 1015019.97825,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0xc06dd151c27dbe535ae95797e8aab1bb8b8cc7c0",
+      "order_count": 12,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 2283774.48892,
+      "target_coin_notional": 1015007.73579,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0xd6e1a6f7bb47aca69aaa511210227d40926ff256",
+      "order_count": 6,
+      "coins": [
+        "ETH"
+      ],
+      "total_notional": 2119102.34548,
+      "target_coin_notional": 2119102.34548,
+      "has_off_target_orders": false
+    },
+    {
+      "user": "0x34fb5ec7d4e939161946340ea2a1f29254b893de",
+      "order_count": 8,
+      "coins": [
+        "BTC",
+        "ETH",
+        "HYPE"
+      ],
+      "total_notional": 1661364.73921,
+      "target_coin_notional": 400217.85755,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x85ecf584f25db6f146718b86d493e33c5af72052",
+      "order_count": 33,
+      "coins": [
+        "ETH"
+      ],
+      "total_notional": 1637162.47068,
+      "target_coin_notional": 1637162.47068,
+      "has_off_target_orders": false
+    },
+    {
+      "user": "0xaf9f722a676230cc44045efe26fe9a85801ca4fa",
+      "order_count": 4,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 1624516.11467,
+      "target_coin_notional": 404011.6745,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x0a07eb223ff53b8597b18148ab3dd823f9364d6c",
+      "order_count": 8,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 1620418.68336,
+      "target_coin_notional": 400222.07121,
+      "has_off_target_orders": true
+    },
+    {
+      "user": "0x621c5551678189b9a6c94d929924c225ff1d63ab",
+      "order_count": 4,
+      "coins": [
+        "BTC",
+        "ETH"
+      ],
+      "total_notional": 1615194.54541,
+      "target_coin_notional": 400199.27949,
+      "has_off_target_orders": true
+    }
+  ],
+  "limitations": [
+    "Only the supplied retained blocks are reconstructed; carry-in resting orders from earlier files are not inferred.",
+    "This artifact reconstructs visible resting orders, not reserved-margin semantics or open-order maintenance impact.",
+    "Target-user filtering comes from the latest retained sidecar anchor in the requested window."
+  ]
+}

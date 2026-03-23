@@ -283,3 +283,201 @@ def test_compute_position_maintenance_margin_uses_mark_and_deduction():
     )
 
     assert mmr == 151.25
+
+
+
+def test_load_abci_anchor_skips_malformed_positions_and_defaults_cross_leverage(tmp_path):
+    anchor_file = tmp_path / "malformed.rmp"
+    snapshot = {
+        "exchange": {
+            "locus": {
+                "cls": [
+                    {
+                        "meta": {
+                            "universe": [
+                                {"name": "ETH", "szDecimals": 4, "marginTableId": 20},
+                            ],
+                            "marginTableIdToMarginTable": [
+                                [20, {"margin_tiers": [{"lower_bound": 0, "max_leverage": 20, "maintenance_deduction": 0}]}],
+                            ],
+                        },
+                        "oracle": {"pxs": [[{"px": 250000}]]},
+                        "user_states": {
+                            "user_to_state": [
+                                [
+                                    "0xmalformed",
+                                    {
+                                        "u": 300000000.0,
+                                        "S": {"s": 100000000.0, "r": 100000000.0},
+                                        "p": {
+                                            "p": [
+                                                "bad-entry",
+                                                [0, {"s": 10000, "e": 200000000.0, "M": 25.0, "l": None, "f": {"a": 0.0}}],
+                                            ]
+                                        },
+                                    },
+                                ]
+                            ]
+                        },
+                    }
+                ]
+            }
+        }
+    }
+    anchor_file.write_bytes(msgpack.packb(snapshot))
+
+    reconstructor = SidecarPositionReconstructor()
+    state = reconstructor.load_abci_anchor(anchor_file, target_coin="ETH")
+
+    user = state.users["0xmalformed"]
+    assert user.balance == 100.0
+    assert len(user.positions) == 1
+    assert user.positions[0].leverage == 1.0
+    assert user.positions[0].entry_px == 200.0
+
+
+
+def test_reconstruct_resting_orders_from_blocks_tracks_active_orders_and_filters():
+    reconstructor = SidecarPositionReconstructor()
+    order_status_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {
+                    "user": "0xkeep",
+                    "status": "open",
+                    "hash": "0xabc",
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "B",
+                        "limitPx": "2000.0",
+                        "sz": "1.5",
+                        "origSz": "1.5",
+                        "oid": 11,
+                        "timestamp": 1234,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": False,
+                        "orderType": "Limit",
+                        "tif": "Gtc",
+                        "cloid": "0xcloid1",
+                    },
+                },
+                {
+                    "user": "0xdrop",
+                    "status": "perpMarginRejected",
+                    "hash": None,
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "A",
+                        "limitPx": "2100.0",
+                        "sz": "2.0",
+                        "origSz": "2.0",
+                        "oid": 22,
+                        "timestamp": 1235,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": False,
+                        "orderType": "Limit",
+                        "tif": "Ioc",
+                        "cloid": None,
+                    },
+                },
+            ],
+        },
+        {
+            "block_number": 101,
+            "events": [
+                {
+                    "user": "0xremove",
+                    "status": "open",
+                    "hash": "0xdef",
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "A",
+                        "limitPx": "2050.0",
+                        "sz": "0.8",
+                        "origSz": "0.8",
+                        "oid": 33,
+                        "timestamp": 2234,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": True,
+                        "orderType": "Limit",
+                        "tif": "Alo",
+                        "cloid": "0xcloid2",
+                    },
+                },
+                {
+                    "user": "0xremove",
+                    "status": "canceled",
+                    "hash": None,
+                    "builder": None,
+                    "order": {
+                        "coin": "ETH",
+                        "side": "A",
+                        "limitPx": "2050.0",
+                        "sz": "0.8",
+                        "origSz": "0.8",
+                        "oid": 33,
+                        "timestamp": 2235,
+                        "triggerCondition": "N/A",
+                        "isTrigger": False,
+                        "triggerPx": "0.0",
+                        "children": [],
+                        "isPositionTpsl": False,
+                        "reduceOnly": True,
+                        "orderType": "Limit",
+                        "tif": "Alo",
+                        "cloid": "0xcloid2",
+                    },
+                },
+            ],
+        },
+    ]
+    raw_book_diff_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {"user": "0xkeep", "oid": 11, "coin": "ETH", "side": "B", "px": "2000.0", "raw_book_diff": {"new": {"sz": "1.5"}}},
+                {"user": "0xdrop", "oid": 22, "coin": "ETH", "side": "A", "px": "2100.0", "raw_book_diff": {"new": {"sz": "2.0"}}},
+            ],
+        },
+        {
+            "block_number": 101,
+            "events": [
+                {"user": "0xkeep", "oid": 11, "coin": "ETH", "side": "B", "px": "2000.0", "raw_book_diff": {"update": {"origSz": "1.5", "newSz": "1.1"}}},
+                {"user": "0xremove", "oid": 33, "coin": "ETH", "side": "A", "px": "2050.0", "raw_book_diff": {"new": {"sz": "0.8"}}},
+                {"user": "0xremove", "oid": 33, "coin": "ETH", "side": "A", "px": "2050.0", "raw_book_diff": "remove"},
+            ],
+        },
+    ]
+
+    orders = reconstructor.reconstruct_resting_orders_from_blocks(
+        order_status_blocks=order_status_blocks,
+        raw_book_diff_blocks=raw_book_diff_blocks,
+        target_users={"0xkeep", "0xremove"},
+        target_coin="ETH",
+    )
+
+    assert set(orders) == {"0xkeep"}
+    active_order = orders["0xkeep"][0]
+    assert active_order.oid == 11
+    assert active_order.size == 1.1
+    assert active_order.orig_size == 1.5
+    assert active_order.limit_px == 2000.0
+    assert active_order.tif == "Gtc"
+    assert active_order.status == "open"
+    assert active_order.extra_fields["block_number"] == 101

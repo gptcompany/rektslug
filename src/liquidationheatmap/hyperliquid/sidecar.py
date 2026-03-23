@@ -10,7 +10,9 @@ prototype context needed for the first `ETH 7d` sidecar iteration:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import io
+import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
@@ -18,6 +20,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import msgpack
+import zstandard as zstd
 
 from src.liquidationheatmap.models.profiles import get_profile
 
@@ -89,6 +92,29 @@ class UserState:
     @property
     def has_active_positions(self) -> bool:
         return any(p.size != 0 for p in self.positions)
+
+
+@dataclass(frozen=True)
+class UserOrder:
+    """Reconstructed resting order state."""
+
+    user: str
+    oid: int
+    coin: str
+    side: str
+    limit_px: float
+    size: float
+    orig_size: float | None = None
+    tif: str | None = None
+    order_type: str | None = None
+    reduce_only: bool | None = None
+    is_trigger: bool | None = None
+    is_position_tpsl: bool | None = None
+    status: str | None = None
+    order_timestamp_ms: int | None = None
+    extra_fields: Mapping[str, object] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 @dataclass(frozen=True)
@@ -476,6 +502,24 @@ def freeze_msgpack_value(value: object) -> object:
     return value
 
 
+def iter_zst_jsonl(path: Path) -> Iterable[dict]:
+    """Yield JSONL blocks from a zstd-compressed file."""
+    dctx = zstd.ZstdDecompressor()
+    with path.open("rb") as fh:
+        with dctx.stream_reader(fh) as reader:
+            text_stream = io.TextIOWrapper(reader, encoding="utf-8")
+            for line in text_stream:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    block = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(block, dict):
+                    yield block
+
+
 class SidecarPositionReconstructor:
     """Engine for account-level state reconstruction from Hyperliquid sources."""
 
@@ -499,7 +543,6 @@ class SidecarPositionReconstructor:
                 "marginTableId": asset.get("marginTableId"),
             }
 
-        # Extract MMR rates from margin tables
         margin_tables_raw = meta.get("marginTableIdToMarginTable", [])
         table_to_tiers: dict[int, list[dict]] = {}
         for item in margin_tables_raw:
@@ -510,8 +553,6 @@ class SidecarPositionReconstructor:
 
             parsed_tiers = []
             for t in tiers_raw:
-                # MMR is exactly 1 / (2 * max_leverage) based on Hyperliquid spec
-                # maintenance_deduction and lower_bound are scaled by 1e6
                 max_lev = float(t.get("max_leverage", 50))
                 parsed_tiers.append({
                     "lower_bound": float(t.get("lower_bound", 0)) / 1e6,
@@ -519,7 +560,6 @@ class SidecarPositionReconstructor:
                     "maintenance_deduction": float(t.get("maintenance_deduction", 0)) / 1e6,
                 })
 
-            # Sort tiers descending to easily find active tier
             parsed_tiers.sort(key=lambda x: x["lower_bound"], reverse=True)
             table_to_tiers[table_id] = parsed_tiers
 
@@ -530,14 +570,12 @@ class SidecarPositionReconstructor:
                 [{"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}],
             )
 
-        # Extract Oracle prices
         pxs_raw = cls0.get("oracle", {}).get("pxs", [])
         mark_prices: dict[int, float] = {}
         for idx, oracles in enumerate(pxs_raw):
             if oracles and isinstance(oracles, list):
                 raw_px = float(oracles[0].get("px", 0))
                 sz_dec = asset_meta.get(idx, {}).get("szDecimals", 0)
-                # Oracle stores: actual_price * 10^(6 - szDecimals)
                 mark_prices[idx] = raw_px / (10 ** (6 - sz_dec))
 
         user_states_wrapper = cls0.get("user_states", {})
@@ -546,7 +584,7 @@ class SidecarPositionReconstructor:
         USDC_SCALE = 1e6
         reconstructed_users: dict[str, UserState] = {}
 
-        def to_user_str(u) -> str:
+        def to_user_str(u: object) -> str:
             if isinstance(u, bytes):
                 if len(u) == 20:
                     return "0x" + u.hex()
@@ -564,11 +602,13 @@ class SidecarPositionReconstructor:
             if not isinstance(state, dict):
                 continue
 
-            positions_raw = state.get("p", {}).get("p", [])
+            positions_wrapper = state.get("p", {})
+            positions_raw = positions_wrapper.get("p", []) if isinstance(positions_wrapper, dict) else []
             if not positions_raw:
                 continue
 
             positions: list[UserPosition] = []
+            position_entries: list[tuple[int, dict]] = []
             has_target = False
 
             for p_item in positions_raw:
@@ -579,6 +619,7 @@ class SidecarPositionReconstructor:
                 if not isinstance(p, dict):
                     continue
 
+                position_entries.append((asset_idx, p))
                 m = asset_meta.get(asset_idx)
                 if not m or not m["name"]:
                     continue
@@ -593,7 +634,10 @@ class SidecarPositionReconstructor:
                 size_scaled = size_raw / (10 ** m["szDecimals"])
                 total_cost_scaled = float(p.get("e", 0)) / USDC_SCALE
                 entry_px = total_cost_scaled / abs(size_scaled)
-                funding_raw = p.get("f", {}) if isinstance(p.get("f", {}), dict) else {}
+                funding_value = p.get("f", {})
+                funding_raw = funding_value if isinstance(funding_value, dict) else {}
+                leverage_value = p.get("l", {})
+                leverage_raw = leverage_value if isinstance(leverage_value, dict) else {}
                 position_extras = {
                     key: value
                     for key, value in p.items()
@@ -606,7 +650,7 @@ class SidecarPositionReconstructor:
                     size=size_scaled,
                     entry_px=entry_px,
                     margin=float(p.get("M", 0)),
-                    leverage=float(p.get("l", {}).get("C", 1.0)),
+                    leverage=float(leverage_raw.get("C", 1.0)),
                     cum_funding=float(funding_raw.get("a", 0)) / USDC_SCALE,
                     cum_funding_open=(
                         float(funding_raw.get("o", 0)) / USDC_SCALE
@@ -624,15 +668,14 @@ class SidecarPositionReconstructor:
 
             if target_coin and not has_target:
                 continue
+            if not positions:
+                continue
 
-            # Balance = (u - sum(e)) / USDC_SCALE
-            # u: total account value numerator (deposits + realized + funding + position costs)
-            # e: total cost locked per position (|size| * entry * USDC_SCALE)
-            # Subtracting sum(e) gives the net USDC balance for equity calculation
             u_raw = float(state.get("u", 0))
-            sum_e_raw = sum(float(p.get("e", 0)) for _, p in positions_raw if isinstance(p, dict))
+            sum_e_raw = sum(float(position.get("e", 0)) for _, position in position_entries)
             balance_raw = u_raw - sum_e_raw
-            s_state = state.get("S", {}) if isinstance(state.get("S", {}), dict) else {}
+            s_value = state.get("S", {})
+            s_state = s_value if isinstance(s_value, dict) else {}
             state_extras = {
                 key: value
                 for key, value in state.items()
@@ -660,6 +703,263 @@ class SidecarPositionReconstructor:
             mark_prices=mark_prices,
             asset_margin_tiers=asset_margin_tiers,
         )
+
+    def reconstruct_resting_orders_from_blocks(
+        self,
+        *,
+        order_status_blocks: Iterable[dict],
+        raw_book_diff_blocks: Iterable[dict],
+        target_users: set[str] | None = None,
+        target_coin: str | None = None,
+    ) -> dict[str, tuple[UserOrder, ...]]:
+        """Reconstruct currently resting orders from status and book-diff blocks.
+
+        This is bounded to the blocks supplied by the consumer. It does not infer
+        carry-in orders that were already resting before the first retained block.
+        """
+
+        timeline: dict[int, dict[str, list[dict]]] = {}
+
+        def normalize_block_number(value: object) -> int | None:
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, int):
+                return value
+            if isinstance(value, str) and value.isdigit():
+                return int(value)
+            return None
+
+        def bucket_for(block_number: int) -> dict[str, list[dict]]:
+            return timeline.setdefault(
+                block_number,
+                {"status_events": [], "book_diff_events": []},
+            )
+
+        for block in order_status_blocks:
+            if not isinstance(block, dict):
+                continue
+            block_number = normalize_block_number(block.get("block_number"))
+            if block_number is None:
+                continue
+            events = block.get("events", [])
+            if isinstance(events, list):
+                bucket_for(block_number)["status_events"].extend(events)
+
+        for block in raw_book_diff_blocks:
+            if not isinstance(block, dict):
+                continue
+            block_number = normalize_block_number(block.get("block_number"))
+            if block_number is None:
+                continue
+            events = block.get("events", [])
+            if isinstance(events, list):
+                bucket_for(block_number)["book_diff_events"].extend(events)
+
+        terminal_statuses = {
+            "canceled",
+            "filled",
+            "rejected",
+            "scheduledCancel",
+            "badAloPxRejected",
+            "perpMarginRejected",
+            "minTradeNtlRejected",
+            "iocCancelRejected",
+            "reduceOnlyRejected",
+            "triggerRejected",
+        }
+        active_orders: dict[tuple[str, int], UserOrder] = {}
+        metadata_by_key: dict[tuple[str, int], dict[str, object]] = {}
+
+        for block_number in sorted(timeline):
+            bucket = timeline[block_number]
+
+            for event in bucket["status_events"]:
+                if not isinstance(event, dict):
+                    continue
+                user = str(event.get("user") or "")
+                order_value = event.get("order", {})
+                order = order_value if isinstance(order_value, dict) else {}
+                oid = order.get("oid")
+                coin = str(order.get("coin") or "")
+                if not user or oid is None or not coin:
+                    continue
+                if target_users is not None and user not in target_users:
+                    continue
+                if target_coin and coin != target_coin:
+                    continue
+
+                try:
+                    oid_int = int(oid)
+                    limit_px = float(order.get("limitPx", 0))
+                    orig_size = float(order.get("origSz", order.get("sz", 0)))
+                except (TypeError, ValueError):
+                    continue
+
+                key = (user, oid_int)
+                metadata_by_key[key] = {
+                    "coin": coin,
+                    "side": str(order.get("side") or ""),
+                    "limit_px": limit_px,
+                    "orig_size": orig_size,
+                    "tif": order.get("tif"),
+                    "order_type": order.get("orderType"),
+                    "reduce_only": order.get("reduceOnly"),
+                    "is_trigger": order.get("isTrigger"),
+                    "is_position_tpsl": order.get("isPositionTpsl"),
+                    "status": str(event.get("status") or ""),
+                    "order_timestamp_ms": order.get("timestamp"),
+                    "extra_fields": {
+                        key_name: value
+                        for key_name, value in order.items()
+                        if key_name
+                        not in {
+                            "coin",
+                            "side",
+                            "limitPx",
+                            "sz",
+                            "oid",
+                            "timestamp",
+                            "triggerCondition",
+                            "isTrigger",
+                            "triggerPx",
+                            "children",
+                            "isPositionTpsl",
+                            "reduceOnly",
+                            "orderType",
+                            "origSz",
+                            "tif",
+                            "cloid",
+                        }
+                    }
+                    | {
+                        "status_hash": event.get("hash"),
+                        "builder": event.get("builder"),
+                        "cloid": order.get("cloid"),
+                        "trigger_condition": order.get("triggerCondition"),
+                        "trigger_px": order.get("triggerPx"),
+                        "children": order.get("children"),
+                    },
+                }
+
+                status = str(event.get("status") or "")
+                if status in terminal_statuses:
+                    active_orders.pop(key, None)
+
+            for event in bucket["book_diff_events"]:
+                if not isinstance(event, dict):
+                    continue
+                user = str(event.get("user") or "")
+                coin = str(event.get("coin") or "")
+                oid = event.get("oid")
+                if not user or oid is None or not coin:
+                    continue
+                if target_users is not None and user not in target_users:
+                    continue
+                if target_coin and coin != target_coin:
+                    continue
+
+                try:
+                    oid_int = int(oid)
+                except (TypeError, ValueError):
+                    continue
+
+                key = (user, oid_int)
+                raw_diff = event.get("raw_book_diff")
+                if raw_diff == "remove":
+                    active_orders.pop(key, None)
+                    continue
+                if not isinstance(raw_diff, dict):
+                    continue
+
+                book_delta: dict[str, object] | None = None
+                size_value: object | None = None
+                orig_size_value: object | None = None
+                if isinstance(raw_diff.get("new"), dict):
+                    book_delta = raw_diff["new"]
+                    size_value = book_delta.get("sz")
+                    orig_size_value = book_delta.get("sz")
+                elif isinstance(raw_diff.get("update"), dict):
+                    book_delta = raw_diff["update"]
+                    size_value = book_delta.get("newSz")
+                    orig_size_value = book_delta.get("origSz")
+                if book_delta is None or size_value is None:
+                    continue
+
+                try:
+                    size = float(size_value)
+                except (TypeError, ValueError):
+                    continue
+
+                meta = metadata_by_key.get(key, {})
+                limit_px_source = meta.get("limit_px", event.get("px", 0))
+                try:
+                    limit_px = float(limit_px_source)
+                except (TypeError, ValueError):
+                    continue
+
+                orig_size = None
+                if orig_size_value is not None:
+                    try:
+                        orig_size = float(orig_size_value)
+                    except (TypeError, ValueError):
+                        orig_size = None
+                elif meta.get("orig_size") is not None:
+                    orig_size = float(meta["orig_size"])
+
+                extra_fields = dict(meta.get("extra_fields", {})) if isinstance(meta.get("extra_fields"), dict) else {}
+                extra_fields.update(
+                    {
+                        "block_number": block_number,
+                        "book_diff": book_delta,
+                    }
+                )
+
+                active_orders[key] = UserOrder(
+                    user=user,
+                    oid=oid_int,
+                    coin=str(meta.get("coin") or coin),
+                    side=str(meta.get("side") or event.get("side") or ""),
+                    limit_px=limit_px,
+                    size=size,
+                    orig_size=orig_size,
+                    tif=str(meta.get("tif")) if meta.get("tif") is not None else None,
+                    order_type=(
+                        str(meta.get("order_type"))
+                        if meta.get("order_type") is not None
+                        else None
+                    ),
+                    reduce_only=(
+                        bool(meta.get("reduce_only"))
+                        if meta.get("reduce_only") is not None
+                        else None
+                    ),
+                    is_trigger=(
+                        bool(meta.get("is_trigger"))
+                        if meta.get("is_trigger") is not None
+                        else None
+                    ),
+                    is_position_tpsl=(
+                        bool(meta.get("is_position_tpsl"))
+                        if meta.get("is_position_tpsl") is not None
+                        else None
+                    ),
+                    status=str(meta.get("status") or "open"),
+                    order_timestamp_ms=(
+                        int(meta.get("order_timestamp_ms"))
+                        if meta.get("order_timestamp_ms") is not None
+                        else None
+                    ),
+                    extra_fields=freeze_msgpack_value(extra_fields),
+                )
+
+        grouped_orders: dict[str, list[UserOrder]] = {}
+        for order in active_orders.values():
+            grouped_orders.setdefault(order.user, []).append(order)
+
+        return {
+            user: tuple(sorted(orders, key=lambda order: (order.coin, order.side, order.limit_px, order.oid)))
+            for user, orders in grouped_orders.items()
+        }
 
     def _load_snapshot(self, path: Path) -> dict:
         with path.open("rb") as f:
