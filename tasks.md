@@ -160,6 +160,10 @@ Data quality is **paramount** for liquidation map calculations. All critical bug
 - [ ] Run comprehensive data quality validation
 - [ ] Write TDD tests for all new code
 - [ ] Deploy unified orchestrator to production
+- [ ] **Investigate msgpack exception capture anomaly in pytest-cov environment.**
+  - **Context**: During spec-026 finalization, it was discovered that `except msgpack.OutOfData` fails to catch exceptions when running under `pytest-cov`, but works in isolation.
+  - **Required**: Create a minimal reproducible repo, isolate if it's a `msgpack` C-extension issue or `pytest-cov`'s coverage instrumentation shadowing types.
+  - **Current Status**: Workaround in place using `except Exception` and name string filtering.
 
 ### Long-term
 - [ ] Add monitoring/alerting for N8N automation

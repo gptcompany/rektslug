@@ -14,8 +14,9 @@ Current state:
 ## Latest Reviewable Commits
 
 Recommended review order:
-1. `75e46c9` `Fix reserved-margin report lifecycle`
-2. `c5cff7d` `Add reserved-margin outlier drilldown`
+1. `8865842` `fix(sidecar): resolve active user divergence and harden msgpack exception boundary`
+2. `75e46c9` `Fix reserved-margin report lifecycle`
+3. `c5cff7d` `Add reserved-margin outlier drilldown`
 
 Earlier prerequisite commits on the same line of work:
 1. `905da01` `Add bounded Hyperliquid order-state reconstruction`
@@ -63,6 +64,18 @@ Conclusion:
 - likely missing semantics still include order-reserve formula details, carry-in state outside the retained feed window, and/or other account-state semantics
 
 ## Fixes Landed During This Session
+
+### Active User Consistency (Divergence Fix)
+
+In `sidecar.py`, `collect_active_order_users_from_blocks()` was refactored to align with the materialization logic in `reconstruct_resting_orders_from_blocks()`. 
+- **Rule**: An order is only active if there is concrete evidence of it in the retained view (book diff or carry-in from a previous block). 
+- **Result**: No more "phantom" users in the collector caused by status-only events without state mutations.
+
+### Exception Boundary Hardening (Msgpack Fix)
+
+The exception boundary in `_load_snapshot_filtered()` was narrowed to catch only `msgpack`-related and domain errors. 
+- **Workaround**: An explicit catch-all with string-based name filtering (`type(exc).__name__`) was retained for `OutOfData` and `ExtraData`. 
+- **Rationale**: This is required because `pytest-cov` instrumentation appears to prevent catching these C-extension exceptions by their explicit Python types during coverage runs. This is tracked as technical debt in `tasks.md`.
 
 ### Lifecycle / memory fix
 
@@ -171,8 +184,8 @@ uv run python scripts/analyze_hl_reserved_margin_outliers.py --top-n 5
 ## Validation State At Handoff
 
 Last verified locally:
-- `.venv/bin/pytest tests/test_hyperliquid_sidecar.py -q` -> `15 passed`
-- `uv run python -m py_compile` on touched files -> ok
+- `uv run pytest tests/test_hyperliquid_sidecar.py -q` -> `47 passed`
+- `uv run pytest tests/test_hyperliquid_sidecar.py -q --cov=src.liquidationheatmap.hyperliquid.sidecar --cov-report=term-missing` -> `90% coverage`
 - real report generation completed successfully for:
   - `hl_reserved_margin_proxy_eth_sample.json`
   - `hl_reserved_margin_outliers_eth_sample.json`
