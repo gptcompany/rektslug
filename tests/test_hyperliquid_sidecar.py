@@ -526,6 +526,39 @@ def test_reconstruct_resting_orders_from_blocks_tracks_active_orders_and_filters
 
 
 
+def test_collect_active_order_users_from_blocks_tracks_final_active_users():
+    reconstructor = SidecarPositionReconstructor()
+    order_status_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {"user": "0xkeep", "status": "open", "order": {"coin": "ETH", "oid": 11}},
+                {"user": "0xdrop", "status": "canceled", "order": {"coin": "ETH", "oid": 22}},
+            ],
+        },
+    ]
+    raw_book_diff_blocks = [
+        {
+            "block_number": 100,
+            "events": [
+                {"user": "0xkeep", "oid": 11, "coin": "ETH", "raw_book_diff": {"new": {"sz": "1.0"}}},
+                {"user": "0xdrop", "oid": 22, "coin": "ETH", "raw_book_diff": {"new": {"sz": "1.0"}}},
+                {"user": "0xdrop", "oid": 22, "coin": "ETH", "raw_book_diff": "remove"},
+                {"user": "0xofftarget", "oid": 33, "coin": "BTC", "raw_book_diff": {"new": {"sz": "1.0"}}},
+            ],
+        },
+    ]
+
+    users = reconstructor.collect_active_order_users_from_blocks(
+        order_status_blocks=order_status_blocks,
+        raw_book_diff_blocks=raw_book_diff_blocks,
+        target_coin="ETH",
+    )
+
+    assert users == {"0xkeep"}
+
+
+
 def test_compute_resting_order_exposure_bounds_handles_same_side_and_excess_opposite_side():
     reconstructor = SidecarPositionReconstructor()
     user_state = UserState(

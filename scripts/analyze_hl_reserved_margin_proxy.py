@@ -75,21 +75,20 @@ def main() -> int:
         raise ValueError(f"No anchors available in window for {request.symbol}")
 
     reconstructor = SidecarPositionReconstructor()
-    orders_by_user_all = reconstructor.reconstruct_resting_orders_from_blocks(
+    active_user_ids = reconstructor.collect_active_order_users_from_blocks(
         order_status_blocks=iter_zst_jsonl(args.order_status_file),
         raw_book_diff_blocks=iter_zst_jsonl(args.raw_book_diff_file),
     )
-    active_user_ids = set(orders_by_user_all)
     sidecar_state = reconstructor.load_abci_anchor(
         plan.anchor_coverage.latest_anchor_in_window,
         target_coin=request.target_coin,
         target_users=active_user_ids,
     )
-    orders_by_user = {
-        user: orders
-        for user, orders in orders_by_user_all.items()
-        if user in sidecar_state.users
-    }
+    orders_by_user = reconstructor.reconstruct_resting_orders_from_blocks(
+        order_status_blocks=iter_zst_jsonl(args.order_status_file),
+        raw_book_diff_blocks=iter_zst_jsonl(args.raw_book_diff_file),
+        target_users=set(sidecar_state.users),
+    )
 
     rows: list[dict] = []
     total_active_notional = 0.0

@@ -554,7 +554,7 @@ class SidecarPositionReconstructor:
         target_users: set[str] | None = None,
     ) -> SidecarState:
         """Load and decode a MessagePack ABCI snapshot."""
-        snapshot = self._load_snapshot(path)
+        snapshot = self._load_snapshot_filtered(path, target_users=target_users)
 
         locus = snapshot.get("exchange", {}).get("locus", {})
         cls_list = locus.get("cls", [])
@@ -735,6 +735,113 @@ class SidecarPositionReconstructor:
             mark_prices=mark_prices,
             asset_margin_tiers=asset_margin_tiers,
         )
+
+    def collect_active_order_users_from_blocks(
+        self,
+        *,
+        order_status_blocks: Iterable[dict],
+        raw_book_diff_blocks: Iterable[dict],
+        target_coin: str | None = None,
+    ) -> set[str]:
+        """Collect users that still have active resting orders after replaying retained blocks."""
+
+        def normalize_block_number(value: object) -> int | None:
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, int):
+                return value
+            if isinstance(value, str) and value.isdigit():
+                return int(value)
+            return None
+
+        def iter_block_events(blocks: Iterable[dict]) -> Iterable[tuple[int, list[dict]]]:
+            for block in blocks:
+                if not isinstance(block, dict):
+                    continue
+                block_number = normalize_block_number(block.get("block_number"))
+                if block_number is None:
+                    continue
+                events = block.get("events", [])
+                if not isinstance(events, list):
+                    continue
+                yield block_number, events
+
+        status_iter = iter(iter_block_events(order_status_blocks))
+        book_iter = iter(iter_block_events(raw_book_diff_blocks))
+
+        def next_item(iterator: Iterable[tuple[int, list[dict]]]) -> tuple[int, list[dict]] | None:
+            return next(iterator, None)
+
+        status_item = next_item(status_iter)
+        book_item = next_item(book_iter)
+        terminal_statuses = {
+            "canceled",
+            "filled",
+            "rejected",
+            "scheduledCancel",
+            "badAloPxRejected",
+            "perpMarginRejected",
+            "minTradeNtlRejected",
+            "iocCancelRejected",
+            "reduceOnlyRejected",
+            "triggerRejected",
+        }
+        active_keys: set[tuple[str, int]] = set()
+
+        while status_item is not None or book_item is not None:
+            block_candidates = [
+                block_number
+                for block_number, _ in (status_item, book_item)
+                if block_number is not None
+            ]
+            current_block = min(block_candidates)
+
+            while status_item is not None and status_item[0] == current_block:
+                for event in status_item[1]:
+                    if not isinstance(event, dict):
+                        continue
+                    user = str(event.get("user") or "")
+                    order_value = event.get("order", {})
+                    order = order_value if isinstance(order_value, dict) else {}
+                    oid = order.get("oid")
+                    coin = str(order.get("coin") or "")
+                    if not user or oid is None or not coin:
+                        continue
+                    if target_coin and coin != target_coin:
+                        continue
+                    try:
+                        oid_int = int(oid)
+                    except (TypeError, ValueError):
+                        continue
+                    status = str(event.get("status") or "")
+                    if status in terminal_statuses:
+                        active_keys.discard((user, oid_int))
+                status_item = next_item(status_iter)
+
+            while book_item is not None and book_item[0] == current_block:
+                for event in book_item[1]:
+                    if not isinstance(event, dict):
+                        continue
+                    user = str(event.get("user") or "")
+                    oid = event.get("oid")
+                    coin = str(event.get("coin") or "")
+                    if not user or oid is None or not coin:
+                        continue
+                    if target_coin and coin != target_coin:
+                        continue
+                    try:
+                        oid_int = int(oid)
+                    except (TypeError, ValueError):
+                        continue
+                    raw_diff = event.get("raw_book_diff")
+                    key = (user, oid_int)
+                    if raw_diff == "remove":
+                        active_keys.discard(key)
+                    elif isinstance(raw_diff, dict):
+                        active_keys.add(key)
+                book_item = next_item(book_iter)
+
+        return {user for user, _ in active_keys}
 
     def reconstruct_resting_orders_from_blocks(
         self,
@@ -1166,6 +1273,190 @@ class SidecarPositionReconstructor:
             reduce_only_order_count=reduce_only_order_count,
             per_coin=freeze_msgpack_value(per_coin),
         )
+
+    def _load_snapshot_filtered(
+        self,
+        path: Path,
+        *,
+        target_users: set[str] | None = None,
+    ) -> dict:
+        with path.open("rb") as f:
+            unpacker = msgpack.Unpacker(f, raw=False, strict_map_key=False)
+            try:
+                top_level_size = unpacker.read_map_header()
+            except (msgpack.OutOfData, ValueError) as exc:
+                raise ValueError(f"Invalid ABCI snapshot format at {path}: empty payload") from exc
+
+            exchange_value: dict | None = None
+            for _ in range(top_level_size):
+                key = unpacker.unpack()
+                if key == "exchange":
+                    exchange_value = self._extract_exchange_snapshot(
+                        unpacker,
+                        target_users=target_users,
+                    )
+                else:
+                    unpacker.skip()
+
+        if exchange_value is None:
+            raise ValueError(f"Invalid ABCI snapshot format at {path}: missing exchange")
+        return {"exchange": exchange_value}
+
+    def _extract_exchange_snapshot(
+        self,
+        unpacker: msgpack.Unpacker,
+        *,
+        target_users: set[str] | None = None,
+    ) -> dict:
+        try:
+            map_size = unpacker.read_map_header()
+        except (msgpack.OutOfData, ValueError) as exc:
+            raise ValueError("Invalid ABCI snapshot format: exchange is not a map") from exc
+
+        locus_value: dict | None = None
+        for _ in range(map_size):
+            key = unpacker.unpack()
+            if key == "locus":
+                locus_value = self._extract_locus_snapshot(
+                    unpacker,
+                    target_users=target_users,
+                )
+            else:
+                unpacker.skip()
+        return {"locus": locus_value or {}}
+
+    def _extract_locus_snapshot(
+        self,
+        unpacker: msgpack.Unpacker,
+        *,
+        target_users: set[str] | None = None,
+    ) -> dict:
+        try:
+            map_size = unpacker.read_map_header()
+        except (msgpack.OutOfData, ValueError) as exc:
+            raise ValueError("Invalid ABCI snapshot format: locus is not a map") from exc
+
+        cls_value: list[dict] = []
+        for _ in range(map_size):
+            key = unpacker.unpack()
+            if key == "cls":
+                try:
+                    cls_count = unpacker.read_array_header()
+                except (msgpack.OutOfData, ValueError) as exc:
+                    raise ValueError("Invalid ABCI snapshot format: cls is not an array") from exc
+                if cls_count > 0:
+                    cls_value.append(
+                        self._extract_cls_snapshot(
+                            unpacker,
+                            target_users=target_users,
+                        )
+                    )
+                    for _ in range(cls_count - 1):
+                        unpacker.skip()
+            else:
+                unpacker.skip()
+        return {"cls": cls_value}
+
+    def _extract_cls_snapshot(
+        self,
+        unpacker: msgpack.Unpacker,
+        *,
+        target_users: set[str] | None = None,
+    ) -> dict:
+        try:
+            map_size = unpacker.read_map_header()
+        except (msgpack.OutOfData, ValueError) as exc:
+            raise ValueError("Invalid ABCI snapshot format: cls[0] is not a map") from exc
+
+        cls0: dict[str, object] = {}
+        for _ in range(map_size):
+            key = unpacker.unpack()
+            if key == "meta":
+                value = unpacker.unpack()
+                cls0["meta"] = value if isinstance(value, dict) else {}
+            elif key == "oracle":
+                value = unpacker.unpack()
+                cls0["oracle"] = value if isinstance(value, dict) else {}
+            elif key == "user_states":
+                cls0["user_states"] = self._extract_user_states_snapshot(
+                    unpacker,
+                    target_users=target_users,
+                )
+            else:
+                unpacker.skip()
+
+        cls0.setdefault("meta", {})
+        cls0.setdefault("oracle", {})
+        cls0.setdefault("user_states", {"user_to_state": []})
+        return cls0
+
+    def _extract_user_states_snapshot(
+        self,
+        unpacker: msgpack.Unpacker,
+        *,
+        target_users: set[str] | None = None,
+    ) -> dict:
+        try:
+            map_size = unpacker.read_map_header()
+        except (msgpack.OutOfData, ValueError) as exc:
+            raise ValueError("Invalid ABCI snapshot format: user_states is not a map") from exc
+
+        matched_pairs: list[list[object]] = []
+        remaining_targets = set(target_users) if target_users is not None else None
+
+        def to_user_str(value: object) -> str:
+            if isinstance(value, bytes):
+                if len(value) == 20:
+                    return "0x" + value.hex()
+                try:
+                    return value.decode()
+                except UnicodeDecodeError:
+                    return value.hex()
+            return str(value)
+
+        for _ in range(map_size):
+            key = unpacker.unpack()
+            if key != "user_to_state":
+                unpacker.skip()
+                continue
+
+            try:
+                pair_count = unpacker.read_array_header()
+            except (msgpack.OutOfData, ValueError) as exc:
+                raise ValueError("Invalid ABCI snapshot format: user_to_state is not an array") from exc
+
+            for idx in range(pair_count):
+                if remaining_targets is not None and not remaining_targets:
+                    for _ in range(pair_count - idx):
+                        unpacker.skip()
+                    break
+
+                try:
+                    item_size = unpacker.read_array_header()
+                except (msgpack.OutOfData, ValueError):
+                    unpacker.skip()
+                    continue
+                if item_size <= 0:
+                    continue
+
+                user = unpacker.unpack()
+                user_str = to_user_str(user)
+                keep_user = remaining_targets is None or user_str in remaining_targets
+                state = None
+                if item_size >= 2:
+                    if keep_user:
+                        state = unpacker.unpack()
+                    else:
+                        unpacker.skip()
+                for _ in range(max(item_size - 2, 0)):
+                    unpacker.skip()
+
+                if keep_user and isinstance(state, dict):
+                    matched_pairs.append([user, state])
+                    if remaining_targets is not None:
+                        remaining_targets.discard(user_str)
+
+        return {"user_to_state": matched_pairs}
 
     def _load_snapshot(self, path: Path) -> dict:
         with path.open("rb") as f:
