@@ -9,8 +9,8 @@ from src.liquidationheatmap.hyperliquid.sidecar import (
     HyperliquidSidecarPrototypeBuilder,
     SidecarBuildRequest,
     SidecarPositionReconstructor,
+    UserPosition,
 )
-
 
 def test_sidecar_build_request_normalizes_symbol_and_timestamp():
     request = SidecarBuildRequest(
@@ -142,7 +142,7 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     anchor_file = tmp_path / "test.rmp"
 
     # Mock snapshot structure: user_to_state and positions are lists of pairs
-    # metadata included for scaling
+    # metadata included for scaling, marks, and tiered maintenance margin
     snapshot = {
         "exchange": {
             "locus": {
@@ -150,42 +150,56 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
                     {
                         "meta": {
                             "universe": [
-                                {"name": "BTC", "szDecimals": 5},
-                                {"name": "ETH", "szDecimals": 4},
-                                {"name": "ATOM", "szDecimals": 2},
-                                {"name": "HYPE", "szDecimals": 1},
-                                {"name": "SOL", "szDecimals": 2}
+                                {"name": "BTC", "szDecimals": 5, "marginTableId": 10},
+                                {"name": "ETH", "szDecimals": 4, "marginTableId": 20},
+                                {"name": "ATOM", "szDecimals": 2, "marginTableId": 30},
+                                {"name": "HYPE", "szDecimals": 1, "marginTableId": 40},
+                                {"name": "SOL", "szDecimals": 2, "marginTableId": 50},
+                            ],
+                            "marginTableIdToMarginTable": [
+                                [10, {"margin_tiers": [{"lower_bound": 0, "max_leverage": 50, "maintenance_deduction": 0}]}],
+                                [20, {"margin_tiers": [{"lower_bound": 0, "max_leverage": 20, "maintenance_deduction": 5000000}]}],
+                                [50, {"margin_tiers": [{"lower_bound": 0, "max_leverage": 10, "maintenance_deduction": 0}]}],
+                            ],
+                        },
+                        "oracle": {
+                            "pxs": [
+                                [{"px": 600000}],
+                                [{"px": 250000}],
+                                [],
+                                [],
+                                [{"px": 1234500}],
                             ]
                         },
                         "user_states": {
                             "user_to_state": [
                                 [
-                                    b"\x01" * 20, # 20-byte address
+                                    b"\x01" * 20,
                                     {
-                                        "u": 16444084712.0, # u = balance*1e6 + sum(e) = 5444084712 + 11000000000
+                                        "u": 16444084712.0,
                                         "S": {"r": 5444084712.0},
                                         "p": {
                                             "p": [
-                                                [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0}}], # 2.5 ETH, entry 2000, funding 0.1
-                                                [0, {"s": 10000, "e": 6000000000, "M": 100.0, "l": {"C": 50.0}, "f": {"a": 500000.0}}] # 0.1 BTC, entry 60000, funding 0.5
+                                                [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0}}],
+                                                [0, {"s": 10000, "e": 6000000000, "M": 100.0, "l": {"C": 50.0}, "f": {"a": 500000.0}}],
                                             ]
-                                        }
-                                    }
+                                        },
+                                    },
                                 ],
                                 [
                                     "0xuser2_string",
                                     {
-                                        "u": 510000000.0, # u = 500000000 + 10000000
+                                        "u": 510000000.0,
                                         "S": {"r": 500000000.0},
                                         "p": {
                                             "p": [
-                                                [4, {"s": 10000, "e": 10000000, "M": 20.0, "l": {"C": 10.0}, "f": {"a": 0.0}}] # 100.0 SOL
+                                                [4, {"s": 10000, "e": 10000000, "M": 20.0, "l": {"C": 10.0}, "f": {"a": 0.0}}]
                                             ]
-                                        }
-                                    }
-                                ]
+                                        },
+                                    },
+                                ],
                             ]
-                        }
+                        },
                     }
                 ]
             }
@@ -200,6 +214,11 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     state = reconstructor.load_abci_anchor(anchor_file, target_coin="ETH")
 
     assert len(state.users) == 1
+    assert state.mark_prices[0] == 60000.0
+    assert state.mark_prices[1] == 2500.0
+    assert state.asset_margin_tiers[1][0]["mmr_rate"] == 0.025
+    assert state.asset_margin_tiers[1][0]["maintenance_deduction"] == 5.0
+
     expected_user = "0x" + ("01" * 20)
     assert expected_user in state.users
     user1 = state.users[expected_user]
@@ -218,3 +237,38 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     assert "0xuser2_string" in state_sol.users
     user2 = state_sol.users["0xuser2_string"]
     assert user2.positions[0].size == 100.0
+
+
+def test_load_abci_anchor_rejects_empty_payload(tmp_path):
+    anchor_file = tmp_path / "empty.rmp"
+    anchor_file.write_bytes(b"")
+
+    reconstructor = SidecarPositionReconstructor()
+
+    try:
+        reconstructor.load_abci_anchor(anchor_file)
+    except ValueError as exc:
+        assert "empty payload" in str(exc)
+    else:
+        raise AssertionError("Expected empty payload to raise ValueError")
+
+
+def test_compute_position_maintenance_margin_uses_mark_and_deduction():
+    reconstructor = SidecarPositionReconstructor()
+    position = UserPosition(
+        coin="ETH",
+        asset_idx=1,
+        size=2.5,
+        entry_px=2000.0,
+        leverage=20.0,
+        cum_funding=0.1,
+        margin=50.0,
+    )
+
+    mmr = reconstructor.compute_position_maintenance_margin(
+        position,
+        mark_prices={1: 2500.0},
+        asset_margin_tiers={1: [{"lower_bound": 0.0, "mmr_rate": 0.025, "maintenance_deduction": 5.0}]},
+    )
+
+    assert mmr == 151.25

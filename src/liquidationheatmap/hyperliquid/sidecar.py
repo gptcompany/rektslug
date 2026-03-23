@@ -459,10 +459,7 @@ class SidecarPositionReconstructor:
 
     def load_abci_anchor(self, path: Path, *, target_coin: str | None = None) -> SidecarState:
         """Load and decode a MessagePack ABCI snapshot."""
-        with path.open("rb") as f:
-            raw_data = f.read()
-
-        snapshot = msgpack.unpackb(raw_data, strict_map_key=False)
+        snapshot = self._load_snapshot(path)
 
         locus = snapshot.get("exchange", {}).get("locus", {})
         cls_list = locus.get("cls", [])
@@ -488,7 +485,7 @@ class SidecarPositionReconstructor:
                 continue
             table_id, table_data = item[0], item[1]
             tiers_raw = table_data.get("margin_tiers", [])
-            
+
             parsed_tiers = []
             for t in tiers_raw:
                 # MMR is exactly 1 / (2 * max_leverage) based on Hyperliquid spec
@@ -499,14 +496,17 @@ class SidecarPositionReconstructor:
                     "mmr_rate": 1.0 / (2.0 * max_lev) if max_lev > 0 else 0.01,
                     "maintenance_deduction": float(t.get("maintenance_deduction", 0)) / 1e6,
                 })
-            
+
             # Sort tiers descending to easily find active tier
             parsed_tiers.sort(key=lambda x: x["lower_bound"], reverse=True)
             table_to_tiers[table_id] = parsed_tiers
 
         asset_margin_tiers: dict[int, list[dict]] = {}
         for idx, m in asset_meta.items():
-            asset_margin_tiers[idx] = table_to_tiers.get(m["marginTableId"], [{"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}])
+            asset_margin_tiers[idx] = table_to_tiers.get(
+                m["marginTableId"],
+                [{"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}],
+            )
 
         # Extract Oracle prices
         pxs_raw = cls0.get("oracle", {}).get("pxs", [])
@@ -537,7 +537,7 @@ class SidecarPositionReconstructor:
         for item in user_to_state:
             if not isinstance(item, (list, tuple)) or len(item) < 2:
                 continue
-            
+
             user, state = item[0], item[1]
             positions_raw = state.get("p", {}).get("p", [])
             if not positions_raw:
@@ -549,12 +549,12 @@ class SidecarPositionReconstructor:
             for p_item in positions_raw:
                 if not isinstance(p_item, (list, tuple)) or len(p_item) < 2:
                     continue
-                
+
                 asset_idx, p = p_item[0], p_item[1]
                 m = asset_meta.get(asset_idx)
                 if not m or not m["name"]:
                     continue
-                
+
                 if target_coin and m["name"] == target_coin:
                     has_target = True
 
@@ -565,7 +565,7 @@ class SidecarPositionReconstructor:
                 size_scaled = size_raw / (10 ** m["szDecimals"])
                 total_cost_scaled = float(p.get("e", 0)) / USDC_SCALE
                 entry_px = total_cost_scaled / abs(size_scaled)
-                
+
                 pos = UserPosition(
                     coin=m["name"],
                     asset_idx=asset_idx,
@@ -603,11 +603,38 @@ class SidecarPositionReconstructor:
             asset_margin_tiers=asset_margin_tiers,
         )
 
+    def _load_snapshot(self, path: Path) -> dict:
+        with path.open("rb") as f:
+            unpacker = msgpack.Unpacker(f, raw=False, strict_map_key=False)
+            try:
+                snapshot = next(unpacker)
+            except StopIteration as exc:
+                raise ValueError(f"Invalid ABCI snapshot format at {path}: empty payload") from exc
+
+        if not isinstance(snapshot, dict):
+            raise ValueError(f"Invalid ABCI snapshot format at {path}: top-level object is not a map")
+
+        return snapshot
+
     def _get_margin_tier(self, notional: float, tiers: list[dict]) -> dict:
         for t in tiers:
             if notional >= t["lower_bound"]:
                 return t
         return tiers[-1] if tiers else {"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}
+
+    def compute_position_maintenance_margin(
+        self,
+        position: UserPosition,
+        mark_prices: dict[int, float],
+        asset_margin_tiers: dict[int, list[dict]],
+    ) -> float:
+        """Compute the current maintenance margin requirement for a single position."""
+        mark = mark_prices.get(position.asset_idx, position.entry_px)
+        notional = abs(position.size) * mark
+        tiers = asset_margin_tiers.get(position.asset_idx, [])
+        tier = self._get_margin_tier(notional, tiers)
+        requirement = notional * tier["mmr_rate"] - tier["maintenance_deduction"]
+        return max(0.0, requirement)
 
     def solve_liquidation_price(
         self,
@@ -629,12 +656,12 @@ class SidecarPositionReconstructor:
                 continue
 
             mark = mark_prices.get(p.asset_idx, p.entry_px)
-            notional = abs(p.size) * mark
             other_pnl += p.size * (mark - p.entry_px)
-
-            tiers = asset_margin_tiers.get(p.asset_idx, [])
-            tier = self._get_margin_tier(notional, tiers)
-            other_mmr += notional * tier["mmr_rate"] - tier["maintenance_deduction"]
+            other_mmr += self.compute_position_maintenance_margin(
+                p,
+                mark_prices,
+                asset_margin_tiers,
+            )
 
         # balance already reflects all past funding (stored as (u - sum(e)) / scale)
         balance = user_state.balance
@@ -648,7 +675,7 @@ class SidecarPositionReconstructor:
 
         # Cross-margin: equity = balance + other_pnl + target_size*(P - entry) = total_mmr
         account_base = balance + other_pnl
-        
+
         if target_pos.size > 0:
             denom = target_pos.size * (1.0 - mmr_rate)
             numerator = other_mmr - m_deduct + (target_pos.size * target_pos.entry_px) - account_base
@@ -658,6 +685,6 @@ class SidecarPositionReconstructor:
 
         if abs(denom) < 1e-9:
             return 0.0
-            
+
         liq_px = numerator / denom
         return max(0.0, liq_px)
