@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   dispatch:
-    runs-on: [self-hosted, Linux, X64, muletto]
+    runs-on: [self-hosted, Linux, X64, sam-workstation]
     steps:
       - name: Send repository_dispatch to progressive-deploy
         env:

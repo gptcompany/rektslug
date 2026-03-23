@@ -31,12 +31,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [[self-hosted, Linux, X64, muletto]]
+        runner: [[self-hosted, Linux, X64, sam-workstation]]
         python-version: ["3.11"]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Extract Metadata
+        id: meta
+        run: |
+          VERSION=$(grep '^version =' pyproject.toml | cut -d '"' -f 2)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@v5

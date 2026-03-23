@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Liquidation Heatmap API",
     description="API for accessing liquidation heatmap data and ingestion control.",
-    version="1.0.0",
+    version=os.environ.get("REKTSLUG_VERSION", "0.1.0"),
     lifespan=lifespan
 )
 
@@ -72,7 +72,13 @@ app.include_router(signals.router)
 @app.get("/health", tags=["System"])
 async def health():
     """Health check endpoint."""
-    return {"status": "ok", "service": "liquidation-heatmap"}
+    return {
+        "status": "ok",
+        "service": "liquidation-heatmap",
+        "version": os.environ.get("REKTSLUG_VERSION", "0.1.0"),
+        "commit_sha": os.environ.get("REKTSLUG_COMMIT_SHA", "unknown"),
+        "build_at": os.environ.get("REKTSLUG_BUILD_AT", "unknown")
+    }
 
 # Exception handler: return 503 when ingestion lock is active
 @app.exception_handler(IngestionLockError)

@@ -1,117 +1,17 @@
 {
   "testModules": [
     {
-      "moduleId": "tests/validation/test_eth_public_builder.py",
+      "moduleId": "tests/test_hyperliquid_sidecar.py",
       "tests": [
         {
-          "name": "test_eth_endpoint_returns_valid_schema[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthSchemaCompliance::test_eth_endpoint_returns_valid_schema[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_endpoint_returns_valid_schema[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthSchemaCompliance::test_eth_endpoint_returns_valid_schema[1w]",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_1d_grid_step_is_0_5",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthGridStep::test_eth_1d_grid_step_is_0_5",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_1w_grid_step_is_2_0",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthGridStep::test_eth_1w_grid_step_is_2_0",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_has_sufficient_buckets[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthBucketCounts::test_eth_has_sufficient_buckets[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_has_sufficient_buckets[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthBucketCounts::test_eth_has_sufficient_buckets[1w]",
-          "state": "passed"
-        },
-        {
-          "name": "test_cumulative_long_is_monotonic_decreasing_toward_price[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_long_is_monotonic_decreasing_toward_price[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_cumulative_long_is_monotonic_decreasing_toward_price[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_long_is_monotonic_decreasing_toward_price[1w]",
-          "state": "passed"
-        },
-        {
-          "name": "test_cumulative_short_is_monotonic_increasing_from_price[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_short_is_monotonic_increasing_from_price[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_cumulative_short_is_monotonic_increasing_from_price[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthCumulativeCurves::test_cumulative_short_is_monotonic_increasing_from_price[1w]",
-          "state": "passed"
-        },
-        {
-          "name": "test_1w_range_is_wider_than_1d",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthRangeEnvelope::test_1w_range_is_wider_than_1d",
-          "state": "passed"
-        },
-        {
-          "name": "test_fresh_data_flag[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthDataFreshness::test_fresh_data_flag[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_fresh_data_flag[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthDataFreshness::test_fresh_data_flag[1w]",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_metrics_within_20_percent_of_btc[1d]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthVsBtcStructuralComparison::test_eth_metrics_within_20_percent_of_btc[1d]",
-          "state": "passed"
-        },
-        {
-          "name": "test_eth_metrics_within_20_percent_of_btc[1w]",
-          "fullName": "tests/validation/test_eth_public_builder.py::TestEthVsBtcStructuralComparison::test_eth_metrics_within_20_percent_of_btc[1w]",
-          "state": "passed"
-        }
-      ]
-    },
-    {
-      "moduleId": "tests/contract/test_coinank_public_map.py",
-      "tests": [
-        {
-          "name": "test_endpoint_exists_and_returns_typed_schema",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_endpoint_exists_and_returns_typed_schema",
-          "state": "passed"
-        },
-        {
-          "name": "test_unsupported_symbol_is_rejected",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_unsupported_symbol_is_rejected",
-          "state": "passed"
-        },
-        {
-          "name": "test_unsupported_timeframe_is_rejected",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_unsupported_timeframe_is_rejected",
-          "state": "passed"
-        },
-        {
-          "name": "test_builder_failure_returns_explicit_json_500",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_builder_failure_returns_explicit_json_500",
-          "state": "passed"
-        },
-        {
-          "name": "test_transient_duckdb_lock_is_retried",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_transient_duckdb_lock_is_retried",
-          "state": "passed"
-        },
-        {
-          "name": "test_legacy_levels_endpoint_remains_available",
-          "fullName": "tests/contract/test_coinank_public_map.py::TestCoinankPublicMapContract::test_legacy_levels_endpoint_remains_available",
-          "state": "passed"
+          "name": "collection_error_tests/test_hyperliquid_sidecar.py",
+          "fullName": "tests/test_hyperliquid_sidecar.py",
+          "state": "failed",
+          "errors": [
+            {
+              "message": "ImportError while importing test module '/media/sam/1TB/rektslug/tests/test_hyperliquid_sidecar.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\ntests/test_hyperliquid_sidecar.py:7: in <module>\n    from src.liquidationheatmap.hyperliquid.sidecar import (\nsrc/liquidationheatmap/hyperliquid/__init__.py:3: in <module>\n    from .sidecar import (\nsrc/liquidationheatmap/hyperliquid/sidecar.py:18: in <module>\n    from enum import StrEnum\nE   ImportError: cannot import name 'StrEnum' from 'enum' (/usr/lib/python3.10/enum.py)"
+            }
+          ]
         }
       ]
     }

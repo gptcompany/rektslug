@@ -5,6 +5,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
     PATH="/app/.venv/bin:${PATH}"
 
+
+ARG VERSION=unknown
+ARG COMMIT_SHA=unknown
+ARG BUILD_AT=unknown
+
+ENV REKTSLUG_VERSION=${VERSION}
+ENV REKTSLUG_COMMIT_SHA=${COMMIT_SHA}
+ENV REKTSLUG_BUILD_AT=${BUILD_AT}
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
