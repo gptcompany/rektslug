@@ -1,0 +1,52 @@
+{
+  "a_source": "rektslug-sidecar",
+  "b_source": "coinglass-hyperliquid",
+  "symbol": "ETH",
+  "bin_size": 0.45,
+  "a_stats": {
+    "long_volume": 590380212.61,
+    "short_volume": 522783387.66,
+    "total_volume": 1113163600.27,
+    "ls_ratio": 1.1293,
+    "long_buckets": 5583,
+    "short_buckets": 2917,
+    "position_count": 8500,
+    "account_count": 339360
+  },
+  "b_stats": {
+    "long_volume": 465860157.67,
+    "short_volume": 497024653.52,
+    "total_volume": 962884811.2,
+    "ls_ratio": 0.9373,
+    "long_buckets": 45,
+    "short_buckets": 93,
+    "position_count": 153,
+    "account_count": 0
+  },
+  "volume_scale_ratio": 0.865,
+  "pearson_r": 0.0021,
+  "pearson_p": 0.851,
+  "ks_statistic": 0.5042,
+  "ks_p": 0.0,
+  "wasserstein_distance": 4051.46,
+  "a_peak_prices": [
+    7616.25,
+    6155.55,
+    1153.35,
+    2515.5,
+    3793.5
+  ],
+  "b_peak_prices": [
+    1755.45,
+    1456.65,
+    2718.0,
+    2717.1,
+    4030.2
+  ],
+  "peak_mean_distance": 1913.31,
+  "peak_max_distance": 3586.05,
+  "ls_ratio_diff": 0.192,
+  "long_pearson_r": -0.0014,
+  "short_pearson_r": 0.0155,
+  "assessment": "Pearson=WEAK(0.002) | KS=VERY DIFFERENT(0.504) | Wasserstein=4051 | L/S_diff=MODERATE(0.192)"
+}

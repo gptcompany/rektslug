@@ -1,0 +1,1677 @@
+{
+  "metadata": {
+    "symbol": "ETHUSDT",
+    "target_coin": "ETH",
+    "timeframe_days": 7,
+    "analysis_end_utc": "2026-03-21T00:00:00+00:00",
+    "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260321/931220000.rmp",
+    "account_count": 339360,
+    "all_position_count": 146297,
+    "target_position_count": 13389
+  },
+  "interpretation": {
+    "gap_definition": "snapshot_margin - solver_mmr",
+    "positive_gap_meaning": "Snapshot margin exceeds current maintenance margin; this is consistent with reserved-margin or discretionary excess collateral but is not proof of open-order usage on its own.",
+    "negative_gap_meaning": "Snapshot margin is below current maintenance margin; this indicates the M field is not a direct maintenance-margin proxy at current marks and should not be interpreted as reserved-margin evidence."
+  },
+  "all_positions_summary": {
+    "count": 146297,
+    "snapshot_total": 5198302.0,
+    "solver_total": 96551904.654377,
+    "gap_total": -91353602.650691,
+    "positive_gap_count": 112075,
+    "negative_gap_count": 34222,
+    "zero_gap_count": 0,
+    "positive_gap_total": 3473088.109237,
+    "negative_gap_total": -94826690.759927,
+    "gap_mean": -624.439344,
+    "gap_median": 4.994729,
+    "gap_p90": 51.985878,
+    "gap_p95": 54.173676,
+    "gap_p99": 55.817037,
+    "gap_min": -3635959.435838,
+    "gap_max": 55.991287
+  },
+  "target_positions_summary": {
+    "count": 13389,
+    "snapshot_total": 729245.0,
+    "solver_total": 24675279.160249,
+    "gap_total": -23946034.160249,
+    "positive_gap_count": 9688,
+    "negative_gap_count": 3701,
+    "zero_gap_count": 0,
+    "positive_gap_total": 446403.819606,
+    "negative_gap_total": -24392437.979855,
+    "gap_mean": -1788.485634,
+    "gap_median": 46.566388,
+    "gap_p90": 54.752955,
+    "gap_p95": 54.850921,
+    "gap_p99": 54.991481,
+    "gap_min": -3635959.435838,
+    "gap_max": 54.995741
+  },
+  "user_summary": {
+    "count": 339360,
+    "snapshot_total": 5198302.0,
+    "solver_total": 96551904.649953,
+    "gap_total": -91353602.649501,
+    "positive_gap_count": 21574,
+    "negative_gap_count": 10625,
+    "zero_gap_count": 307161,
+    "positive_gap_total": 3284326.601072,
+    "negative_gap_total": -94637929.250573,
+    "gap_mean": -269.193784,
+    "gap_median": 0.0,
+    "gap_p90": 0.0,
+    "gap_p95": 36.501425,
+    "gap_p99": 152.733464,
+    "gap_min": -4299476.550301,
+    "gap_max": 2302.660131
+  },
+  "coin_breakdown": {
+    "0G": {
+      "position_count": 171,
+      "snapshot_total": 607.0,
+      "solver_total": 4403.865744,
+      "gap_total": -3796.865744
+    },
+    "2Z": {
+      "position_count": 169,
+      "snapshot_total": 601.0,
+      "solver_total": 15895.894342,
+      "gap_total": -15294.894342
+    },
+    "AAVE": {
+      "position_count": 1807,
+      "snapshot_total": 93310.0,
+      "solver_total": 879335.55957,
+      "gap_total": -786025.55957
+    },
+    "ACE": {
+      "position_count": 113,
+      "snapshot_total": 440.0,
+      "solver_total": 3707.315975,
+      "gap_total": -3267.315975
+    },
+    "ADA": {
+      "position_count": 1836,
+      "snapshot_total": 94768.0,
+      "solver_total": 512662.735223,
+      "gap_total": -417894.735222
+    },
+    "AERO": {
+      "position_count": 247,
+      "snapshot_total": 835.0,
+      "solver_total": 17507.020143,
+      "gap_total": -16672.020143
+    },
+    "AIXBT": {
+      "position_count": 219,
+      "snapshot_total": 799.0,
+      "solver_total": 8763.95267,
+      "gap_total": -7964.95267
+    },
+    "ALGO": {
+      "position_count": 1246,
+      "snapshot_total": 6320.0,
+      "solver_total": 5996.245675,
+      "gap_total": 323.754325
+    },
+    "ALT": {
+      "position_count": 139,
+      "snapshot_total": 542.0,
+      "solver_total": 5458.474021,
+      "gap_total": -4916.474021
+    },
+    "ANIME": {
+      "position_count": 211,
+      "snapshot_total": 727.0,
+      "solver_total": 11974.35798,
+      "gap_total": -11247.35798
+    },
+    "APE": {
+      "position_count": 211,
+      "snapshot_total": 1140.0,
+      "solver_total": 4158.078682,
+      "gap_total": -3018.078682
+    },
+    "APEX": {
+      "position_count": 137,
+      "snapshot_total": 505.0,
+      "solver_total": 13036.05595,
+      "gap_total": -12531.05595
+    },
+    "APT": {
+      "position_count": 1519,
+      "snapshot_total": 78304.0,
+      "solver_total": 272341.942405,
+      "gap_total": -194037.942405
+    },
+    "AR": {
+      "position_count": 195,
+      "snapshot_total": 1070.0,
+      "solver_total": 3269.202571,
+      "gap_total": -2199.202571
+    },
+    "ARB": {
+      "position_count": 1574,
+      "snapshot_total": 79628.0,
+      "solver_total": 121657.47016,
+      "gap_total": -42029.47016
+    },
+    "ARK": {
+      "position_count": 115,
+      "snapshot_total": 439.0,
+      "solver_total": 1513.811893,
+      "gap_total": -1074.811893
+    },
+    "ASTER": {
+      "position_count": 1056,
+      "snapshot_total": 5370.0,
+      "solver_total": 491188.475081,
+      "gap_total": -485818.475081
+    },
+    "ATOM": {
+      "position_count": 1395,
+      "snapshot_total": 7070.0,
+      "solver_total": 34778.045883,
+      "gap_total": -27708.045883
+    },
+    "AVAX": {
+      "position_count": 1992,
+      "snapshot_total": 102514.0,
+      "solver_total": 1011267.583778,
+      "gap_total": -908753.583778
+    },
+    "AVNT": {
+      "position_count": 247,
+      "snapshot_total": 1325.0,
+      "solver_total": 9854.030184,
+      "gap_total": -8529.030184
+    },
+    "AXS": {
+      "position_count": 204,
+      "snapshot_total": 1110.0,
+      "solver_total": 22639.974084,
+      "gap_total": -21529.974084
+    },
+    "AZTEC": {
+      "position_count": 144,
+      "snapshot_total": 526.0,
+      "solver_total": 7151.822353,
+      "gap_total": -6625.822353
+    },
+    "BABY": {
+      "position_count": 138,
+      "snapshot_total": 514.0,
+      "solver_total": 4141.792837,
+      "gap_total": -3627.792837
+    },
+    "BANANA": {
+      "position_count": 128,
+      "snapshot_total": 478.0,
+      "solver_total": 1358.74659,
+      "gap_total": -880.74659
+    },
+    "BCH": {
+      "position_count": 1650,
+      "snapshot_total": 85524.0,
+      "solver_total": 783668.012085,
+      "gap_total": -698144.012085
+    },
+    "BERA": {
+      "position_count": 361,
+      "snapshot_total": 1895.0,
+      "solver_total": 23179.787011,
+      "gap_total": -21284.787011
+    },
+    "BIGTIME": {
+      "position_count": 126,
+      "snapshot_total": 507.0,
+      "solver_total": 2783.695937,
+      "gap_total": -2276.695937
+    },
+    "BIO": {
+      "position_count": 180,
+      "snapshot_total": 680.0,
+      "solver_total": 1837.043518,
+      "gap_total": -1157.043518
+    },
+    "BLAST": {
+      "position_count": 144,
+      "snapshot_total": 526.0,
+      "solver_total": 6427.674865,
+      "gap_total": -5901.674865
+    },
+    "BLUR": {
+      "position_count": 154,
+      "snapshot_total": 602.0,
+      "solver_total": 4636.120003,
+      "gap_total": -4034.120003
+    },
+    "BNB": {
+      "position_count": 2183,
+      "snapshot_total": 110207.0,
+      "solver_total": 921157.274245,
+      "gap_total": -810950.274245
+    },
+    "BOME": {
+      "position_count": 116,
+      "snapshot_total": 444.0,
+      "solver_total": 996.874181,
+      "gap_total": -552.874181
+    },
+    "BRETT": {
+      "position_count": 189,
+      "snapshot_total": 703.0,
+      "solver_total": 2836.786347,
+      "gap_total": -2133.786347
+    },
+    "BSV": {
+      "position_count": 146,
+      "snapshot_total": 539.0,
+      "solver_total": 7821.341385,
+      "gap_total": -7282.341385
+    },
+    "BTC": {
+      "position_count": 14603,
+      "snapshot_total": 815038.0,
+      "solver_total": 14814946.757312,
+      "gap_total": -13999908.757312
+    },
+    "CAKE": {
+      "position_count": 1215,
+      "snapshot_total": 3753.0,
+      "solver_total": 5798.370942,
+      "gap_total": -2045.370942
+    },
+    "CC": {
+      "position_count": 284,
+      "snapshot_total": 946.0,
+      "solver_total": 25166.809,
+      "gap_total": -24220.809
+    },
+    "CELO": {
+      "position_count": 170,
+      "snapshot_total": 606.0,
+      "solver_total": 4708.010209,
+      "gap_total": -4102.010209
+    },
+    "CFX": {
+      "position_count": 182,
+      "snapshot_total": 1000.0,
+      "solver_total": 26333.334535,
+      "gap_total": -25333.334535
+    },
+    "CHILLGUY": {
+      "position_count": 163,
+      "snapshot_total": 583.0,
+      "solver_total": 3357.547154,
+      "gap_total": -2774.547154
+    },
+    "COMP": {
+      "position_count": 187,
+      "snapshot_total": 1020.0,
+      "solver_total": 6434.489592,
+      "gap_total": -5414.489592
+    },
+    "CRV": {
+      "position_count": 1472,
+      "snapshot_total": 75910.0,
+      "solver_total": 258030.304726,
+      "gap_total": -182120.304726
+    },
+    "DASH": {
+      "position_count": 188,
+      "snapshot_total": 1030.0,
+      "solver_total": 7982.2464,
+      "gap_total": -6952.2464
+    },
+    "DOGE": {
+      "position_count": 2232,
+      "snapshot_total": 114736.0,
+      "solver_total": 702905.301444,
+      "gap_total": -588169.301444
+    },
+    "DOOD": {
+      "position_count": 143,
+      "snapshot_total": 523.0,
+      "solver_total": 3080.341326,
+      "gap_total": -2557.341326
+    },
+    "DOT": {
+      "position_count": 1600,
+      "snapshot_total": 80739.0,
+      "solver_total": 300028.05144,
+      "gap_total": -219289.05144
+    },
+    "DYDX": {
+      "position_count": 235,
+      "snapshot_total": 1250.0,
+      "solver_total": 15413.851223,
+      "gap_total": -14163.851223
+    },
+    "DYM": {
+      "position_count": 159,
+      "snapshot_total": 592.0,
+      "solver_total": 3017.028403,
+      "gap_total": -2425.028403
+    },
+    "EIGEN": {
+      "position_count": 310,
+      "snapshot_total": 1640.0,
+      "solver_total": 13703.138556,
+      "gap_total": -12063.138556
+    },
+    "ENA": {
+      "position_count": 1703,
+      "snapshot_total": 88048.0,
+      "solver_total": 530415.215085,
+      "gap_total": -442367.215085
+    },
+    "ENS": {
+      "position_count": 172,
+      "snapshot_total": 970.0,
+      "solver_total": 18766.514897,
+      "gap_total": -17796.514897
+    },
+    "ETC": {
+      "position_count": 1236,
+      "snapshot_total": 6275.0,
+      "solver_total": 8634.109799,
+      "gap_total": -2359.109799
+    },
+    "ETH": {
+      "position_count": 13389,
+      "snapshot_total": 729245.0,
+      "solver_total": 24675279.160301,
+      "gap_total": -23946034.160301
+    },
+    "ETHFI": {
+      "position_count": 383,
+      "snapshot_total": 2005.0,
+      "solver_total": 42824.412964,
+      "gap_total": -40819.412964
+    },
+    "FARTCOIN": {
+      "position_count": 1220,
+      "snapshot_total": 63436.0,
+      "solver_total": 1469428.422622,
+      "gap_total": -1405992.422622
+    },
+    "FET": {
+      "position_count": 1399,
+      "snapshot_total": 7100.0,
+      "solver_total": 32839.515034,
+      "gap_total": -25739.515034
+    },
+    "FIL": {
+      "position_count": 1317,
+      "snapshot_total": 6695.0,
+      "solver_total": 19046.518562,
+      "gap_total": -12351.518562
+    },
+    "FOGO": {
+      "position_count": 114,
+      "snapshot_total": 436.0,
+      "solver_total": 2827.065803,
+      "gap_total": -2391.065803
+    },
+    "FTT": {
+      "position_count": 72,
+      "snapshot_total": 310.0,
+      "solver_total": 1127.350576,
+      "gap_total": -817.350576
+    },
+    "GALA": {
+      "position_count": 164,
+      "snapshot_total": 593.0,
+      "solver_total": 2344.547939,
+      "gap_total": -1751.547939
+    },
+    "GAS": {
+      "position_count": 119,
+      "snapshot_total": 458.0,
+      "solver_total": 961.172538,
+      "gap_total": -503.172538
+    },
+    "GMT": {
+      "position_count": 146,
+      "snapshot_total": 571.0,
+      "solver_total": 1937.717295,
+      "gap_total": -1366.717295
+    },
+    "GMX": {
+      "position_count": 171,
+      "snapshot_total": 646.0,
+      "solver_total": 4723.2565,
+      "gap_total": -4077.2565
+    },
+    "GOAT": {
+      "position_count": 159,
+      "snapshot_total": 633.0,
+      "solver_total": 3195.02528,
+      "gap_total": -2562.02528
+    },
+    "GRASS": {
+      "position_count": 285,
+      "snapshot_total": 985.0,
+      "solver_total": 17658.752555,
+      "gap_total": -16673.752555
+    },
+    "GRIFFAIN": {
+      "position_count": 163,
+      "snapshot_total": 613.0,
+      "solver_total": 8442.994599,
+      "gap_total": -7829.994599
+    },
+    "HBAR": {
+      "position_count": 1397,
+      "snapshot_total": 7075.0,
+      "solver_total": 24435.311833,
+      "gap_total": -17360.311833
+    },
+    "HEMI": {
+      "position_count": 163,
+      "snapshot_total": 583.0,
+      "solver_total": 14371.535689,
+      "gap_total": -13788.535689
+    },
+    "HMSTR": {
+      "position_count": 125,
+      "snapshot_total": 471.0,
+      "solver_total": 10345.037265,
+      "gap_total": -9874.037265
+    },
+    "HYPE": {
+      "position_count": 7107,
+      "snapshot_total": 369560.0,
+      "solver_total": 24546736.399095,
+      "gap_total": -24177176.399095
+    },
+    "HYPER": {
+      "position_count": 136,
+      "snapshot_total": 502.0,
+      "solver_total": 2266.369079,
+      "gap_total": -1764.369079
+    },
+    "ICP": {
+      "position_count": 270,
+      "snapshot_total": 1440.0,
+      "solver_total": 29616.30952,
+      "gap_total": -28176.30952
+    },
+    "IMX": {
+      "position_count": 320,
+      "snapshot_total": 1695.0,
+      "solver_total": 7897.151581,
+      "gap_total": -6202.151581
+    },
+    "INIT": {
+      "position_count": 170,
+      "snapshot_total": 604.0,
+      "solver_total": 3776.536767,
+      "gap_total": -3172.536767
+    },
+    "INJ": {
+      "position_count": 436,
+      "snapshot_total": 21958.0,
+      "solver_total": 63303.05607,
+      "gap_total": -41345.05607
+    },
+    "IO": {
+      "position_count": 148,
+      "snapshot_total": 568.0,
+      "solver_total": 1598.632673,
+      "gap_total": -1030.632673
+    },
+    "IOTA": {
+      "position_count": 100,
+      "snapshot_total": 394.0,
+      "solver_total": 2372.308953,
+      "gap_total": -1978.308953
+    },
+    "IP": {
+      "position_count": 1231,
+      "snapshot_total": 3787.0,
+      "solver_total": 41862.826497,
+      "gap_total": -38075.826497
+    },
+    "JTO": {
+      "position_count": 229,
+      "snapshot_total": 1245.0,
+      "solver_total": 10134.175616,
+      "gap_total": -8889.175616
+    },
+    "JUP": {
+      "position_count": 1392,
+      "snapshot_total": 70539.0,
+      "solver_total": 183198.13535,
+      "gap_total": -112659.13535
+    },
+    "KAITO": {
+      "position_count": 211,
+      "snapshot_total": 1145.0,
+      "solver_total": 13671.7212,
+      "gap_total": -12526.7212
+    },
+    "KAS": {
+      "position_count": 1270,
+      "snapshot_total": 3904.0,
+      "solver_total": 7813.315333,
+      "gap_total": -3909.315333
+    },
+    "LAYER": {
+      "position_count": 153,
+      "snapshot_total": 553.0,
+      "solver_total": 4754.9615,
+      "gap_total": -4201.9615
+    },
+    "LDO": {
+      "position_count": 397,
+      "snapshot_total": 19918.0,
+      "solver_total": 131214.49856,
+      "gap_total": -111296.49856
+    },
+    "LINEA": {
+      "position_count": 247,
+      "snapshot_total": 835.0,
+      "solver_total": 24743.214989,
+      "gap_total": -23908.214989
+    },
+    "LINK": {
+      "position_count": 2090,
+      "snapshot_total": 107476.0,
+      "solver_total": 903818.9587,
+      "gap_total": -796342.9587
+    },
+    "LIT": {
+      "position_count": 592,
+      "snapshot_total": 3050.0,
+      "solver_total": 189405.21078,
+      "gap_total": -186355.21078
+    },
+    "LTC": {
+      "position_count": 1672,
+      "snapshot_total": 86406.0,
+      "solver_total": 439965.126563,
+      "gap_total": -353559.126563
+    },
+    "MANTA": {
+      "position_count": 130,
+      "snapshot_total": 498.0,
+      "solver_total": 2987.544461,
+      "gap_total": -2489.544461
+    },
+    "MAV": {
+      "position_count": 108,
+      "snapshot_total": 420.0,
+      "solver_total": 857.997434,
+      "gap_total": -437.997434
+    },
+    "MAVIA": {
+      "position_count": 111,
+      "snapshot_total": 429.0,
+      "solver_total": 12097.009213,
+      "gap_total": -11668.009213
+    },
+    "ME": {
+      "position_count": 170,
+      "snapshot_total": 628.0,
+      "solver_total": 1708.524229,
+      "gap_total": -1080.524229
+    },
+    "MEGA": {
+      "position_count": 214,
+      "snapshot_total": 642.0,
+      "solver_total": 18663.861164,
+      "gap_total": -18021.861164
+    },
+    "MELANIA": {
+      "position_count": 233,
+      "snapshot_total": 871.0,
+      "solver_total": 11653.079872,
+      "gap_total": -10782.079872
+    },
+    "MEME": {
+      "position_count": 149,
+      "snapshot_total": 596.0,
+      "solver_total": 5529.628083,
+      "gap_total": -4933.628083
+    },
+    "MERL": {
+      "position_count": 189,
+      "snapshot_total": 663.0,
+      "solver_total": 4175.738202,
+      "gap_total": -3512.738202
+    },
+    "MET": {
+      "position_count": 173,
+      "snapshot_total": 613.0,
+      "solver_total": 12365.003489,
+      "gap_total": -11752.003489
+    },
+    "MEW": {
+      "position_count": 132,
+      "snapshot_total": 520.0,
+      "solver_total": 507.644224,
+      "gap_total": 12.355776
+    },
+    "MINA": {
+      "position_count": 139,
+      "snapshot_total": 518.0,
+      "solver_total": 2456.552776,
+      "gap_total": -1938.552776
+    },
+    "MNT": {
+      "position_count": 1318,
+      "snapshot_total": 6680.0,
+      "solver_total": 40520.58145,
+      "gap_total": -33840.58145
+    },
+    "MON": {
+      "position_count": 491,
+      "snapshot_total": 2545.0,
+      "solver_total": 207188.809123,
+      "gap_total": -204643.809123
+    },
+    "MOODENG": {
+      "position_count": 164,
+      "snapshot_total": 628.0,
+      "solver_total": 9930.431604,
+      "gap_total": -9302.431604
+    },
+    "MORPHO": {
+      "position_count": 1202,
+      "snapshot_total": 6100.0,
+      "solver_total": 37447.397708,
+      "gap_total": -31347.397707
+    },
+    "MOVE": {
+      "position_count": 157,
+      "snapshot_total": 583.0,
+      "solver_total": 3006.520599,
+      "gap_total": -2423.520599
+    },
+    "NEAR": {
+      "position_count": 1705,
+      "snapshot_total": 87488.0,
+      "solver_total": 585107.08256,
+      "gap_total": -497619.08256
+    },
+    "NEO": {
+      "position_count": 152,
+      "snapshot_total": 845.0,
+      "solver_total": 4033.792362,
+      "gap_total": -3188.792362
+    },
+    "NIL": {
+      "position_count": 111,
+      "snapshot_total": 427.0,
+      "solver_total": 1355.431105,
+      "gap_total": -928.431105
+    },
+    "NOT": {
+      "position_count": 118,
+      "snapshot_total": 448.0,
+      "solver_total": 1235.157808,
+      "gap_total": -787.157808
+    },
+    "NXPC": {
+      "position_count": 135,
+      "snapshot_total": 505.0,
+      "solver_total": 4659.44765,
+      "gap_total": -4154.44765
+    },
+    "ONDO": {
+      "position_count": 1425,
+      "snapshot_total": 72099.0,
+      "solver_total": 82306.203084,
+      "gap_total": -10207.203084
+    },
+    "OP": {
+      "position_count": 558,
+      "snapshot_total": 27750.0,
+      "solver_total": 137102.539166,
+      "gap_total": -109352.539166
+    },
+    "ORDI": {
+      "position_count": 138,
+      "snapshot_total": 544.0,
+      "solver_total": 1132.831732,
+      "gap_total": -588.831732
+    },
+    "PAXG": {
+      "position_count": 1931,
+      "snapshot_total": 98479.0,
+      "solver_total": 2648048.299,
+      "gap_total": -2549569.299
+    },
+    "PENDLE": {
+      "position_count": 385,
+      "snapshot_total": 2040.0,
+      "solver_total": 24492.183955,
+      "gap_total": -22452.183955
+    },
+    "PENGU": {
+      "position_count": 1447,
+      "snapshot_total": 7325.0,
+      "solver_total": 19935.408375,
+      "gap_total": -12610.408375
+    },
+    "PEOPLE": {
+      "position_count": 124,
+      "snapshot_total": 470.0,
+      "solver_total": 1029.779666,
+      "gap_total": -559.779666
+    },
+    "PNUT": {
+      "position_count": 180,
+      "snapshot_total": 670.0,
+      "solver_total": 4747.607723,
+      "gap_total": -4077.607723
+    },
+    "POL": {
+      "position_count": 1358,
+      "snapshot_total": 6895.0,
+      "solver_total": 15436.21728,
+      "gap_total": -8541.21728
+    },
+    "POLYX": {
+      "position_count": 130,
+      "snapshot_total": 491.0,
+      "solver_total": 3813.871316,
+      "gap_total": -3322.871316
+    },
+    "POPCAT": {
+      "position_count": 241,
+      "snapshot_total": 2364.0,
+      "solver_total": 16010.458847,
+      "gap_total": -13646.458847
+    },
+    "PROMPT": {
+      "position_count": 141,
+      "snapshot_total": 533.0,
+      "solver_total": 9480.369873,
+      "gap_total": -8947.369873
+    },
+    "PROVE": {
+      "position_count": 117,
+      "snapshot_total": 445.0,
+      "solver_total": 2220.252675,
+      "gap_total": -1775.252675
+    },
+    "PUMP": {
+      "position_count": 1890,
+      "snapshot_total": 98276.0,
+      "solver_total": 1223440.416518,
+      "gap_total": -1125164.416518
+    },
+    "PURR": {
+      "position_count": 265,
+      "snapshot_total": 889.0,
+      "solver_total": 31701.528567,
+      "gap_total": -30812.528567
+    },
+    "PYTH": {
+      "position_count": 209,
+      "snapshot_total": 1165.0,
+      "solver_total": 5743.443709,
+      "gap_total": -4578.443709
+    },
+    "RENDER": {
+      "position_count": 1353,
+      "snapshot_total": 6855.0,
+      "solver_total": 15116.268143,
+      "gap_total": -8261.268143
+    },
+    "RESOLV": {
+      "position_count": 312,
+      "snapshot_total": 1030.0,
+      "solver_total": 13667.225866,
+      "gap_total": -12637.225866
+    },
+    "REZ": {
+      "position_count": 165,
+      "snapshot_total": 591.0,
+      "solver_total": 4431.024218,
+      "gap_total": -3840.024218
+    },
+    "RSR": {
+      "position_count": 132,
+      "snapshot_total": 494.0,
+      "solver_total": 1143.477587,
+      "gap_total": -649.477587
+    },
+    "RUNE": {
+      "position_count": 185,
+      "snapshot_total": 1040.0,
+      "solver_total": 4936.553965,
+      "gap_total": -3896.553965
+    },
+    "S": {
+      "position_count": 234,
+      "snapshot_total": 1260.0,
+      "solver_total": 9215.18728,
+      "gap_total": -7955.18728
+    },
+    "SAGA": {
+      "position_count": 136,
+      "snapshot_total": 518.0,
+      "solver_total": 10945.449479,
+      "gap_total": -10427.449479
+    },
+    "SAND": {
+      "position_count": 157,
+      "snapshot_total": 875.0,
+      "solver_total": 1542.48333,
+      "gap_total": -667.48333
+    },
+    "SCR": {
+      "position_count": 126,
+      "snapshot_total": 476.0,
+      "solver_total": 1702.657782,
+      "gap_total": -1226.657782
+    },
+    "SEI": {
+      "position_count": 1430,
+      "snapshot_total": 72436.0,
+      "solver_total": 100373.801516,
+      "gap_total": -27937.801516
+    },
+    "SKR": {
+      "position_count": 139,
+      "snapshot_total": 511.0,
+      "solver_total": 2595.906901,
+      "gap_total": -2084.906901
+    },
+    "SKY": {
+      "position_count": 254,
+      "snapshot_total": 856.0,
+      "solver_total": 29003.790699,
+      "gap_total": -28147.790699
+    },
+    "SNX": {
+      "position_count": 215,
+      "snapshot_total": 736.0,
+      "solver_total": 3508.030633,
+      "gap_total": -2772.030633
+    },
+    "SOL": {
+      "position_count": 6063,
+      "snapshot_total": 323992.0,
+      "solver_total": 5901783.30735,
+      "gap_total": -5577791.30735
+    },
+    "SOPH": {
+      "position_count": 141,
+      "snapshot_total": 521.0,
+      "solver_total": 4571.87004,
+      "gap_total": -4050.87004
+    },
+    "SPX": {
+      "position_count": 388,
+      "snapshot_total": 2030.0,
+      "solver_total": 12734.422941,
+      "gap_total": -10704.422941
+    },
+    "STABLE": {
+      "position_count": 225,
+      "snapshot_total": 769.0,
+      "solver_total": 21762.417152,
+      "gap_total": -20993.417152
+    },
+    "STBL": {
+      "position_count": 195,
+      "snapshot_total": 679.0,
+      "solver_total": 27329.834597,
+      "gap_total": -26650.834597
+    },
+    "STRK": {
+      "position_count": 425,
+      "snapshot_total": 2235.0,
+      "solver_total": 26607.648143,
+      "gap_total": -24372.648143
+    },
+    "STX": {
+      "position_count": 1070,
+      "snapshot_total": 5415.0,
+      "solver_total": 11739.620849,
+      "gap_total": -6324.620849
+    },
+    "SUI": {
+      "position_count": 2145,
+      "snapshot_total": 110766.0,
+      "solver_total": 708721.384624,
+      "gap_total": -597955.384624
+    },
+    "SUPER": {
+      "position_count": 128,
+      "snapshot_total": 485.0,
+      "solver_total": 3010.947172,
+      "gap_total": -2525.947172
+    },
+    "SUSHI": {
+      "position_count": 139,
+      "snapshot_total": 543.0,
+      "solver_total": 3496.04046,
+      "gap_total": -2953.04046
+    },
+    "SYRUP": {
+      "position_count": 205,
+      "snapshot_total": 709.0,
+      "solver_total": 11048.314034,
+      "gap_total": -10339.314034
+    },
+    "TAO": {
+      "position_count": 2293,
+      "snapshot_total": 11555.0,
+      "solver_total": 313852.554788,
+      "gap_total": -302297.554788
+    },
+    "TIA": {
+      "position_count": 387,
+      "snapshot_total": 19000.0,
+      "solver_total": 96704.378638,
+      "gap_total": -77704.378639
+    },
+    "TNSR": {
+      "position_count": 122,
+      "snapshot_total": 462.0,
+      "solver_total": 849.04726,
+      "gap_total": -387.047261
+    },
+    "TON": {
+      "position_count": 1436,
+      "snapshot_total": 72824.0,
+      "solver_total": 319683.465898,
+      "gap_total": -246859.465897
+    },
+    "TRB": {
+      "position_count": 126,
+      "snapshot_total": 472.0,
+      "solver_total": 2762.634627,
+      "gap_total": -2290.634627
+    },
+    "TRUMP": {
+      "position_count": 1689,
+      "snapshot_total": 86438.0,
+      "solver_total": 492525.35598,
+      "gap_total": -406087.35598
+    },
+    "TRX": {
+      "position_count": 1572,
+      "snapshot_total": 79484.0,
+      "solver_total": 400114.884487,
+      "gap_total": -320630.884487
+    },
+    "TST": {
+      "position_count": 95,
+      "snapshot_total": 379.0,
+      "solver_total": 981.297525,
+      "gap_total": -602.297525
+    },
+    "TURBO": {
+      "position_count": 210,
+      "snapshot_total": 742.0,
+      "solver_total": 4826.75629,
+      "gap_total": -4084.75629
+    },
+    "UMA": {
+      "position_count": 125,
+      "snapshot_total": 471.0,
+      "solver_total": 1988.840263,
+      "gap_total": -1517.840263
+    },
+    "UNI": {
+      "position_count": 1669,
+      "snapshot_total": 86072.0,
+      "solver_total": 377601.752612,
+      "gap_total": -291529.752612
+    },
+    "USTC": {
+      "position_count": 101,
+      "snapshot_total": 397.0,
+      "solver_total": 2142.957093,
+      "gap_total": -1745.957093
+    },
+    "USUAL": {
+      "position_count": 152,
+      "snapshot_total": 582.0,
+      "solver_total": 1612.588354,
+      "gap_total": -1030.588354
+    },
+    "VINE": {
+      "position_count": 179,
+      "snapshot_total": 673.0,
+      "solver_total": 4385.021756,
+      "gap_total": -3712.021756
+    },
+    "VIRTUAL": {
+      "position_count": 1442,
+      "snapshot_total": 7300.0,
+      "solver_total": 82751.599555,
+      "gap_total": -75451.599555
+    },
+    "VVV": {
+      "position_count": 503,
+      "snapshot_total": 1603.0,
+      "solver_total": 87186.893215,
+      "gap_total": -85583.893215
+    },
+    "W": {
+      "position_count": 207,
+      "snapshot_total": 1125.0,
+      "solver_total": 3404.249258,
+      "gap_total": -2279.249258
+    },
+    "WCT": {
+      "position_count": 135,
+      "snapshot_total": 499.0,
+      "solver_total": 2156.761095,
+      "gap_total": -1657.761095
+    },
+    "WIF": {
+      "position_count": 377,
+      "snapshot_total": 3326.0,
+      "solver_total": 43411.50165,
+      "gap_total": -40085.50165
+    },
+    "WLD": {
+      "position_count": 1508,
+      "snapshot_total": 77796.0,
+      "solver_total": 862469.98557,
+      "gap_total": -784673.98557
+    },
+    "WLFI": {
+      "position_count": 566,
+      "snapshot_total": 2920.0,
+      "solver_total": 103332.696327,
+      "gap_total": -100412.696327
+    },
+    "XAI": {
+      "position_count": 193,
+      "snapshot_total": 680.0,
+      "solver_total": 7436.024763,
+      "gap_total": -6756.024763
+    },
+    "XLM": {
+      "position_count": 1347,
+      "snapshot_total": 6825.0,
+      "solver_total": 21019.192463,
+      "gap_total": -14194.192463
+    },
+    "XMR": {
+      "position_count": 483,
+      "snapshot_total": 2505.0,
+      "solver_total": 238181.931891,
+      "gap_total": -235676.931891
+    },
+    "XPL": {
+      "position_count": 884,
+      "snapshot_total": 45082.0,
+      "solver_total": 1068209.535566,
+      "gap_total": -1023127.535566
+    },
+    "XRP": {
+      "position_count": 2860,
+      "snapshot_total": 150514.0,
+      "solver_total": 1918050.200735,
+      "gap_total": -1767536.200735
+    },
+    "YGG": {
+      "position_count": 130,
+      "snapshot_total": 484.0,
+      "solver_total": 3470.894828,
+      "gap_total": -2986.894828
+    },
+    "YZY": {
+      "position_count": 113,
+      "snapshot_total": 433.0,
+      "solver_total": 4486.046483,
+      "gap_total": -4053.046482
+    },
+    "ZEC": {
+      "position_count": 1918,
+      "snapshot_total": 99732.0,
+      "solver_total": 1933747.238045,
+      "gap_total": -1834015.238045
+    },
+    "ZEN": {
+      "position_count": 164,
+      "snapshot_total": 910.0,
+      "solver_total": 7357.200973,
+      "gap_total": -6447.200973
+    },
+    "ZEREBRO": {
+      "position_count": 161,
+      "snapshot_total": 617.0,
+      "solver_total": 4022.550787,
+      "gap_total": -3405.550787
+    },
+    "ZETA": {
+      "position_count": 196,
+      "snapshot_total": 689.0,
+      "solver_total": 7581.322622,
+      "gap_total": -6892.322622
+    },
+    "ZK": {
+      "position_count": 278,
+      "snapshot_total": 1480.0,
+      "solver_total": 26593.03431,
+      "gap_total": -25113.03431
+    },
+    "ZORA": {
+      "position_count": 221,
+      "snapshot_total": 757.0,
+      "solver_total": 7916.963766,
+      "gap_total": -7159.963766
+    },
+    "ZRO": {
+      "position_count": 1410,
+      "snapshot_total": 7140.0,
+      "solver_total": 310124.652487,
+      "gap_total": -302984.652487
+    },
+    "kBONK": {
+      "position_count": 333,
+      "snapshot_total": 17144.0,
+      "solver_total": 260709.438024,
+      "gap_total": -243565.438024
+    },
+    "kFLOKI": {
+      "position_count": 138,
+      "snapshot_total": 780.0,
+      "solver_total": 4208.440069,
+      "gap_total": -3428.440069
+    },
+    "kLUNC": {
+      "position_count": 95,
+      "snapshot_total": 379.0,
+      "solver_total": 1960.512322,
+      "gap_total": -1581.512322
+    },
+    "kNEIRO": {
+      "position_count": 95,
+      "snapshot_total": 395.0,
+      "solver_total": 2161.018368,
+      "gap_total": -1766.018368
+    },
+    "kPEPE": {
+      "position_count": 629,
+      "snapshot_total": 32078.0,
+      "solver_total": 420062.485057,
+      "gap_total": -387984.485057
+    },
+    "kSHIB": {
+      "position_count": 280,
+      "snapshot_total": 13992.0,
+      "solver_total": 66679.240199,
+      "gap_total": -52687.240199
+    }
+  },
+  "top_target_positions_by_abs_gap": [
+    {
+      "user": "0xa5b0edf6b55128e0ddae8e51ac538c3188401d41",
+      "coin": "ETH",
+      "size": 70000.6729,
+      "entry_px": 2148.7054589894,
+      "mark_px": 2129.7,
+      "notional": 149080433.07513,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 3636014.435838,
+      "margin_gap": -3635959.435838,
+      "gap_ratio_vs_mmr": -0.999985
+    },
+    {
+      "user": "0x6c8512516ce5669d35113a11ca8b8de322fd84f6",
+      "coin": "ETH",
+      "size": 50000.0059,
+      "entry_px": 2012.1152270054,
+      "mark_px": 2129.7,
+      "notional": 106485012.56523,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 2216167.085508,
+      "margin_gap": -2216112.085508,
+      "gap_ratio_vs_mmr": -0.999975
+    },
+    {
+      "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+      "coin": "ETH",
+      "size": -25154.328,
+      "entry_px": 2057.8984211756,
+      "mark_px": 2129.7,
+      "notional": 53571172.3416,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 1071423.446832,
+      "margin_gap": -1071368.446832,
+      "gap_ratio_vs_mmr": -0.999949
+    },
+    {
+      "user": "0xcd6b437786dd3237a5332b4da3ad431b340aeb33",
+      "coin": "ETH",
+      "size": -16779.9941,
+      "entry_px": 2141.6021507213,
+      "mark_px": 2129.7,
+      "notional": 35736353.43477,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 714727.068695,
+      "margin_gap": -714672.068695,
+      "gap_ratio_vs_mmr": -0.999923
+    },
+    {
+      "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+      "coin": "ETH",
+      "size": -15168.3638,
+      "entry_px": 2065.6545008066,
+      "mark_px": 2129.7,
+      "notional": 32304064.38486,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 646081.287697,
+      "margin_gap": -646026.287697,
+      "gap_ratio_vs_mmr": -0.999915
+    },
+    {
+      "user": "0x218a65e21eddeece7a9df38c6bbdd89f692b7da2",
+      "coin": "ETH",
+      "size": -13441.1317,
+      "entry_px": 2025.7954258813,
+      "mark_px": 2129.7,
+      "notional": 28625578.18149,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 572511.56363,
+      "margin_gap": -572456.56363,
+      "gap_ratio_vs_mmr": -0.999904
+    },
+    {
+      "user": "0xeadc152ac1014ace57c6b353f89adf5faffe9d55",
+      "coin": "ETH",
+      "size": 10078.3744,
+      "entry_px": 2120.6175944595,
+      "mark_px": 2129.7,
+      "notional": 21463913.95968,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 429278.279194,
+      "margin_gap": -429223.279194,
+      "gap_ratio_vs_mmr": -0.999872
+    },
+    {
+      "user": "0x0ddf9bae2af4b874b96d287a5ad42eb47138a902",
+      "coin": "ETH",
+      "size": -10000.0,
+      "entry_px": 2017.392677335,
+      "mark_px": 2129.7,
+      "notional": 21297000.0,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 425940.0,
+      "margin_gap": -425885.0,
+      "gap_ratio_vs_mmr": -0.999871
+    },
+    {
+      "user": "0x9c89f595f5515609ad61f6fda94beff85ae6600e",
+      "coin": "ETH",
+      "size": 9786.2793,
+      "entry_px": 2173.8450951783,
+      "mark_px": 2129.7,
+      "notional": 20841839.02521,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 416836.780504,
+      "margin_gap": -416781.780504,
+      "gap_ratio_vs_mmr": -0.999868
+    },
+    {
+      "user": "0x0b00c540bc5f203d97ac87da62164d3d37e19798",
+      "coin": "ETH",
+      "size": -8586.8025,
+      "entry_px": 2919.71210781,
+      "mark_px": 2129.7,
+      "notional": 18287313.28425,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 365746.265685,
+      "margin_gap": -365691.265685,
+      "gap_ratio_vs_mmr": -0.99985
+    },
+    {
+      "user": "0xed41a12ea862f31df054e9bd3af1dd59486c6029",
+      "coin": "ETH",
+      "size": -8531.0,
+      "entry_px": 2975.5627257132,
+      "mark_px": 2129.7,
+      "notional": 18168470.7,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 363369.414,
+      "margin_gap": -363314.414,
+      "gap_ratio_vs_mmr": -0.999849
+    },
+    {
+      "user": "0xec0b9ebf2a304c99cafe85c548c14dd7783cb078",
+      "coin": "ETH",
+      "size": 7376.9636,
+      "entry_px": 2065.9738950214,
+      "mark_px": 2129.7,
+      "notional": 15710719.37892,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 314214.387578,
+      "margin_gap": -314159.387578,
+      "gap_ratio_vs_mmr": -0.999825
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "coin": "ETH",
+      "size": -7362.512,
+      "entry_px": 2149.2919332098,
+      "mark_px": 2129.7,
+      "notional": 15679941.8064,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 313598.836128,
+      "margin_gap": -313543.836128,
+      "gap_ratio_vs_mmr": -0.999825
+    },
+    {
+      "user": "0x4a20b9496610941053858bd0b7e92493f44c3c26",
+      "coin": "ETH",
+      "size": 7000.0,
+      "entry_px": 1951.8503399957,
+      "mark_px": 2129.7,
+      "notional": 14907900.0,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 298158.0,
+      "margin_gap": -298103.0,
+      "gap_ratio_vs_mmr": -0.999816
+    },
+    {
+      "user": "0x1bbfb3a33600338d5a948618189649a4588d5fc4",
+      "coin": "ETH",
+      "size": 5992.238,
+      "entry_px": 2339.1133029164,
+      "mark_px": 2129.7,
+      "notional": 12761669.2686,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 255233.385372,
+      "margin_gap": -255178.385372,
+      "gap_ratio_vs_mmr": -0.999785
+    },
+    {
+      "user": "0x418aa6bf98a2b2bc93779f810330d88cde488888",
+      "coin": "ETH",
+      "size": -5300.0,
+      "entry_px": 2469.7595472236,
+      "mark_px": 2129.7,
+      "notional": 11287410.0,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 225748.2,
+      "margin_gap": -225693.2,
+      "gap_ratio_vs_mmr": -0.999756
+    },
+    {
+      "user": "0xcac19662ec88d23fa1c81ac0e8570b0cf2ff26b3",
+      "coin": "ETH",
+      "size": -5298.4176,
+      "entry_px": 3131.7645962687,
+      "mark_px": 2129.7,
+      "notional": 11284039.96272,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 225680.799254,
+      "margin_gap": -225625.799254,
+      "gap_ratio_vs_mmr": -0.999756
+    },
+    {
+      "user": "0x020ca66c30bec2c4fe3861a94e4db4a498a35872",
+      "coin": "ETH",
+      "size": 5250.0,
+      "entry_px": 2209.27464868,
+      "mark_px": 2129.7,
+      "notional": 11180925.0,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 223618.5,
+      "margin_gap": -223563.5,
+      "gap_ratio_vs_mmr": -0.999754
+    },
+    {
+      "user": "0x71dfc07de32c2ebf1c4801f4b1c9e40b76d4a23d",
+      "coin": "ETH",
+      "size": -5132.0,
+      "entry_px": 2038.1916133135,
+      "mark_px": 2129.7,
+      "notional": 10929620.4,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 218592.408,
+      "margin_gap": -218537.408,
+      "gap_ratio_vs_mmr": -0.999748
+    },
+    {
+      "user": "0x8e096995c3e4a3f0bc5b3ea1cba94de2aa4d70c9",
+      "coin": "ETH",
+      "size": -4673.6824,
+      "entry_px": 2002.0352637862,
+      "mark_px": 2129.7,
+      "notional": 9953541.40728,
+      "snapshot_margin": 55.0,
+      "solver_mmr": 199070.828146,
+      "margin_gap": -199015.828146,
+      "gap_ratio_vs_mmr": -0.999724
+    }
+  ],
+  "top_users_by_abs_gap": [
+    {
+      "user": "0xeadc152ac1014ace57c6b353f89adf5faffe9d55",
+      "position_count": 39,
+      "target_position_count": 1,
+      "snapshot_margin_total": 1182.0,
+      "solver_mmr_total": 4300658.550301,
+      "margin_gap_total": -4299476.550301,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 429278.279194,
+      "target_margin_gap_total": -429223.279194
+    },
+    {
+      "user": "0xa5b0edf6b55128e0ddae8e51ac538c3188401d41",
+      "position_count": 2,
+      "target_position_count": 1,
+      "snapshot_margin_total": 111.0,
+      "solver_mmr_total": 4245889.435838,
+      "margin_gap_total": -4245778.435838,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 3636014.435838,
+      "target_margin_gap_total": -3635959.435838
+    },
+    {
+      "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "position_count": 6,
+      "target_position_count": 1,
+      "snapshot_margin_total": 321.0,
+      "solver_mmr_total": 2303843.155271,
+      "margin_gap_total": -2303522.155271,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 65834.406622,
+      "target_margin_gap_total": -65779.406622
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "position_count": 86,
+      "target_position_count": 1,
+      "snapshot_margin_total": 2131.0,
+      "solver_mmr_total": 2298218.426552,
+      "margin_gap_total": -2296087.426552,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 313598.836128,
+      "target_margin_gap_total": -313543.836128
+    },
+    {
+      "user": "0x6c8512516ce5669d35113a11ca8b8de322fd84f6",
+      "position_count": 1,
+      "target_position_count": 1,
+      "snapshot_margin_total": 55.0,
+      "solver_mmr_total": 2216167.085508,
+      "margin_gap_total": -2216112.085508,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 2216167.085508,
+      "target_margin_gap_total": -2216112.085508
+    },
+    {
+      "user": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
+      "position_count": 158,
+      "target_position_count": 1,
+      "snapshot_margin_total": 2534.0,
+      "solver_mmr_total": 1974019.108332,
+      "margin_gap_total": -1971485.108332,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 23597.340083,
+      "target_margin_gap_total": -23542.340083
+    },
+    {
+      "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+      "position_count": 24,
+      "target_position_count": 1,
+      "snapshot_margin_total": 972.0,
+      "solver_mmr_total": 1721312.921197,
+      "margin_gap_total": -1720340.921197,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 1071423.446832,
+      "target_margin_gap_total": -1071368.446832
+    },
+    {
+      "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+      "position_count": 19,
+      "target_position_count": 1,
+      "snapshot_margin_total": 757.0,
+      "solver_mmr_total": 1433240.190948,
+      "margin_gap_total": -1432483.190948,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 646081.287697,
+      "target_margin_gap_total": -646026.287697
+    },
+    {
+      "user": "0x939f95036d2e7b6d7419ec072bf9d967352204d2",
+      "position_count": 2,
+      "target_position_count": 0,
+      "snapshot_margin_total": 108.0,
+      "solver_mmr_total": 1385331.601094,
+      "margin_gap_total": -1385223.601094,
+      "target_snapshot_margin_total": 0.0,
+      "target_solver_mmr_total": 0.0,
+      "target_margin_gap_total": 0.0
+    },
+    {
+      "user": "0x0ddf9bae2af4b874b96d287a5ad42eb47138a902",
+      "position_count": 2,
+      "target_position_count": 1,
+      "snapshot_margin_total": 111.0,
+      "solver_mmr_total": 1297190.0,
+      "margin_gap_total": -1297079.0,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 425940.0,
+      "target_margin_gap_total": -425885.0
+    },
+    {
+      "user": "0x45d26f28196d226497130c4bac709d808fed4029",
+      "position_count": 40,
+      "target_position_count": 1,
+      "snapshot_margin_total": 770.0,
+      "solver_mmr_total": 1268213.039943,
+      "margin_gap_total": -1267443.039943,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 41912.496,
+      "target_margin_gap_total": -41857.496
+    },
+    {
+      "user": "0x880ac484a1743862989a441d6d867238c7aa311c",
+      "position_count": 14,
+      "target_position_count": 1,
+      "snapshot_margin_total": 689.0,
+      "solver_mmr_total": 1075535.163681,
+      "margin_gap_total": -1074846.163681,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 405.507658,
+      "target_margin_gap_total": -350.507658
+    },
+    {
+      "user": "0x856c35038594767646266bc7fd68dc26480e910d",
+      "position_count": 30,
+      "target_position_count": 1,
+      "snapshot_margin_total": 913.0,
+      "solver_mmr_total": 1039355.609604,
+      "margin_gap_total": -1038442.609604,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 99355.394791,
+      "target_margin_gap_total": -99300.394791
+    },
+    {
+      "user": "0x123dbca6a27005a3c4ce10cb66ee8ece8fc13bff",
+      "position_count": 93,
+      "target_position_count": 1,
+      "snapshot_margin_total": 2273.0,
+      "solver_mmr_total": 937471.697683,
+      "margin_gap_total": -935198.697683,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 17386.990063,
+      "target_margin_gap_total": -17331.990063
+    },
+    {
+      "user": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
+      "position_count": 5,
+      "target_position_count": 1,
+      "snapshot_margin_total": 270.0,
+      "solver_mmr_total": 876142.615531,
+      "margin_gap_total": -875872.615531,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 85188.0,
+      "target_margin_gap_total": -85133.0
+    },
+    {
+      "user": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
+      "position_count": 17,
+      "target_position_count": 1,
+      "snapshot_margin_total": 799.0,
+      "solver_mmr_total": 758161.937915,
+      "margin_gap_total": -757362.937915,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 101810.457579,
+      "target_margin_gap_total": -101755.457579
+    },
+    {
+      "user": "0x9c89f595f5515609ad61f6fda94beff85ae6600e",
+      "position_count": 3,
+      "target_position_count": 1,
+      "snapshot_margin_total": 114.0,
+      "solver_mmr_total": 733468.352845,
+      "margin_gap_total": -733354.352845,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 416836.780504,
+      "target_margin_gap_total": -416781.780504
+    },
+    {
+      "user": "0x5b9306593ae710a66832c4101e019e3e96f65d0a",
+      "position_count": 4,
+      "target_position_count": 1,
+      "snapshot_margin_total": 215.0,
+      "solver_mmr_total": 717425.177291,
+      "margin_gap_total": -717210.177291,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 87235.340242,
+      "target_margin_gap_total": -87180.340242
+    },
+    {
+      "user": "0x8cc94dc843e1ea7a19805e0cca43001123512b6a",
+      "position_count": 143,
+      "target_position_count": 1,
+      "snapshot_margin_total": 1877.0,
+      "solver_mmr_total": 717657.150351,
+      "margin_gap_total": -715780.150351,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 106485.0,
+      "target_margin_gap_total": -106430.0
+    },
+    {
+      "user": "0xcd6b437786dd3237a5332b4da3ad431b340aeb33",
+      "position_count": 1,
+      "target_position_count": 1,
+      "snapshot_margin_total": 55.0,
+      "solver_mmr_total": 714727.068695,
+      "margin_gap_total": -714672.068695,
+      "target_snapshot_margin_total": 55.0,
+      "target_solver_mmr_total": 714727.068695,
+      "target_margin_gap_total": -714672.068695
+    }
+  ]
+}

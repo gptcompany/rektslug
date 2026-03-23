@@ -39,7 +39,7 @@
   - **diff types**: `new` (new order, subkey: sz), `update` (size change)
   - **Coins**: BTC, ETH, HYPE | **Sides**: A, B
   - **Relevance**: Full order book reconstruction possible; per-price-level depth snapshots for book-aware impact overlay
-- [ ] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
+- [X] T017 Inventory the concrete local sources for mark/oracle, funding, and collateral/equity adjustments required by the chosen full-input path
   - **Available locally** (9 days: 2026-03-12 → 2026-03-20):
     - `node_fills_by_block/hourly/` — exact fill prices, sizes, directions (Close Long/Short for liquidations)
     - `node_order_statuses_by_block/hourly/` — order lifecycle including `filled` events with limitPx/sz
@@ -60,7 +60,7 @@
         - `S.s` / `S.r` — USDC balance (scaled integers)
         - `p.p[]` — positions by asset index (`[0]=BTC`, `[1]=ETH`, `[5]=SOL`, 229 total)
         - Per-position: `l.C` (cross leverage), `l.I` (isolated leverage), `M` (margin), `f.a` (cumulative funding)
-      - `open_order_tracker`: key presence confirmed in the `.rmp` snapshots; structured extraction/inventory still needs explicit parser work
+      - `open_order_tracker`: concrete local source for resting-order / reserved-margin state; key presence is confirmed in the `.rmp` snapshots, though explicit extraction still needs dedicated parser work
       - `users_with_positions`: **59,596** active users
       - `asset_to_oi_szi`: aggregate OI per asset (BTC=2.85B szi, ETH=5.89B szi)
     - **Account equity is directly anchorable at snapshot times** from balances plus position/funding state; this is confirmed for the retained `2d` ABCI window
@@ -68,7 +68,8 @@
     - no transfer / deposit / withdrawal / collateral-adjustment stream has been identified in the current filtered inventory
     - no node-side funding application / heartbeat event has been confirmed; local funding-rate history exists, but the application schedule into account state is not yet proven
   - **Maintenance margin rates** — Hyperliquid margin requirements are asset-specific and tier-dependent (derived from `marginTables` / max leverage); the sidecar must perform metadata lookups for these rules rather than assuming fixed rates.
-  - **Conclusion**: snapshot anchoring is locally strong, but replay-exact between snapshots is still unproven and T017 stays open until path-drift risks (transfers, funding application timing, off-target activity) are bounded.
+  - **Consumer responsibility**: retaining or archiving `periodic_abci_states` beyond the producer's rolling window belongs in the consumer layer; `hyperliquid-node` remains the upstream producer and Rektslug-side persistence owns the 7d+ checkpoint problem.
+  - **Conclusion**: the concrete local source inventory is complete; replay-exact between snapshots remains unproven because transfers/collateral events, funding application timing, and off-target activity are still not fully bounded.
 
 ## Phase 4: Reconstruction Design
 
@@ -88,12 +89,19 @@
 - [X] T026 Compare the prototype against CoinGlass Hyperliquid `ETH` on peak buckets, shape, and long/short balance
   - Absorbed into Phase 6 comparison script (`scripts/compare_hl_sidecar_vs_coinglass.py`)
   - ETH results: Pearson r=0.003, KS=0.430, L/S diff=0.044
-- [ ] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
-  - **Deferred post-decision**: not a prerequisite for the parity decision; can be executed as follow-up optimization
-- [ ] T034 Investigate Open Orders impact: quantify the reserved-margin gap by comparing snapshot `M` field vs current solver MMR
-  - **Deferred post-decision**: impact estimated as marginal (reserved margin from resting orders); investigate only if comparison reveals significant drift
-- [ ] T035 Refactor `load_abci_anchor` to use `msgpack.Unpacker` for streaming decoding (memory optimization)
-  - **Deferred optimization**: pure technical performance improvement, does not block parity decision
+- [X] T027 Run an `ETH 1d` sensitivity pass to measure sparsity and stability
+  - Generated `data/validation/liqmap_hl_eth_1d.json`, `data/validation/comparison_hl_eth_1d.json`, and `data/validation/hl_sidecar_eth_1d_sensitivity.json`
+  - `1d` vs rebucketed `7d`: Pearson r=0.0013, KS=0.1364, Wasserstein=$318.54, L/S diff=0.0444, peak mean distance=$7.11
+  - `1d` is more fragmented/concentrated than `7d` (bucket Jaccard=0.0996, top 1% bucket share 77.5% vs 73.7%, accounts per bucket 41.36 vs 54.99)
+  - `1d` vs CoinGlass remains whale-vs-full-population divergent (Pearson r=0.0021, KS=0.5042, L/S diff=0.192)
+- [X] T034 Investigate Open Orders impact: quantify the reserved-margin gap by comparing snapshot `M` field vs current solver MMR
+  - Generated `data/validation/hl_open_order_margin_gap_eth_7d.json`
+  - ETH target positions: snapshot `M` total = $729,245 vs solver MMR = $24,675,279 (gap = -$23,946,034)
+  - 9,688 / 13,389 target positions show a positive excess, but it is tightly capped (median +$46.57, p95 +$54.85, max +$54.99)
+  - Whale positions dominate the aggregate gap on the negative side (worst target-position gap = -$3.64M), so `M` is not a direct proxy for current maintenance margin
+  - Reserved-margin attribution must come from `open_order_tracker` / order-state parsing, not `M` vs MMR alone
+- [X] T035 Refactor `load_abci_anchor` to use `msgpack.Unpacker` for streaming decoding (memory optimization)
+  - `load_abci_anchor` now streams the top-level MessagePack object via `msgpack.Unpacker`; verified by `tests/test_hyperliquid_sidecar.py` (8 tests passing)
 
 ## Phase 6: BTC Extension And Decision
 
@@ -109,8 +117,8 @@
   - Rektslug provides more comprehensive coverage than CoinGlass
 - [X] T031 Document repeatable capture, decode, and comparison commands for future reruns
   - Added "Repeatable Commands" section to `specs/026-liqmap-model-calibration/sidecar-design.md`
-- [X] T032 If exact `7d` parity still depends on longer-lived anchors or a generic checkpoint exporter, track that node-side dependency explicitly as blocked infrastructure work
-  - **Blocked infrastructure**: ABCI retention is 2 days; true 7d historical analysis requires either (a) extending periodic_abci_states retention to 7+ days, or (b) implementing a checkpoint exporter that archives snapshots to persistent storage. Current workaround: single latest anchor is acceptable for position-state but not for volume-over-time analysis.
+- [X] T032 If exact `7d` parity still depends on longer-lived anchors or a generic checkpoint exporter, track that consumer-side persistence dependency explicitly as blocked infrastructure work
+  - **Blocked infrastructure**: locally retained ABCI history is 2 days; true 7d historical analysis requires either (a) extending consumer retention of `periodic_abci_states` to 7+ days, or (b) implementing a consumer-side checkpoint exporter that archives snapshots to persistent storage. Current workaround: single latest anchor is acceptable for position-state but not for volume-over-time analysis.
 
 ## Completion Notes
 
@@ -129,14 +137,15 @@
   - artificial volume spike at price 0.0 removed (99.99% reduction)
   - simple recent-liquidation histograms are not sufficient to explain CoinGlass Hyperliquid; full account-state reconstruction is mandatory
 - Reconstruction-input decision:
-  - the target high-fidelity path should include mark/oracle, funding, and collateral/equity adjustments in addition to fills, order statuses, and raw book diffs
+  - the target high-fidelity path should include mark/oracle, funding, collateral/equity adjustments, and explicit open-order / reserved-margin state in addition to fills, order statuses, and raw book diffs
   - exact BTC/ETH parity must preserve account-level cross-margin semantics even when the relevant wallets hold off-target assets
   - replay-exact between ABCI anchors remains unproven until collateral-adjustment coverage and funding-application timing are explicitly bounded
 - Architecture decision:
   - implement the BTC/ETH parity/reconstruction engine as a sidecar over canonical node outputs
-  - keep `hyperliquid-node` limited to canonical collection/filtering/state export responsibilities, with only generic infrastructure changes allowed if the sidecar proves they are needed
+  - keep `hyperliquid-node` limited to canonical collection/filtering/state export responsibilities
+  - own 7d+ snapshot retention, archival, and compact checkpoints in the consumer layer rather than the producer repo
 - Phase 4 design artifact:
-  - `specs/026-liqmap-model-calibration/sidecar-design.md` defines the exactness envelope, relevant-account rule, retained account state, replay proof rules, and the minimal allowed node-side changes
+  - `specs/026-liqmap-model-calibration/sidecar-design.md` defines the exactness envelope, relevant-account rule, retained account state, replay proof rules, and the consumer-owned checkpoint responsibility
   - the same design note also fixes the first builder parameters: profile-resolved bin size, target-notional accumulation, and side split from target-position sign
 - Phase 6 comparison artifacts:
   - `data/validation/liqmap_hl_btc_7d.json` — BTC 7d risk-surface (455k accounts)
@@ -149,4 +158,4 @@
   - 1:1 shape match structurally impossible (whale-only vs full-population)
   - L/S ratio validates directional correctness (within 0.04-0.05)
   - Rektslug sidecar provides superior coverage (339k-455k accounts vs 153-285 top positions)
-  - Blocked infrastructure: ABCI retention (2d) limits true 7d historical analysis
+  - Blocked infrastructure: consumer-side ABCI retention/archive (currently 2d locally) limits true 7d historical analysis

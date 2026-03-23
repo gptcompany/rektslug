@@ -6,13 +6,15 @@ Build a sidecar reconstruction engine that can produce BTC/ETH liquidation-surfa
 artifacts while preserving exact account-level cross-margin semantics for any
 Hyperliquid account identified as "relevant" during the analysis window.
 
+All retention beyond the upstream producer's rolling window is owned by the consumer layer. In practice, Rektslug-side persistence/checkpointing is responsible for the 7d+ anchor problem; `hyperliquid-node` remains only the source producer.
+
 ## Exactness Envelope
 
 | Quantity | Status | Primary source | Notes |
 |----------|--------|----------------|-------|
 | ABCI snapshot anchoring (balances, positions) | `snapshot-exact` | `periodic_abci_states/*.rmp` | Confirmed: `user_to_state` and `p.p` are lists of pairs, not maps |
 | Position Cost (`e`) and Size (`s`) | `exact` | `p.p[idx]` | Confirmed: `e` is Total Cost (1e6), `s` is Size (10^szDecimals) |
-| Oracle / mark price updates | `exact` | `cls[0].oracle.pxs` | Scaled as `px * 10^(7 - szDecimals)`; used for cross-margin PnL |
+| Oracle / mark price updates | `exact` | `cls[0].oracle.pxs` | Decoded as `raw_px / 10^(6 - szDecimals)`; used for cross-margin PnL |
 | Maintenance Margin Rates (MMR) | `exact` | `cls[0].meta.marginTableIdToMarginTable` | Extracted per-asset tiers; MMR = 1 / (2 * max_leverage) |
 | BTC/ETH fills and liquidation events | `replay-exact candidate` | `filtered/node_fills_by_block` | Needed for path-exactness between anchors |
 | Collateral adjustments / funding | `funding exact, transfers missing` | ABCI + CCXT | Funding integrated via `f.a`; transfers still block path-exactness |
@@ -55,6 +57,8 @@ A replay window can be called exact only if all of the following hold:
   - open-order / reserved-margin state
 - any remaining mismatches are explained as parser/decoder gaps and driven to zero before claiming parity
 
+The `T034` margin-gap analysis shows that per-position snapshot `M` is not a reliable proxy for current maintenance margin at live marks. Reserved-margin attribution therefore has to come from explicit `open_order_tracker` / order-state parsing, not `M` vs MMR alone.
+
 Next-anchor zero-drift is a necessary but not sufficient condition for 'replay-exact' status. Without path-exactness (observed transfers and funding applications), the replay status remains bounded to the anchors.
 
 Without an anchor covering the window start, exact parity is not claimable. In the
@@ -62,7 +66,7 @@ current local setup this means:
 
 - snapshot exactness is hard-confirmed at retained ABCI anchors over the current ~2d window
 - replay exactness between those anchors is still unproven until path-drift risks (transfers, funding, off-target activity) are bounded
-- exact `7d` parity needs either longer-lived anchors or a generic compact checkpoint retained for at least `7d`
+- exact `7d` parity needs either longer-lived consumer-retained anchors or a generic compact checkpoint archived by the consumer layer for at least `7d`
 
 ## First Builder V0 Parameters
 
@@ -74,7 +78,7 @@ current local setup this means:
 ## Constraints
 
 - `T022` is satisfied by the logic distinguishing `1d` vs `7d` for `2d` vs `7d`.
-- `T023` is satisfied by this note and the node/sidecar boundary it defines.
+- `T023` is satisfied by this note and the producer/consumer boundary it defines.
 - `T021` is satisfied by `First Builder V0 Parameters`, which reuses the repo bin-size resolver and fixes the first accumulation/side-split choice.
 
 ## Repeatable Commands
@@ -135,4 +139,36 @@ uv run python scripts/compare_hl_sidecar_vs_coinglass.py \
   --sidecar data/validation/liqmap_hl_eth_7d.json \
   --capture-dir data/validation/raw_provider_api/20260320T183129Z \
   --output data/validation/comparison_hl_eth.json
+```
+
+
+### 5. Run ETH 1d sensitivity
+
+```bash
+uv run python scripts/generate_hyperliquid_sidecar_surface.py \
+  --symbol ETH --timeframe-days 1 \
+  --analysis-end "2026-03-21T00:00:00Z" \
+  --output data/validation/liqmap_hl_eth_1d.json
+
+uv run python scripts/compare_hl_sidecar_vs_coinglass.py \
+  --symbol ETH \
+  --sidecar data/validation/liqmap_hl_eth_1d.json \
+  --capture-dir data/validation/raw_provider_api/20260320T183040Z \
+  --output data/validation/comparison_hl_eth_1d.json
+
+uv run python scripts/analyze_hl_sidecar_sensitivity.py \
+  --symbol ETH \
+  --short-window data/validation/liqmap_hl_eth_1d.json \
+  --baseline-window data/validation/liqmap_hl_eth_7d.json \
+  --coinglass-capture-dir data/validation/raw_provider_api/20260320T183040Z \
+  --output data/validation/hl_sidecar_eth_1d_sensitivity.json
+```
+
+### 6. Quantify Snapshot `M` vs solver MMR
+
+```bash
+uv run python scripts/analyze_hl_open_order_margin_gap.py \
+  --symbol ETH --timeframe-days 7 \
+  --analysis-end "2026-03-21T00:00:00Z" \
+  --output data/validation/hl_open_order_margin_gap_eth_7d.json
 ```

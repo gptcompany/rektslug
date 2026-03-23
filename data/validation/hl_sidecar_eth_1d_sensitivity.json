@@ -1,0 +1,152 @@
+{
+  "metadata": {
+    "symbol": "ETH",
+    "short_window": "data/validation/liqmap_hl_eth_1d.json",
+    "baseline_window": "data/validation/liqmap_hl_eth_7d.json",
+    "coinglass_capture_dir": "data/validation/raw_provider_api/20260320T183040Z"
+  },
+  "short_window_stats": {
+    "bin_size": 0.45,
+    "bucket_count": 8206,
+    "account_count": 339360,
+    "position_count": 8500,
+    "total_volume": 1113163600.267018,
+    "accounts_per_bucket": 41.355106,
+    "positions_per_bucket": 1.035827,
+    "top_10_bucket_share": 0.438163,
+    "top_1pct_bucket_share": 0.775052
+  },
+  "baseline_window_stats": {
+    "bin_size": 1.65,
+    "bucket_count": 6167,
+    "account_count": 339134,
+    "position_count": 6846,
+    "total_volume": 1150226957.416834,
+    "accounts_per_bucket": 54.99173,
+    "positions_per_bucket": 1.110102,
+    "top_10_bucket_share": 0.429761,
+    "top_1pct_bucket_share": 0.736738
+  },
+  "baseline_rebinned_stats": {
+    "bin_size": 0.45,
+    "bucket_count": 6167,
+    "account_count": 339134,
+    "position_count": 6846,
+    "total_volume": 1150226957.416834,
+    "accounts_per_bucket": 54.99173,
+    "positions_per_bucket": 1.110102,
+    "top_10_bucket_share": 0.429761,
+    "top_1pct_bucket_share": 0.736738
+  },
+  "bucket_overlap": {
+    "overlap_bucket_count": 1302,
+    "union_bucket_count": 13071,
+    "jaccard": 0.09961
+  },
+  "short_vs_baseline": {
+    "a_source": "rektslug-sidecar",
+    "b_source": "rektslug-sidecar",
+    "symbol": "ETH",
+    "bin_size": 0.45,
+    "a_stats": {
+      "long_volume": 590380212.61,
+      "short_volume": 522783387.66,
+      "total_volume": 1113163600.27,
+      "ls_ratio": 1.1293,
+      "long_buckets": 5583,
+      "short_buckets": 2917,
+      "position_count": 8500,
+      "account_count": 339360
+    },
+    "b_stats": {
+      "long_volume": 598530320.55,
+      "short_volume": 551696636.87,
+      "total_volume": 1150226957.42,
+      "ls_ratio": 1.0849,
+      "long_buckets": 4472,
+      "short_buckets": 2374,
+      "position_count": 6846,
+      "account_count": 339134
+    },
+    "volume_scale_ratio": 1.0333,
+    "pearson_r": 0.0013,
+    "pearson_p": 0.882,
+    "ks_statistic": 0.1364,
+    "ks_p": 6.01e-41,
+    "wasserstein_distance": 318.54,
+    "a_peak_prices": [
+      7616.25,
+      6155.55,
+      1153.35,
+      2515.5,
+      3793.5
+    ],
+    "b_peak_prices": [
+      7604.55,
+      6154.2,
+      1161.45,
+      2514.6,
+      3780.0
+    ],
+    "peak_mean_distance": 7.11,
+    "peak_max_distance": 13.5,
+    "ls_ratio_diff": 0.0444,
+    "long_pearson_r": -0.0008,
+    "short_pearson_r": 0.0102
+  },
+  "interpretation": {
+    "sparsity_signal": "Lower accounts_per_bucket and lower position density indicate a sparser or more fragmented 1d surface.",
+    "stability_signal": "Short-vs-baseline metrics are computed after rebucketing the baseline onto the short-window price grid."
+  },
+  "short_vs_coinglass": {
+    "a_source": "rektslug-sidecar",
+    "b_source": "coinglass-hyperliquid",
+    "symbol": "ETH",
+    "bin_size": 0.45,
+    "a_stats": {
+      "long_volume": 590380212.61,
+      "short_volume": 522783387.66,
+      "total_volume": 1113163600.27,
+      "ls_ratio": 1.1293,
+      "long_buckets": 5583,
+      "short_buckets": 2917,
+      "position_count": 8500,
+      "account_count": 339360
+    },
+    "b_stats": {
+      "long_volume": 465860157.67,
+      "short_volume": 497024653.52,
+      "total_volume": 962884811.2,
+      "ls_ratio": 0.9373,
+      "long_buckets": 45,
+      "short_buckets": 93,
+      "position_count": 153,
+      "account_count": 0
+    },
+    "volume_scale_ratio": 0.865,
+    "pearson_r": 0.0021,
+    "pearson_p": 0.851,
+    "ks_statistic": 0.5042,
+    "ks_p": 0.0,
+    "wasserstein_distance": 4051.46,
+    "a_peak_prices": [
+      7616.25,
+      6155.55,
+      1153.35,
+      2515.5,
+      3793.5
+    ],
+    "b_peak_prices": [
+      1755.45,
+      1456.65,
+      2718.0,
+      2717.1,
+      4030.2
+    ],
+    "peak_mean_distance": 1913.31,
+    "peak_max_distance": 3586.05,
+    "ls_ratio_diff": 0.192,
+    "long_pearson_r": -0.0014,
+    "short_pearson_r": 0.0155
+  }
+}
