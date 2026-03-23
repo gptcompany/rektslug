@@ -102,7 +102,7 @@ The BTC whale verification proves the solver is correct:
 - L/S ratio diverges moderately between whale vs full populations
 
 **Remaining gaps**:
-- Open-order attribution still needs explicit `open_order_tracker` / order-state parsing; `T034` shows snapshot `M` is not a direct maintenance-margin proxy
+- Open-order attribution still needs explicit order-state parsing; `T034` shows snapshot `M` is not a direct maintenance-margin proxy, and the sampled retained `20260321/931220000.rmp` payload does not expose a top-level `open_order_tracker` branch where the current sidecar decodes it
 - Outlier/extreme-leverage bin filtering
 - Consumer-side ABCI retention/archive is still 2 days locally; true 7d window reproducibility requires consumer-owned persistence work
 

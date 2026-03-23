@@ -60,7 +60,8 @@
         - `S.s` / `S.r` — USDC balance (scaled integers)
         - `p.p[]` — positions by asset index (`[0]=BTC`, `[1]=ETH`, `[5]=SOL`, 229 total)
         - Per-position: `l.C` (cross leverage), `l.I` (isolated leverage), `M` (margin), `f.a` (cumulative funding)
-      - `open_order_tracker`: concrete local source for resting-order / reserved-margin state; key presence is confirmed in the `.rmp` snapshots, though explicit extraction still needs dedicated parser work
+      - `open_order_tracker`: documented as the intended local source for resting-order / reserved-margin state, but the sampled retained snapshot `20260321/931220000.rmp` does not expose a top-level `cls[0].open_order_tracker` branch in the payload the sidecar currently decodes
+      - sampled retained `user_states` entries currently expose `u`, `p`, `S`, and sometimes `D`; the sidecar now retains these extra consumer-visible fields explicitly while the real order-state branch is still being located
       - `users_with_positions`: **59,596** active users
       - `asset_to_oi_szi`: aggregate OI per asset (BTC=2.85B szi, ETH=5.89B szi)
     - **Account equity is directly anchorable at snapshot times** from balances plus position/funding state; this is confirmed for the retained `2d` ABCI window
@@ -136,6 +137,7 @@
   - **Cross-Margin Solver V1** implemented and validated: correctly handles Balance, multi-asset PnL, Funding, and MMR Tiers
   - artificial volume spike at price 0.0 removed (99.99% reduction)
   - simple recent-liquidation histograms are not sufficient to explain CoinGlass Hyperliquid; full account-state reconstruction is mandatory
+  - the sidecar now retains `S.s` / `S.r`, extra user-state fields (for example `D`), and extra funding counters (`f.o`, `f.c`) from the retained payload
 - Reconstruction-input decision:
   - the target high-fidelity path should include mark/oracle, funding, collateral/equity adjustments, and explicit open-order / reserved-margin state in addition to fills, order statuses, and raw book diffs
   - exact BTC/ETH parity must preserve account-level cross-margin semantics even when the relevant wallets hold off-target assets

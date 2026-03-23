@@ -10,10 +10,12 @@ prototype context needed for the first `ETH 7d` sidecar iteration:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 
 import msgpack
 
@@ -64,6 +66,11 @@ class UserPosition:
     leverage: float
     cum_funding: float
     margin: float
+    cum_funding_open: float | None = None
+    cum_funding_closed: float | None = None
+    extra_fields: Mapping[str, object] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 @dataclass(frozen=True)
@@ -73,6 +80,11 @@ class UserState:
     user: str
     balance: float
     positions: tuple[UserPosition, ...]
+    balance_state_s: float | None = None
+    balance_state_r: float | None = None
+    extra_fields: Mapping[str, object] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
     @property
     def has_active_positions(self) -> bool:
@@ -454,6 +466,16 @@ def latest_file(root: Path, file_glob: str) -> Path | None:
     return files[-1] if files else None
 
 
+def freeze_msgpack_value(value: object) -> object:
+    if isinstance(value, dict):
+        return MappingProxyType({key: freeze_msgpack_value(val) for key, val in value.items()})
+    if isinstance(value, list):
+        return tuple(freeze_msgpack_value(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(freeze_msgpack_value(item) for item in value)
+    return value
+
+
 class SidecarPositionReconstructor:
     """Engine for account-level state reconstruction from Hyperliquid sources."""
 
@@ -539,6 +561,9 @@ class SidecarPositionReconstructor:
                 continue
 
             user, state = item[0], item[1]
+            if not isinstance(state, dict):
+                continue
+
             positions_raw = state.get("p", {}).get("p", [])
             if not positions_raw:
                 continue
@@ -551,6 +576,9 @@ class SidecarPositionReconstructor:
                     continue
 
                 asset_idx, p = p_item[0], p_item[1]
+                if not isinstance(p, dict):
+                    continue
+
                 m = asset_meta.get(asset_idx)
                 if not m or not m["name"]:
                     continue
@@ -565,6 +593,12 @@ class SidecarPositionReconstructor:
                 size_scaled = size_raw / (10 ** m["szDecimals"])
                 total_cost_scaled = float(p.get("e", 0)) / USDC_SCALE
                 entry_px = total_cost_scaled / abs(size_scaled)
+                funding_raw = p.get("f", {}) if isinstance(p.get("f", {}), dict) else {}
+                position_extras = {
+                    key: value
+                    for key, value in p.items()
+                    if key not in {"s", "e", "M", "l", "f"}
+                }
 
                 pos = UserPosition(
                     coin=m["name"],
@@ -573,7 +607,18 @@ class SidecarPositionReconstructor:
                     entry_px=entry_px,
                     margin=float(p.get("M", 0)),
                     leverage=float(p.get("l", {}).get("C", 1.0)),
-                    cum_funding=float(p.get("f", {}).get("a", 0)) / USDC_SCALE,
+                    cum_funding=float(funding_raw.get("a", 0)) / USDC_SCALE,
+                    cum_funding_open=(
+                        float(funding_raw.get("o", 0)) / USDC_SCALE
+                        if "o" in funding_raw
+                        else None
+                    ),
+                    cum_funding_closed=(
+                        float(funding_raw.get("c", 0)) / USDC_SCALE
+                        if "c" in funding_raw
+                        else None
+                    ),
+                    extra_fields=freeze_msgpack_value(position_extras),
                 )
                 positions.append(pos)
 
@@ -587,11 +632,24 @@ class SidecarPositionReconstructor:
             u_raw = float(state.get("u", 0))
             sum_e_raw = sum(float(p.get("e", 0)) for _, p in positions_raw if isinstance(p, dict))
             balance_raw = u_raw - sum_e_raw
+            s_state = state.get("S", {}) if isinstance(state.get("S", {}), dict) else {}
+            state_extras = {
+                key: value
+                for key, value in state.items()
+                if key not in {"u", "p", "S"}
+            }
             user_str = to_user_str(user)
             reconstructed_users[user_str] = UserState(
                 user=user_str,
                 balance=balance_raw / USDC_SCALE,
                 positions=tuple(positions),
+                balance_state_s=(
+                    float(s_state.get("s", 0)) / USDC_SCALE if "s" in s_state else None
+                ),
+                balance_state_r=(
+                    float(s_state.get("r", 0)) / USDC_SCALE if "r" in s_state else None
+                ),
+                extra_fields=freeze_msgpack_value(state_extras),
             )
 
         timestamp = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)

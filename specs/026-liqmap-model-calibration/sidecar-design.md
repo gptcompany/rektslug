@@ -59,6 +59,8 @@ A replay window can be called exact only if all of the following hold:
 
 The `T034` margin-gap analysis shows that per-position snapshot `M` is not a reliable proxy for current maintenance margin at live marks. Reserved-margin attribution therefore has to come from explicit `open_order_tracker` / order-state parsing, not `M` vs MMR alone.
 
+A sampled retained snapshot (`20260321/931220000.rmp`) currently exposes `cls[0]` keys `{meta, user_states, oracle, ...}` and `user_states` entries with `u`, `p`, `S`, and sometimes `D`, but no top-level `open_order_tracker` branch in the path the sidecar decodes today. The consumer-side next step is therefore to locate the real order-state branch or reconstruct it from the order-status/book-diff streams without assuming the current ABCI shape carries it directly.
+
 Next-anchor zero-drift is a necessary but not sufficient condition for 'replay-exact' status. Without path-exactness (observed transfers and funding applications), the replay status remains bounded to the anchors.
 
 Without an anchor covering the window start, exact parity is not claimable. In the

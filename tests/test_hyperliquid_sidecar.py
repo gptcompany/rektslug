@@ -142,7 +142,8 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     anchor_file = tmp_path / "test.rmp"
 
     # Mock snapshot structure: user_to_state and positions are lists of pairs
-    # metadata included for scaling, marks, and tiered maintenance margin
+    # metadata included for scaling, marks, tiered maintenance margin, and
+    # additional state fields we want to retain on the consumer side.
     snapshot = {
         "exchange": {
             "locus": {
@@ -177,10 +178,11 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
                                     b"\x01" * 20,
                                     {
                                         "u": 16444084712.0,
-                                        "S": {"r": 5444084712.0},
+                                        "S": {"s": 5444084712.0, "r": 5444084712.0},
+                                        "D": [["2026-03-20", {"a": 123456.0, "c": 120000.0}]],
                                         "p": {
                                             "p": [
-                                                [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0}}],
+                                                [1, {"s": 25000, "e": 5000000000, "M": 50.0, "l": {"C": 20.0}, "f": {"a": 100000.0, "o": 120000.0, "c": 110000.0}, "x": {"flag": True}}],
                                                 [0, {"s": 10000, "e": 6000000000, "M": 100.0, "l": {"C": 50.0}, "f": {"a": 500000.0}}],
                                             ]
                                         },
@@ -190,7 +192,7 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
                                     "0xuser2_string",
                                     {
                                         "u": 510000000.0,
-                                        "S": {"r": 500000000.0},
+                                        "S": {"s": 500000000.0, "r": 500000000.0},
                                         "p": {
                                             "p": [
                                                 [4, {"s": 10000, "e": 10000000, "M": 20.0, "l": {"C": 10.0}, "f": {"a": 0.0}}]
@@ -223,6 +225,10 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     assert expected_user in state.users
     user1 = state.users[expected_user]
     assert user1.balance == 5444.084712
+    assert user1.balance_state_s == 5444.084712
+    assert user1.balance_state_r == 5444.084712
+    assert user1.extra_fields["D"][0][0] == "2026-03-20"
+    assert user1.extra_fields["D"][0][1]["a"] == 123456.0
     assert len(user1.positions) == 2
 
     eth_pos = next(p for p in user1.positions if p.coin == "ETH")
@@ -230,6 +236,9 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     assert eth_pos.entry_px == 2000.0
     assert eth_pos.leverage == 20.0
     assert eth_pos.cum_funding == 0.1
+    assert eth_pos.cum_funding_open == 0.12
+    assert eth_pos.cum_funding_closed == 0.11
+    assert eth_pos.extra_fields["x"]["flag"] is True
 
     # Test filtering for SOL (index 4)
     state_sol = reconstructor.load_abci_anchor(anchor_file, target_coin="SOL")
@@ -237,6 +246,8 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     assert "0xuser2_string" in state_sol.users
     user2 = state_sol.users["0xuser2_string"]
     assert user2.positions[0].size == 100.0
+    assert user2.balance_state_s == 500.0
+    assert user2.balance_state_r == 500.0
 
 
 def test_load_abci_anchor_rejects_empty_payload(tmp_path):
