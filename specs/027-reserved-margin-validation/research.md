@@ -333,6 +333,36 @@ Queried all 9 outlier users from `hl_reserved_margin_outliers_eth_sample.json` a
 | 0xecb63c.. | 86 | 33,166,831 | 10,287,200 | 2,723,188 | 3.78x |
 | 0xfc667a.. | 6 | 18,099,738 | 4,942,306 | 2,267,695 | 2.18x |
 
+### Fair comparison: our MMR formula vs API (same instant, same positions)
+
+Used API-reported positions + current mark prices to compute our MMR, then compared with `crossMaintenanceMarginUsed` from the same API response. No anchor time mismatch.
+
+Formula: `mmr = notional * 1/(2 * maxLeverage)` (single-tier approximation)
+
+| User | Our MMR | API crossMaintMM | Deviation | Status |
+|------|---------|-----------------|-----------|--------|
+| 0x31dea2.. | 74,719 | 74,719 | 0.00% | OK |
+| 0x57dd78.. | 299,777 | 299,741 | 0.01% | OK |
+| 0x7717a7.. | 1,238,612 | 1,218,343 | 1.66% | CLOSE (171 pos, needs tiering) |
+| 0x7b7f72.. | 37,436 | 37,426 | 0.03% | OK |
+| 0x7fdafd.. | 2,266,026 | 2,260,738 | 0.23% | OK |
+| 0xab5e6f.. | 488,735 | 488,902 | 0.03% | OK |
+| 0xd47587.. | 1,920,397 | 1,920,485 | 0.00% | OK |
+| 0xecb63c.. | 2,716,229 | 2,715,982 | 0.01% | OK |
+| 0xfc667a.. | — | 0 | — | EXCLUDED (closed positions) |
+
+**Result: 7/8 active users within 1%. Mean deviation 0.25% (excluding closed account).**
+
+The 1.66% outlier (0x7717a7..) has 171 positions — multi-tier margin tables will correct this.
+
+### Conclusions
+
+1. **`crossMaintenanceMarginUsed`** is the correct validation target (NOT `totalMarginUsed`)
+2. **Single-tier MMR formula matches to <0.25%** for most accounts
+3. **Multi-tier correction needed** only for whale accounts with 100+ positions at extreme notionals
+4. **Reserved margin for resting orders is NOT exposed** by `clearinghouseState` — it's a separate, hidden accounting field
+5. **The solver's MMR calculation is fundamentally correct** — the gap from spec-026 was anchor time mismatch, not formula error
+
 ---
 
 ## Summary of NEEDS CLARIFICATION Resolution
