@@ -6,12 +6,17 @@ Polls every 5 seconds with deduplication.
 
 import asyncio
 import logging
+import hmac
+import hashlib
+import urllib.parse
+import time
 from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
 import aiohttp
 
 from src.exchanges.base import ExchangeAdapter, ExchangeHealth, NormalizedLiquidation
+from src.liquidationheatmap.utils.secrets import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +36,8 @@ class BinanceAdapter(ExchangeAdapter):
         self._error_count = 0
         self._seen_order_ids: set[int] = set()
         self._seen_order_timestamps: dict[int, float] = {}
+        self.api_key = get_secret("BINANCE_API_KEY")
+        self.api_secret = get_secret("BINANCE_API_SECRET")
 
     @property
     def exchange_name(self) -> str:
@@ -177,3 +184,36 @@ class BinanceAdapter(ExchangeAdapter):
     def normalize_symbol(self, exchange_symbol: str) -> str:
         """Binance already uses standard format."""
         return exchange_symbol
+
+    async def fetch_account_info(self) -> dict:
+        """Fetch account information from Binance Futures API."""
+        if not self._is_connected:
+            await self.connect()
+
+        if not self.api_key or not self.api_secret:
+            logger.error("Binance API key or secret not configured.")
+            return {}
+
+        endpoint = f"{self.BASE_URL}/fapi/v2/account"
+        timestamp = int(time.time() * 1000)
+        params = {"timestamp": timestamp}
+        query_string = urllib.parse.urlencode(params)
+
+        signature = hmac.new(
+            self.api_secret.encode("utf-8"),
+            query_string.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        params["signature"] = signature
+
+        try:
+            async with self._session.get(
+                endpoint, headers={"X-MBX-APIKEY": self.api_key}, params=params
+            ) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                return data
+        except Exception as e:
+            logger.error(f"Failed to fetch Binance account info: {e}")
+            return {}

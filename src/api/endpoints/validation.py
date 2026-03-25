@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from src.models.validation_run import ValidationStatus
 from src.validation.logger import logger
 from src.validation.storage import ValidationStorage
+from src.exchanges.binance import BinanceAdapter
+from src.validation.margin_validator import MarginValidator
 
 router = APIRouter(prefix="/api/validation", tags=["validation"])
 
@@ -119,7 +121,56 @@ class ValidationReportResponse(BaseModel):
     generated_at: str
 
 
+class MarginValidationRequest(BaseModel):
+    """Request to trigger margin validation."""
+    triggered_by: str = Field(
+        default="api", min_length=1, max_length=200, description="User ID or system identifier"
+    )
+
+class MarginValidationResponse(BaseModel):
+    """Response from margin validation."""
+    status: str = Field(..., description="Status of the margin validation")
+    message: str = Field(..., description="Detailed message about the validation result")
+    account_info: Optional[dict] = Field(None, description="Raw account information from exchange")
+    crossMaintenanceMarginUsed: Optional[float] = Field(None, description="Total maintenance margin used in cross margin mode")
+
+
 # API Endpoints
+@router.post("/margin", response_model=MarginValidationResponse)
+async def validate_margin(
+    request: MarginValidationRequest,
+) -> MarginValidationResponse:
+    """
+    Triggers a margin validation check for the configured Binance account.
+
+    Args:
+        request: Margin validation request.
+
+    Returns:
+        MarginValidationResponse with the validation status and details.
+    """
+    logger.info(f"Margin validation request received, triggered by: {request.triggered_by}")
+
+    try:
+        binance_adapter = BinanceAdapter()
+        await binance_adapter.connect() # Ensure connection is established
+        margin_validator = MarginValidator(binance_adapter)
+        
+        validation_result = await margin_validator.validate_account_margin()
+        
+        await binance_adapter.disconnect() # Disconnect after use
+
+        return MarginValidationResponse(
+            status=validation_result.get("status", "error"),
+            message=validation_result.get("message", "Unknown error during validation."),
+            account_info=validation_result.get("account_info"),
+            crossMaintenanceMarginUsed=validation_result.get("crossMaintenanceMarginUsed"),
+        )
+    except Exception as e:
+        logger.error(f"Failed to perform margin validation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to perform margin validation: {str(e)}")
+
+
 @router.post("/run", response_model=ValidationTriggerResponse, status_code=202)
 async def trigger_validation(
     request: ValidationTriggerRequest,

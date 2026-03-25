@@ -1,177 +1,55 @@
-# Tasks - LiquidationHeatmap
+# Tasks: Reserved-Margin Validation & Portfolio-Margin Solver
 
-## ✅ Completed (2025-11-02): Critical Database Rebuild
+**Organization**: Tasks grouped by user story. US1/US4 are P1 (MVP), US2/US3 are P2.
 
-### Problem Identified
-Production-critical data quality issues discovered before N8N automation deployment:
+**Research-informed adjustments**:
+- `crossMaintenanceMarginUsed` is the correct comparison target (NOT `totalMarginUsed` which is IM)
+- Reserved margin for resting orders is NOT exposed by `clearinghouseState` API — hidden field
+- MMR formula `notional / (2 * maxLeverage)` already validated to 0.25% mean deviation (7/8 within 1%)
+- `liquidationPx` is available per-position from the same API call — free validation data
+- 0/9 outlier users are portfolio-margin — US3 may be blocked (mock data required)
 
-**CRITICAL #1**: Using auto-increment ID instead of original `agg_trade_id`
-- **Impact**: Re-ingesting same data creates duplicates (fatal for daily automation)
-- **Root Cause**: `row_number() OVER (ORDER BY transact_time) + {max_id}` instead of CSV's `agg_trade_id`
+### Phase 1: Setup
+- [ ] T001 [P] Create API-response DTOs and Validation Report types in `models.py`: MarginMode enum, MarginSummary (with cross_maintenance_margin_used), CrossMarginSummary, ApiPosition, PortfolioMarginSummary, AssetMeta, MarginTier, ClearinghouseUserState, PositionMarginComparison, MarginValidationResult, MarginValidationReport
+- [ ] T002 [P] Extract `get_margin_tier()` and `compute_position_maintenance_margin()` as standalone functions in `margin_math.py` (from SidecarPositionReconstructor instance methods). Update `sidecar.py` to delegate (call sites at `:1619` and `:1641`). Verify existing 47 tests pass.
 
-**CRITICAL #2**: No deduplication guarantee
-- **Impact**: `INSERT OR IGNORE` doesn't work without UNIQUE constraint
-- **Root Cause**: Table had no PRIMARY KEY or UNIQUE constraint
+### Phase 2: API Client
+- [ ] T003 Write failing tests for HyperliquidInfoClient in `tests/test_api_client.py`
+- [ ] T004 Implement HyperliquidInfoClient in `api_client.py`: get_clearinghouse_state(), get_asset_meta(), get_clearinghouse_states_batch() with `aiohttp` async, rate limiting (10 req/min), exponential backoff
+- [ ] T005 Green tests
+- [ ] T006 Update `__init__.py` exports
 
-**MEDIUM**: Throttle too aggressive for HDD safety
-- **Impact**: PC almost crashed during ingestion (3TB WDC HDD saturation)
-- **Current**: 100ms → **Required**: 200ms for production safety
+### Phase 3: US1 — MMR Validation (P1, MVP)
+- [ ] T007 Write failing tests in `tests/test_margin_validator.py` (mmr_within_tolerance, liq_px_comparison, batch_report)
+- [ ] T008 Implement validate_user() — compute MMR from API-reported positions (same-instant, NOT ABCI snapshot), compare vs crossMaintenanceMarginUsed + liquidationPx
+- [ ] T009 Implement validate_batch() — aggregation, tolerance_rate
+- [ ] T010 Green tests
+- [ ] T011 Create CLI script `scripts/validate_reserved_margin.py`
+- [ ] T012 Run live validation with 9 outlier + 1-2 control users → SC-001
 
-### Solution Implemented
+### Phase 4: US4 — Solver V1.1 & Reserved Margin Formula Selection (P1)
+- [ ] T013 Write failing tests in `tests/test_hyperliquid_sidecar.py` (subtracts_reserved, matches_v1_no_orders, estimate_from_bounds)
+- [ ] T014 Add `reserved_margin=0.0` param to solve_liquidation_price() in `sidecar.py`
+- [ ] T015 Implement `estimate_reserved_margin(orders, candidate_type)` in `margin_math.py` supporting Candidates A, B, C, and D (from research.md).
+- [ ] T016 Execute Solver V1.1 iterating on all 4 candidates for 9 outlier users and calculate deviation vs API liquidationPx.
+- [ ] T017 Select the winning candidate (minimizes average deviation) and set as default in V1.1.
+- [ ] T018 Green tests
+- [ ] T019 Compare V1 vs V1.1 liquidationPx against API → SC-004
 
-#### 1. Database Schema Rebuild
-```sql
--- Old schema (BROKEN)
-CREATE TABLE aggtrades_history (
-    id BIGINT,  -- Auto-increment (NOT from CSV!)
-    ...
-)
+### Phase 5: US2 — PM Detection (P2)
+- [ ] T020 Write failing tests (detect cross/portfolio/isolated mode). *Note: Use mock JSON payload based on Hyperliquid docs, since live PM accounts are not available in our outlier sample.*
+- [ ] T021 Implement detect_margin_mode()
+- [ ] T022 Add --detect-modes to CLI (scan top 50 accounts, bounded)
+- [ ] T023 Green tests
 
--- New schema (PRODUCTION-READY)
-CREATE TABLE aggtrades_history (
-    agg_trade_id BIGINT PRIMARY KEY,  -- From CSV, ensures uniqueness
-    timestamp TIMESTAMP NOT NULL,
-    symbol VARCHAR NOT NULL,
-    price DECIMAL(18, 8) NOT NULL,
-    quantity DECIMAL(18, 8) NOT NULL,
-    side VARCHAR NOT NULL,
-    gross_value DOUBLE NOT NULL
-)
-```
+### Phase 6: US3 — PM Solver (P2, LIKELY DEFERRED)
+- [ ] T024 Write failing tests (netting, PMR threshold, PM liqPx)
+- [ ] T025 Implement compute_portfolio_margin()
+- [ ] T026 Implement solve_portfolio_liquidation_price()
+- [ ] T027 Green tests
+- [ ] T028 Live validation if PM accounts found → SC-003
 
-**Script**: `/tmp/rebuild_db_with_pk_auto.py`
-- ✅ Dropped old table (1,982,554,380 rows)
-- ✅ Created new schema with PRIMARY KEY on `agg_trade_id`
-- ✅ Added indexes on `timestamp` and `(timestamp, symbol)`
-
-#### 2. Ingestion Code Fixes
-**File**: `src/liquidationheatmap/ingestion/aggtrades_streaming.py`
-
-**Changes**:
-```python
-# Fix #1: Use original agg_trade_id from CSV
-# OLD:
-row_number() OVER (ORDER BY transact_time) + {max_id} AS id
-
-# NEW:
-agg_trade_id  # Direct from CSV column
-
-# Fix #2: Increase throttle for HDD safety
-THROTTLE_MS = 200  # Was 100
-
-# Fix #3: Update column list
-(agg_trade_id, timestamp, symbol, ...)  # Was (id, timestamp, ...)
-```
-
-**Test Results**:
-```
-✅ Test successful: 4,734,015 rows inserted
-Total rows: 4,734,015
-agg_trade_id range: 1,965,151,407 → 1,969,885,421
-```
-
-#### 3. Unified Orchestrator (Ready for Production)
-**Location**: `/tmp/ingest_full_history.py` (prototype)
-**Production**: Will be `scripts/ingest_full_history.py` (after TDD tests)
-
-**Single Command Usage**:
-```bash
-uv run python /tmp/ingest_full_history.py \
-    --symbol BTCUSDT \
-    --data-dir /media/sam/3TB-WDC/binance-history-data-downloader/data \
-    --mode auto
-```
-
-**Features**:
-- ✅ Auto-discovers all CSV files (2,131 files)
-- ✅ Detects temporal gaps with SQL recursive CTE
-- ✅ Fills gaps automatically with retry logic (3 attempts)
-- ✅ Generates final summary report
-- ✅ Idempotent (safe to re-run)
-- ✅ HDD-safe with 200ms throttle
-
-**Replaces**: 4+ manual steps (monthly iteration, gap detection, gap filling, validation)
-
-### Files Created/Modified
-
-**Created**:
-- `/tmp/rebuild_db_with_pk_auto.py` - Database schema rebuild script
-- `/tmp/ingest_full_history.py` - Unified orchestrator prototype
-- `/tmp/ORCHESTRATOR_USAGE.md` - Complete documentation
-- `/tmp/data_quality_analysis.py` - 10-point quality checks
-
-**Modified**:
-- `src/liquidationheatmap/ingestion/aggtrades_streaming.py` - Critical bug fixes
-- `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` - Rebuilt with correct schema
-
-### Next Steps
-
-#### Pending Tasks
-1. **Re-ingest all data** (2.13B rows) using unified orchestrator
-   ```bash
-   uv run python /tmp/ingest_full_history.py \
-       --symbol BTCUSDT \
-       --data-dir /media/sam/3TB-WDC/binance-history-data-downloader/data \
-       --mode auto \
-       --throttle-ms 200
-   ```
-
-2. **Validate data quality** after re-ingestion
-   - Check for duplicates (should be 0)
-   - Verify temporal continuity (no gaps)
-   - Confirm agg_trade_id uniqueness
-
-3. **Write TDD tests** for production version (required by TDD guard)
-   - Test: agg_trade_id from CSV (not auto-increment)
-   - Test: INSERT OR IGNORE with PRIMARY KEY prevents duplicates
-   - Test: Throttle configuration
-   - Test: Gap detection algorithm
-   - Test: Retry logic
-
-4. **Move to production** (after tests pass)
-   - Move `/tmp/ingest_full_history.py` → `scripts/ingest_full_history.py`
-   - Update CI/CD pipeline
-   - Document in README.md
-   - Configure N8N daily automation
-
-### Production Readiness Checklist
-
-- ✅ Database schema with PRIMARY KEY
-- ✅ Ingestion code uses original agg_trade_id
-- ✅ Throttle set to 200ms for HDD safety
-- ✅ Idempotent ingestion (INSERT OR IGNORE)
-- ✅ Unified orchestrator tested and working
-- ⏳ Full data re-ingestion (pending)
-- ⏳ Data quality validation (pending)
-- ⏳ TDD tests (pending)
-- ⏳ Production deployment (pending)
-
-### User Emphasis
-> "merda che entra = calcoli di merda che escono!" (garbage in = garbage out)
-
-Data quality is **paramount** for liquidation map calculations. All critical bugs fixed before N8N automation.
-
----
-
-## Future Tasks
-
-### Short-term
-- [ ] Complete full data re-ingestion (~2.13B rows)
-- [ ] Run comprehensive data quality validation
-- [ ] Write TDD tests for all new code
-- [ ] Deploy unified orchestrator to production
-- [ ] **Investigate msgpack exception capture anomaly in pytest-cov environment.**
-  - **Context**: During spec-026 finalization, it was discovered that `except msgpack.OutOfData` fails to catch exceptions when running under `pytest-cov`, but works in isolation.
-  - **Required**: Create a minimal reproducible repo, isolate if it's a `msgpack` C-extension issue or `pytest-cov`'s coverage instrumentation shadowing types.
-  - **Current Status**: Workaround in place using `except Exception` and name string filtering.
-
-### Long-term
-- [ ] Add monitoring/alerting for N8N automation
-- [ ] Implement incremental updates (vs full re-ingestion)
-- [ ] Add support for multiple trading pairs (ETH, BNB, etc.)
-- [ ] Create data quality dashboard
-
----
-
-**Last Updated**: 2025-11-02
-**Status**: Critical fixes completed, ready for re-ingestion
+### Phase 7: Polish
+- [ ] T029 Full test suite run (`pytest`)
+- [ ] T030 Final report generation
+- [ ] T031 Update contracts and `research.md`

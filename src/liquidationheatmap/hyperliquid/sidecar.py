@@ -23,6 +23,7 @@ import msgpack
 import zstandard as zstd
 
 from src.liquidationheatmap.models.profiles import get_profile
+from src.liquidationheatmap.hyperliquid.margin_math import get_margin_tier, compute_position_maintenance_margin
 
 DEFAULT_FILTERED_ROOT = Path("/media/sam/4TB-NVMe/hyperliquid/filtered")
 DEFAULT_ABCI_ROOT = Path(
@@ -1617,12 +1618,7 @@ class SidecarPositionReconstructor:
         return snapshot
 
     def _get_margin_tier(self, notional: float, tiers: list[dict]) -> dict:
-        for t in tiers:
-            if notional >= t["lower_bound"]:
-                return t
-        return (
-            tiers[-1] if tiers else {"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}
-        )
+        return get_margin_tier(notional, tiers)
 
     def compute_position_maintenance_margin(
         self,
@@ -1631,12 +1627,7 @@ class SidecarPositionReconstructor:
         asset_margin_tiers: dict[int, list[dict]],
     ) -> float:
         """Compute the current maintenance margin requirement for a single position."""
-        mark = mark_prices.get(position.asset_idx, position.entry_px)
-        notional = abs(position.size) * mark
-        tiers = asset_margin_tiers.get(position.asset_idx, [])
-        tier = self._get_margin_tier(notional, tiers)
-        requirement = notional * tier["mmr_rate"] - tier["maintenance_deduction"]
-        return max(0.0, requirement)
+        return compute_position_maintenance_margin(position, mark_prices, asset_margin_tiers)
 
     def solve_liquidation_price(
         self,
@@ -1644,6 +1635,7 @@ class SidecarPositionReconstructor:
         target_coin: str,
         mark_prices: dict[int, float],
         asset_margin_tiers: dict[int, list[dict]],
+        reserved_margin: float = 0.0,
     ) -> float | None:
         """Solve the cross-margin liquidation price for a target coin."""
         target_pos = next((p for p in user_state.positions if p.coin == target_coin), None)
@@ -1676,7 +1668,7 @@ class SidecarPositionReconstructor:
         m_deduct = target_tier["maintenance_deduction"]
 
         # Cross-margin: equity = balance + other_pnl + target_size*(P - entry) = total_mmr
-        account_base = balance + other_pnl
+        account_base = balance + other_pnl - reserved_margin
 
         if target_pos.size > 0:
             denom = target_pos.size * (1.0 - mmr_rate)
