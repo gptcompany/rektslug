@@ -297,22 +297,41 @@ The reserved margin reduces the account's available equity, shifting the liquida
 
 ---
 
-## 8. Open Questions (to resolve during implementation)
+## 8. API Validation Results (2026-03-25, 9 outlier users)
 
-1. **Does Hyperliquid's `totalMarginUsed` include or exclude reserved margin for resting orders?**
-   - Hypothesis: YES, it includes it — validation will confirm
-   - If NO, we need `totalMarginUsed + reservedMargin` as the comparison target
+Queried all 9 outlier users from `hl_reserved_margin_outliers_eth_sample.json` against live API.
 
-2. **Are isolated-margin positions included in `marginSummary.totalMarginUsed`?**
-   - Hypothesis: YES, account-level total includes all modes
-   - Need to verify with a mixed-mode account
+### Key findings
 
-3. **Does `liquidationPx` from API account for resting orders?**
-   - Hypothesis: YES — this is the exchange's actual liquidation price
-   - If YES, comparing API `liquidationPx` vs sidecar `solve_liquidation_price()` directly measures our accuracy
+1. **`totalMarginUsed` = sum(position `marginUsed`)** — delta = 0.00 for all 9 users. Reserved margin for resting orders is **NOT** included in `totalMarginUsed` or per-position `marginUsed`.
 
-4. **How does portfolio margin interact with `clearinghouseState` for accounts with both PM and isolated positions?**
-   - Unknown — need API exploration with real PM accounts
+2. **`marginUsed` is Initial Margin (IM), not Maintenance Margin (MMR)**. IM/MM ratio ranges from 2.00x to 3.98x across the 9 users. Our solver computes MMR — the correct comparison target is **`crossMaintenanceMarginUsed`**, a separate field.
+
+3. **`crossMaintenanceMarginUsed`** is exposed as a top-level field. This is the direct comparison target for our solver's `compute_position_maintenance_margin()`.
+
+4. **All 9 outlier users are CROSS margin** — no portfolio margin detected. Need to find PM accounts separately.
+
+5. **`liquidationPx` values are extreme** (e.g., BTC short at $529k, ETH short at $69k) — these are correct for accounts with $13M+ equity and small positions. The exchange's liq price accounts for the full cross-margin equity pool.
+
+### Revised validation strategy
+
+- **Solver MMR validation**: compare `sum(our_mmr_per_position)` vs `crossMaintenanceMarginUsed`
+- **Reserved margin**: NOT visible in `clearinghouseState`. Must be inferred from `accountValue - withdrawable - totalMarginUsed` or another method.
+- **liquidationPx validation**: compare our `solve_liquidation_price()` vs API `liquidationPx` per position
+
+### Raw data
+
+| User | Positions | accountValue | totalMarginUsed (IM) | crossMaintMM | IM/MM |
+|------|-----------|-------------|---------------------|-------------|-------|
+| 0x31dea2.. | 6 | 13,683,953 | 205,411 | 74,642 | 2.75x |
+| 0x57dd78.. | 143 | 6,823,870 | 600,848 | 300,423 | 2.00x |
+| 0x7717a7.. | 171 | 4,987,377 | 2,577,215 | 1,217,212 | 2.12x |
+| 0x7b7f72.. | 5 | 1,434,566 | 144,474 | 36,295 | 3.98x |
+| 0x7fdafd.. | 25 | 15,193,459 | 7,178,630 | 2,260,694 | 3.18x |
+| 0xab5e6f.. | 1 | 3,770,870 | 977,411 | 488,705 | 2.00x |
+| 0xd47587.. | 18 | 28,821,925 | 6,901,357 | 1,925,132 | 3.58x |
+| 0xecb63c.. | 86 | 33,166,831 | 10,287,200 | 2,723,188 | 3.78x |
+| 0xfc667a.. | 6 | 18,099,738 | 4,942,306 | 2,267,695 | 2.18x |
 
 ---
 
