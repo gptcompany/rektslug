@@ -50,6 +50,9 @@ class AppSettings:
     cache_max_size: int
     internal_api_token: str
     oi_kline_interval: str
+    questdb_host: str
+    questdb_port: int
+    questdb_pg_port: int
 
     @classmethod
     def from_env(cls) -> "AppSettings":
@@ -92,6 +95,9 @@ class AppSettings:
                 "auto",
                 {"auto", "1m", "5m"},
             ),
+            questdb_host=os.getenv("QUESTDB_HOST", "localhost"),
+            questdb_port=int(os.getenv("QUESTDB_PORT", "9009")),
+            questdb_pg_port=int(os.getenv("QUESTDB_PG_PORT", "8812")),
         )
 
 

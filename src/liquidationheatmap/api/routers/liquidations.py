@@ -38,9 +38,38 @@ from src.liquidationheatmap.ingestion.db_service import (
     IngestionLockError,
     _get_fallback_price,
 )
+from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
+
+def _get_latest_oi_with_questdb(symbol: str, db: DuckDBService) -> tuple[float, Decimal]:
+    qdb = QuestDBService()
+    q_price, q_oi = qdb.get_latest_open_interest(symbol)
+    if q_oi is not None:
+        if q_price is None:
+            # QuestDB has OI but no price, fallback to DuckDB for price
+            try:
+                price, _ = db.get_latest_open_interest(symbol)
+            except Exception:
+                price = _get_fallback_price(symbol)
+            return float(price), Decimal(str(q_oi))
+        return float(q_price), Decimal(str(q_oi))
+    
+    # Fallback to DuckDB completely
+    current_price, open_interest = db.get_latest_open_interest(symbol)
+    return float(current_price), open_interest
+
+def _get_latest_funding_with_questdb(symbol: str, db: DuckDBService) -> Decimal:
+    qdb = QuestDBService()
+    q_funding = qdb.get_latest_funding_rate(symbol)
+    if q_funding is not None:
+        return Decimal(str(q_funding))
+    return db.get_latest_funding_rate(symbol)
+
+
+def _get_recent_liquidations_with_questdb(symbol: str, limit: int) -> list[dict[str, Any]]:
+    return QuestDBService().get_recent_liquidations(symbol, limit)
 from src.liquidationheatmap.models.profiles import get_profile
 from src.liquidationheatmap.settings import get_settings
 
@@ -321,8 +350,8 @@ async def get_liquidation_levels(
 
         def _load_current_price():
             with DuckDBService(read_only=True) as db_fallback:
-                price_decimal, _ = db_fallback.get_latest_open_interest(symbol)
-                return float(price_decimal)
+                current_price, _ = _get_latest_oi_with_questdb(symbol, db_fallback)
+                return current_price
 
         try:
             current_price = await _run_read_operation_with_retry(
@@ -633,7 +662,7 @@ async def get_heatmap(
 
     def _load_heatmap_response():
         with DuckDBService(read_only=True) as db:
-            current_price, open_interest = db.get_latest_open_interest(symbol)
+            current_price, open_interest = _get_latest_oi_with_questdb(symbol, db)
             calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
             liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
 
@@ -894,7 +923,7 @@ async def get_heatmap_timeseries(
 
             def _resolve_dynamic_bin_size():
                 with DuckDBService(read_only=True) as db:
-                    current_price, _ = db.get_latest_open_interest(symbol)
+                    current_price, _ = _get_latest_oi_with_questdb(symbol, db)
                     return current_price, profile.get_bin_size(
                         lookback_days, float(current_price), symbol
                     )
@@ -1088,6 +1117,10 @@ async def get_liquidation_history(
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"), limit: int = 100
 ):
     def _load_history():
+        qdb_rows = _get_recent_liquidations_with_questdb(symbol, limit)
+        if qdb_rows:
+            return qdb_rows
+
         with DuckDBService(read_only=True) as db:
             if db._table_exists("liquidation_history"):
                 df = db.conn.execute(
@@ -1118,7 +1151,7 @@ async def get_liquidation_history(
 async def compare_models(symbol: str = "BTCUSDT"):
     def _load_model_comparison():
         with DuckDBService(read_only=True) as db:
-            current_price, open_interest = db.get_latest_open_interest(symbol)
+            current_price, open_interest = _get_latest_oi_with_questdb(symbol, db)
 
             models = []
             for model_cls, name in [

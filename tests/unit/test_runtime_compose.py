@@ -11,22 +11,30 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_docker_compose_defines_core_services():
-    """docker-compose.yml should define the API and sync services."""
+    """docker-compose.yml should define the API, sync, and QuestDB services."""
     compose_path = REPO_ROOT / "docker-compose.yml"
     data = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
 
     services = data["services"]
     assert "rektslug-api" in services
     assert "rektslug-sync" in services
+    assert "questdb" in services
 
     api = services["rektslug-api"]
     sync = services["rektslug-sync"]
+    questdb = services["questdb"]
 
     assert api["restart"] == "unless-stopped"
     assert sync["restart"] == "unless-stopped"
+    assert questdb["restart"] == "unless-stopped"
     assert "healthcheck" in api
     assert api["ports"] == ["${HEATMAP_PORT:-8002}:8002"]
     assert sync["depends_on"]["rektslug-api"]["condition"] == "service_healthy"
+    assert sync["depends_on"]["questdb"]["condition"] == "service_started"
+    assert api["depends_on"]["questdb"]["condition"] == "service_started"
+    assert api["environment"]["QUESTDB_HOST"] == "${QUESTDB_HOST:-questdb}"
+    assert api["environment"]["QUESTDB_PORT"] == "${QUESTDB_PORT:-9009}"
+    assert api["environment"]["QUESTDB_PG_PORT"] == "${QUESTDB_PG_PORT:-8812}"
 
 
 def test_docker_compose_mounts_db_and_ccxt_catalog():
@@ -51,7 +59,6 @@ def test_core_deploy_workflow_targets_core_code():
     assert "docker/build-push-action" in text
     assert "scripts/deploy-core.sh" in text
     assert "scripts/lib/runtime_env.sh" in text
-    # Deploy uses self-hosted runner with git pull + deploy script
     assert "self-hosted" in text
     assert "deploy-core.sh" in text
     assert 'cd "${GITHUB_WORKSPACE}"' in text

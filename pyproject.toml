@@ -31,6 +31,8 @@ dependencies = [
     "zstandard>=0.22.0",
     "msgpack>=1.1.2",
     "msgspec>=0.20.0",
+    "questdb>=4.1.0",
+    "psycopg2-binary>=2.9.11",
 ]
 
 [project.optional-dependencies]

@@ -36,11 +36,22 @@ HEATMAP_TIMEFRAME_ALIASES = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events: cleanup stale locks on startup."""
+    """Lifecycle events: cleanup stale locks and init QuestDB schema."""
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
+    from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
+    
+    # Cleanup DuckDB locks
     if DuckDBService.is_ingestion_locked():
         logger.info("Lifespan: Stale ingestion lock detected, cleaning up...")
         DuckDBService.release_ingestion_lock()
+    
+    # Initialize QuestDB Schema
+    try:
+        qdb = QuestDBService()
+        await asyncio.to_thread(qdb.init_schema)
+        logger.info("Lifespan: QuestDB schema initialized")
+    except Exception as e:
+        logger.warning(f"Lifespan: QuestDB schema initialization failed (is QuestDB running?): {e}")
     
     # Optional: warm up connections
     asyncio.create_task(_warmup_read_connection())
@@ -98,9 +109,16 @@ async def ingestion_lock_handler(request: Request, exc: IngestionLockError):
 @app.get("/metrics", tags=["System"])
 async def metrics():
     """Prometheus metrics endpoint."""
-    from src.liquidationheatmap.api.metrics import ACTIVE_DB_CONNECTIONS, get_metrics_response
+    from src.liquidationheatmap.api.metrics import (
+        ACTIVE_DB_CONNECTIONS,
+        QUESTDB_AVAILABLE,
+        get_metrics_response,
+    )
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
+    from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
+
     ACTIVE_DB_CONNECTIONS.set(len(DuckDBService._instances))
+    QUESTDB_AVAILABLE.set(1 if QuestDBService().is_available() else 0)
     return get_metrics_response()
 
 @app.get("/coinglass", tags=["UI"])

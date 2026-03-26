@@ -26,6 +26,9 @@ x-core-service: &default-core-service
     HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
     HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
     REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
+    QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
+    QUESTDB_PORT: ${QUESTDB_PORT:-9009}
+    QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
   volumes:
     - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
@@ -35,6 +38,20 @@ x-core-service: &default-core-service
   stop_grace_period: 10s
 
 services:
+  questdb:
+    image: ${QUESTDB_IMAGE:-questdb/questdb:latest}
+    container_name: questdb
+    ports:
+      - "${QUESTDB_HTTP_PORT:-9000}:9000"
+      - "${QUESTDB_PG_PORT:-8812}:8812"
+      - "${QUESTDB_PORT:-9009}:9009"
+    volumes:
+      - questdb-data:/var/lib/questdb
+    restart: unless-stopped
+    logging: *default-logging
+    deploy: *default-deploy
+    stop_grace_period: 10s
+
   rektslug-api:
     <<: *default-core-service
     container_name: rektslug-api
@@ -49,6 +66,9 @@ services:
       - "8002"
     ports:
       - "${HEATMAP_PORT:-8002}:8002"
+    depends_on:
+      questdb:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -73,3 +93,8 @@ services:
     depends_on:
       rektslug-api:
         condition: service_healthy
+      questdb:
+        condition: service_started
+
+volumes:
+  questdb-data:

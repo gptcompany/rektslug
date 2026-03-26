@@ -7,11 +7,74 @@ Venue: BINANCE only (consistent with CSV pipeline).
 
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import duckdb
 
+from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
+
 logger = logging.getLogger(__name__)
+
+
+def sync_to_questdb(con: duckdb.DuckDBPyConnection, symbol: str, start_ts: datetime):
+    """Sync new data for a symbol from DuckDB to QuestDB.
+
+    Reads data inserted after start_ts and pushes to QuestDB via ILP.
+    """
+    qdb = QuestDBService()
+    if qdb._sender is None:
+        logger.warning("QuestDB Sender not available, skipping sync")
+        return
+
+    # 1. Sync OI
+    try:
+        oi_df = con.execute(
+            """
+            SELECT timestamp, symbol, open_interest_value
+            FROM open_interest_history
+            WHERE symbol = ? AND timestamp >= ?
+            """,
+            [symbol, start_ts],
+        ).df()
+        if not oi_df.empty:
+            qdb.ingest_dataframe("open_interest", oi_df, symbol_cols=["symbol"])
+    except Exception as e:
+        logger.error(f"Failed to sync OI to QuestDB for {symbol}: {e}")
+
+    # 2. Sync Funding
+    try:
+        funding_df = con.execute(
+            """
+            SELECT timestamp, symbol, funding_rate
+            FROM funding_rate_history
+            WHERE symbol = ? AND timestamp >= ?
+            """,
+            [symbol, start_ts],
+        ).df()
+        if not funding_df.empty:
+            qdb.ingest_dataframe("funding_rates", funding_df, symbol_cols=["symbol"])
+    except Exception as e:
+        logger.error(f"Failed to sync Funding to QuestDB for {symbol}: {e}")
+
+    # 3. Sync Klines (1m and 5m)
+    for interval in ("1m", "5m"):
+        try:
+            table_name = f"klines_{interval}_history"
+            klines_df = con.execute(
+                f"""
+                SELECT open_time as timestamp, symbol, open, high, low, close, volume
+                FROM {table_name}
+                WHERE symbol = ? AND open_time >= ?
+                """,
+                [symbol, start_ts],
+            ).df()
+            if not klines_df.empty:
+                klines_df["interval"] = interval
+                qdb.ingest_dataframe("klines", klines_df, symbol_cols=["symbol", "interval"])
+        except Exception as e:
+            logger.error(f"Failed to sync {interval} klines to QuestDB for {symbol}: {e}")
+
 
 VENUE = "BINANCE"
 KLINE_INTERVALS = ("5m", "1m")
@@ -407,6 +470,10 @@ def run_gap_fill(
 
             if not dry_run:
                 validate_gaps(con, symbol, klines_watermark)
+                
+                # Sync to QuestDB: use watermark as start point
+                sync_start_ts = klines_watermark or (datetime.now(timezone.utc) - timedelta(hours=1))
+                sync_to_questdb(con, symbol, sync_start_ts)
 
             summary[symbol] = symbol_results
     finally:
