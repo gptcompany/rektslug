@@ -1117,24 +1117,7 @@ async def get_liquidation_history(
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"), limit: int = 100
 ):
     def _load_history():
-        qdb_rows = _get_recent_liquidations_with_questdb(symbol, limit)
-        if qdb_rows:
-            return qdb_rows
-
-        with DuckDBService(read_only=True) as db:
-            if db._table_exists("liquidation_history"):
-                df = db.conn.execute(
-                    "SELECT * FROM liquidation_history WHERE symbol = ? LIMIT ?", [symbol, limit]
-                ).df()
-                return df.to_dict(orient="records")
-            if db._table_exists("position_events"):
-                df = db.conn.execute(
-                    "SELECT * FROM position_events WHERE symbol = ? LIMIT ?", [symbol, limit]
-                ).df()
-                if not df.empty:
-                    df.rename(columns={"liq_price": "price", "volume": "quantity"}, inplace=True)
-                return df.to_dict(orient="records")
-            return []
+        return _get_recent_liquidations_with_questdb(symbol, limit)
 
     try:
         return await _run_read_operation_with_retry(
