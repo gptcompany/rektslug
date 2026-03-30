@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Bridge ccxt-data-pipeline Parquet -> DuckDB gap fill (T-2 -> T-0).
+Bridge ccxt-data-pipeline Parquet -> QuestDB hot gap fill (T-2 -> T-0).
 
 After CSV ingestion (which has ~2 day latency), reads recent Parquet files
-from ccxt-data-pipeline catalog and fills the gap up to T-0.
+from ccxt-data-pipeline catalog and fills the hot serving window up to T-0.
 
 Handles: klines (5m OHLCV), open interest, funding rate.
 Venue: BINANCE only (consistent with CSV pipeline).
-Dedup: INSERT OR IGNORE for klines (PK exists), anti-join for OI/funding (no UNIQUE).
+DuckDB is used only as an in-process Parquet query engine. QuestDB stores the
+hot time-series data served by the API.
 
 Usage:
     uv run python scripts/fill_gap_from_ccxt.py --symbols BTCUSDT ETHUSDT
@@ -46,10 +47,16 @@ from src.liquidationheatmap.ingestion.gap_fill import (  # noqa: E402, F401
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fill DuckDB gap from ccxt-data-pipeline Parquet")
+    parser = argparse.ArgumentParser(
+        description="Fill QuestDB hot-series gap from ccxt-data-pipeline Parquet"
+    )
     parser.add_argument("--symbols", nargs="+", default=DEFAULT_SYMBOLS, help="Symbols to process")
     parser.add_argument("--ccxt-catalog", default=DEFAULT_CATALOG, help="Path to ccxt catalog")
-    parser.add_argument("--db", default=DEFAULT_DB, help="DuckDB database path")
+    parser.add_argument(
+        "--db",
+        default=DEFAULT_DB,
+        help="Optional DuckDB path for Parquet query context; falls back to :memory: if missing",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -57,9 +64,9 @@ def main():
     )
     args = parser.parse_args()
 
-    log.info("Gap fill: ccxt-data-pipeline Parquet -> DuckDB")
+    log.info("Gap fill: ccxt-data-pipeline Parquet -> QuestDB")
     log.info("  Catalog: %s", args.ccxt_catalog)
-    log.info("  DB: %s", args.db)
+    log.info("  DuckDB query engine path: %s", args.db)
     log.info("  Symbols: %s", args.symbols)
     log.info("  Dry run: %s", args.dry_run)
 

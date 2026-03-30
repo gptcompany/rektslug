@@ -1,4 +1,4 @@
-"""Gap-fill logic: bridge ccxt-data-pipeline Parquet -> DuckDB.
+"""Gap-fill logic: bridge ccxt-data-pipeline Parquet -> QuestDB.
 
 Extracted from scripts/fill_gap_from_ccxt.py for in-process use by the API.
 Handles: klines (1m + 5m OHLCV), open interest, funding rate.
@@ -15,65 +15,6 @@ import duckdb
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 
 logger = logging.getLogger(__name__)
-
-
-def sync_to_questdb(con: duckdb.DuckDBPyConnection, symbol: str, start_ts: datetime):
-    """Sync new data for a symbol from DuckDB to QuestDB.
-
-    Reads data inserted after start_ts and pushes to QuestDB via ILP.
-    """
-    qdb = QuestDBService()
-    if qdb._sender is None:
-        logger.warning("QuestDB Sender not available, skipping sync")
-        return
-
-    # 1. Sync OI
-    try:
-        oi_df = con.execute(
-            """
-            SELECT timestamp, symbol, open_interest_value
-            FROM open_interest_history
-            WHERE symbol = ? AND timestamp >= ?
-            """,
-            [symbol, start_ts],
-        ).df()
-        if not oi_df.empty:
-            qdb.ingest_dataframe("open_interest", oi_df, symbol_cols=["symbol"])
-    except Exception as e:
-        logger.error(f"Failed to sync OI to QuestDB for {symbol}: {e}")
-
-    # 2. Sync Funding
-    try:
-        funding_df = con.execute(
-            """
-            SELECT timestamp, symbol, funding_rate
-            FROM funding_rate_history
-            WHERE symbol = ? AND timestamp >= ?
-            """,
-            [symbol, start_ts],
-        ).df()
-        if not funding_df.empty:
-            qdb.ingest_dataframe("funding_rates", funding_df, symbol_cols=["symbol"])
-    except Exception as e:
-        logger.error(f"Failed to sync Funding to QuestDB for {symbol}: {e}")
-
-    # 3. Sync Klines (1m and 5m)
-    for interval in ("1m", "5m"):
-        try:
-            table_name = f"klines_{interval}_history"
-            klines_df = con.execute(
-                f"""
-                SELECT open_time as timestamp, symbol, open, high, low, close, volume
-                FROM {table_name}
-                WHERE symbol = ? AND open_time >= ?
-                """,
-                [symbol, start_ts],
-            ).df()
-            if not klines_df.empty:
-                klines_df["interval"] = interval
-                qdb.ingest_dataframe("klines", klines_df, symbol_cols=["symbol", "interval"])
-        except Exception as e:
-            logger.error(f"Failed to sync {interval} klines to QuestDB for {symbol}: {e}")
 
 
 VENUE = "BINANCE"
@@ -126,47 +67,66 @@ def get_watermark(con: duckdb.DuckDBPyConnection, table: str, ts_col: str, symbo
     return result[0] if result and result[0] else None
 
 
+def get_questdb_watermark(
+    qdb: QuestDBService, table: str, symbol: str, interval: str | None = None
+) -> datetime | None:
+    """Get MAX timestamp for a symbol in a QuestDB table."""
+    query = f"SELECT max(timestamp) FROM {table} WHERE symbol = %s"
+    params = [symbol]
+    if interval:
+        query += " AND interval = %s"
+        params.append(interval)
+    rows = qdb.execute_query(query, params)
+    return rows[0][0] if rows and rows[0][0] else None
+
+
 def _fill_klines_interval(
     con: duckdb.DuckDBPyConnection,
+    qdb: QuestDBService,
     catalog: str,
     symbol: str,
     interval: str,
     dry_run: bool,
 ) -> dict:
-    """Fill klines gap for a single interval from OHLCV Parquet files."""
+    """Fill klines gap for a single interval from OHLCV Parquet files to QuestDB."""
     minutes = _kline_minutes(interval)
-    table_name = f"klines_{interval}_history"
-    if not dry_run:
-        _ensure_klines_table(con, interval)
     glob_path = parquet_glob(catalog, "ohlcv", symbol)
 
-    try:
-        watermark = get_watermark(con, table_name, "open_time", symbol)
-    except duckdb.CatalogException:
-        # Table does not exist yet (e.g. dry_run on read-only connection)
-        watermark = None
+    # Use QuestDB watermark instead of DuckDB
+    watermark = get_questdb_watermark(qdb, "klines", symbol, interval)
 
     bootstrap_days = KLINE_BOOTSTRAP_DAYS_BY_INTERVAL.get(interval)
 
     if watermark is None and bootstrap_days is None:
-        logger.warning("No existing %s klines for %s, skipping (need CSV baseline first)", interval, symbol)
+        logger.warning(
+            "No existing %s klines for %s in QuestDB, skipping (need CSV baseline first)",
+            interval,
+            symbol,
+        )
         return {"inserted": 0, "skipped": "no_baseline"}
 
     if watermark is None and bootstrap_days is not None:
         # Bootstrap: use a bounded time window instead of requiring CSV baseline
-        logger.info("Bootstrapping %s klines for %s with %d-day window", interval, symbol, bootstrap_days)
+        logger.info(
+            "Bootstrapping %s klines for %s with %d-day window",
+            interval,
+            symbol,
+            bootstrap_days,
+        )
         ts_filter = f"timestamp > (now() - INTERVAL '{bootstrap_days} days')"
     else:
-        logger.info("Klines %s watermark for %s: %s", interval, symbol, watermark)
+        logger.info("Klines %s QuestDB watermark for %s: %s", interval, symbol, watermark)
         ts_filter = f"timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'"
 
     try:
-        avail = con.execute(f"""
+        avail = con.execute(
+            f"""
             SELECT COUNT(*) FROM read_parquet('{glob_path}')
             WHERE venue = '{VENUE}'
               AND timeframe = '{interval}'
               AND {ts_filter}
-        """).fetchone()[0]
+        """
+        ).fetchone()[0]
     except Exception as e:
         logger.warning("No Parquet files found for %s klines %s: %s", interval, symbol, e)
         return {"inserted": 0, "skipped": "no_parquet"}
@@ -180,43 +140,43 @@ def _fill_klines_interval(
     if dry_run:
         return {"inserted": 0, "available": avail, "skipped": "dry_run"}
 
-    count_before = con.execute(
-        f"SELECT COUNT(*) FROM {table_name} WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
-
-    con.execute(f"""
-        INSERT OR IGNORE INTO {table_name}
-            (open_time, symbol, open, high, low, close, volume,
-             close_time, quote_volume, count, taker_buy_volume, taker_buy_quote_volume)
+    # Fetch data as dataframe
+    df = con.execute(
+        f"""
         SELECT
-            timezone('UTC', timestamp)::TIMESTAMP AS open_time,
+            timezone('UTC', timestamp)::TIMESTAMP AS timestamp,
             REPLACE(symbol, '-PERP', '') AS symbol,
-            CAST(open AS DECIMAL(18, 8)),
-            CAST(high AS DECIMAL(18, 8)),
-            CAST(low AS DECIMAL(18, 8)),
-            CAST(close AS DECIMAL(18, 8)),
-            CAST(volume AS DECIMAL(18, 8)),
-            (timezone('UTC', timestamp)::TIMESTAMP + INTERVAL '{minutes} minutes') AS close_time,
-            NULL AS quote_volume,
-            NULL AS count,
-            NULL AS taker_buy_volume,
-            NULL AS taker_buy_quote_volume
+            CAST(open AS DOUBLE) AS open,
+            CAST(high AS DOUBLE) AS high,
+            CAST(low AS DOUBLE) AS low,
+            CAST(close AS DOUBLE) AS close,
+            CAST(volume AS DOUBLE) AS volume
         FROM read_parquet('{glob_path}')
         WHERE venue = '{VENUE}'
           AND timeframe = '{interval}'
           AND {ts_filter}
-    """)
+        ORDER BY timestamp ASC
+    """
+    ).df()
 
-    count_after = con.execute(
-        f"SELECT COUNT(*) FROM {table_name} WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
+    if not df.empty:
+        df["interval"] = interval
+        qdb.ingest_dataframe("klines", df, symbol_cols=["symbol", "interval"])
+        inserted = len(df)
+    else:
+        inserted = 0
 
-    inserted = count_after - count_before
-    logger.info("Klines %s/%s: %d inserted, %d duplicates ignored", interval, symbol, inserted, avail - inserted)
-    return {"inserted": inserted, "duplicates": avail - inserted}
+    logger.info("Klines %s/%s: %d inserted into QuestDB", interval, symbol, inserted)
+    return {"inserted": inserted, "duplicates": 0}
 
 
-def fill_klines(con: duckdb.DuckDBPyConnection, catalog: str, symbol: str, dry_run: bool) -> dict:
+def fill_klines(
+    con: duckdb.DuckDBPyConnection,
+    qdb: QuestDBService,
+    catalog: str,
+    symbol: str,
+    dry_run: bool,
+) -> dict:
     """Fill klines gap for all configured intervals (5m, 1m).
 
     Returns a dict with per-interval results and total inserted count.
@@ -225,7 +185,7 @@ def fill_klines(con: duckdb.DuckDBPyConnection, catalog: str, symbol: str, dry_r
     total_inserted = 0
 
     for interval in KLINE_INTERVALS:
-        result = _fill_klines_interval(con, catalog, symbol, interval, dry_run)
+        result = _fill_klines_interval(con, qdb, catalog, symbol, interval, dry_run)
         intervals_results[interval] = result
         total_inserted += result.get("inserted", 0)
 
@@ -234,26 +194,31 @@ def fill_klines(con: duckdb.DuckDBPyConnection, catalog: str, symbol: str, dry_r
 
 def fill_open_interest(
     con: duckdb.DuckDBPyConnection,
+    qdb: QuestDBService,
     catalog: str,
     symbol: str,
     dry_run: bool,
 ) -> dict:
-    """Fill open_interest_history gap from OI Parquet files."""
+    """Fill open_interest gap from OI Parquet files to QuestDB."""
     glob_path = parquet_glob(catalog, "open_interest", symbol)
-    watermark = get_watermark(con, "open_interest_history", "timestamp", symbol)
+    watermark = get_questdb_watermark(qdb, "open_interest", symbol)
 
     if watermark is None:
-        logger.warning("No existing OI for %s, skipping (need CSV baseline first)", symbol)
+        logger.warning(
+            "No existing OI for %s in QuestDB, skipping (need CSV baseline first)", symbol
+        )
         return {"inserted": 0, "skipped": "no_baseline"}
 
-    logger.info("OI watermark for %s: %s", symbol, watermark)
+    logger.info("OI QuestDB watermark for %s: %s", symbol, watermark)
 
     try:
-        avail = con.execute(f"""
+        avail = con.execute(
+            f"""
             SELECT COUNT(*) FROM read_parquet('{glob_path}')
             WHERE venue = '{VENUE}'
               AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
-        """).fetchone()[0]
+        """
+        ).fetchone()[0]
     except Exception as e:
         logger.warning("No Parquet files found for OI %s: %s", symbol, e)
         return {"inserted": 0, "skipped": "no_parquet"}
@@ -267,69 +232,56 @@ def fill_open_interest(
     if dry_run:
         return {"inserted": 0, "available": avail, "skipped": "dry_run"}
 
-    count_before = con.execute(
-        "SELECT COUNT(*) FROM open_interest_history WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
-
-    max_id = con.execute("SELECT COALESCE(MAX(id), 0) FROM open_interest_history").fetchone()[0]
-
-    con.execute(f"""
-        INSERT INTO open_interest_history
-            (id, timestamp, symbol, open_interest_value, open_interest_contracts, source)
+    df = con.execute(
+        f"""
         SELECT
-            ROW_NUMBER() OVER (ORDER BY p_ts) + {max_id} AS id,
-            p_ts AS timestamp,
-            p_sym AS symbol,
-            CAST(p_oiv AS DECIMAL(20, 8)) AS open_interest_value,
-            CAST(p_oi AS DECIMAL(18, 8)) AS open_interest_contracts,
-            'ccxt-pipeline' AS source
-        FROM (
-            SELECT
-                timezone('UTC', p.timestamp)::TIMESTAMP AS p_ts,
-                REPLACE(p.symbol, '-PERP', '') AS p_sym,
-                p.open_interest_value AS p_oiv,
-                p.open_interest AS p_oi
-            FROM read_parquet('{glob_path}') p
-            WHERE p.venue = '{VENUE}'
-              AND p.timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
-        ) sub
-        WHERE NOT EXISTS (
-            SELECT 1 FROM open_interest_history h
-            WHERE h.timestamp = sub.p_ts AND h.symbol = sub.p_sym
-        )
-    """)
+            timezone('UTC', timestamp)::TIMESTAMP AS timestamp,
+            REPLACE(symbol, '-PERP', '') AS symbol,
+            CAST(open_interest_value AS DOUBLE) AS open_interest_value
+        FROM read_parquet('{glob_path}')
+        WHERE venue = '{VENUE}'
+          AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+        ORDER BY timestamp ASC
+    """
+    ).df()
 
-    count_after = con.execute(
-        "SELECT COUNT(*) FROM open_interest_history WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
+    if not df.empty:
+        qdb.ingest_dataframe("open_interest", df, symbol_cols=["symbol"])
+        inserted = len(df)
+    else:
+        inserted = 0
 
-    inserted = count_after - count_before
-    logger.info("OI %s: %d inserted, %d duplicates skipped", symbol, inserted, avail - inserted)
-    return {"inserted": inserted, "duplicates": avail - inserted}
+    logger.info("OI %s: %d inserted into QuestDB", symbol, inserted)
+    return {"inserted": inserted, "duplicates": 0}
 
 
 def fill_funding_rate(
     con: duckdb.DuckDBPyConnection,
+    qdb: QuestDBService,
     catalog: str,
     symbol: str,
     dry_run: bool,
 ) -> dict:
-    """Fill funding_rate_history gap from funding rate Parquet files."""
+    """Fill funding_rate gap from funding rate Parquet files to QuestDB."""
     glob_path = parquet_glob(catalog, "funding_rate", symbol)
-    watermark = get_watermark(con, "funding_rate_history", "timestamp", symbol)
+    watermark = get_questdb_watermark(qdb, "funding_rates", symbol)
 
     if watermark is None:
-        logger.warning("No existing funding rate for %s, skipping (need CSV baseline first)", symbol)
+        logger.warning(
+            "No existing funding rate for %s in QuestDB, skipping (need CSV baseline first)", symbol
+        )
         return {"inserted": 0, "skipped": "no_baseline"}
 
-    logger.info("Funding rate watermark for %s: %s", symbol, watermark)
+    logger.info("Funding rate QuestDB watermark for %s: %s", symbol, watermark)
 
     try:
-        avail = con.execute(f"""
+        avail = con.execute(
+            f"""
             SELECT COUNT(*) FROM read_parquet('{glob_path}')
             WHERE venue = '{VENUE}'
               AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
-        """).fetchone()[0]
+        """
+        ).fetchone()[0]
     except Exception as e:
         logger.warning("No Parquet files found for funding rate %s: %s", symbol, e)
         return {"inserted": 0, "skipped": "no_parquet"}
@@ -343,76 +295,57 @@ def fill_funding_rate(
     if dry_run:
         return {"inserted": 0, "available": avail, "skipped": "dry_run"}
 
-    count_before = con.execute(
-        "SELECT COUNT(*) FROM funding_rate_history WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
-
-    max_id = con.execute("SELECT COALESCE(MAX(id), 0) FROM funding_rate_history").fetchone()[0]
-
-    con.execute(f"""
-        INSERT INTO funding_rate_history
-            (id, timestamp, symbol, funding_rate, funding_interval_hours)
+    df = con.execute(
+        f"""
         SELECT
-            ROW_NUMBER() OVER (ORDER BY p_ts) + {max_id} AS id,
-            p_ts AS timestamp,
-            p_sym AS symbol,
-            CAST(p_fr AS DECIMAL(10, 8)) AS funding_rate,
-            8 AS funding_interval_hours
-        FROM (
-            SELECT
-                timezone('UTC', p.timestamp)::TIMESTAMP AS p_ts,
-                REPLACE(p.symbol, '-PERP', '') AS p_sym,
-                p.funding_rate AS p_fr
-            FROM read_parquet('{glob_path}') p
-            WHERE p.venue = '{VENUE}'
-              AND p.timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
-        ) sub
-        WHERE NOT EXISTS (
-            SELECT 1 FROM funding_rate_history h
-            WHERE h.timestamp = sub.p_ts AND h.symbol = sub.p_sym
-        )
-    """)
+            timezone('UTC', timestamp)::TIMESTAMP AS timestamp,
+            REPLACE(symbol, '-PERP', '') AS symbol,
+            CAST(funding_rate AS DOUBLE) AS funding_rate
+        FROM read_parquet('{glob_path}')
+        WHERE venue = '{VENUE}'
+          AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+        ORDER BY timestamp ASC
+    """
+    ).df()
 
-    count_after = con.execute(
-        "SELECT COUNT(*) FROM funding_rate_history WHERE symbol = ?", [symbol]
-    ).fetchone()[0]
+    if not df.empty:
+        qdb.ingest_dataframe("funding_rates", df, symbol_cols=["symbol"])
+        inserted = len(df)
+    else:
+        inserted = 0
 
-    inserted = count_after - count_before
-    logger.info(
-        "Funding rate %s: %d inserted, %d duplicates skipped",
-        symbol,
-        inserted,
-        avail - inserted,
-    )
-    return {"inserted": inserted, "duplicates": avail - inserted}
+    logger.info("Funding rate %s: %d inserted into QuestDB", symbol, inserted)
+    return {"inserted": inserted, "duplicates": 0}
 
 
-def validate_gaps(con: duckdb.DuckDBPyConnection, symbol: str, watermark_ts):
-    """Check for gaps in klines_5m after the original watermark (warning only)."""
+def validate_gaps(qdb: QuestDBService, symbol: str, watermark_ts: datetime | None):
+    """Check for gaps in QuestDB klines (5m) after the original watermark."""
     if watermark_ts is None:
         return
 
-    result = con.execute(
-        """
-        SELECT COUNT(*) as gaps FROM (
-            SELECT open_time,
-                   LEAD(open_time) OVER (ORDER BY open_time) AS next_time
-            FROM klines_5m_history
-            WHERE symbol = ? AND open_time >= ?
-        ) WHERE EXTRACT(EPOCH FROM (next_time - open_time)) > 300 * 1.5
-    """,
-        [symbol, watermark_ts],
-    ).fetchone()[0]
+    # QuestDB query for gaps
+    # timestamp subtraction in QuestDB returns microseconds. 
+    # 300s * 1.5 = 450s = 450,000,000 micros.
+    query = """
+        SELECT count(*) FROM (
+            SELECT timestamp,
+                   lead(timestamp) OVER (ORDER BY timestamp) as next_ts
+            FROM klines
+            WHERE symbol = %s AND interval = '5m' AND timestamp >= %s
+        ) WHERE next_ts - timestamp > 450000000
+    """
+    rows = qdb.execute_query(query, [symbol, watermark_ts])
+    result = rows[0][0] if rows else 0
 
     if result > 0:
         logger.warning(
-            "Gap validation: %d gaps in klines %s after %s (may be exchange maintenance)",
+            "Gap validation: %d gaps in QuestDB klines %s after %s",
             result,
             symbol,
             watermark_ts,
         )
     else:
-        logger.info("Gap validation: no gaps in klines %s after %s", symbol, watermark_ts)
+        logger.info("Gap validation: no gaps in QuestDB klines %s after %s", symbol, watermark_ts)
 
 
 def run_gap_fill(
@@ -423,14 +356,15 @@ def run_gap_fill(
 ) -> dict:
     """Run the full gap-fill pipeline for all symbols.
 
-    Opens a read-write DuckDB connection, fills klines/OI/funding for each
-    symbol, validates gaps, and returns a summary dict.
+    Uses DuckDB only as an in-process Parquet query engine, fills klines/OI/funding
+    directly into QuestDB for each symbol, validates gaps, and returns a summary dict.
 
     Args:
-        db_path: Path to the DuckDB database file.
+        db_path: Historical DuckDB path. Kept for backward compatibility and
+            ignored when missing because raw hot history is no longer persisted there.
         catalog: Path to the ccxt-data-pipeline Parquet catalog.
         symbols: List of symbols to process (e.g. ["BTCUSDT", "ETHUSDT"]).
-        dry_run: If True, count available data without writing.
+        dry_run: If True, count available data without writing to QuestDB.
 
     Returns:
         Dict with per-symbol results and total_inserted count.
@@ -440,16 +374,23 @@ def run_gap_fill(
         raise FileNotFoundError(f"CCXT catalog not found: {catalog_path}")
 
     db = Path(db_path)
-    if not db.exists():
-        raise FileNotFoundError(f"DuckDB database not found: {db}")
-
     logger.info("Gap fill: catalog=%s db=%s symbols=%s dry_run=%s", catalog, db, symbols, dry_run)
 
-    con = duckdb.connect(str(db), read_only=dry_run)
-    # Cap DuckDB memory to avoid OOM during WAL checkpoint on the 440GB DB.
-    # The container has a 1GB cgroup limit; uvicorn+Python use ~100MB baseline.
-    if not dry_run:
-        con.execute("SET memory_limit='1GB'")
+    qdb = QuestDBService()
+    if qdb._sender is None and not dry_run:
+        logger.error("QuestDB Sender not available, cannot run gap fill")
+        return {"symbols": {}, "total_inserted": 0, "error": "questdb_unavailable"}
+
+    if db.exists():
+        con = duckdb.connect(str(db), read_only=True)
+    else:
+        logger.info(
+            "Gap fill: historical DuckDB %s not found, using in-memory DuckDB for Parquet reads",
+            db,
+        )
+        con = duckdb.connect(":memory:")
+    # Cap DuckDB memory to avoid OOM.
+    con.execute("SET memory_limit='1GB'")
     summary: dict[str, dict] = {}
 
     try:
@@ -457,23 +398,20 @@ def run_gap_fill(
             logger.info("=== Processing %s ===", symbol)
             symbol_results = {}
 
-            klines_watermark = get_watermark(con, "klines_5m_history", "open_time", symbol)
+            # Get pre-ingestion watermark for validation
+            klines_watermark = get_questdb_watermark(qdb, "klines", symbol, "5m")
 
-            symbol_results["klines"] = fill_klines(con, str(catalog_path), symbol, dry_run)
+            symbol_results["klines"] = fill_klines(con, qdb, str(catalog_path), symbol, dry_run)
             time.sleep(0.1)
 
-            symbol_results["oi"] = fill_open_interest(con, str(catalog_path), symbol, dry_run)
+            symbol_results["oi"] = fill_open_interest(con, qdb, str(catalog_path), symbol, dry_run)
             time.sleep(0.1)
 
-            symbol_results["funding"] = fill_funding_rate(con, str(catalog_path), symbol, dry_run)
+            symbol_results["funding"] = fill_funding_rate(con, qdb, str(catalog_path), symbol, dry_run)
             time.sleep(0.1)
 
             if not dry_run:
-                validate_gaps(con, symbol, klines_watermark)
-                
-                # Sync to QuestDB: use watermark as start point
-                sync_start_ts = klines_watermark or (datetime.now(timezone.utc) - timedelta(hours=1))
-                sync_to_questdb(con, symbol, sync_start_ts)
+                validate_gaps(qdb, symbol, klines_watermark)
 
             summary[symbol] = symbol_results
     finally:
@@ -484,6 +422,6 @@ def run_gap_fill(
         for sym_results in summary.values()
         for r in sym_results.values()
     )
-    logger.info("Gap fill complete: %d total rows inserted", total_inserted)
+    logger.info("Gap fill complete: %d total rows inserted into QuestDB", total_inserted)
 
     return {"symbols": summary, "total_inserted": total_inserted}

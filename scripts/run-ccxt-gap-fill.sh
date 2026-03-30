@@ -1,6 +1,7 @@
 #!/bin/bash
 # Near-real-time bridge: triggers in-process gap-fill via the API endpoint.
-# The API handles DuckDB locking internally (no cross-process lock conflicts).
+# Hot series are filled from Parquet into QuestDB. DuckDB is only used
+# in-process as a Parquet query engine when the CLI fallback is used.
 
 set -euo pipefail
 
@@ -64,36 +65,6 @@ sys.stdout.write(str(code).zfill(3))
 PY
 }
 
-test_db_write_access() {
-    uv run --project "$PROJECT_DIR" python -c "
-import duckdb, sys
-try:
-    conn = duckdb.connect('${DB_PATH}', read_only=False)
-    conn.close()
-    sys.exit(0)
-except Exception:
-    sys.exit(1)
-" >/dev/null 2>&1
-}
-
-wait_for_db_write_access() {
-    local attempts="${1:-5}"
-    local delay_seconds="${2:-2}"
-    local attempt=1
-
-    while [ "$attempt" -le "$attempts" ]; do
-        if test_db_write_access; then
-            return 0
-        fi
-        if [ "$attempt" -lt "$attempts" ]; then
-            sleep "$delay_seconds"
-        fi
-        attempt=$((attempt + 1))
-    done
-
-    return 1
-}
-
 run_gap_fill_cli_fallback() {
     local reason="$1"
     local -a symbol_args=()
@@ -114,28 +85,23 @@ run_gap_fill_cli_fallback() {
         prep_result='{"status":"api_unavailable"}'
     fi
     log "API prepare before CLI fallback: ${prep_result}"
-    # Give in-flight readers time to drain after lock acquisition.
+    # Give in-flight readers time to drain before the local fallback runs.
     sleep 1
 
-    if ! wait_for_db_write_access 5 2; then
-        log "SKIPPED_LOCK_CONTENTION: DuckDB still busy after prepare, skipping this cycle"
+    output_file="$(mktemp -t lh-gapfill.XXXXXX)"
+    if uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
+        --symbols "${symbol_args[@]}" \
+        --ccxt-catalog "$CCXT_CATALOG" \
+        --db "$DB_PATH" 2>&1 | tee "$output_file"; then
         cli_status=0
     else
-        output_file="$(mktemp -t lh-gapfill.XXXXXX)"
-        if uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/fill_gap_from_ccxt.py" \
-            --symbols "${symbol_args[@]}" \
-            --ccxt-catalog "$CCXT_CATALOG" \
-            --db "$DB_PATH" 2>&1 | tee "$output_file"; then
+        cli_status=$?
+        if grep -qiE "Could not set lock|Conflicting lock" "$output_file"; then
+            log "SKIPPED_LOCK_CONTENTION: DuckDB lock contention during fallback fill, skipping this cycle"
             cli_status=0
-        else
-            cli_status=$?
-            if grep -qiE "Could not set lock|Conflicting lock" "$output_file"; then
-                log "SKIPPED_LOCK_CONTENTION: DuckDB lock contention during fallback fill, skipping this cycle"
-                cli_status=0
-            fi
         fi
-        rm -f "$output_file"
     fi
+    rm -f "$output_file"
 
     refresh_response=$(api_post_capture "/api/v1/refresh-connections" 10)
     refresh_code=$(echo "$refresh_response" | tail -1)

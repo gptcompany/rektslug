@@ -55,16 +55,22 @@ class QuestDBService:
         self.port = settings.questdb_port
         self.pg_port = settings.questdb_pg_port
 
+        self._sender_conf: str | None = None
+
         if Sender is None:
             logger.warning("QuestDB Python client not installed; ILP ingestion disabled")
             self._sender = None
         else:
             try:
-                self._sender = Sender(self.host, self.port)
-                logger.info("QuestDB ILP Sender initialized for %s:%s", self.host, self.port)
+                self._sender_conf = f"tcp::addr={self.host}:{self.port};"
+                probe = Sender.from_conf(self._sender_conf)
+                probe.close()
+                self._sender = self._sender_conf
+                logger.info("QuestDB ILP sender configured for %s:%s", self.host, self.port)
             except Exception as exc:
                 logger.error("Failed to initialize QuestDB ILP Sender: %s", exc)
                 self._sender = None
+                self._sender_conf = None
 
         self._initialized = True
 
@@ -95,6 +101,11 @@ class QuestDBService:
 
     def _record_ingest(self, table: str, status: str) -> None:
         QUESTDB_INGEST_TOTAL.labels(table=table, status=status).inc()
+
+    def _open_sender(self):
+        if not self._sender_conf or Sender is None:
+            return None
+        return Sender.from_conf(self._sender_conf)
 
     def _get_pg_conn(self):
         """Get a Postgres wire protocol connection for SQL queries."""
@@ -199,7 +210,7 @@ class QuestDBService:
             return
 
         try:
-            with self._sender as sender:
+            with self._open_sender() as sender:
                 sender.row(
                     "open_interest",
                     symbols={"symbol": symbol},
@@ -219,7 +230,7 @@ class QuestDBService:
             return
 
         try:
-            with self._sender as sender:
+            with self._open_sender() as sender:
                 sender.row(
                     "funding_rates",
                     symbols={"symbol": symbol},
@@ -247,7 +258,7 @@ class QuestDBService:
             return
 
         try:
-            with self._sender as sender:
+            with self._open_sender() as sender:
                 sender.row(
                     "liquidations",
                     symbols={"symbol": symbol, "side": side},
@@ -399,7 +410,7 @@ class QuestDBService:
         symbol_cols = symbol_cols or []
 
         try:
-            with self._sender as sender:
+            with self._open_sender() as sender:
                 sender.dataframe(
                     df,
                     table_name=table_name,
