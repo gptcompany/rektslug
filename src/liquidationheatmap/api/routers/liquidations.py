@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.request import urlopen
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -33,11 +34,25 @@ from src.liquidationheatmap.api.shared import (
     SUPPORTED_SYMBOLS,
     TIME_WINDOW_CONFIG,
 )
-from src.liquidationheatmap.ingestion.db_service import DuckDBService, IngestionLockError, _get_fallback_price
+from src.liquidationheatmap.ingestion.db_service import (
+    DuckDBService,
+    IngestionLockError,
+    _HeatmapCandle,
+    _align_oi_deltas_to_candles,
+    _as_naive_utc,
+    _get_fallback_price,
+    _interval_timedelta,
+    _parse_iso_timestamp,
+    _resample_heatmap_candles,
+)
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
+from src.liquidationheatmap.models.profiles import get_profile
+from src.liquidationheatmap.models.time_evolving_heatmap import calculate_time_evolving_heatmap
+from src.liquidationheatmap.settings import get_settings
+
 
 def _questdb_unavailable_error(context: str) -> HTTPException:
     return HTTPException(
@@ -89,8 +104,6 @@ def _get_recent_liquidations_with_questdb(symbol: str, limit: int) -> list[dict[
     if not qdb.is_available():
         raise _questdb_unavailable_error("loading liquidation history")
     return qdb.get_recent_liquidations(symbol, limit)
-from src.liquidationheatmap.models.profiles import get_profile
-from src.liquidationheatmap.settings import get_settings
 
 router = APIRouter(prefix="/liquidations", tags=["Liquidations"])
 logger = logging.getLogger(__name__)
@@ -99,6 +112,8 @@ _SETTINGS = get_settings()
 VALID_LEVERAGE_TIERS = {5, 10, 25, 50, 100}
 TRANSIENT_DUCKDB_RETRY_ATTEMPTS = 3
 TRANSIENT_DUCKDB_RETRY_DELAY_SECONDS = 0.05
+QUESTDB_HOT_HEATMAP_INTERVAL_SOURCES = {"1m": "1m", "5m": "5m", "15m": "5m"}
+QUESTDB_HOT_HEATMAP_LOOKBACK = timedelta(days=14)
 
 
 class LiquidationLevelsResponse(BaseModel):
@@ -271,6 +286,106 @@ def _build_empty_heatmap_timeseries_response(
             total_short_volume=0,
             total_consumed=0,
         ),
+    )
+
+
+def _should_use_questdb_live_timeseries(interval: str, start_time: str | None) -> bool:
+    source_interval = QUESTDB_HOT_HEATMAP_INTERVAL_SOURCES.get(interval)
+    if source_interval is None or not start_time:
+        return False
+
+    start_dt = _parse_iso_timestamp(start_time)
+    if start_dt is None:
+        return False
+
+    now_utc = _as_naive_utc(datetime.now(timezone.utc))
+    return now_utc - start_dt <= QUESTDB_HOT_HEATMAP_LOOKBACK
+
+
+def _load_heatmap_snapshots_from_questdb(
+    *,
+    symbol: str,
+    start_time: str,
+    end_time: str | None,
+    interval: str,
+    price_bin_size: float,
+    leverage_weights: dict[int, float] | None,
+):
+    source_interval = QUESTDB_HOT_HEATMAP_INTERVAL_SOURCES.get(interval)
+    if source_interval is None:
+        return None
+
+    qdb = QuestDBService()
+    if not qdb.is_available():
+        raise _questdb_unavailable_error("loading hot heatmap timeseries")
+
+    kline_rows = qdb.get_klines_range(
+        symbol=symbol,
+        interval=source_interval,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    if not kline_rows:
+        return []
+
+    candles = [
+        _HeatmapCandle(
+            open_time=_as_naive_utc(
+                row["timestamp"].to_pydatetime()
+                if hasattr(row["timestamp"], "to_pydatetime")
+                else row["timestamp"]
+            ),
+            open=Decimal(str(row["open"])),
+            high=Decimal(str(row["high"])),
+            low=Decimal(str(row["low"])),
+            close=Decimal(str(row["close"])),
+            volume=Decimal(str(row["volume"])),
+        )
+        for row in kline_rows
+    ]
+
+    requested_interval = interval.lower()
+    candles = _resample_heatmap_candles(
+        candles=candles,
+        source_interval=source_interval,
+        target_interval=requested_interval,
+    )
+    alignment_interval = (
+        requested_interval
+        if _interval_timedelta(requested_interval) >= _interval_timedelta(source_interval)
+        else source_interval
+    )
+
+    parsed_start_time = _parse_iso_timestamp(start_time)
+    oi_query_start: str | datetime = start_time
+    if parsed_start_time is not None:
+        oi_query_start = (
+            parsed_start_time
+            - max(_interval_timedelta(alignment_interval), timedelta(minutes=15))
+        ).isoformat()
+
+    oi_rows = qdb.get_open_interest_range(
+        symbol=symbol,
+        start_time=oi_query_start,
+        end_time=end_time,
+    )
+    oi_df = pd.DataFrame(oi_rows)
+    if oi_df.empty:
+        oi_df = pd.DataFrame(columns=["timestamp", "oi_delta"])
+    else:
+        oi_df["timestamp"] = pd.to_datetime(oi_df["timestamp"], utc=True)
+        oi_df["oi_delta"] = oi_df["oi_delta"].fillna(0)
+
+    normalized_weights = None
+    if leverage_weights:
+        normalized_weights = [(int(k), Decimal(str(v))) for k, v in leverage_weights.items()]
+
+    return calculate_time_evolving_heatmap(
+        candles=candles,
+        oi_deltas=_align_oi_deltas_to_candles(candles, oi_df, alignment_interval),
+        symbol=symbol,
+        leverage_weights=normalized_weights,
+        price_bucket_size=Decimal(str(price_bin_size)),
     )
 
 
@@ -999,7 +1114,28 @@ async def get_heatmap_timeseries(
     # Query DB (live computation)
     response.headers["X-Heatmap-Source"] = "live"
 
+    use_questdb_live = _should_use_questdb_live_timeseries(eff_interval, eff_start_time_str)
+
     def _load_heatmap_snapshots():
+        if use_questdb_live:
+            try:
+                return _load_heatmap_snapshots_from_questdb(
+                    symbol=symbol,
+                    start_time=eff_start_time_str,
+                    end_time=end_time,
+                    interval=eff_interval,
+                    price_bin_size=eff_price_bin_size,
+                    leverage_weights=eff_leverage_weights,
+                )
+            except HTTPException as exc:
+                if exc.status_code != 503:
+                    raise
+                logger.warning(
+                    "QuestDB unavailable for hot heatmap-timeseries %s/%s, falling back to DuckDB compute",
+                    symbol,
+                    eff_interval,
+                )
+
         with DuckDBService(read_only=True) as db:
             return db.get_heatmap_timeseries(
                 symbol=symbol,

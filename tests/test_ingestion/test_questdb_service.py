@@ -98,6 +98,47 @@ def test_get_recent_klines_serializes_timestamp():
     ]
 
 
+def test_get_klines_range_returns_internal_rows():
+    """Range kline queries should preserve raw timestamps for internal compute."""
+    with patch("src.liquidationheatmap.ingestion.questdb_service.Sender"):
+        qdb = QuestDBService()
+
+    ts = datetime(2026, 3, 26, 12, 0, tzinfo=timezone.utc)
+    qdb.execute_query = MagicMock(return_value=[(ts, 1.0, 2.0, 0.5, 1.5, 123.0)])
+
+    rows = qdb.get_klines_range("BTCUSDT", "5m", "2026-03-26T11:00:00+00:00")
+
+    assert rows == [
+        {
+            "timestamp": ts,
+            "open": 1.0,
+            "high": 2.0,
+            "low": 0.5,
+            "close": 1.5,
+            "volume": 123.0,
+        }
+    ]
+
+
+def test_get_open_interest_range_returns_delta_rows():
+    """OI range queries should expose raw timestamps and computed deltas."""
+    with patch("src.liquidationheatmap.ingestion.questdb_service.Sender"):
+        qdb = QuestDBService()
+
+    ts = datetime(2026, 3, 26, 12, 0, tzinfo=timezone.utc)
+    qdb.execute_query = MagicMock(return_value=[(ts, 12345.6, 234.5)])
+
+    rows = qdb.get_open_interest_range("BTCUSDT", "2026-03-26T11:00:00+00:00")
+
+    assert rows == [
+        {
+            "timestamp": ts,
+            "open_interest_value": 12345.6,
+            "oi_delta": 234.5,
+        }
+    ]
+
+
 def test_get_open_interest_date_range_returns_none_without_data():
     """Date range helper should return None when QuestDB has no rows."""
     with patch("src.liquidationheatmap.ingestion.questdb_service.Sender"):

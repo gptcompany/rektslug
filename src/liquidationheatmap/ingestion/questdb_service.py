@@ -352,6 +352,67 @@ class QuestDBService:
             for row in rows
         ]
 
+    def get_klines_range(
+        self,
+        symbol: str,
+        interval: str,
+        start_time: Any,
+        end_time: Any | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch an ascending window of klines for internal heatmap computation."""
+        query = """
+            SELECT timestamp, open, high, low, close, volume
+            FROM klines
+            WHERE symbol = %s AND interval = %s AND timestamp >= %s
+        """
+        params: list[Any] = [symbol, interval, start_time]
+        if end_time is not None:
+            query += " AND timestamp <= %s"
+            params.append(end_time)
+        query += " ORDER BY timestamp ASC"
+        rows = self.execute_query(query, params)
+        return [
+            {
+                "timestamp": row[0],
+                "open": row[1],
+                "high": row[2],
+                "low": row[3],
+                "close": row[4],
+                "volume": row[5],
+            }
+            for row in rows
+        ]
+
+    def get_open_interest_range(
+        self,
+        symbol: str,
+        start_time: Any,
+        end_time: Any | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch an ascending window of open-interest samples with deltas."""
+        query = """
+            SELECT
+                timestamp,
+                open_interest_value,
+                open_interest_value - LAG(open_interest_value) OVER (ORDER BY timestamp) AS oi_delta
+            FROM open_interest
+            WHERE symbol = %s AND timestamp >= %s
+        """
+        params: list[Any] = [symbol, start_time]
+        if end_time is not None:
+            query += " AND timestamp <= %s"
+            params.append(end_time)
+        query += " ORDER BY timestamp ASC"
+        rows = self.execute_query(query, params)
+        return [
+            {
+                "timestamp": row[0],
+                "open_interest_value": row[1],
+                "oi_delta": row[2],
+            }
+            for row in rows
+        ]
+
     def get_open_interest_date_range(self, symbol: str) -> tuple[datetime, datetime] | None:
         """Fetch the min/max QuestDB timestamp for a symbol's OI data."""
         rows = self.execute_query(
