@@ -82,6 +82,7 @@ class TestMarketRouter:
     @patch("src.liquidationheatmap.api.routers.market.DuckDBService")
     @patch("src.liquidationheatmap.api.routers.market.QuestDBService")
     def test_get_data_date_range_prefers_questdb(self, mock_qdb_cls, mock_db_cls):
+        mock_qdb_cls.return_value.is_available.return_value = True
         mock_qdb_cls.return_value.get_open_interest_date_range.return_value = (
             datetime(2024, 1, 1),
             datetime(2024, 1, 2),
@@ -102,11 +103,21 @@ class TestMarketRouter:
     @patch("src.liquidationheatmap.api.routers.market.DuckDBService")
     @patch("src.liquidationheatmap.api.routers.market.QuestDBService")
     def test_get_data_date_range_no_data(self, mock_qdb_cls, mock_db_cls):
+        mock_qdb_cls.return_value.is_available.return_value = True
         mock_qdb_cls.return_value.get_open_interest_date_range.return_value = None
-        mock_db = MagicMock()
-        mock_db_cls.return_value.__enter__.return_value = mock_db
-        mock_db.conn.execute.return_value.fetchone.return_value = (None, None)
 
         response = client.get("/data/date-range?symbol=BTCUSDT")
 
         assert response.status_code == 404
+        assert "No data found in QuestDB" in response.json()["detail"]
+        mock_db_cls.assert_not_called()
+
+    @patch("src.liquidationheatmap.api.routers.market.QuestDBService")
+    def test_get_data_date_range_returns_503_when_questdb_unavailable(self, mock_qdb_cls):
+        mock_qdb_cls.return_value.is_available.return_value = False
+
+        response = client.get("/data/date-range?symbol=BTCUSDT")
+
+        assert response.status_code == 503
+        assert "Retry-After" in response.headers
+        assert response.json()["error"] == "Service Unavailable"

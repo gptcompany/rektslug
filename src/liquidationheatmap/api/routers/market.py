@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from src.liquidationheatmap.api.shared import SUPPORTED_EXCHANGES, SUPPORTED_SYMBOLS
 from src.liquidationheatmap.ingestion.db_service import DuckDBService, IngestionLockError
@@ -80,7 +81,17 @@ async def get_data_date_range(
         )
 
     try:
-        qdb_range = QuestDBService().get_open_interest_date_range(symbol)
+        qdb = QuestDBService()
+        if not qdb.is_available():
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": "Service Unavailable",
+                    "message": "QuestDB unavailable while loading date range.",
+                },
+                headers={"Retry-After": "60"},
+            )
+        qdb_range = qdb.get_open_interest_date_range(symbol)
         if qdb_range is not None:
             start_date, end_date = qdb_range
             return {
@@ -88,29 +99,10 @@ async def get_data_date_range(
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
             }
-
-        with DuckDBService(read_only=True) as db:
-            result = db.conn.execute(
-                """
-                SELECT
-                    MIN(timestamp) AS start_date,
-                    MAX(timestamp) AS end_date
-                FROM open_interest_history
-                WHERE symbol = ?
-                """,
-                [symbol],
-            ).fetchone()
-    except (HTTPException, IngestionLockError):
+    except HTTPException:
         raise
     except Exception as exc:
-        logger.error("Date range error: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Database error: {exc}")
+        logger.error("QuestDB date range error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"QuestDB error: {exc}")
 
-    if not result or not result[0] or not result[1]:
-        raise HTTPException(status_code=404, detail=f"No data found for symbol '{symbol}'")
-
-    return {
-        "symbol": symbol,
-        "start_date": result[0].isoformat(),
-        "end_date": result[1].isoformat(),
-    }
+    raise HTTPException(status_code=404, detail=f"No data found in QuestDB for symbol '{symbol}'")

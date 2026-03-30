@@ -39,8 +39,16 @@ from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
 
-def _get_latest_price_with_questdb(symbol: str) -> float | None:
-    qdb = QuestDBService()
+def _questdb_unavailable_error(context: str) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=f"QuestDB unavailable while {context}.",
+        headers={"Retry-After": "60"},
+    )
+
+
+def _get_latest_price_with_questdb(symbol: str, qdb: QuestDBService | None = None) -> float | None:
+    qdb = qdb or QuestDBService()
     for interval in ("1m", "5m", None):
         price = qdb.get_latest_price(symbol, interval=interval)
         if price is not None:
@@ -48,46 +56,39 @@ def _get_latest_price_with_questdb(symbol: str) -> float | None:
     return None
 
 
-def _get_latest_oi_with_questdb(
-    symbol: str, db: DuckDBService | None = None
-) -> tuple[float, Decimal]:
+def _get_latest_oi_with_questdb(symbol: str) -> tuple[float, Decimal]:
     qdb = QuestDBService()
+    if not qdb.is_available():
+        raise _questdb_unavailable_error("loading latest open interest")
     q_price, q_oi = qdb.get_latest_open_interest(symbol)
-    latest_price = q_price if q_price is not None else _get_latest_price_with_questdb(symbol)
+    latest_price = q_price if q_price is not None else _get_latest_price_with_questdb(symbol, qdb)
+
     if q_oi is not None:
         if latest_price is not None:
             return float(latest_price), Decimal(str(q_oi))
 
-        if db is not None:
-            try:
-                price, _ = db.get_latest_open_interest(symbol)
-                return float(price), Decimal(str(q_oi))
-            except Exception:
-                pass
-
         fallback_price = float(_get_fallback_price(symbol))
         return fallback_price, Decimal(str(q_oi))
-
-    if db is not None:
-        current_price, open_interest = db.get_latest_open_interest(symbol)
-        return float(current_price), open_interest
 
     resolved_price = latest_price if latest_price is not None else float(_get_fallback_price(symbol))
     return resolved_price, _fallback_open_interest(symbol, resolved_price)
 
 
-def _get_latest_funding_with_questdb(symbol: str, db: DuckDBService | None = None) -> Decimal:
+def _get_latest_funding_with_questdb(symbol: str) -> Decimal:
     qdb = QuestDBService()
+    if not qdb.is_available():
+        raise _questdb_unavailable_error("loading latest funding rate")
     q_funding = qdb.get_latest_funding_rate(symbol)
     if q_funding is not None:
         return Decimal(str(q_funding))
-    if db is not None:
-        return db.get_latest_funding_rate(symbol)
     return Decimal("0")
 
 
 def _get_recent_liquidations_with_questdb(symbol: str, limit: int) -> list[dict[str, Any]]:
-    return QuestDBService().get_recent_liquidations(symbol, limit)
+    qdb = QuestDBService()
+    if not qdb.is_available():
+        raise _questdb_unavailable_error("loading liquidation history")
+    return qdb.get_recent_liquidations(symbol, limit)
 from src.liquidationheatmap.models.profiles import get_profile
 from src.liquidationheatmap.settings import get_settings
 
@@ -171,6 +172,10 @@ def _aggregate_legacy_levels(bins_df, bin_size: float):
 
 def _is_transient_contention_http_error(exc: HTTPException) -> bool:
     return exc.status_code == 500 and str(exc.detail).startswith("Temporary database contention")
+
+
+def _is_questdb_unavailable_http_error(exc: HTTPException) -> bool:
+    return exc.status_code == 503 and str(exc.detail).startswith("QuestDB unavailable")
 
 
 def _is_missing_kline_coverage_error(exc: ValueError) -> bool:
@@ -706,7 +711,9 @@ async def get_heatmap(
             exhausted_status_detail="Temporary database contention while loading heatmap data.",
         )
     except HTTPException as exc:
-        if not _is_transient_contention_http_error(exc):
+        if not (
+            _is_transient_contention_http_error(exc) or _is_questdb_unavailable_http_error(exc)
+        ):
             raise
         current_price = float(_get_fallback_price(symbol))
         calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
@@ -1185,7 +1192,9 @@ async def compare_models(symbol: str = "BTCUSDT"):
             exhausted_status_detail="Temporary database contention while comparing models.",
         )
     except HTTPException as exc:
-        if not _is_transient_contention_http_error(exc):
+        if not (
+            _is_transient_contention_http_error(exc) or _is_questdb_unavailable_http_error(exc)
+        ):
             raise
 
         current_price = _get_fallback_price(symbol)
