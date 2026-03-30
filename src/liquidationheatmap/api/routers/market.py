@@ -8,6 +8,7 @@ from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 
 router = APIRouter(tags=["Market Data"])
 logger = logging.getLogger(__name__)
+HOT_KLINE_INTERVALS = {"1m", "5m"}
 
 
 @router.get("/exchanges")
@@ -45,6 +46,12 @@ async def get_klines(
         qdb_rows = QuestDBService().get_recent_klines(symbol=symbol, interval=interval, limit=limit)
         if qdb_rows:
             return {"symbol": symbol, "interval": interval, "data": qdb_rows}
+
+        if interval in HOT_KLINE_INTERVALS:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No QuestDB kline data found for symbol '{symbol}' at interval '{interval}'",
+            )
 
         table_name = f"klines_{interval}_history"
         with DuckDBService(read_only=True) as db:
