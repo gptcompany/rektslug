@@ -33,39 +33,57 @@ from src.liquidationheatmap.api.shared import (
     SUPPORTED_SYMBOLS,
     TIME_WINDOW_CONFIG,
 )
-from src.liquidationheatmap.ingestion.db_service import (
-    DuckDBService,
-    IngestionLockError,
-    _get_fallback_price,
-)
+from src.liquidationheatmap.ingestion.db_service import DuckDBService, IngestionLockError, _get_fallback_price
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 from src.liquidationheatmap.models.binance_standard import BinanceStandardModel
 from src.liquidationheatmap.models.ensemble import EnsembleModel
 from src.liquidationheatmap.models.funding_adjusted import FundingAdjustedModel
 
-def _get_latest_oi_with_questdb(symbol: str, db: DuckDBService) -> tuple[float, Decimal]:
+def _get_latest_price_with_questdb(symbol: str) -> float | None:
+    qdb = QuestDBService()
+    for interval in ("1m", "5m", None):
+        price = qdb.get_latest_price(symbol, interval=interval)
+        if price is not None:
+            return float(price)
+    return None
+
+
+def _get_latest_oi_with_questdb(
+    symbol: str, db: DuckDBService | None = None
+) -> tuple[float, Decimal]:
     qdb = QuestDBService()
     q_price, q_oi = qdb.get_latest_open_interest(symbol)
+    latest_price = q_price if q_price is not None else _get_latest_price_with_questdb(symbol)
     if q_oi is not None:
-        if q_price is None:
-            # QuestDB has OI but no price, fallback to DuckDB for price
+        if latest_price is not None:
+            return float(latest_price), Decimal(str(q_oi))
+
+        if db is not None:
             try:
                 price, _ = db.get_latest_open_interest(symbol)
+                return float(price), Decimal(str(q_oi))
             except Exception:
-                price = _get_fallback_price(symbol)
-            return float(price), Decimal(str(q_oi))
-        return float(q_price), Decimal(str(q_oi))
-    
-    # Fallback to DuckDB completely
-    current_price, open_interest = db.get_latest_open_interest(symbol)
-    return float(current_price), open_interest
+                pass
 
-def _get_latest_funding_with_questdb(symbol: str, db: DuckDBService) -> Decimal:
+        fallback_price = float(_get_fallback_price(symbol))
+        return fallback_price, Decimal(str(q_oi))
+
+    if db is not None:
+        current_price, open_interest = db.get_latest_open_interest(symbol)
+        return float(current_price), open_interest
+
+    resolved_price = latest_price if latest_price is not None else float(_get_fallback_price(symbol))
+    return resolved_price, _fallback_open_interest(symbol, resolved_price)
+
+
+def _get_latest_funding_with_questdb(symbol: str, db: DuckDBService | None = None) -> Decimal:
     qdb = QuestDBService()
     q_funding = qdb.get_latest_funding_rate(symbol)
     if q_funding is not None:
         return Decimal(str(q_funding))
-    return db.get_latest_funding_rate(symbol)
+    if db is not None:
+        return db.get_latest_funding_rate(symbol)
+    return Decimal("0")
 
 
 def _get_recent_liquidations_with_questdb(symbol: str, limit: int) -> list[dict[str, Any]]:
@@ -349,9 +367,8 @@ async def get_liquidation_levels(
         logger.warning("Binance API price fetch failed for %s: %s", symbol, e)
 
         def _load_current_price():
-            with DuckDBService(read_only=True) as db_fallback:
-                current_price, _ = _get_latest_oi_with_questdb(symbol, db_fallback)
-                return current_price
+            current_price, _ = _get_latest_oi_with_questdb(symbol)
+            return current_price
 
         try:
             current_price = await _run_read_operation_with_retry(
@@ -661,28 +678,27 @@ async def get_heatmap(
         raise HTTPException(status_code=400, detail=f"Invalid symbol '{symbol}'")
 
     def _load_heatmap_response():
-        with DuckDBService(read_only=True) as db:
-            current_price, open_interest = _get_latest_oi_with_questdb(symbol, db)
-            calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
-            liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
+        current_price, open_interest = _get_latest_oi_with_questdb(symbol)
+        calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
+        liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
 
-            long_liqs = [
-                {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
-                for l in liqs
-                if l.side == "long"
-            ]
-            short_liqs = [
-                {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
-                for l in liqs
-                if l.side == "short"
-            ]
+        long_liqs = [
+            {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+            for l in liqs
+            if l.side == "long"
+        ]
+        short_liqs = [
+            {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
+            for l in liqs
+            if l.side == "short"
+        ]
 
-            return LiquidationResponse(
-                symbol=symbol,
-                current_price=float(current_price),
-                longs=long_liqs,
-                shorts=short_liqs,
-            )
+        return LiquidationResponse(
+            symbol=symbol,
+            current_price=float(current_price),
+            longs=long_liqs,
+            shorts=short_liqs,
+        )
 
     try:
         return await _run_read_operation_with_retry(
@@ -922,11 +938,10 @@ async def get_heatmap_timeseries(
             profile = get_profile("rektslug-ank")
 
             def _resolve_dynamic_bin_size():
-                with DuckDBService(read_only=True) as db:
-                    current_price, _ = _get_latest_oi_with_questdb(symbol, db)
-                    return current_price, profile.get_bin_size(
-                        lookback_days, float(current_price), symbol
-                    )
+                current_price, _ = _get_latest_oi_with_questdb(symbol)
+                return current_price, profile.get_bin_size(
+                    lookback_days, float(current_price), symbol
+                )
 
             current_price, eff_price_bin_size = await _run_read_operation_with_retry(
                 _resolve_dynamic_bin_size,
@@ -1133,37 +1148,36 @@ async def get_liquidation_history(
 @router.get("/compare-models")
 async def compare_models(symbol: str = "BTCUSDT"):
     def _load_model_comparison():
-        with DuckDBService(read_only=True) as db:
-            current_price, open_interest = _get_latest_oi_with_questdb(symbol, db)
+        current_price, open_interest = _get_latest_oi_with_questdb(symbol)
 
-            models = []
-            for model_cls, name in [
-                (BinanceStandardModel, "binance_standard"),
-                (FundingAdjustedModel, "funding_adjusted"),
-                (EnsembleModel, "ensemble"),
-            ]:
-                model = model_cls()
-                liqs = model.calculate_liquidations(current_price, open_interest, symbol)
+        models = []
+        for model_cls, name in [
+            (BinanceStandardModel, "binance_standard"),
+            (FundingAdjustedModel, "funding_adjusted"),
+            (EnsembleModel, "ensemble"),
+        ]:
+            model = model_cls()
+            liqs = model.calculate_liquidations(current_price, open_interest, symbol)
 
-                avg_conf = 0.95
-                if name == "ensemble":
-                    avg_conf = 0.98
+            avg_conf = 0.95
+            if name == "ensemble":
+                avg_conf = 0.98
 
-                models.append(
-                    {
-                        "name": name,
-                        "avg_confidence": avg_conf,
-                        "liquidations": [
-                            {
-                                "price_level": float(l.price_level),
-                                "volume": float(l.liquidation_volume),
-                            }
-                            for l in liqs
-                        ],
-                    }
-                )
+            models.append(
+                {
+                    "name": name,
+                    "avg_confidence": avg_conf,
+                    "liquidations": [
+                        {
+                            "price_level": float(l.price_level),
+                            "volume": float(l.liquidation_volume),
+                        }
+                        for l in liqs
+                    ],
+                }
+            )
 
-            return {"symbol": symbol, "current_price": float(current_price), "models": models}
+        return {"symbol": symbol, "current_price": float(current_price), "models": models}
 
     try:
         return await _run_read_operation_with_retry(
