@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 
@@ -19,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 VENUE = "BINANCE"
 KLINE_INTERVALS = ("5m", "1m")
-# For newly introduced intervals without CSV baseline, bootstrap a bounded window.
-# 8 days covers 1w liq-map lookback with safety margin.
-# Keep the bootstrap bounded, but wide enough to cover the 1w liq-map lookback
-# plus the older synthetic fixtures used by the integration suite.
-KLINE_BOOTSTRAP_DAYS_BY_INTERVAL = {"1m": 14}
+# Bootstrap windows for newly introduced symbols or intervals without baseline.
+# 14 days covers 1w liq-map lookback with safety margin for all hot data types.
+KLINE_BOOTSTRAP_DAYS_BY_INTERVAL = {"1m": 14, "5m": 14}
+OI_BOOTSTRAP_DAYS = 14
+FUNDING_BOOTSTRAP_DAYS = 14
 
 
 def _kline_minutes(interval: str) -> int:
@@ -116,7 +117,7 @@ def _fill_klines_interval(
         ts_filter = f"timestamp > (now() - INTERVAL '{bootstrap_days} days')"
     else:
         logger.info("Klines %s QuestDB watermark for %s: %s", interval, symbol, watermark)
-        ts_filter = f"timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'"
+        ts_filter = f"timestamp > TIMESTAMP WITH TIME ZONE '{watermark.isoformat()} UTC'"
 
     try:
         avail = con.execute(
@@ -160,6 +161,8 @@ def _fill_klines_interval(
     ).df()
 
     if not df.empty:
+        # Explicitly mark as UTC and pass to QuestDB
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("UTC")
         df["interval"] = interval
         qdb.ingest_dataframe("klines", df, symbol_cols=["symbol", "interval"])
         inserted = len(df)
@@ -204,19 +207,23 @@ def fill_open_interest(
     watermark = get_questdb_watermark(qdb, "open_interest", symbol)
 
     if watermark is None:
-        logger.warning(
-            "No existing OI for %s in QuestDB, skipping (need CSV baseline first)", symbol
+        # Bootstrap: use a bounded time window instead of requiring CSV baseline
+        logger.info(
+            "Bootstrapping OI for %s with %d-day window",
+            symbol,
+            OI_BOOTSTRAP_DAYS,
         )
-        return {"inserted": 0, "skipped": "no_baseline"}
-
-    logger.info("OI QuestDB watermark for %s: %s", symbol, watermark)
+        ts_filter = f"timestamp > (now() - INTERVAL '{OI_BOOTSTRAP_DAYS} days')"
+    else:
+        logger.info("OI QuestDB watermark for %s: %s", symbol, watermark)
+        ts_filter = f"timestamp > TIMESTAMP WITH TIME ZONE '{watermark.isoformat()} UTC'"
 
     try:
         avail = con.execute(
             f"""
             SELECT COUNT(*) FROM read_parquet('{glob_path}')
             WHERE venue = '{VENUE}'
-              AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+              AND {ts_filter}
         """
         ).fetchone()[0]
     except Exception as e:
@@ -240,12 +247,13 @@ def fill_open_interest(
             CAST(open_interest_value AS DOUBLE) AS open_interest_value
         FROM read_parquet('{glob_path}')
         WHERE venue = '{VENUE}'
-          AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+          AND {ts_filter}
         ORDER BY timestamp ASC
     """
     ).df()
 
     if not df.empty:
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("UTC")
         qdb.ingest_dataframe("open_interest", df, symbol_cols=["symbol"])
         inserted = len(df)
     else:
@@ -267,19 +275,23 @@ def fill_funding_rate(
     watermark = get_questdb_watermark(qdb, "funding_rates", symbol)
 
     if watermark is None:
-        logger.warning(
-            "No existing funding rate for %s in QuestDB, skipping (need CSV baseline first)", symbol
+        # Bootstrap: use a bounded time window instead of requiring CSV baseline
+        logger.info(
+            "Bootstrapping funding rates for %s with %d-day window",
+            symbol,
+            FUNDING_BOOTSTRAP_DAYS,
         )
-        return {"inserted": 0, "skipped": "no_baseline"}
-
-    logger.info("Funding rate QuestDB watermark for %s: %s", symbol, watermark)
+        ts_filter = f"timestamp > (now() - INTERVAL '{FUNDING_BOOTSTRAP_DAYS} days')"
+    else:
+        logger.info("Funding rate QuestDB watermark for %s: %s", symbol, watermark)
+        ts_filter = f"timestamp > TIMESTAMP WITH TIME ZONE '{watermark.isoformat()} UTC'"
 
     try:
         avail = con.execute(
             f"""
             SELECT COUNT(*) FROM read_parquet('{glob_path}')
             WHERE venue = '{VENUE}'
-              AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+              AND {ts_filter}
         """
         ).fetchone()[0]
     except Exception as e:
@@ -303,12 +315,13 @@ def fill_funding_rate(
             CAST(funding_rate AS DOUBLE) AS funding_rate
         FROM read_parquet('{glob_path}')
         WHERE venue = '{VENUE}'
-          AND timestamp > TIMESTAMP WITH TIME ZONE '{watermark} UTC'
+          AND {ts_filter}
         ORDER BY timestamp ASC
     """
     ).df()
 
     if not df.empty:
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_localize("UTC")
         qdb.ingest_dataframe("funding_rates", df, symbol_cols=["symbol"])
         inserted = len(df)
     else:

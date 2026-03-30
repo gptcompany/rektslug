@@ -17,42 +17,49 @@ def _utc(*args):
 
 
 class _FakeQuestDB:
-    def __init__(self, base_ts: datetime):
+    def __init__(self, base_ts: datetime, empty: bool = False):
         self._sender = object()
-        self.tables = {
-            "klines": pd.DataFrame(
-                [
-                    {
-                        "timestamp": (base_ts - timedelta(minutes=5)).replace(tzinfo=None),
-                        "symbol": "BTCUSDT",
-                        "interval": "5m",
-                        "open": 89900.0,
-                        "high": 90000.0,
-                        "low": 89800.0,
-                        "close": 89950.0,
-                        "volume": 50.0,
-                    }
-                ]
-            ),
-            "open_interest": pd.DataFrame(
-                [
-                    {
-                        "timestamp": (base_ts - timedelta(minutes=4)).replace(tzinfo=None),
-                        "symbol": "BTCUSDT",
-                        "open_interest_value": 7.1e9,
-                    }
-                ]
-            ),
-            "funding_rates": pd.DataFrame(
-                [
-                    {
-                        "timestamp": (base_ts - timedelta(hours=8)).replace(tzinfo=None),
-                        "symbol": "BTCUSDT",
-                        "funding_rate": 0.00008,
-                    }
-                ]
-            ),
-        }
+        if empty:
+            self.tables = {
+                "klines": pd.DataFrame(),
+                "open_interest": pd.DataFrame(),
+                "funding_rates": pd.DataFrame(),
+            }
+        else:
+            self.tables = {
+                "klines": pd.DataFrame(
+                    [
+                        {
+                            "timestamp": (base_ts - timedelta(minutes=5)).replace(tzinfo=None),
+                            "symbol": "BTCUSDT",
+                            "interval": "5m",
+                            "open": 89900.0,
+                            "high": 90000.0,
+                            "low": 89800.0,
+                            "close": 89950.0,
+                            "volume": 50.0,
+                        }
+                    ]
+                ),
+                "open_interest": pd.DataFrame(
+                    [
+                        {
+                            "timestamp": (base_ts - timedelta(minutes=4)).replace(tzinfo=None),
+                            "symbol": "BTCUSDT",
+                            "open_interest_value": 7.1e9,
+                        }
+                    ]
+                ),
+                "funding_rates": pd.DataFrame(
+                    [
+                        {
+                            "timestamp": (base_ts - timedelta(hours=8)).replace(tzinfo=None),
+                            "symbol": "BTCUSDT",
+                            "funding_rate": 0.00008,
+                        }
+                    ]
+                ),
+            }
 
     def execute_query(self, query, params=None):
         params = params or []
@@ -64,6 +71,8 @@ class _FakeQuestDB:
         if "select max(timestamp)" in lowered:
             if "from klines" in lowered:
                 table = self.tables["klines"]
+                if table.empty:
+                    return [(None,)]
                 symbol = params[0]
                 interval = params[1] if len(params) > 1 else None
                 filtered = table[table["symbol"] == symbol]
@@ -71,9 +80,13 @@ class _FakeQuestDB:
                     filtered = filtered[filtered["interval"] == interval]
             elif "from open_interest" in lowered:
                 table = self.tables["open_interest"]
+                if table.empty:
+                    return [(None,)]
                 filtered = table[table["symbol"] == params[0]]
             elif "from funding_rates" in lowered:
                 table = self.tables["funding_rates"]
+                if table.empty:
+                    return [(None,)]
                 filtered = table[table["symbol"] == params[0]]
             else:
                 filtered = pd.DataFrame()
@@ -87,6 +100,10 @@ class _FakeQuestDB:
     def ingest_dataframe(self, table_name, df, symbol_cols=None, timestamp_col="timestamp"):
         existing = self.tables.get(table_name)
         incoming = df.copy()
+        # Drop tz if present for pandas comparison in fake
+        if "timestamp" in incoming.columns:
+            incoming["timestamp"] = pd.to_datetime(incoming["timestamp"]).dt.tz_localize(None)
+
         if existing is None or existing.empty:
             self.tables[table_name] = incoming
             return
@@ -255,3 +272,27 @@ class TestGapFillE2E:
 
         assert r1["total_inserted"] == 8
         assert r2["total_inserted"] == 0
+
+    def test_bootstrap_empty_qdb(self, missing_db_path, e2e_catalog, monkeypatch):
+        catalog_path, base_ts = e2e_catalog
+        fake_qdb = _FakeQuestDB(base_ts, empty=True)
+        monkeypatch.setattr("src.liquidationheatmap.ingestion.gap_fill.QuestDBService", lambda: fake_qdb)
+
+        result = run_gap_fill(
+            db_path=missing_db_path,
+            catalog=catalog_path,
+            symbols=["BTCUSDT"],
+            dry_run=False,
+        )
+
+        # Should bootstrap all types because they now all have bootstrap windows
+        assert result["total_inserted"] == 8
+        btc = result["symbols"]["BTCUSDT"]
+        assert btc["klines"]["intervals"]["5m"]["inserted"] == 2
+        assert btc["klines"]["intervals"]["1m"]["inserted"] == 3
+        assert btc["oi"]["inserted"] == 2
+        assert btc["funding"]["inserted"] == 1
+
+        assert len(fake_qdb.tables["klines"]) == 5
+        assert len(fake_qdb.tables["open_interest"]) == 2
+        assert len(fake_qdb.tables["funding_rates"]) == 1
