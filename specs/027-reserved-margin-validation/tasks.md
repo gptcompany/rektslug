@@ -87,14 +87,14 @@
 
 ### Tests for User Story 4
 
-- [ ] T016 [US4] Write failing tests in `tests/test_hyperliquid_sidecar.py`: `test_solver_v1_1_subtracts_reserved_margin` (liqPx shifts closer to mark with reserved_margin > 0), `test_solver_v1_1_matches_v1_when_no_orders` (reserved_margin=0.0 produces identical result to V1), `test_estimate_reserved_margin_from_exposure_bounds` (given OrderExposureBounds with known exposure, estimate reserved margin using Candidate A)
+- [x] T016 [US4] Write failing tests in `tests/test_hyperliquid_sidecar.py`: `test_solver_v1_1_subtracts_reserved_margin` (liqPx shifts closer to mark with reserved_margin > 0), `test_solver_v1_1_matches_v1_when_no_orders` (reserved_margin=0.0 produces identical result to V1), `test_estimate_reserved_margin_from_exposure_bounds` (given OrderExposureBounds with known exposure, estimate reserved margin using Candidate A)
 
 ### Implementation for User Story 4
 
-- [ ] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
-- [ ] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
-- [ ] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
-- [ ] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users: for each user, compute `|V1_liqpx - API_liqpx|` vs `|V1.1_liqpx - API_liqpx|`. Document whether V1.1 improves accuracy. Save comparison to `data/validation/solver_v1_vs_v1.1_comparison.json`. SC-004.
+- [x] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
+- [x] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
+- [x] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
+- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users: for each user, compute `|V1_liqpx - API_liqpx|` vs `|V1.1_liqpx - API_liqpx|`. Document whether V1.1 improves accuracy. Save comparison to `data/validation/solver_v1_vs_v1.1_comparison.json`. SC-004. Completed with Candidate A baseline on 2026-03-31: 205/326 positions improved (62.88%), 121 worsened.
 
 **Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence.
 
