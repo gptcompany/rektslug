@@ -181,14 +181,42 @@ class MarginValidator:
         api_cross_maintenance_margin_used = state.crossMaintenanceMarginUsed
         account_value = state.marginSummary.accountValue
 
-        asset_meta = {
-            asset.name: {"idx": idx, "szDecimals": asset.szDecimals}
+        asset_meta_lookup = {
+            asset.name: {
+                "idx": idx,
+                "szDecimals": asset.szDecimals,
+                "maxLeverage": asset.maxLeverage,
+                "marginTableId": asset.marginTableId,
+            }
             for idx, asset in enumerate(meta.universe)
         }
         mark_prices = {
             idx: ctx.markPx
             for idx, ctx in enumerate(meta.assetContexts)
         }
+
+        # Build full asset_margin_tiers map for compute_position_maintenance_margin
+        asset_margin_tiers = {}
+        for asset_name, info in asset_meta_lookup.items():
+            idx = info["idx"]
+            table_id = info["marginTableId"]
+            if table_id in meta.margin_tables:
+                # Convert to dict for sidecar compatibility
+                asset_margin_tiers[idx] = [
+                    {
+                        "lower_bound": t.lower_bound,
+                        "mmr_rate": t.mmr_rate,
+                        "maintenance_deduction": t.maintenance_deduction,
+                    }
+                    for t in meta.margin_tables[table_id]
+                ]
+            else:
+                # Fallback to single tier if table not found
+                max_lev = info["maxLeverage"]
+                mmr_rate = 1.0 / (2.0 * max_lev) if max_lev > 0 else 0.01
+                asset_margin_tiers[idx] = [
+                    {"lower_bound": 0, "mmr_rate": mmr_rate, "maintenance_deduction": 0.0}
+                ]
 
         positions_cm = []
         sidecar_positions = []
@@ -202,14 +230,14 @@ class MarginValidator:
             entry_px = pos_data.entryPx
             api_margin_used = pos_data.marginUsed
             api_liq_px = pos_data.liquidationPx
-            max_leverage = float(pos_data.maxLeverage)
-
-            idx = asset_meta[coin]["idx"]
+            
+            if coin not in asset_meta_lookup:
+                logger.warning("Coin %s not found in asset meta", coin)
+                continue
+                
+            info = asset_meta_lookup[coin]
+            idx = info["idx"]
             mark = mark_prices[idx]
-
-            # Simple single-tier reconstruction based on maxLeverage
-            mmr_rate = 1.0 / (2.0 * max_leverage) if max_leverage > 0 else 0.01
-            tiers = {idx: [{"lower_bound": 0, "mmr_rate": mmr_rate, "maintenance_deduction": 0.0}]}
 
             up = UserPosition(
                 coin=coin,
@@ -217,13 +245,14 @@ class MarginValidator:
                 size=size,
                 entry_px=entry_px,
                 margin=api_margin_used,
-                leverage=max_leverage,
+                leverage=float(pos_data.maxLeverage),
                 cum_funding=pos_data.cumFunding.sinceOpen,
             )
             sidecar_positions.append(up)
             current_positions[coin] = size
 
-            sidecar_mmr = compute_position_maintenance_margin(up, mark_prices, tiers)
+            # Use full asset_margin_tiers for MMR calculation
+            sidecar_mmr = compute_position_maintenance_margin(up, mark_prices, asset_margin_tiers)
             sidecar_total_mmr += sidecar_mmr
 
             positions_cm.append({
@@ -234,7 +263,7 @@ class MarginValidator:
                 "api_margin_used": api_margin_used,
                 "api_liquidation_px": api_liq_px,
                 "sidecar_mmr": sidecar_mmr,
-                "tiers": tiers,
+                "asset_margin_tiers": asset_margin_tiers,
             })
 
         user_state = UserState(user=user, balance=account_value, positions=tuple(sidecar_positions))
@@ -242,8 +271,8 @@ class MarginValidator:
             user,
             mark_prices,
             {
-                asset.name: {"idx": idx, "maxLeverage": asset.maxLeverage}
-                for idx, asset in enumerate(meta.universe)
+                name: {"idx": info["idx"], "maxLeverage": info["maxLeverage"]}
+                for name, info in asset_meta_lookup.items()
             },
             current_positions,
         )
@@ -251,7 +280,7 @@ class MarginValidator:
         final_positions = []
         for p in positions_cm:
             sidecar_liq_px_v1 = self.reconstructor.solve_liquidation_price(
-                user_state, p["coin"], mark_prices, p["tiers"]
+                user_state, p["coin"], mark_prices, p["asset_margin_tiers"]
             )
 
             dev_liq_px_v1 = None
@@ -268,7 +297,7 @@ class MarginValidator:
                     user_state,
                     p["coin"],
                     mark_prices,
-                    p["tiers"],
+                    p["asset_margin_tiers"],
                     reserved_margin=reserved_margin,
                 )
                 if sidecar_liq_px_v1_1 is not None and p["api_liquidation_px"] is not None:

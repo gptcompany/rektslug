@@ -9,27 +9,38 @@ if TYPE_CHECKING:
 DEFAULT_RESERVED_MARGIN_CANDIDATE = "B"
 
 
-def get_margin_tier(notional: float, tiers: List[dict]) -> dict:
+def get_margin_tier(notional: float, tiers: List[Any]) -> Any:
     """Find the applicable margin tier for a given notional value."""
     for t in tiers:
-        if notional >= t["lower_bound"]:
+        lower_bound = t.lower_bound if hasattr(t, "lower_bound") else t.get("lower_bound", 0)
+        if notional >= lower_bound:
             return t
-    return (
-        tiers[-1] if tiers else {"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}
-    )
+    
+    if tiers:
+        return tiers[-1]
+    
+    return {"lower_bound": 0, "mmr_rate": 0.01, "maintenance_deduction": 0}
 
 
 def compute_position_maintenance_margin(
     position: Any,  # UserPosition
     mark_prices: Dict[int, float],
-    asset_margin_tiers: Dict[int, List[dict]],
+    asset_margin_tiers: Dict[int, List[Any]],
 ) -> float:
     """Compute the current maintenance margin requirement for a single position."""
     mark = mark_prices.get(position.asset_idx, position.entry_px)
     notional = abs(position.size) * mark
     tiers = asset_margin_tiers.get(position.asset_idx, [])
     tier = get_margin_tier(notional, tiers)
-    requirement = notional * tier["mmr_rate"] - tier["maintenance_deduction"]
+    
+    if hasattr(tier, "mmr_rate"):
+        mmr_rate = tier.mmr_rate
+        maintenance_deduction = tier.maintenance_deduction
+    else:
+        mmr_rate = tier.get("mmr_rate", 0.01)
+        maintenance_deduction = tier.get("maintenance_deduction", 0)
+        
+    requirement = notional * mmr_rate - maintenance_deduction
     return max(0.0, requirement)
 
 def estimate_reserved_margin(

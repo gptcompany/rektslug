@@ -14,6 +14,7 @@ from src.liquidationheatmap.hyperliquid.models import (
     LiqPxComparisonSummary,
     MarginMode,
     MarginSummary,
+    MarginTier,
     MarginValidationReport,
     MarginValidationResult,
     PortfolioMarginSummary,
@@ -37,6 +38,34 @@ async def test_validate_user_mmr_within_tolerance():
     assert result.api_cross_maintenance_margin_used == 20.0
     assert result.deviation_mmr_pct is not None
     assert len(result.factors) == 0  # No factors if deviation is small
+
+
+@pytest.mark.asyncio
+async def test_validate_user_tiered_mmr():
+    mock_client = AsyncMock()
+    # Position of 10.0 ETH at 2000.0 mark = 20,000 notional.
+    # Tier 1: 0-10,000 @ 2.5% MMR, 0 deduction.
+    # Tier 2: 10,000+ @ 5.0% MMR, 250 deduction.
+    # Expected MMR = 20,000 * 0.05 - 250 = 1000 - 250 = 750.
+    mock_client.get_clearinghouse_state.return_value = make_state(
+        cross_maintenance_margin_used=750.0,
+        szi=10.0
+    )
+    mock_client.get_asset_meta.return_value = make_asset_snapshot(
+        margin_tables={
+            10: [
+                MarginTier(lower_bound=10000.0, mmr_rate=0.05, maintenance_deduction=250.0),
+                MarginTier(lower_bound=0.0, mmr_rate=0.025, maintenance_deduction=0.0),
+            ]
+        },
+        margin_table_id=10
+    )
+    
+    validator = MarginValidator(client=mock_client)
+    result = await validator.validate_user("0x123")
+    
+    assert result.sidecar_total_mmr == 750.0
+    assert result.deviation_mmr_pct == 0.0
 
 
 @pytest.mark.asyncio
@@ -167,6 +196,7 @@ def make_state(
     cross_maintenance_margin_used: float = 100.0,
     leverage_type: str = "cross",
     portfolio_margin_summary: PortfolioMarginSummary | None = None,
+    szi: float = 1.0,
 ) -> ClearinghouseUserState:
     return ClearinghouseUserState(
         marginSummary=MarginSummary(
@@ -190,9 +220,9 @@ def make_state(
                 type="oneWay",
                 position=PositionData(
                     coin="ETH",
-                    szi=1.0,
+                    szi=szi,
                     entryPx=2000.0,
-                    positionValue=2000.0,
+                    positionValue=szi * 2000.0,
                     unrealizedPnl=0.0,
                     returnOnEquity=0.0,
                     liquidationPx=1800.0,
@@ -210,7 +240,10 @@ def make_state(
     )
 
 
-def make_asset_snapshot() -> AssetMetaSnapshot:
+def make_asset_snapshot(
+    margin_tables: dict[int, list[MarginTier]] | None = None,
+    margin_table_id: int = 0
+) -> AssetMetaSnapshot:
     return AssetMetaSnapshot(
         universe=[
             AssetMeta(
@@ -218,7 +251,9 @@ def make_asset_snapshot() -> AssetMetaSnapshot:
                 szDecimals=4,
                 maxLeverage=50,
                 onlyIsolated=False,
+                marginTableId=margin_table_id,
             )
         ],
         assetContexts=[AssetContext(markPx=2000.0)],
+        margin_tables=margin_tables or {},
     )

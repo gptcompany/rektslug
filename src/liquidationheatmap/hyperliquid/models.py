@@ -169,6 +169,7 @@ class AssetMeta:
     szDecimals: int
     maxLeverage: int
     onlyIsolated: bool
+    marginTableId: int
 
     @classmethod
     def from_api(cls, payload: dict) -> "AssetMeta":
@@ -177,6 +178,7 @@ class AssetMeta:
             szDecimals=int(payload.get("szDecimals", 0)),
             maxLeverage=int(payload.get("maxLeverage", 0)),
             onlyIsolated=bool(payload.get("onlyIsolated", False)),
+            marginTableId=int(payload.get("marginTableId", 0)),
         )
 
 
@@ -190,25 +192,91 @@ class AssetContext:
 
 
 @dataclass(frozen=True)
-class AssetMetaSnapshot:
-    universe: list[AssetMeta] = field(default_factory=list)
-    assetContexts: list[AssetContext] = field(default_factory=list)
-
-    @classmethod
-    def from_api(cls, payload: list) -> "AssetMetaSnapshot":
-        universe = payload[0].get("universe", []) if payload else []
-        asset_contexts = payload[1] if len(payload) > 1 else []
-        return cls(
-            universe=[AssetMeta.from_api(item) for item in universe],
-            assetContexts=[AssetContext.from_api(item) for item in asset_contexts],
-        )
-
-
-@dataclass(frozen=True)
 class MarginTier:
     lower_bound: float
     mmr_rate: float
     maintenance_deduction: float
+
+
+@dataclass(frozen=True)
+class AssetMetaSnapshot:
+    universe: list[AssetMeta] = field(default_factory=list)
+    assetContexts: list[AssetContext] = field(default_factory=list)
+    margin_tables: dict[int, list[MarginTier]] = field(default_factory=dict)
+
+    @classmethod
+    def from_api(cls, payload: list) -> "AssetMetaSnapshot":
+        meta = payload[0] if payload else {}
+        universe_raw = meta.get("universe", [])
+        asset_contexts = payload[1] if len(payload) > 1 else []
+
+        margin_tables_raw = meta.get("marginTableIdToMarginTable")
+        if margin_tables_raw is None:
+            margin_tables_raw = meta.get("marginTables", [])
+        margin_tables = {}
+        for item in margin_tables_raw:
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                continue
+            table_id, table_data = item[0], item[1]
+            if not isinstance(table_data, dict):
+                continue
+
+            tiers_raw = table_data.get("margin_tiers")
+            lower_bound_scale = 1e6
+            if tiers_raw is None:
+                tiers_raw = table_data.get("marginTiers", [])
+                lower_bound_scale = 1.0
+
+            parsed_tiers_with_explicit = []
+            for t in tiers_raw:
+                if not isinstance(t, dict):
+                    continue
+
+                max_lev = float(t.get("max_leverage", t.get("maxLeverage", 50)))
+                lower_bound_raw = float(t.get("lower_bound", t.get("lowerBound", 0)))
+                maintenance_deduction_key = (
+                    "maintenance_deduction"
+                    if "maintenance_deduction" in t
+                    else "maintenanceDeduction"
+                )
+                maintenance_deduction_raw = float(t.get(maintenance_deduction_key, 0))
+                parsed_tiers_with_explicit.append(
+                    (
+                        lower_bound_raw / lower_bound_scale,
+                        1.0 / (2.0 * max_lev) if max_lev > 0 else 0.01,
+                        maintenance_deduction_raw / lower_bound_scale,
+                        maintenance_deduction_key in t,
+                    )
+                )
+
+            parsed_tiers_with_explicit.sort(key=lambda x: x[0])
+            parsed_tiers = []
+            previous_rate = 0.0
+            previous_deduction = 0.0
+            for lower_bound, mmr_rate, maintenance_deduction, has_explicit_deduction in parsed_tiers_with_explicit:
+                if not has_explicit_deduction and parsed_tiers:
+                    maintenance_deduction = previous_deduction + (
+                        lower_bound * (mmr_rate - previous_rate)
+                    )
+                parsed_tiers.append(
+                    MarginTier(
+                        lower_bound=lower_bound,
+                        mmr_rate=mmr_rate,
+                        maintenance_deduction=maintenance_deduction,
+                    )
+                )
+                previous_rate = mmr_rate
+                previous_deduction = maintenance_deduction
+
+            # Ensure tiers are sorted by lower_bound descending for lookup
+            parsed_tiers.sort(key=lambda x: x.lower_bound, reverse=True)
+            margin_tables[table_id] = parsed_tiers
+
+        return cls(
+            universe=[AssetMeta.from_api(item) for item in universe_raw],
+            assetContexts=[AssetContext.from_api(item) for item in asset_contexts],
+            margin_tables=margin_tables,
+        )
 
 
 @dataclass(frozen=True)
