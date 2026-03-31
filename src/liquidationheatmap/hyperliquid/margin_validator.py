@@ -158,10 +158,10 @@ class MarginValidator:
         mark_prices: dict[int, float],
         asset_meta: dict[str, dict],
         current_positions: dict[str, float],
-    ) -> float | None:
+    ) -> float:
         orders = self.orders_by_user.get(user)
         if not orders:
-            return None
+            return 0.0
 
         return estimate_reserved_margin(
             orders,
@@ -292,16 +292,15 @@ class MarginValidator:
                 if p["api_liquidation_px"] > 0:
                     liq_px_dev_pct = dev_liq_px_v1 / p["api_liquidation_px"] * 100.0
 
-            if reserved_margin is not None:
-                sidecar_liq_px_v1_1 = self.reconstructor.solve_liquidation_price(
-                    user_state,
-                    p["coin"],
-                    mark_prices,
-                    p["asset_margin_tiers"],
-                    reserved_margin=reserved_margin,
-                )
-                if sidecar_liq_px_v1_1 is not None and p["api_liquidation_px"] is not None:
-                    dev_liq_px_v1_1 = abs(sidecar_liq_px_v1_1 - p["api_liquidation_px"])
+            sidecar_liq_px_v1_1 = self.reconstructor.solve_liquidation_price(
+                user_state,
+                p["coin"],
+                mark_prices,
+                p["asset_margin_tiers"],
+                reserved_margin=reserved_margin,
+            )
+            if sidecar_liq_px_v1_1 is not None and p["api_liquidation_px"] is not None:
+                dev_liq_px_v1_1 = abs(sidecar_liq_px_v1_1 - p["api_liquidation_px"])
 
             final_positions.append(PositionMarginComparison(
                 coin=p["coin"],

@@ -125,6 +125,32 @@ async def test_validate_user_computes_v1_1_when_orders_available():
 
 
 @pytest.mark.asyncio
+async def test_validate_user_counts_v1_1_as_unchanged_without_orders():
+    mock_client = AsyncMock()
+    mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
+    mock_client.get_asset_meta.return_value = make_asset_snapshot()
+
+    validator = MarginValidator(client=mock_client)
+
+    with patch.object(
+        validator.reconstructor,
+        "solve_liquidation_price",
+        return_value=1750.0,
+    ):
+        result = await validator.validate_user("0x123")
+
+    assert result.positions[0].sidecar_liquidation_px_v1 == 1750.0
+    assert result.positions[0].sidecar_liquidation_px_v1_1 == 1750.0
+    assert result.positions[0].deviation_liq_px_v1 == 50.0
+    assert result.positions[0].deviation_liq_px_v1_1 == 50.0
+    assert result.liq_px_summary is not None
+    assert result.liq_px_summary.positions_compared == 1
+    assert result.liq_px_summary.improved_positions == 0
+    assert result.liq_px_summary.worsened_positions == 0
+    assert result.liq_px_summary.unchanged_positions == 1
+
+
+@pytest.mark.asyncio
 async def test_validate_user_outside_tolerance_gets_attribution():
     mock_client = AsyncMock()
     validator = MarginValidator(client=mock_client)
