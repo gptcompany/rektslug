@@ -11,6 +11,7 @@ from src.liquidationheatmap.hyperliquid.models import (
     ClearinghouseUserState,
     CrossMarginSummary,
     Leverage,
+    LiqPxComparisonSummary,
     MarginMode,
     MarginSummary,
     MarginValidationReport,
@@ -87,6 +88,11 @@ async def test_validate_user_computes_v1_1_when_orders_available():
     assert result.positions[0].sidecar_liquidation_px_v1 == 1750.0
     assert result.positions[0].sidecar_liquidation_px_v1_1 == 1775.0
     assert result.positions[0].deviation_liq_px_v1_1 == 25.0
+    assert result.liq_px_summary is not None
+    assert result.liq_px_summary.positions_compared == 1
+    assert result.liq_px_summary.improved_positions == 1
+    assert result.liq_px_summary.v1_mean_abs_error == 50.0
+    assert result.liq_px_summary.v1_1_mean_abs_error == 25.0
 
 
 @pytest.mark.asyncio
@@ -113,12 +119,12 @@ async def test_validate_batch_report():
         MarginValidationResult(
             user="0x1", mode=MarginMode.CROSS_MARGIN, api_total_margin_used=200.0,
             api_cross_maintenance_margin_used=100.0, sidecar_total_mmr=100.0,
-            deviation_mmr_pct=0.0, positions=[], factors=[]
+            deviation_mmr_pct=0.0, positions=[], factors=[], liq_px_summary=None
         ),
         MarginValidationResult(
             user="0x2", mode=MarginMode.CROSS_MARGIN, api_total_margin_used=200.0,
             api_cross_maintenance_margin_used=100.0, sidecar_total_mmr=105.0,
-            deviation_mmr_pct=5.0, positions=[], factors=[]
+            deviation_mmr_pct=5.0, positions=[], factors=[], liq_px_summary=None
         )
     ]
     
@@ -128,6 +134,9 @@ async def test_validate_batch_report():
     assert report.mean_mmr_deviation_pct == 2.5
     assert report.tolerance_rate == 0.5
     assert report.margin_mode_distribution == {"cross_margin": 2}
+    assert report.liq_px_summary is None
+    assert report.mode_summaries["cross_margin"].users_analyzed == 2
+    assert report.mode_summaries["cross_margin"].tolerance_rate == 0.5
 
 
 def test_detect_margin_mode_cross():

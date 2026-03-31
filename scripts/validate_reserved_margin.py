@@ -108,6 +108,10 @@ def _serialize_report(report: MarginValidationReport) -> dict:
     report_dict["user_count"] = report.users_analyzed
     return report_dict
 
+
+def _format_optional_float(value: float | None) -> str:
+    return f"{value:.4f}" if value is not None else "n/a"
+
 async def main():
     parser = argparse.ArgumentParser(description="Validate Hyperliquid MMR calculations vs API")
     parser.add_argument("--users", nargs="+", help="Specific user addresses to validate")
@@ -156,11 +160,51 @@ async def main():
     print(f"\n--- Validation Report ---")
     print(f"Users analyzed: {report.users_analyzed}")
     print(f"Mean MMR Deviation: {report.mean_mmr_deviation_pct:.4f}%\n")
+    if report.liq_px_summary is not None:
+        print(
+            "Global liqPx summary: "
+            f"compared={report.liq_px_summary.positions_compared} "
+            f"improved={report.liq_px_summary.improved_positions} "
+            f"worsened={report.liq_px_summary.worsened_positions} "
+            f"unchanged={report.liq_px_summary.unchanged_positions} "
+            f"rate={_format_optional_float(report.liq_px_summary.improvement_rate)}"
+        )
+        print(
+            "Global liqPx mean abs error: "
+            f"V1={_format_optional_float(report.liq_px_summary.v1_mean_abs_error)} "
+            f"V1.1={_format_optional_float(report.liq_px_summary.v1_1_mean_abs_error)}\n"
+        )
+    if report.mode_summaries:
+        print("Mode summaries:")
+        for mode, summary in report.mode_summaries.items():
+            print(
+                f"  {mode}: "
+                f"users={summary.users_analyzed} "
+                f"tolerance_rate={summary.tolerance_rate:.4f} "
+                f"mean_mmr_deviation={summary.mean_mmr_deviation_pct:.4f}"
+            )
+            if summary.liq_px_summary is not None:
+                print(
+                    "    liqPx: "
+                    f"compared={summary.liq_px_summary.positions_compared} "
+                    f"improved={summary.liq_px_summary.improved_positions} "
+                    f"worsened={summary.liq_px_summary.worsened_positions} "
+                    f"rate={_format_optional_float(summary.liq_px_summary.improvement_rate)}"
+                )
+        print()
     
     for r in report.results:
         print(f"User: {r.user[:8]}... Mode: {r.mode.value}")
         print(f"  API MMR: {r.api_cross_maintenance_margin_used:.2f}  |  Sidecar MMR: {r.sidecar_total_mmr:.2f}")
         print(f"  Deviation: {r.deviation_mmr_pct:.4f}%")
+        if r.liq_px_summary is not None:
+            print(
+                "  liqPx summary: "
+                f"compared={r.liq_px_summary.positions_compared} "
+                f"improved={r.liq_px_summary.improved_positions} "
+                f"worsened={r.liq_px_summary.worsened_positions} "
+                f"rate={_format_optional_float(r.liq_px_summary.improvement_rate)}"
+            )
         for position in r.positions:
             if position.liq_px_deviation_pct is not None:
                 if position.deviation_liq_px_v1_1 is not None:

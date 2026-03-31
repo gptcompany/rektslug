@@ -235,6 +235,25 @@ class PositionMarginComparison:
 
 
 @dataclass(frozen=True)
+class LiqPxComparisonSummary:
+    positions_compared: int
+    improved_positions: int
+    worsened_positions: int
+    unchanged_positions: int
+    v1_mean_abs_error: float | None = None
+    v1_1_mean_abs_error: float | None = None
+    improvement_rate: float | None = None
+
+
+@dataclass(frozen=True)
+class MarginModeReportSummary:
+    users_analyzed: int
+    tolerance_rate: float
+    mean_mmr_deviation_pct: float
+    liq_px_summary: LiqPxComparisonSummary | None = None
+
+
+@dataclass(frozen=True)
 class MarginValidationResult:
     user: str
     mode: MarginMode
@@ -244,6 +263,7 @@ class MarginValidationResult:
     deviation_mmr_pct: float
     positions: list[PositionMarginComparison]
     factors: list[FactorAttribution] | None = None
+    liq_px_summary: LiqPxComparisonSummary | None = None
 
 
 @dataclass(frozen=True)
@@ -253,4 +273,6 @@ class MarginValidationReport:
     tolerance_rate: float
     mean_mmr_deviation_pct: float
     margin_mode_distribution: dict[str, int]
+    mode_summaries: dict[str, MarginModeReportSummary]
     results: list[MarginValidationResult]
+    liq_px_summary: LiqPxComparisonSummary | None = None

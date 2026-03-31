@@ -12,6 +12,8 @@ from src.liquidationheatmap.hyperliquid.models import (
     AssetMetaSnapshot,
     ClearinghouseUserState,
     FactorAttribution,
+    LiqPxComparisonSummary,
+    MarginModeReportSummary,
     MarginMode,
     MarginValidationReport,
     MarginValidationResult,
@@ -39,6 +41,50 @@ class MarginValidator:
         self.reconstructor = SidecarPositionReconstructor()
         self.orders_by_user = orders_by_user or {}
         self.reserved_margin_candidate = reserved_margin_candidate
+
+    @staticmethod
+    def _build_liq_px_summary(
+        positions: list[PositionMarginComparison],
+    ) -> LiqPxComparisonSummary | None:
+        comparable_positions = [
+            position
+            for position in positions
+            if position.deviation_liq_px_v1 is not None
+        ]
+        if not comparable_positions:
+            return None
+
+        v1_errors = [position.deviation_liq_px_v1 for position in comparable_positions]
+        v1_1_positions = [
+            position for position in comparable_positions if position.deviation_liq_px_v1_1 is not None
+        ]
+        v1_1_errors = [
+            position.deviation_liq_px_v1_1 for position in v1_1_positions
+        ]
+
+        improved_positions = 0
+        worsened_positions = 0
+        unchanged_positions = 0
+        for position in v1_1_positions:
+            if position.deviation_liq_px_v1_1 < position.deviation_liq_px_v1:
+                improved_positions += 1
+            elif position.deviation_liq_px_v1_1 > position.deviation_liq_px_v1:
+                worsened_positions += 1
+            else:
+                unchanged_positions += 1
+
+        positions_compared = len(v1_1_positions)
+        return LiqPxComparisonSummary(
+            positions_compared=positions_compared,
+            improved_positions=improved_positions,
+            worsened_positions=worsened_positions,
+            unchanged_positions=unchanged_positions,
+            v1_mean_abs_error=(sum(v1_errors) / len(v1_errors)) if v1_errors else None,
+            v1_1_mean_abs_error=(sum(v1_1_errors) / len(v1_1_errors)) if v1_1_errors else None,
+            improvement_rate=(
+                improved_positions / positions_compared if positions_compared else None
+            ),
+        )
 
     def detect_margin_mode(self, state: ClearinghouseUserState | dict) -> MarginMode:
         if isinstance(state, ClearinghouseUserState):
@@ -249,6 +295,7 @@ class MarginValidator:
             deviation_mmr_pct = gap_usd / api_cross_maintenance_margin_used * 100.0
 
         factors = self.attribute_factors(deviation_mmr_pct, gap_usd)
+        liq_px_summary = self._build_liq_px_summary(final_positions)
 
         return MarginValidationResult(
             user=user,
@@ -259,6 +306,7 @@ class MarginValidator:
             deviation_mmr_pct=deviation_mmr_pct,
             positions=final_positions,
             factors=factors,
+            liq_px_summary=liq_px_summary,
         )
 
     async def validate_batch(self, users: List[str]) -> MarginValidationReport:
@@ -277,7 +325,9 @@ class MarginValidator:
                 tolerance_rate=0.0,
                 mean_mmr_deviation_pct=0.0,
                 margin_mode_distribution={},
+                mode_summaries={},
                 results=[],
+                liq_px_summary=None,
             )
 
         mean_deviation = sum(r.deviation_mmr_pct for r in results) / len(results)
@@ -288,11 +338,40 @@ class MarginValidator:
             mode_str = r.mode.value
             mode_dist[mode_str] = mode_dist.get(mode_str, 0) + 1
 
+        mode_summaries = {}
+        for mode_str in mode_dist:
+            mode_results = [result for result in results if result.mode.value == mode_str]
+            mode_positions = [
+                position
+                for result in mode_results
+                for position in result.positions
+            ]
+            mode_summaries[mode_str] = MarginModeReportSummary(
+                users_analyzed=len(mode_results),
+                tolerance_rate=(
+                    sum(1 for result in mode_results if result.deviation_mmr_pct <= 1.0)
+                    / len(mode_results)
+                ),
+                mean_mmr_deviation_pct=(
+                    sum(result.deviation_mmr_pct for result in mode_results) / len(mode_results)
+                ),
+                liq_px_summary=self._build_liq_px_summary(mode_positions),
+            )
+
+        all_positions = [
+            position
+            for result in results
+            for position in result.positions
+        ]
+        liq_px_summary = self._build_liq_px_summary(all_positions)
+
         return MarginValidationReport(
             timestamp=datetime.now(timezone.utc).isoformat(),
             users_analyzed=len(results),
             tolerance_rate=tolerance_rate,
             mean_mmr_deviation_pct=mean_deviation,
             margin_mode_distribution=mode_dist,
+            mode_summaries=mode_summaries,
             results=results,
+            liq_px_summary=liq_px_summary,
         )

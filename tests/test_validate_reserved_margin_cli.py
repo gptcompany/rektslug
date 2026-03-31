@@ -4,6 +4,8 @@ import json
 
 from scripts.validate_reserved_margin import _load_orders_by_user, _load_users, _serialize_report
 from src.liquidationheatmap.hyperliquid.models import (
+    LiqPxComparisonSummary,
+    MarginModeReportSummary,
     MarginMode,
     MarginValidationReport,
     MarginValidationResult,
@@ -55,6 +57,14 @@ def test_serialize_report_adds_summary_fields():
         tolerance_rate=1.0,
         mean_mmr_deviation_pct=0.5,
         margin_mode_distribution={"cross_margin": 1},
+        mode_summaries={
+            "cross_margin": MarginModeReportSummary(
+                users_analyzed=1,
+                tolerance_rate=1.0,
+                mean_mmr_deviation_pct=0.5,
+                liq_px_summary=None,
+            )
+        },
         results=[
             MarginValidationResult(
                 user="0xabc",
@@ -67,6 +77,15 @@ def test_serialize_report_adds_summary_fields():
                 factors=[],
             )
         ],
+        liq_px_summary=LiqPxComparisonSummary(
+            positions_compared=1,
+            improved_positions=1,
+            worsened_positions=0,
+            unchanged_positions=0,
+            v1_mean_abs_error=10.0,
+            v1_1_mean_abs_error=5.0,
+            improvement_rate=1.0,
+        ),
     )
 
     payload = _serialize_report(report)
@@ -74,6 +93,7 @@ def test_serialize_report_adds_summary_fields():
     assert payload["passed"] is True
     assert payload["user_count"] == 1
     assert payload["results"][0]["mode"] == "cross_margin"
+    assert payload["liq_px_summary"]["improved_positions"] == 1
 
 
 def test_load_orders_by_user_reads_nested_orders(tmp_path):

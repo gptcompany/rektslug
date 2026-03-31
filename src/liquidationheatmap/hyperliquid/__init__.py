@@ -16,6 +16,8 @@ from .models import (
     MarginTier,
     FactorAttribution,
     PositionMarginComparison,
+    LiqPxComparisonSummary,
+    MarginModeReportSummary,
     MarginValidationResult,
     MarginValidationReport,
 )
@@ -39,6 +41,8 @@ __all__ = [
     "MarginTier",
     "FactorAttribution",
     "PositionMarginComparison",
+    "LiqPxComparisonSummary",
+    "MarginModeReportSummary",
     "MarginValidationResult",
     "MarginValidationReport",
     "HyperliquidInfoClient",
