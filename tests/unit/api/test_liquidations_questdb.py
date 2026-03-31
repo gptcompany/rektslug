@@ -210,6 +210,7 @@ class TestHeatmapTimeseriesQuestDB:
 
         assert response.status_code == 200
         assert response.headers["X-Heatmap-Source"] == "live"
+        assert response.headers["X-Heatmap-Backend"] == "questdb-live"
         assert response.json()["meta"]["total_snapshots"] == 1
         mock_db_cls.assert_not_called()
 
@@ -233,6 +234,7 @@ class TestHeatmapTimeseriesQuestDB:
         )
 
         assert response.status_code == 200
+        assert response.headers["X-Heatmap-Backend"] == "duckdb-live"
         assert response.json()["meta"]["total_snapshots"] == 0
         mock_db.get_heatmap_timeseries.assert_called_once()
 
@@ -253,6 +255,7 @@ class TestHeatmapTimeseriesQuestDB:
         )
 
         assert response.status_code == 200
+        assert response.headers["X-Heatmap-Backend"] == "duckdb-live"
         assert response.json()["meta"]["total_snapshots"] == 0
         mock_db.get_heatmap_timeseries.assert_called_once()
         mock_qdb_loader.assert_not_called()

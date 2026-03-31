@@ -39,6 +39,7 @@ class TestMarketRouter:
 
         assert response.status_code == 200
         assert response.json()["data"] == [{"open_time": "2024-01-01T00:00:00+00:00"}]
+        assert response.headers["X-Data-Backend"] == "questdb"
         mock_db_cls.assert_not_called()
 
     @patch("src.liquidationheatmap.api.routers.market.DuckDBService")
@@ -65,6 +66,7 @@ class TestMarketRouter:
 
         assert response.status_code == 200
         assert response.json()["data"] == [{"open_time": "2024-01-01"}]
+        assert response.headers["X-Data-Backend"] == "duckdb"
 
     @patch("src.liquidationheatmap.api.routers.market.DuckDBService")
     @patch("src.liquidationheatmap.api.routers.market.QuestDBService")
@@ -94,6 +96,7 @@ class TestMarketRouter:
         data = response.json()
         assert data["start_date"].startswith("2024-01-01")
         assert data["end_date"].startswith("2024-01-02")
+        assert response.headers["X-Data-Backend"] == "questdb"
         mock_db_cls.assert_not_called()
 
     def test_get_data_date_range_invalid_symbol(self):

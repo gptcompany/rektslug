@@ -10,6 +10,11 @@ from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 router = APIRouter(tags=["Market Data"])
 logger = logging.getLogger(__name__)
 HOT_KLINE_INTERVALS = {"1m", "5m"}
+COLD_KLINE_INTERVALS = {"15m", "1h", "4h", "1d"}
+
+
+def _is_hot_kline_interval(interval: str) -> bool:
+    return interval in HOT_KLINE_INTERVALS
 
 
 @router.get("/exchanges")
@@ -46,13 +51,19 @@ async def get_klines(
     try:
         qdb_rows = QuestDBService().get_recent_klines(symbol=symbol, interval=interval, limit=limit)
         if qdb_rows:
-            return {"symbol": symbol, "interval": interval, "data": qdb_rows}
+            return JSONResponse(
+                content={"symbol": symbol, "interval": interval, "data": qdb_rows},
+                headers={"X-Data-Backend": "questdb"},
+            )
 
-        if interval in HOT_KLINE_INTERVALS:
+        if _is_hot_kline_interval(interval):
             raise HTTPException(
                 status_code=404,
                 detail=f"No QuestDB kline data found for symbol '{symbol}' at interval '{interval}'",
             )
+
+        if interval not in COLD_KLINE_INTERVALS:
+            raise HTTPException(status_code=400, detail=f"Unsupported interval '{interval}'")
 
         table_name = f"klines_{interval}_history"
         with DuckDBService(read_only=True) as db:
@@ -61,7 +72,10 @@ async def get_klines(
 
             query = f"SELECT * FROM {table_name} WHERE symbol = ? ORDER BY open_time DESC LIMIT ?"
             df = db.conn.execute(query, [symbol, limit]).df()
-            return {"symbol": symbol, "interval": interval, "data": df.to_dict(orient='records')}
+            return JSONResponse(
+                content={"symbol": symbol, "interval": interval, "data": df.to_dict(orient="records")},
+                headers={"X-Data-Backend": "duckdb"},
+            )
     except (HTTPException, IngestionLockError):
         raise
     except Exception as exc:
@@ -94,11 +108,14 @@ async def get_data_date_range(
         qdb_range = qdb.get_open_interest_date_range(symbol)
         if qdb_range is not None:
             start_date, end_date = qdb_range
-            return {
-                "symbol": symbol,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-            }
+            return JSONResponse(
+                content={
+                    "symbol": symbol,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                },
+                headers={"X-Data-Backend": "questdb"},
+            )
     except HTTPException:
         raise
     except Exception as exc:

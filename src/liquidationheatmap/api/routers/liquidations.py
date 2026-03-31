@@ -1102,6 +1102,7 @@ async def get_heatmap_timeseries(
     )
     if cached:
         response.headers["X-Heatmap-Source"] = "memory"
+        response.headers["X-Heatmap-Backend"] = "memory"
         return cached
 
     # DuckDB pre-computed cache (spec-024): only for default params
@@ -1117,6 +1118,7 @@ async def get_heatmap_timeseries(
             )
             if db_cached_response is not None:
                 response.headers["X-Heatmap-Source"] = "cache"
+                response.headers["X-Heatmap-Backend"] = "duckdb-cache"
                 heatmap_cache.set(
                     symbol,
                     eff_start_time_str,
@@ -1134,11 +1136,13 @@ async def get_heatmap_timeseries(
     response.headers["X-Heatmap-Source"] = "live"
 
     use_questdb_live = _should_use_questdb_live_timeseries(eff_interval, eff_start_time_str)
+    backend_source = "duckdb-live"
 
     def _load_heatmap_snapshots():
+        nonlocal backend_source
         if use_questdb_live:
             try:
-                return _load_heatmap_snapshots_from_questdb(
+                snapshots = _load_heatmap_snapshots_from_questdb(
                     symbol=symbol,
                     start_time=eff_start_time_str,
                     end_time=end_time,
@@ -1146,6 +1150,8 @@ async def get_heatmap_timeseries(
                     price_bin_size=eff_price_bin_size,
                     leverage_weights=eff_leverage_weights,
                 )
+                backend_source = "questdb-live"
+                return snapshots
             except HTTPException as exc:
                 if exc.status_code != 503:
                     raise
@@ -1173,7 +1179,8 @@ async def get_heatmap_timeseries(
     except HTTPException as exc:
         if not _is_transient_contention_http_error(exc):
             raise
-        response = _build_empty_heatmap_timeseries_response(
+        response.headers["X-Heatmap-Backend"] = backend_source
+        empty_response = _build_empty_heatmap_timeseries_response(
             symbol=symbol,
             start_time=eff_start_time_str,
             end_time=end_time,
@@ -1186,13 +1193,14 @@ async def get_heatmap_timeseries(
             eff_interval,
             eff_price_bin_size,
             leverage_weights,
-            response,
+            empty_response,
         )
-        return response
+        return empty_response
     except ValueError as exc:
         if not _is_missing_kline_coverage_error(exc):
             raise
-        response = _build_empty_heatmap_timeseries_response(
+        response.headers["X-Heatmap-Backend"] = backend_source
+        empty_response = _build_empty_heatmap_timeseries_response(
             symbol=symbol,
             start_time=eff_start_time_str,
             end_time=end_time,
@@ -1205,12 +1213,13 @@ async def get_heatmap_timeseries(
             eff_interval,
             eff_price_bin_size,
             leverage_weights,
-            response,
+            empty_response,
         )
-        return response
+        return empty_response
 
     if not snapshots:
-        response = _build_empty_heatmap_timeseries_response(
+        response.headers["X-Heatmap-Backend"] = backend_source
+        empty_response = _build_empty_heatmap_timeseries_response(
             symbol=symbol,
             start_time=eff_start_time_str,
             end_time=end_time,
@@ -1223,9 +1232,9 @@ async def get_heatmap_timeseries(
             eff_interval,
             eff_price_bin_size,
             leverage_weights,
-            response,
+            empty_response,
         )
-        return response
+        return empty_response
 
     data = []
     total_long = Decimal("0")
@@ -1262,7 +1271,7 @@ async def get_heatmap_timeseries(
             if p > max_price:
                 max_price = p
 
-    response = HeatmapTimeseriesResponse(
+    result = HeatmapTimeseriesResponse(
         data=data,
         meta=HeatmapTimeseriesMetadata(
             symbol=symbol,
@@ -1277,6 +1286,7 @@ async def get_heatmap_timeseries(
         ),
     )
 
+    response.headers["X-Heatmap-Backend"] = backend_source
     heatmap_cache.set(
         symbol,
         eff_start_time_str,
@@ -1284,9 +1294,9 @@ async def get_heatmap_timeseries(
         eff_interval,
         eff_price_bin_size,
         leverage_weights,
-        response,
+        result,
     )
-    return response
+    return result
 
 
 @router.get("/history")
