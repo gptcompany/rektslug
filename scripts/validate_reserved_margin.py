@@ -37,6 +37,12 @@ def _load_users(users: list[str] | None, file_path: str | None) -> list[str]:
 
         if isinstance(data, dict):
             extracted = [key for key in data.keys() if str(key).startswith("0x")]
+            if not extracted and isinstance(data.get("users"), list):
+                extracted = [
+                    item.get("user")
+                    for item in data["users"]
+                    if isinstance(item, dict) and str(item.get("user", "")).startswith("0x")
+                ]
             if not extracted:
                 print(f"Warning: Could not find user addresses as top-level keys in {file_path}")
             loaded_users.extend(extracted)

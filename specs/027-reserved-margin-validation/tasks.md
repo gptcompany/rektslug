@@ -69,7 +69,7 @@
 
 ### Live Validation for User Story 1
 
-- [ ] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users (using API-reported positions for fair comparison, NOT ABCI snapshot). Save to `data/validation/margin_validation_report.json`. Verify: (a) SC-001: MMR tolerance_rate >= 0.9, (b) `liquidationPx` deviations documented per position
+- [-] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users (using API-reported positions for fair comparison, NOT ABCI snapshot). Save to `data/validation/margin_validation_report.json`. Verify: (a) SC-001: MMR tolerance_rate >= 0.9, (b) `liquidationPx` deviations documented per position. Attempted on 2026-03-31: report generated, but tolerance_rate was 0.6667 (7 cross / 2 isolated accounts; large residual outliers remain), so SC-001 is not yet satisfied.
 
 **Checkpoint**: SC-001 validated. MMR formula confirmed. `liquidationPx` deviations measured as baseline for US4.
 

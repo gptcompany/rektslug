@@ -28,6 +28,26 @@ def test_load_users_reads_top_level_addresses(tmp_path):
     assert users == ["0xabc", "0xdef"]
 
 
+def test_load_users_reads_nested_user_entries(tmp_path):
+    path = tmp_path / "outliers_nested.json"
+    path.write_text(
+        json.dumps(
+            {
+                "metadata": {"selected_user_count": 2},
+                "users": [
+                    {"user": "0xabc", "report_row": {}},
+                    {"user": "0xdef", "report_row": {}},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    users = _load_users([], str(path))
+
+    assert users == ["0xabc", "0xdef"]
+
+
 def test_serialize_report_adds_summary_fields():
     report = MarginValidationReport(
         timestamp="2026-03-31T00:00:00+00:00",
