@@ -9,6 +9,10 @@ from src.liquidationheatmap.hyperliquid.models import (
     AssetContext,
     AssetMeta,
     AssetMetaSnapshot,
+    BorrowLendAmount,
+    BorrowLendReserveState,
+    BorrowLendTokenState,
+    BorrowLendUserState,
     ClearinghouseUserState,
     CrossMarginSummary,
     Leverage,
@@ -21,7 +25,10 @@ from src.liquidationheatmap.hyperliquid.models import (
     PortfolioMarginSummary,
     PositionCumFunding,
     PositionData,
+    SpotBalance,
+    SpotClearinghouseState,
 )
+from src.liquidationheatmap.hyperliquid.portfolio_solver import PortfolioMarginResult
 from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
 
 
@@ -154,6 +161,59 @@ async def test_validate_user_counts_v1_1_as_unchanged_without_orders():
     assert result.liq_px_summary.improved_positions == 0
     assert result.liq_px_summary.worsened_positions == 0
     assert result.liq_px_summary.unchanged_positions == 1
+
+
+@pytest.mark.asyncio
+async def test_validate_user_routes_portfolio_margin_through_pm_solver():
+    mock_client = AsyncMock()
+    mock_client.get_clearinghouse_state.return_value = make_state(
+        cross_maintenance_margin_used=20.0
+    )
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.PORTFOLIO_MARGIN
+    mock_client.get_asset_meta.return_value = make_asset_snapshot()
+    mock_client.get_spot_clearinghouse_state.return_value = make_spot_state()
+    mock_client.get_borrow_lend_user_state.return_value = make_borrow_lend_user_state()
+    mock_client.get_all_borrow_lend_reserve_states.return_value = make_reserve_states()
+
+    validator = MarginValidator(client=mock_client)
+    pm_result = PortfolioMarginResult(
+        user_address="0x123",
+        portfolio_margin_ratio=0.45,
+        is_liquidatable=False,
+        total_margin_required=180.0,
+        net_exposures={"ETH": 1.0},
+        gross_margin=180.0,
+        netting_benefit=0.0,
+        liquidation_prices={"ETH": 1755.0},
+        current_liquidation_value=400.0,
+        borrowed_notional_usdc=0.0,
+        collateral_support_usdc=0.0,
+    )
+
+    with patch.object(
+        validator.portfolio_solver,
+        "compute_portfolio_margin",
+        return_value=pm_result,
+    ) as compute_pm, patch.object(
+        validator.reconstructor,
+        "solve_liquidation_price",
+    ) as solve_liq:
+        result = await validator.validate_user("0x123")
+
+    assert result.mode == MarginMode.PORTFOLIO_MARGIN
+    assert result.account_abstraction == AccountAbstraction.PORTFOLIO_MARGIN.value
+    assert result.sidecar_total_mmr == 180.0
+    assert result.deviation_mmr_pct == 10.0
+    assert len(result.positions) == 1
+    assert result.positions[0].sidecar_liquidation_px_v1 == 1755.0
+    assert result.positions[0].sidecar_liquidation_px_v1_1 == 1755.0
+    assert result.positions[0].deviation_liq_px_v1 == 45.0
+    assert result.positions[0].deviation_liq_px_v1_1 == 45.0
+    mock_client.get_spot_clearinghouse_state.assert_awaited_once_with("0x123")
+    mock_client.get_borrow_lend_user_state.assert_awaited_once_with("0x123")
+    mock_client.get_all_borrow_lend_reserve_states.assert_awaited_once_with()
+    compute_pm.assert_called_once()
+    solve_liq.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -321,3 +381,38 @@ def make_asset_snapshot(
         assetContexts=[AssetContext(markPx=2000.0)],
         margin_tables=margin_tables or {},
     )
+
+
+def make_spot_state() -> SpotClearinghouseState:
+    return SpotClearinghouseState(
+        balances=[SpotBalance(coin="USDC", token=0, total=250.0, hold=0.0, entryNtl=0.0)],
+        tokenToAvailableAfterMaintenance=[(0, 180.0)],
+    )
+
+
+def make_borrow_lend_user_state() -> BorrowLendUserState:
+    return BorrowLendUserState(
+        tokenToState={
+            0: BorrowLendTokenState(
+                borrow=BorrowLendAmount(basis=0.0, value=0.0),
+                supply=BorrowLendAmount(basis=0.0, value=250.0),
+            )
+        },
+        health="healthy",
+        healthFactor=None,
+    )
+
+
+def make_reserve_states() -> dict[int, BorrowLendReserveState]:
+    return {
+        0: BorrowLendReserveState(
+            borrowYearlyRate=0.05,
+            supplyYearlyRate=0.0,
+            balance=0.0,
+            utilization=0.0,
+            oraclePx=1.0,
+            ltv=0.0,
+            totalSupplied=0.0,
+            totalBorrowed=0.0,
+        )
+    }

@@ -11,6 +11,7 @@ from src.liquidationheatmap.hyperliquid.margin_math import (
 from src.liquidationheatmap.hyperliquid.models import (
     AccountAbstraction,
     AssetMetaSnapshot,
+    BorrowLendUserState,
     ClearinghouseUserState,
     FactorAttribution,
     LiqPxComparisonSummary,
@@ -19,6 +20,10 @@ from src.liquidationheatmap.hyperliquid.models import (
     MarginValidationReport,
     MarginValidationResult,
     PositionMarginComparison,
+    SpotClearinghouseState,
+)
+from src.liquidationheatmap.hyperliquid.portfolio_solver import (
+    HyperliquidPortfolioMarginSolver,
 )
 from src.liquidationheatmap.hyperliquid.sidecar import (
     SidecarPositionReconstructor,
@@ -40,6 +45,7 @@ class MarginValidator:
     ):
         self.client = client or HyperliquidInfoClient()
         self.reconstructor = SidecarPositionReconstructor()
+        self.portfolio_solver = HyperliquidPortfolioMarginSolver()
         self.orders_by_user = orders_by_user or {}
         self.reserved_margin_candidate = reserved_margin_candidate
 
@@ -194,21 +200,33 @@ class MarginValidator:
             current_positions=current_positions,
         )
 
+    async def _compute_portfolio_margin_result(
+        self,
+        *,
+        user: str,
+        positions: list[UserPosition],
+        mark_prices: dict[int, float],
+        asset_margin_tiers: dict[int, list[dict]],
+        cross_maintenance_margin_used: float,
+    ):
+        spot_state: SpotClearinghouseState = await self.client.get_spot_clearinghouse_state(user)
+        borrow_lend_user_state: BorrowLendUserState = await self.client.get_borrow_lend_user_state(user)
+        reserve_states = await self.client.get_all_borrow_lend_reserve_states()
+        return self.portfolio_solver.compute_portfolio_margin(
+            user_address=user,
+            positions=positions,
+            mark_prices=mark_prices,
+            asset_margin_tiers=asset_margin_tiers,
+            spot_state=spot_state,
+            cross_maintenance_margin_used=cross_maintenance_margin_used,
+            borrow_lend_user_state=borrow_lend_user_state,
+            reserve_states=reserve_states,
+        )
+
     async def validate_user(self, user: str) -> MarginValidationResult:
         state: ClearinghouseUserState = await self.client.get_clearinghouse_state(user)
         account_abstraction = await self.client.get_user_abstraction(user)
         meta: AssetMetaSnapshot = await self.client.get_asset_meta()
-
-        if self.requires_spot_clearinghouse_state(account_abstraction):
-            try:
-                await self.client.get_spot_clearinghouse_state(user)
-            except Exception as exc:
-                logger.warning(
-                    "Failed to fetch spot clearinghouse state for %s (%s): %s",
-                    user,
-                    account_abstraction.value,
-                    exc,
-                )
 
         mode = self.detect_margin_mode(state, account_abstraction=account_abstraction)
 
@@ -311,12 +329,25 @@ class MarginValidator:
             },
             current_positions,
         )
+        portfolio_margin_result = None
+        if mode == MarginMode.PORTFOLIO_MARGIN:
+            portfolio_margin_result = await self._compute_portfolio_margin_result(
+                user=user,
+                positions=sidecar_positions,
+                mark_prices=mark_prices,
+                asset_margin_tiers=asset_margin_tiers,
+                cross_maintenance_margin_used=api_cross_maintenance_margin_used,
+            )
+            sidecar_total_mmr = portfolio_margin_result.total_margin_required
 
         final_positions = []
         for p in positions_cm:
-            sidecar_liq_px_v1 = self.reconstructor.solve_liquidation_price(
-                user_state, p["coin"], mark_prices, p["asset_margin_tiers"]
-            )
+            if portfolio_margin_result is not None:
+                sidecar_liq_px_v1 = portfolio_margin_result.liquidation_prices.get(p["coin"])
+            else:
+                sidecar_liq_px_v1 = self.reconstructor.solve_liquidation_price(
+                    user_state, p["coin"], mark_prices, p["asset_margin_tiers"]
+                )
 
             dev_liq_px_v1 = None
             sidecar_liq_px_v1_1 = None
@@ -327,13 +358,16 @@ class MarginValidator:
                 if p["api_liquidation_px"] > 0:
                     liq_px_dev_pct = dev_liq_px_v1 / p["api_liquidation_px"] * 100.0
 
-            sidecar_liq_px_v1_1 = self.reconstructor.solve_liquidation_price(
-                user_state,
-                p["coin"],
-                mark_prices,
-                p["asset_margin_tiers"],
-                reserved_margin=reserved_margin,
-            )
+            if portfolio_margin_result is not None:
+                sidecar_liq_px_v1_1 = sidecar_liq_px_v1
+            else:
+                sidecar_liq_px_v1_1 = self.reconstructor.solve_liquidation_price(
+                    user_state,
+                    p["coin"],
+                    mark_prices,
+                    p["asset_margin_tiers"],
+                    reserved_margin=reserved_margin,
+                )
             if sidecar_liq_px_v1_1 is not None and p["api_liquidation_px"] is not None:
                 dev_liq_px_v1_1 = abs(sidecar_liq_px_v1_1 - p["api_liquidation_px"])
 
@@ -352,10 +386,15 @@ class MarginValidator:
                 liq_px_deviation_pct=liq_px_dev_pct,
             ))
 
+        api_margin_reference = (
+            api_total_margin_used
+            if mode == MarginMode.PORTFOLIO_MARGIN
+            else api_cross_maintenance_margin_used
+        )
         deviation_mmr_pct = 0.0
-        gap_usd = abs(api_cross_maintenance_margin_used - sidecar_total_mmr)
-        if api_cross_maintenance_margin_used > 0:
-            deviation_mmr_pct = gap_usd / api_cross_maintenance_margin_used * 100.0
+        gap_usd = abs(api_margin_reference - sidecar_total_mmr)
+        if api_margin_reference > 0:
+            deviation_mmr_pct = gap_usd / api_margin_reference * 100.0
 
         factors = self.attribute_factors(deviation_mmr_pct, gap_usd)
         liq_px_summary = self._build_liq_px_summary(final_positions)

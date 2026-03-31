@@ -35,6 +35,7 @@ class HyperliquidInfoClient:
     DEFAULT_BASE_URL = "https://api.hyperliquid.xyz/info"
     DEFAULT_REQUEST_TIMEOUT_SECONDS = 5.0
     DEFAULT_ENDPOINT_COOLDOWN_SECONDS = 60.0
+    DEFAULT_UNSUPPORTED_PAYLOAD_COOLDOWN_SECONDS = 300.0
 
     def __init__(
         self,
@@ -44,18 +45,20 @@ class HyperliquidInfoClient:
         base_urls: list[str] | tuple[str, ...] | None = None,
         request_timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         endpoint_cooldown_seconds: float = DEFAULT_ENDPOINT_COOLDOWN_SECONDS,
+        unsupported_payload_cooldown_seconds: float = DEFAULT_UNSUPPORTED_PAYLOAD_COOLDOWN_SECONDS,
     ):
         self.rate_limit_delay = 60.0 / requests_per_minute
         self._semaphore = asyncio.Semaphore(5)
         self.request_timeout_seconds = request_timeout_seconds
         self.endpoint_cooldown_seconds = endpoint_cooldown_seconds
+        self.unsupported_payload_cooldown_seconds = unsupported_payload_cooldown_seconds
         self.base_urls = self._resolve_base_urls(
             base_url=base_url,
             base_urls=base_urls,
         )
         self.base_url = self.base_urls[0]
         self._endpoint_cooldown_until: dict[str, float] = {}
-        self._unsupported_payload_types: set[tuple[str, str]] = set()
+        self._unsupported_payload_cooldown_until: dict[tuple[str, str], float] = {}
 
     @classmethod
     def _resolve_base_urls(
@@ -115,7 +118,7 @@ class HyperliquidInfoClient:
         candidates = [
             base_url
             for base_url in self.base_urls
-            if (base_url, payload_type) not in self._unsupported_payload_types
+            if self._unsupported_payload_cooldown_until.get((base_url, payload_type), 0.0) <= now
             and self._endpoint_cooldown_until.get(base_url, 0.0) <= now
         ]
         if candidates:
@@ -123,7 +126,7 @@ class HyperliquidInfoClient:
         return [
             base_url
             for base_url in self.base_urls
-            if (base_url, payload_type) not in self._unsupported_payload_types
+            if self._unsupported_payload_cooldown_until.get((base_url, payload_type), 0.0) <= now
         ]
 
     async def _post_to_base_url(
@@ -134,12 +137,11 @@ class HyperliquidInfoClient:
     ) -> Any:
         backoff = 1.0
         max_retries = 3
+        timeout = aiohttp.ClientTimeout(total=self.request_timeout_seconds)
 
-        for attempt in range(max_retries):
-            await asyncio.sleep(self.rate_limit_delay)
-            try:
-                timeout = aiohttp.ClientTimeout(total=self.request_timeout_seconds)
-                async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for attempt in range(max_retries):
+                try:
                     async with session.post(
                         base_url,
                         json=payload,
@@ -169,20 +171,20 @@ class HyperliquidInfoClient:
                             raise _EndpointUnavailableError(
                                 f"{base_url} returned non-JSON response for payload {payload_type}"
                             ) from exc
-            except _EndpointPayloadUnsupportedError:
-                raise
-            except (
-                aiohttp.ClientResponseError,
-                aiohttp.ClientError,
-                asyncio.TimeoutError,
-                _EndpointUnavailableError,
-            ) as exc:
-                if attempt == max_retries - 1:
-                    raise _EndpointUnavailableError(
-                        f"Hyperliquid endpoint {base_url} failed for payload {payload_type}"
-                    ) from exc
-                await asyncio.sleep(backoff)
-                backoff *= 2.0
+                except _EndpointPayloadUnsupportedError:
+                    raise
+                except (
+                    aiohttp.ClientResponseError,
+                    aiohttp.ClientError,
+                    asyncio.TimeoutError,
+                    _EndpointUnavailableError,
+                ) as exc:
+                    if attempt == max_retries - 1:
+                        raise _EndpointUnavailableError(
+                            f"Hyperliquid endpoint {base_url} failed for payload {payload_type}"
+                        ) from exc
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
 
     async def _post(self, payload: dict[str, Any]) -> Any:
         """Make a POST request with retry logic and rate limiting."""
@@ -191,13 +193,16 @@ class HyperliquidInfoClient:
             last_error: Exception | None = None
             for base_url in self._candidate_base_urls(payload_type):
                 try:
+                    await asyncio.sleep(self.rate_limit_delay)
                     return await self._post_to_base_url(
                         base_url,
                         payload,
                         payload_type,
                     )
                 except _EndpointPayloadUnsupportedError as exc:
-                    self._unsupported_payload_types.add((base_url, payload_type))
+                    self._unsupported_payload_cooldown_until[(base_url, payload_type)] = (
+                        time.monotonic() + self.unsupported_payload_cooldown_seconds
+                    )
                     last_error = exc
                     logger.warning("%s", exc)
                 except _EndpointUnavailableError as exc:

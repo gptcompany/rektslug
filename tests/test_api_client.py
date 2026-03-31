@@ -142,7 +142,12 @@ async def test_post_skips_endpoint_after_payload_marked_unsupported():
         "http://10.0.0.1:3001/info",
         "http://10.0.0.1:3001/info",
     ]
-    assert ("http://localhost:3001/info", "metaAndAssetCtxs") in client._unsupported_payload_types
+    assert (
+        client._unsupported_payload_cooldown_until[
+            ("http://localhost:3001/info", "metaAndAssetCtxs")
+        ]
+        > 0.0
+    )
 
 @pytest.mark.asyncio
 async def test_get_clearinghouse_state_parses_cross_maintenance_margin():
