@@ -41,6 +41,15 @@ uv run python scripts/validate_reserved_margin.py \
 
 **Current observed result (2026-03-31)**: the corrected `userAbstraction`-based full scan classified `394/397` users successfully and found `355 cross_margin`, `36 isolated_margin`, `3 portfolio_margin`, plus abstraction counts `176 dexAbstraction`, `122 default`, `39 disabled`, `53 unifiedAccount`, `3 portfolioMargin`, `1 unknown`. A follow-up repo-wide probe over `430` distinct local addresses still found only the same `3` PM accounts and only `1` comparable PM `liqPx` case (`data/validation/portfolio_margin_repo_scan.json`), so live PM validation is unblocked on discovery but still constrained by sample size.
 
+To preserve reusable PM ground-truth snapshots for future reruns:
+
+```bash
+uv run python scripts/capture_hyperliquid_info_snapshots.py \
+  --output data/validation/pm_account_snapshots.json
+```
+
+This captures `userAbstraction`, `clearinghouseState`, `spotClearinghouseState`, `borrowLendUserState`, and shared reserve states for the current PM watchlist.
+
 ## 3. Run Solver V1.1 (US4)
 
 After the reserved-margin formula is validated and integrated:

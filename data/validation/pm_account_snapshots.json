@@ -1,0 +1,588 @@
+{
+  "timestamp": "2026-03-31T21:39:49.842836+00:00",
+  "watchlist_source": "data/validation/portfolio_margin_accounts_full.json",
+  "users_requested": 3,
+  "users_succeeded": 3,
+  "users_failed": 0,
+  "reserve_state_token_count": 4,
+  "reserve_states": {
+    "0": {
+      "borrowYearlyRate": 0.05,
+      "supplyYearlyRate": 0.0056847384,
+      "balance": 21561305.24606376,
+      "utilization": 0.1263275189,
+      "oraclePx": 1.0,
+      "ltv": 0.0,
+      "totalSupplied": 24678933.34885877,
+      "totalBorrowed": 3117628.41968452
+    },
+    "150": {
+      "borrowYearlyRate": 0.05,
+      "supplyYearlyRate": 0.0,
+      "balance": 718759.6325413,
+      "utilization": 0.0,
+      "oraclePx": 36.459,
+      "ltv": 0.5,
+      "totalSupplied": 718759.6325413,
+      "totalBorrowed": 0.0
+    },
+    "197": {
+      "borrowYearlyRate": 0.05,
+      "supplyYearlyRate": 0.0,
+      "balance": 75.8512448993,
+      "utilization": 0.0,
+      "oraclePx": 68066.0,
+      "ltv": 0.5,
+      "totalSupplied": 75.8512448993,
+      "totalBorrowed": 0.0
+    },
+    "360": {
+      "borrowYearlyRate": 0.05,
+      "supplyYearlyRate": 0.0089721698,
+      "balance": 3733654.9645488,
+      "utilization": 0.1993815501,
+      "oraclePx": 0.99999,
+      "ltv": 0.0,
+      "totalSupplied": 4663463.4342542,
+      "totalBorrowed": 929808.56854038
+    }
+  },
+  "snapshots": [
+    {
+      "user": "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 1,
+      "comparable_position_count": 1,
+      "comparable_positions": [
+        {
+          "coin": "HYPE",
+          "liquidation_px": 49.2710723879
+        }
+      ],
+      "clearinghouse_state": {
+        "marginSummary": {
+          "accountValue": 14589.669758,
+          "totalMarginUsed": 13978.80156,
+          "totalNtlPos": 41936.40468,
+          "totalRawUsd": 56526.074438
+        },
+        "crossMarginSummary": {
+          "accountValue": 14589.669758,
+          "totalMarginUsed": 13978.80156,
+          "totalNtlPos": 41936.40468,
+          "totalRawUsd": 56526.074438
+        },
+        "crossMaintenanceMarginUsed": 2096.820234,
+        "withdrawable": 610.868198,
+        "assetPositions": [
+          {
+            "type": "oneWay",
+            "position": {
+              "coin": "HYPE",
+              "szi": -1150.14,
+              "entryPx": 37.6769,
+              "positionValue": 41936.40468,
+              "unrealizedPnl": 1397.347831,
+              "returnOnEquity": 0.0967385294,
+              "liquidationPx": 49.2710723879,
+              "leverage": {
+                "type": "cross",
+                "value": 3
+              },
+              "marginUsed": 13978.80156,
+              "maxLeverage": 10,
+              "cumFunding": {
+                "allTime": -189.728832,
+                "sinceOpen": -174.895645,
+                "sinceChange": -0.527238
+              }
+            }
+          }
+        ],
+        "time": 1774993185938,
+        "portfolioMarginSummary": null
+      },
+      "spot_clearinghouse_state": {
+        "balances": [
+          {
+            "coin": "USDC",
+            "token": 0,
+            "total": 17565.12311926,
+            "hold": 13977.2947828,
+            "entryNtl": 0.0,
+            "spotHold": 13978.41817978,
+            "ltv": 0.0,
+            "supplied": 2974.30322127
+          },
+          {
+            "coin": "HYPE",
+            "token": 150,
+            "total": 0.06162697,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": 0.06162697
+          },
+          {
+            "coin": "UBTC",
+            "token": 197,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": null
+          },
+          {
+            "coin": "USDE",
+            "token": 235,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USOL",
+            "token": 254,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDT0",
+            "token": 268,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDH",
+            "token": 360,
+            "total": 0.0,
+            "hold": -1.12340822,
+            "entryNtl": 0.0,
+            "spotHold": 0.0,
+            "ltv": 0.0,
+            "supplied": null
+          }
+        ],
+        "tokenToAvailableAfterMaintenance": [
+          [
+            0,
+            15470.04548919
+          ],
+          [
+            150,
+            0.06162697
+          ],
+          [
+            197,
+            0.0
+          ],
+          [
+            360,
+            1.68511284
+          ]
+        ]
+      },
+      "borrow_lend_user_state": {
+        "tokenToState": {
+          "0": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 2974.30004305,
+              "value": 2974.30322127
+            }
+          },
+          "150": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 0.06162697,
+              "value": 0.06162697
+            }
+          }
+        },
+        "health": "healthy",
+        "healthFactor": null
+      }
+    },
+    {
+      "user": "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 0,
+      "comparable_position_count": 0,
+      "comparable_positions": [],
+      "clearinghouse_state": {
+        "marginSummary": {
+          "accountValue": 0.0,
+          "totalMarginUsed": 0.0,
+          "totalNtlPos": 0.0,
+          "totalRawUsd": 0.0
+        },
+        "crossMarginSummary": {
+          "accountValue": 0.0,
+          "totalMarginUsed": 0.0,
+          "totalNtlPos": 0.0,
+          "totalRawUsd": 0.0
+        },
+        "crossMaintenanceMarginUsed": 0.0,
+        "withdrawable": 0.0,
+        "assetPositions": [],
+        "time": 1774993187445,
+        "portfolioMarginSummary": null
+      },
+      "spot_clearinghouse_state": {
+        "balances": [
+          {
+            "coin": "USDC",
+            "token": 0,
+            "total": 2.61e-06,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.0,
+            "supplied": null
+          },
+          {
+            "coin": "JEFF",
+            "token": 5,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "TJIF",
+            "token": 77,
+            "total": 116.42912191,
+            "hold": 0.0,
+            "entryNtl": 8.85555153,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "H",
+            "token": 109,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "HYPE",
+            "token": 150,
+            "total": 0.00870746,
+            "hold": 0.0,
+            "entryNtl": 0.32185384,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": null
+          },
+          {
+            "coin": "UBTC",
+            "token": 197,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": null
+          },
+          {
+            "coin": "USDE",
+            "token": 235,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDT0",
+            "token": 268,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDH",
+            "token": 360,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.0,
+            "supplied": null
+          }
+        ],
+        "tokenToAvailableAfterMaintenance": [
+          [
+            0,
+            2.61e-06
+          ],
+          [
+            150,
+            0.00870746
+          ],
+          [
+            197,
+            0.0
+          ],
+          [
+            360,
+            0.0
+          ]
+        ]
+      },
+      "borrow_lend_user_state": {
+        "tokenToState": {
+          "0": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 0.0,
+              "value": 0.0
+            }
+          },
+          "150": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 0.0,
+              "value": 0.0
+            }
+          }
+        },
+        "health": "healthy",
+        "healthFactor": null
+      }
+    },
+    {
+      "user": "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 1,
+      "comparable_position_count": 0,
+      "comparable_positions": [],
+      "clearinghouse_state": {
+        "marginSummary": {
+          "accountValue": 319.224697,
+          "totalMarginUsed": 303.35552,
+          "totalNtlPos": 3033.5552,
+          "totalRawUsd": -2714.330503
+        },
+        "crossMarginSummary": {
+          "accountValue": 319.224697,
+          "totalMarginUsed": 303.35552,
+          "totalNtlPos": 3033.5552,
+          "totalRawUsd": -2714.330503
+        },
+        "crossMaintenanceMarginUsed": 151.67776,
+        "withdrawable": 0.0,
+        "assetPositions": [
+          {
+            "type": "oneWay",
+            "position": {
+              "coin": "HYPE",
+              "szi": 83.2,
+              "entryPx": 36.8302,
+              "positionValue": 3033.5552,
+              "unrealizedPnl": -30.717981,
+              "returnOnEquity": -0.1002455695,
+              "liquidationPx": null,
+              "leverage": {
+                "type": "cross",
+                "value": 10
+              },
+              "marginUsed": 303.35552,
+              "maxLeverage": 10,
+              "cumFunding": {
+                "allTime": 1.196348,
+                "sinceOpen": 1.196348,
+                "sinceChange": 0.038139
+              }
+            }
+          }
+        ],
+        "time": 1774993188990,
+        "portfolioMarginSummary": null
+      },
+      "spot_clearinghouse_state": {
+        "balances": [
+          {
+            "coin": "USDC",
+            "token": 0,
+            "total": 580.10857453,
+            "hold": -5110.80428972,
+            "entryNtl": 0.0,
+            "spotHold": 355.57130999,
+            "ltv": 0.0,
+            "supplied": 260.96707925
+          },
+          {
+            "coin": "HPL",
+            "token": 120,
+            "total": 132.1524691,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "HYPE",
+            "token": 150,
+            "total": 300.0,
+            "hold": 1.99930362,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": 300.0
+          },
+          {
+            "coin": "BEATS",
+            "token": 176,
+            "total": 4003.59966248,
+            "hold": 0.0,
+            "entryNtl": 118.118,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "UBTC",
+            "token": 197,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": 0.5,
+            "supplied": null
+          },
+          {
+            "coin": "HAR",
+            "token": 205,
+            "total": 17141.73670046,
+            "hold": 0.0,
+            "entryNtl": 0.17141736,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDE",
+            "token": 235,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDT0",
+            "token": 268,
+            "total": 0.0,
+            "hold": 0.0,
+            "entryNtl": 0.0,
+            "spotHold": null,
+            "ltv": null,
+            "supplied": null
+          },
+          {
+            "coin": "USDH",
+            "token": 360,
+            "total": 14.88572595,
+            "hold": -5430.00008499,
+            "entryNtl": 14.88572595,
+            "spotHold": 0.0,
+            "ltv": 0.0,
+            "supplied": 14.88572595
+          }
+        ],
+        "tokenToAvailableAfterMaintenance": [
+          [
+            0,
+            8627.99837625
+          ],
+          [
+            150,
+            300.0
+          ],
+          [
+            197,
+            0.0
+          ],
+          [
+            360,
+            8214.53112239
+          ]
+        ]
+      },
+      "borrow_lend_user_state": {
+        "tokenToState": {
+          "0": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 260.96681814,
+              "value": 260.96707925
+            }
+          },
+          "150": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 300.0,
+              "value": 300.0
+            }
+          },
+          "360": {
+            "borrow": {
+              "basis": 0.0,
+              "value": 0.0
+            },
+            "supply": {
+              "basis": 14.87886913,
+              "value": 14.88572595
+            }
+          }
+        },
+        "health": "healthy",
+        "healthFactor": null
+      }
+    }
+  ],
+  "failures": []
+}
