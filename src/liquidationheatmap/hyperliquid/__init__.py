@@ -14,6 +14,13 @@ from .models import (
     AssetContext,
     AssetMetaSnapshot,
     MarginTier,
+    AccountAbstraction,
+    SpotBalance,
+    SpotClearinghouseState,
+    BorrowLendAmount,
+    BorrowLendTokenState,
+    BorrowLendUserState,
+    BorrowLendReserveState,
     FactorAttribution,
     PositionMarginComparison,
     LiqPxComparisonSummary,
@@ -24,6 +31,7 @@ from .models import (
 from .api_client import HyperliquidInfoClient
 from .margin_validator import MarginValidator
 from .margin_math import get_margin_tier, compute_position_maintenance_margin
+from .portfolio_solver import HyperliquidPortfolioMarginSolver, PortfolioMarginResult
 
 __all__ = [
     "MarginMode",
@@ -39,6 +47,13 @@ __all__ = [
     "AssetContext",
     "AssetMetaSnapshot",
     "MarginTier",
+    "AccountAbstraction",
+    "SpotBalance",
+    "SpotClearinghouseState",
+    "BorrowLendAmount",
+    "BorrowLendTokenState",
+    "BorrowLendUserState",
+    "BorrowLendReserveState",
     "FactorAttribution",
     "PositionMarginComparison",
     "LiqPxComparisonSummary",
@@ -49,4 +64,6 @@ __all__ = [
     "MarginValidator",
     "get_margin_tier",
     "compute_position_maintenance_margin",
+    "HyperliquidPortfolioMarginSolver",
+    "PortfolioMarginResult",
 ]

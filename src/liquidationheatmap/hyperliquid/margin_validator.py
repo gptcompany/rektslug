@@ -9,6 +9,7 @@ from src.liquidationheatmap.hyperliquid.margin_math import (
     estimate_reserved_margin,
 )
 from src.liquidationheatmap.hyperliquid.models import (
+    AccountAbstraction,
     AssetMetaSnapshot,
     ClearinghouseUserState,
     FactorAttribution,
@@ -86,7 +87,26 @@ class MarginValidator:
             ),
         )
 
-    def detect_margin_mode(self, state: ClearinghouseUserState | dict) -> MarginMode:
+    @staticmethod
+    def requires_spot_clearinghouse_state(
+        account_abstraction: AccountAbstraction | str | None,
+    ) -> bool:
+        abstraction = AccountAbstraction.from_api(account_abstraction)
+        return abstraction in {
+            AccountAbstraction.UNIFIED_ACCOUNT,
+            AccountAbstraction.PORTFOLIO_MARGIN,
+        }
+
+    def detect_margin_mode(
+        self,
+        state: ClearinghouseUserState | dict,
+        *,
+        account_abstraction: AccountAbstraction | str | None = None,
+    ) -> MarginMode:
+        abstraction = AccountAbstraction.from_api(account_abstraction)
+        if abstraction == AccountAbstraction.PORTFOLIO_MARGIN:
+            return MarginMode.PORTFOLIO_MARGIN
+
         if isinstance(state, ClearinghouseUserState):
             if state.portfolioMarginSummary is not None:
                 return MarginMode.PORTFOLIO_MARGIN
@@ -176,9 +196,21 @@ class MarginValidator:
 
     async def validate_user(self, user: str) -> MarginValidationResult:
         state: ClearinghouseUserState = await self.client.get_clearinghouse_state(user)
+        account_abstraction = await self.client.get_user_abstraction(user)
         meta: AssetMetaSnapshot = await self.client.get_asset_meta()
 
-        mode = self.detect_margin_mode(state)
+        if self.requires_spot_clearinghouse_state(account_abstraction):
+            try:
+                await self.client.get_spot_clearinghouse_state(user)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to fetch spot clearinghouse state for %s (%s): %s",
+                    user,
+                    account_abstraction.value,
+                    exc,
+                )
+
+        mode = self.detect_margin_mode(state, account_abstraction=account_abstraction)
 
         api_total_margin_used = state.marginSummary.totalMarginUsed
         api_cross_maintenance_margin_used = state.crossMaintenanceMarginUsed
@@ -331,6 +363,7 @@ class MarginValidator:
         return MarginValidationResult(
             user=user,
             mode=mode,
+            account_abstraction=account_abstraction.value,
             api_total_margin_used=api_total_margin_used,
             api_cross_maintenance_margin_used=api_cross_maintenance_margin_used,
             sidecar_total_mmr=sidecar_total_mmr,

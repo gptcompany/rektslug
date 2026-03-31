@@ -101,6 +101,7 @@ def test_serialize_report_adds_summary_fields():
             MarginValidationResult(
                 user="0xabc",
                 mode=MarginMode.CROSS_MARGIN,
+                account_abstraction="default",
                 api_total_margin_used=10.0,
                 api_cross_maintenance_margin_used=5.0,
                 sidecar_total_mmr=5.0,
@@ -142,6 +143,7 @@ def test_serialize_report_marks_cross_only_failure_without_cross_summary():
             MarginValidationResult(
                 user="0xabc",
                 mode=MarginMode.ISOLATED_MARGIN,
+                account_abstraction="default",
                 api_total_margin_used=10.0,
                 api_cross_maintenance_margin_used=5.0,
                 sidecar_total_mmr=5.0,
@@ -279,12 +281,13 @@ def test_build_mode_detection_payload_collects_portfolio_accounts():
         [
             {
                 "user": "0xabc",
+                "user_abstraction": "portfolioMargin",
                 "mode": "portfolio_margin",
                 "portfolio_margin_ratio": 0.91,
                 "account_value": 123.0,
                 "position_count": 2,
             },
-            {"user": "0xdef", "mode": "cross_margin"},
+            {"user": "0xdef", "user_abstraction": "default", "mode": "cross_margin"},
             {"user": "0xghi", "mode": None, "error": "timeout"},
         ],
         scanned_users=["0xabc", "0xdef", "0xghi"],
@@ -298,9 +301,14 @@ def test_build_mode_detection_payload_collects_portfolio_accounts():
     assert payload["users_succeeded"] == 2
     assert payload["users_failed"] == 1
     assert payload["mode_counts"]["portfolio_margin"] == 1
+    assert payload["account_abstraction_counts"] == {
+        "portfolioMargin": 1,
+        "default": 1,
+    }
     assert payload["portfolio_margin_accounts"] == [
         {
             "user": "0xabc",
+            "user_abstraction": "portfolioMargin",
             "portfolio_margin_ratio": 0.91,
             "account_value": 123.0,
             "position_count": 2,

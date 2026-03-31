@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from src.liquidationheatmap.hyperliquid.margin_validator import MarginValidator
 from src.liquidationheatmap.hyperliquid.models import (
+    AccountAbstraction,
     ApiPosition,
     AssetContext,
     AssetMeta,
@@ -28,6 +29,7 @@ from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
 async def test_validate_user_mmr_within_tolerance():
     mock_client = AsyncMock()
     mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=20.0)
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
     mock_client.get_asset_meta.return_value = make_asset_snapshot()
     
     validator = MarginValidator(client=mock_client)
@@ -51,6 +53,7 @@ async def test_validate_user_tiered_mmr():
         cross_maintenance_margin_used=750.0,
         szi=10.0
     )
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
     mock_client.get_asset_meta.return_value = make_asset_snapshot(
         margin_tables={
             10: [
@@ -72,6 +75,7 @@ async def test_validate_user_tiered_mmr():
 async def test_validate_user_liq_px_comparison():
     mock_client = AsyncMock()
     mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
     mock_client.get_asset_meta.return_value = make_asset_snapshot()
     
     validator = MarginValidator(client=mock_client)
@@ -89,6 +93,7 @@ async def test_validate_user_liq_px_comparison():
 async def test_validate_user_computes_v1_1_when_orders_available():
     mock_client = AsyncMock()
     mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
     mock_client.get_asset_meta.return_value = make_asset_snapshot()
 
     validator = MarginValidator(
@@ -128,6 +133,7 @@ async def test_validate_user_computes_v1_1_when_orders_available():
 async def test_validate_user_counts_v1_1_as_unchanged_without_orders():
     mock_client = AsyncMock()
     mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
     mock_client.get_asset_meta.return_value = make_asset_snapshot()
 
     validator = MarginValidator(client=mock_client)
@@ -172,12 +178,12 @@ async def test_validate_batch_report():
     validator.validate_user = AsyncMock()
     validator.validate_user.side_effect = [
         MarginValidationResult(
-            user="0x1", mode=MarginMode.CROSS_MARGIN, api_total_margin_used=200.0,
+            user="0x1", mode=MarginMode.CROSS_MARGIN, account_abstraction="default", api_total_margin_used=200.0,
             api_cross_maintenance_margin_used=100.0, sidecar_total_mmr=100.0,
             deviation_mmr_pct=0.0, positions=[], factors=[], liq_px_summary=None
         ),
         MarginValidationResult(
-            user="0x2", mode=MarginMode.CROSS_MARGIN, api_total_margin_used=200.0,
+            user="0x2", mode=MarginMode.CROSS_MARGIN, account_abstraction="default", api_total_margin_used=200.0,
             api_cross_maintenance_margin_used=100.0, sidecar_total_mmr=105.0,
             deviation_mmr_pct=5.0, positions=[], factors=[], liq_px_summary=None
         )
@@ -221,6 +227,31 @@ def test_detect_margin_mode_portfolio():
         )
     )
     assert validator.detect_margin_mode(state) == MarginMode.PORTFOLIO_MARGIN
+
+
+def test_detect_margin_mode_uses_user_abstraction_for_portfolio():
+    validator = MarginValidator()
+    state = make_state()
+
+    assert (
+        validator.detect_margin_mode(
+            state,
+            account_abstraction=AccountAbstraction.PORTFOLIO_MARGIN,
+        )
+        == MarginMode.PORTFOLIO_MARGIN
+    )
+
+
+def test_requires_spot_clearinghouse_state_for_unified_and_portfolio():
+    assert MarginValidator.requires_spot_clearinghouse_state(
+        AccountAbstraction.UNIFIED_ACCOUNT
+    )
+    assert MarginValidator.requires_spot_clearinghouse_state(
+        AccountAbstraction.PORTFOLIO_MARGIN
+    )
+    assert not MarginValidator.requires_spot_clearinghouse_state(
+        AccountAbstraction.DEFAULT
+    )
 
 
 def make_state(

@@ -12,6 +12,11 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
+class AccountAbstraction:
+    value: str
+
+
+@dataclass(frozen=True)
 class MarginSummary:
     accountValue: float
     totalMarginUsed: float
@@ -100,6 +105,55 @@ class AssetMetaSnapshot:
     assetContexts: list[AssetContext]
 
 
+@dataclass(frozen=True)
+class SpotBalance:
+    coin: str
+    token: int
+    total: float
+    hold: float
+    entryNtl: float
+    spotHold: float | None
+    ltv: float | None
+    supplied: float | None
+
+
+@dataclass(frozen=True)
+class SpotClearinghouseState:
+    balances: list[SpotBalance]
+    tokenToAvailableAfterMaintenance: list[tuple[int, float]]
+
+
+@dataclass(frozen=True)
+class BorrowLendAmount:
+    basis: float
+    value: float
+
+
+@dataclass(frozen=True)
+class BorrowLendTokenState:
+    borrow: BorrowLendAmount
+    supply: BorrowLendAmount
+
+
+@dataclass(frozen=True)
+class BorrowLendUserState:
+    tokenToState: dict[int, BorrowLendTokenState]
+    health: str | None
+    healthFactor: float | None
+
+
+@dataclass(frozen=True)
+class BorrowLendReserveState:
+    borrowYearlyRate: float
+    supplyYearlyRate: float
+    balance: float
+    utilization: float
+    oraclePx: float
+    ltv: float
+    totalSupplied: float
+    totalBorrowed: float
+
+
 class HyperliquidInfoAPI(Protocol):
     """Protocol for Hyperliquid Info API access."""
 
@@ -122,6 +176,24 @@ class HyperliquidInfoAPI(Protocol):
 
         Returns parsed asset snapshot with universe metadata and mark-price contexts.
         """
+        ...
+
+    async def get_user_abstraction(self, user_address: str) -> AccountAbstraction:
+        """Query the documented `userAbstraction` endpoint for account mode routing."""
+        ...
+
+    async def get_spot_clearinghouse_state(self, user_address: str) -> SpotClearinghouseState:
+        """Query `spotClearinghouseState` for unified / portfolio-margin balances and holds."""
+        ...
+
+    async def get_borrow_lend_user_state(self, user_address: str) -> BorrowLendUserState:
+        """Query `borrowLendUserState` for per-token borrow/supply state."""
+        ...
+
+    async def get_all_borrow_lend_reserve_states(
+        self,
+    ) -> dict[int, BorrowLendReserveState]:
+        """Query `allBorrowLendReserveStates` keyed by token id."""
         ...
 
     async def get_clearinghouse_states_batch(

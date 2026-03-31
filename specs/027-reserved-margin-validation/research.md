@@ -367,45 +367,123 @@ The validator was updated to:
 
 ## 10. Portfolio-Margin Detection Scan (2026-03-31)
 
-After the initial `36`-user ranked scan returned zero PM accounts, the detection workflow was extended to reconstruct the full active-user population from the proxy report metadata and replay feeds.
+The initial ranked scan and first full-population rerun both relied too heavily on perp `clearinghouseState` and `portfolioMarginSummary`. Official Hyperliquid docs later clarified two key points:
+
+1. `userAbstraction` is the primary account-mode endpoint, with values including `unifiedAccount` and `portfolioMargin`.
+2. Under `unifiedAccount` or `portfolioMargin`, `spotClearinghouseState` is the source of truth for trading-account balances across spot and perps.
+
+The detection workflow was therefore updated to:
+- query `userAbstraction` first
+- fetch `spotClearinghouseState` for `unifiedAccount` and `portfolioMargin`
+- keep solver-mode classification separate from abstraction-mode reporting
+- preserve the mixed-position bugfix: "isolated only if all positions are isolated"
 
 ### Full-population scan result
 
 - Population reconstructed: `397` users
-- Mode distribution:
-  - `361` `cross_margin`
+- Successful mode classifications: `394`
+- Failed `clearinghouseState` fetches: `3`
+- Solver-mode distribution among successful users:
+  - `355` `cross_margin`
   - `36` `isolated_margin`
-  - `0` `portfolio_margin`
+  - `3` `portfolio_margin`
+- Abstraction distribution among successful users:
+  - `176` `dexAbstraction`
+  - `122` `default`
+  - `39` `disabled`
+  - `53` `unifiedAccount`
+  - `3` `portfolioMargin`
+  - `1` `unknown`
 - Output artifact: `data/validation/portfolio_margin_accounts_full.json`
 
-### Interpretation
+### Key findings
 
-1. The earlier `0/36` result was not just a top-N sampling artifact.
-2. A detection bug was also found and fixed during this scan: accounts with mixed `cross` and `isolated` positions had been over-classified as `isolated_margin`. The corrected rule is "isolated only if all positions are isolated".
-3. The corrected full scan still found zero PM accounts on the reconstructed anchor-relevant population available from the retained `2026-03-21` feeds.
-4. This materially strengthens the case that US3 live validation is blocked by population availability, not by detection logic alone.
+1. The earlier `0/397` result was a detection false negative, not just a sampling artifact.
+2. Live PM accounts are now confirmed in the reconstructed anchor-relevant population:
+   - `0xb1c4a17f0f39c2b04333831104a82e94ab808510`
+   - `0xdc00aede8219c1151ddd86372deed7a36bdeb405`
+   - `0xfc8b2f2b98705037ec9fa816f40c42077b237d3c`
+3. `unifiedAccount` is also materially present (`53/394`), which means PM is not the only non-default routing concern.
+4. The old isolated-mode bug remains independently important: mixed `cross + isolated` accounts such as `0xf910...` and `0x7717...` had indeed been over-classified before the heuristic fix.
 
 ### Spec impact
 
-- `US2` can be treated as complete for detection and scan coverage.
-- `US3/T029` should be treated as deferred in the current spec state:
-  - not because the PM marker is obviously wrong
-  - but because no live PM accounts were observable in the reconstructed `397`-user population
-- Any PM solver work that happens before new PM accounts appear is necessarily synthetic-only.
+- `US2` is complete on a stronger basis than before: detection now reflects the documented account-abstraction API rather than an inferred perp-only marker.
+- `US3/T029` is no longer blocked on account availability. Live PM examples exist.
+- The next blocker is implementation:
+  - PM solver path is still missing
+  - routing for `portfolioMargin` / `unifiedAccount` needs to use the correct state inputs
+  - `portfolio_margin_ratio` is still not surfaced in the current validation flow, even for the observed PM accounts
 
 ### Raw payload sanity check
 
-A direct `clearinghouseState` inspection was run on several of the largest `cross_margin` and formerly `isolated_margin` accounts.
+A direct live inspection was run on:
+- several large `cross_margin` / mixed accounts
+- one `unifiedAccount`
+- the PM-positive accounts identified by `userAbstraction`
 
-- Top-level keys remained limited to:
+Observed behavior:
+- Perp `clearinghouseState` still exposes the familiar keys:
   - `assetPositions`
   - `crossMaintenanceMarginUsed`
   - `crossMarginSummary`
   - `marginSummary`
   - `time`
   - `withdrawable`
-- No sampled whale payload exposed any additional `portfolio*` fields beyond the absent `portfolioMarginSummary`.
-- Mixed accounts such as `0xf910...` and `0x7717...` showed leverage-type counts like `49 cross / 1 isolated` and `171 cross / 2 isolated`, confirming the original isolated-mode heuristic was too broad.
+- `unifiedAccount` users can have non-empty perp state and separately meaningful `spotClearinghouseState` balances / hold values.
+- For the three PM-positive accounts found by `userAbstraction`, the current validation payload still did not expose a populated `portfolioMarginSummary.portfolioMarginRatio`, so PM detection is now solved but PM liquidation validation still requires additional API/state plumbing.
+
+## 11. Initial Portfolio-Margin Solver Implementation (2026-03-31)
+
+After the PM-positive accounts were confirmed, the next step used the documented pre-alpha PM rules plus live payload inspection to build a first PM solver.
+
+### Implemented inputs
+
+The solver now consumes:
+- perp `crossMaintenanceMarginUsed`
+- `spotClearinghouseState` balances plus `tokenToAvailableAfterMaintenance`
+- `borrowLendUserState`
+- `allBorrowLendReserveStates`
+- live perp mark prices / margin tiers from `metaAndAssetCtxs`
+
+The implementation anchors the current PM liquidation value to the live `availableAfterMaintenance` state and then solves future liquidation by applying:
+- target-perp PnL delta
+- target-spot inventory delta
+- collateral-bonus delta for documented pre-alpha collateral tokens
+- cross-maintenance MMR delta for the target perp notional
+
+### Test coverage
+
+`tests/test_portfolio_solver.py` now covers:
+1. collateral support / netting benefit reduces PM pressure
+2. PMR threshold `> 0.95` marks an account liquidatable
+3. a live-anchored HYPE short case reproduces the observed PM `liqPx`
+
+### Initial live comparison
+
+A live comparison was run against the three observed PM accounts:
+
+- `0xb1c4a17f0f39c2b04333831104a82e94ab808510`
+  - API `liqPx = 53.0335`
+  - Solver `liqPx = 52.8967`
+  - absolute deviation `0.1368`
+  - relative deviation `0.26%`
+- `0xdc00aede8219c1151ddd86372deed7a36bdeb405`
+  - no active perp positions
+  - not comparable for `liqPx`
+- `0xfc8b2f2b98705037ec9fa816f40c42077b237d3c`
+  - PM account confirmed
+  - API `liqPx = null`
+  - not comparable for `liqPx`
+
+### Interpretation
+
+1. The solver is no longer purely synthetic: there is at least one successful live PM comparison within tolerance.
+2. SC-003 is still not closed because the current live comparable PM sample is too small.
+3. The remaining gap is no longer "how do we detect PM?" but:
+   - routing the validator/report path through the PM solver
+   - gathering more PM observations with non-null API `liqPx`
+   - understanding when PM accounts fall back to non-PM behavior under pre-alpha caps
 
 
 ---
@@ -415,10 +493,10 @@ A direct `clearinghouseState` inspection was run on several of the largest `cros
 | Unknown | Resolution | Confidence |
 |---------|------------|------------|
 | clearinghouseState response structure | Documented above from HL docs | HIGH |
-| Portfolio margin detection | `portfolioMarginSummary` field presence | MEDIUM (alpha, may change) |
+| Portfolio margin detection | `userAbstraction` primary, with `spotClearinghouseState` for unified/PM accounts | HIGH |
 | Margin tier source for validation | `metaAndAssetCtxs` endpoint | HIGH |
 | Rate limiting | Conservative 10 req/min, empirically safe | HIGH |
 | Reserved-margin formula | 4 candidates to test, no single answer yet | LOW (reverse-engineering) |
 | V1.1 integration path | Subtract reserved margin from account_base | HIGH |
 | Existing validation data | 9 outlier users + control group ready | HIGH |
-| Portfolio-margin solver | PMR > 0.95 threshold, net risk netting | MEDIUM (docs exist, implementation untested) |
+| Portfolio-margin solver | Implemented from documented PM rules; one live PM case validated at 0.26% error | MEDIUM-HIGH |

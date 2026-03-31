@@ -10,9 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
 from src.liquidationheatmap.hyperliquid.margin_math import DEFAULT_RESERVED_MARGIN_CANDIDATE
 from src.liquidationheatmap.hyperliquid.margin_validator import MarginValidator
-from src.liquidationheatmap.hyperliquid.models import MarginValidationReport
+from src.liquidationheatmap.hyperliquid.models import (
+    AccountAbstraction,
+    MarginValidationReport,
+)
 from src.liquidationheatmap.hyperliquid.sidecar import (
     SidecarPositionReconstructor,
     UserOrder,
@@ -41,6 +45,7 @@ DEFAULT_MODE_SCAN_FILES = [
 ]
 DEFAULT_MODE_POPULATION_REPORT = DEFAULT_MODE_SCAN_FILES[0]
 DEFAULT_MODE_BATCH_SIZE = 25
+MODE_SCAN_REQUESTS_PER_MINUTE = 120
 
 
 def _dedupe_preserve_order(values: list[str]) -> list[str]:
@@ -253,17 +258,22 @@ def _build_mode_detection_payload(
         "isolated_margin": 0,
         "portfolio_margin": 0,
     }
+    abstraction_counts: dict[str, int] = {}
     failures = 0
     portfolio_accounts: list[dict] = []
 
     for item in results:
         mode = item.get("mode")
+        abstraction = item.get("user_abstraction")
         if mode in mode_counts:
             mode_counts[mode] += 1
+            if abstraction is not None:
+                abstraction_counts[abstraction] = abstraction_counts.get(abstraction, 0) + 1
             if mode == "portfolio_margin":
                 portfolio_accounts.append(
                     {
                         "user": item["user"],
+                        "user_abstraction": abstraction,
                         "portfolio_margin_ratio": item.get("portfolio_margin_ratio"),
                         "account_value": item.get("account_value"),
                         "position_count": item.get("position_count"),
@@ -280,6 +290,7 @@ def _build_mode_detection_payload(
         "users_succeeded": len(results) - failures,
         "users_failed": failures,
         "mode_counts": mode_counts,
+        "account_abstraction_counts": abstraction_counts,
         "portfolio_margin_accounts": portfolio_accounts,
         "results": results,
     }
@@ -322,7 +333,11 @@ async def main():
             f"{len(users)} users "
             f"({'full population' if args.detect_modes_full_population else f'cap {DEFAULT_MODE_SCAN_LIMIT}'})..."
         )
-        validator = MarginValidator()
+        validator = MarginValidator(
+            client=HyperliquidInfoClient(
+                requests_per_minute=MODE_SCAN_REQUESTS_PER_MINUTE,
+            )
+        )
         detection_results: list[dict] = []
         batch_size = DEFAULT_MODE_BATCH_SIZE if args.detect_modes_full_population else len(users)
 
@@ -332,25 +347,41 @@ async def main():
                     f"Fetching batch {batch_index} "
                     f"({len(batch)} users, processed {min(batch_index * batch_size, len(users))}/{len(users)})..."
                 )
+            abstractions = await validator.client.get_user_abstractions_batch(batch)
             states = await validator.client.get_clearinghouse_states_batch(batch)
+            spot_users = [
+                user
+                for user in batch
+                if validator.requires_spot_clearinghouse_state(
+                    abstractions.get(user, AccountAbstraction.UNKNOWN)
+                )
+            ]
+            spot_states = await validator.client.get_spot_clearinghouse_states_batch(spot_users)
             for u in batch:
                 state = states.get(u)
+                abstraction = abstractions.get(u, AccountAbstraction.UNKNOWN)
                 if state is None:
                     print(f"Failed to fetch {u}")
                     detection_results.append(
                         {
                             "user": u,
                             "mode": None,
+                            "user_abstraction": abstraction.value,
                             "error": "Failed to fetch clearinghouse state",
                         }
                     )
                     continue
 
-                mode = validator.detect_margin_mode(state)
-                print(f"User {u}: {mode.value}")
+                mode = validator.detect_margin_mode(
+                    state,
+                    account_abstraction=abstraction,
+                )
+                spot_state = spot_states.get(u)
+                print(f"User {u}: mode={mode.value} abstraction={abstraction.value}")
                 detection_results.append(
                     {
                         "user": u,
+                        "user_abstraction": abstraction.value,
                         "mode": mode.value,
                         "account_value": state.marginSummary.accountValue,
                         "total_margin_used": state.marginSummary.totalMarginUsed,
@@ -360,6 +391,12 @@ async def main():
                             state.portfolioMarginSummary.portfolioMarginRatio
                             if state.portfolioMarginSummary is not None
                             else None
+                        ),
+                        "spot_balance_count": len(spot_state.balances) if spot_state is not None else 0,
+                        "spot_hold_total": (
+                            sum(balance.hold for balance in spot_state.balances)
+                            if spot_state is not None
+                            else 0.0
                         ),
                     }
                 )
@@ -374,6 +411,9 @@ async def main():
         print("\n--- Detection Summary ---")
         for mode, count in payload["mode_counts"].items():
             print(f"{mode}: {count}")
+        print("account_abstractions:")
+        for abstraction, count in sorted(payload["account_abstraction_counts"].items()):
+            print(f"  {abstraction}: {count}")
         print(f"portfolio_accounts: {len(payload['portfolio_margin_accounts'])}")
 
         output = Path(output_path)

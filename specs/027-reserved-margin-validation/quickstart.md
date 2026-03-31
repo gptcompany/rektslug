@@ -39,7 +39,7 @@ uv run python scripts/validate_reserved_margin.py \
   --output data/validation/portfolio_margin_accounts_full.json
 ```
 
-**Current observed result (2026-03-31)**: the corrected full scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so live PM validation remains deferred.
+**Current observed result (2026-03-31)**: the corrected `userAbstraction`-based full scan classified `394/397` users successfully and found `355 cross_margin`, `36 isolated_margin`, `3 portfolio_margin`, plus abstraction counts `176 dexAbstraction`, `122 default`, `39 disabled`, `53 unifiedAccount`, `3 portfolioMargin`, `1 unknown`. Live PM validation is therefore unblocked on account discovery.
 
 ## 3. Run Solver V1.1 (US4)
 

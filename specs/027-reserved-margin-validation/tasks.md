@@ -114,11 +114,11 @@
 
 ### Implementation for User Story 2
 
-- [x] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from parsed `ClearinghouseUserState` or raw API response (check `portfolioMarginSummary` presence, then treat the account as `isolated_margin` only when all positions are isolated; mixed `cross + isolated` accounts remain `cross_margin`)
-- [x] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: completed. The flag now supports both ranked-population scans and full-population reconstruction from the proxy report metadata, correcting stale feed paths when needed, and persists the detection artifact by default. A follow-up bugfix corrected mixed `cross + isolated` accounts that had been over-classified as `isolated_margin`; the corrected full scan run on 2026-03-31 found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`).
+- [x] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from parsed `ClearinghouseUserState` or raw API response. The current logic uses `userAbstraction` as the primary PM signal, falls back to `portfolioMarginSummary` when present, and then treats the account as `isolated_margin` only when all positions are isolated; mixed `cross + isolated` accounts remain `cross_margin`.
+- [x] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: completed. The flag now supports both ranked-population scans and full-population reconstruction from the proxy report metadata, correcting stale feed paths when needed, and persists the detection artifact by default. A follow-up bugfix corrected mixed `cross + isolated` accounts that had been over-classified as `isolated_margin`; a later follow-up aligned detection with official Hyperliquid `userAbstraction` / `spotClearinghouseState` semantics. The corrected full scan rerun on 2026-03-31 succeeded for `394/397` users and found `355 cross_margin`, `36 isolated_margin`, and `3 portfolio_margin`, with abstraction counts `176 dexAbstraction`, `122 default`, `39 disabled`, `53 unifiedAccount`, `3 portfolioMargin`, `1 unknown`.
 - [x] T024 [US2] Green tests from T021 — verify with `uv run pytest tests/test_margin_validator.py -v -k "portfolio or margin_mode"`
 
-**Checkpoint**: SC-002 detection logic is validated and the broader scan is complete. On 2026-03-31, the corrected full reconstructed population scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so live PM examples are still unavailable and US3/T029 remains blocked for live validation.
+**Checkpoint**: SC-002 detection logic is validated and the broader scan is complete. On 2026-03-31, the corrected full reconstructed population scan found live PM examples (`3/397` `portfolio_margin`, `53/397` `unifiedAccount`), so US3/T029 is no longer blocked on account discovery. The remaining US3 work is solver implementation and live comparison against those observed PM accounts.
 
 ---
 
@@ -130,20 +130,20 @@
 
 **Dependencies**: US2 (detection).
 
-**RISK**: 0/9 outlier users were portfolio-margin, and the corrected full-population scan on 2026-03-31 found `0/397` PM accounts. PM is alpha (March 2026, >$5M volume). Live validation (T029) is therefore blocked on account availability. Implement with synthetic test data only if we explicitly choose to proceed without live validation.
+**RISK**: 0/9 outlier users were portfolio-margin, but the corrected full-population scan on 2026-03-31 found `3/397` PM accounts plus `53/397` `unifiedAccount` accounts. Live validation is now unblocked on account discovery, but the PM path still needs proper solver/routing work and may require additional API state beyond perp `clearinghouseState`.
 
 ### Tests for User Story 3
 
-- [ ] T025 [US3] Write failing tests in `tests/test_portfolio_solver.py`: `test_portfolio_margin_netting_reduces_requirement` (offsetting BTC long + ETH short requires less margin than sum), `test_portfolio_margin_ratio_liquidation_threshold` (PMR > 0.95 flags liquidatable), `test_solve_portfolio_liquidation_price` (PM liqPx differs from cross-margin result)
+- [x] T025 [US3] Write failing tests in `tests/test_portfolio_solver.py`: completed with documented-PM scenarios for collateral support, PMR threshold, and a live-anchored HYPE short case derived from observed PM account `0xb1c4...`.
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Implement `compute_portfolio_margin()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: net-risk netting across positions, compute `portfolio_margin_ratio`, `netting_benefit`
-- [ ] T027 [US3] Implement `solve_portfolio_liquidation_price()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: solve for target coin price that pushes PMR > 0.95
-- [ ] T028 [US3] Green tests from T025 — verify with `uv run pytest tests/test_portfolio_solver.py -v`
-- [-] T029 [US3] Validate against live API for PM accounts (if found during US2): compare `liquidationPx` within 1% — SC-003. Deferred on 2026-03-31 because the corrected full-population scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so no live PM examples are available in the current dataset.
+- [x] T026 [US3] Implement `compute_portfolio_margin()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: completed as a documented pre-alpha PM solver using `spotClearinghouseState`, `borrowLendUserState`, `allBorrowLendReserveStates`, API-anchored `availableAfterMaintenance`, and cross-maintenance MMR deltas.
+- [x] T027 [US3] Implement `solve_portfolio_liquidation_price()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: completed with a target-price root solve over API-anchored PM liquidation value.
+- [x] T028 [US3] Green tests from T025 — verified with `uv run pytest tests/test_portfolio_solver.py -v`
+- [-] T029 [US3] Validate against live API for PM accounts found during US2: compare `liquidationPx` within 1% — SC-003. Initial live validation on 2026-03-31 is promising but incomplete: account `0xb1c4...` matched within tolerance (`solver=52.8967`, `api=53.0335`, `0.26%` error), while the other observed PM accounts did not provide a comparable PM `liquidationPx` (`0xdc00...` has no positions, `0xfc8b...` returns `null` liqPx). More PM observations are still needed to close SC-003 formally.
 
-**Checkpoint**: SC-003 is currently deferred with documented rationale. Live PM validation can resume only if PM accounts become observable, or if we explicitly accept a synthetic-only PM solver phase.
+**Checkpoint**: The PM solver now exists and has one successful live comparison under 1%, so US3 has moved from "blocked" to "partially validated". SC-003 remains open because the live comparable sample is still too small.
 
 ---
 
@@ -153,7 +153,7 @@
 
 - [ ] T030 Run full test suite: `uv run pytest tests/test_hyperliquid_sidecar.py tests/test_api_client.py tests/test_margin_validator.py tests/test_portfolio_solver.py -v --tb=short`
 - [ ] T031 Generate final validation report: run `scripts/validate_reserved_margin.py` with full outlier set, verify SC-001 (MMR) and SC-005 (no unknown gaps > 5%)
-- [ ] T032 Update contracts in `specs/027-reserved-margin-validation/contracts/` to reflect discovered API fields (`crossMaintenanceMarginUsed`, `crossMarginSummary`)
+- [x] T032 Update contracts in `specs/027-reserved-margin-validation/contracts/` to reflect discovered API fields (`crossMaintenanceMarginUsed`, `crossMarginSummary`, `userAbstraction`, `spotClearinghouseState`, borrow/lend PM endpoints)
 - [ ] T033 Update `research.md` with final validation results, formula selection rationale, and V1 vs V1.1 comparison conclusions
 
 ---
@@ -167,7 +167,7 @@
 - **Phase 3 (US1 - MMR & LiqPx Validation)**: Depends on Phase 2 (API client) — **MVP**
 - **Phase 4 (US4 - Solver V1.1)**: Depends on Phase 3 (baseline liqPx deviations from US1)
 - **Phase 5 (US2 - PM Detection)**: Depends on Phase 2 (API client) — independent of US1/US4
-- **Phase 6 (US3 - PM Solver)**: Depends on Phase 5 (detection) — currently deferred for live validation until PM accounts are found
+- **Phase 6 (US3 - PM Solver)**: Depends on Phase 5 (detection) — live PM examples are now available, so implementation can proceed directly to live validation once the solver exists
 - **Phase 7 (Polish)**: Depends on all desired phases complete
 
 ### User Story Dependencies
@@ -176,7 +176,7 @@
 Phase 1 (Setup) — T001+T002 [P] T004
   └─> Phase 2 (API Client)
         ├─> Phase 3 (US1: MMR + LiqPx Validation) ──> Phase 4 (US4: Solver V1.1)
-        └─> Phase 5 (US2: PM Detection) ──> Phase 6 (US3: PM Solver) [live validation deferred]
+        └─> Phase 5 (US2: PM Detection) ──> Phase 6 (US3: PM Solver)
 ```
 
 ### Parallel Opportunities
@@ -200,13 +200,13 @@ Phase 1 (Setup) — T001+T002 [P] T004
 ### Full Delivery
 
 1. Phases 1-4: P1 stories (US1 + US4) — core value
-2. Phases 5-6: P2 stories (US2 + US3) — portfolio margin (`US2` complete; `US3` live validation deferred unless PM accounts become available or we choose a synthetic-only implementation)
+2. Phases 5-6: P2 stories (US2 + US3) — portfolio margin (`US2` complete; `US3` now has live PM examples available for validation)
 3. Phase 7: Polish and final reports
 
 ### Key Risks
 
 1. **US4 reserved-margin estimate is still best-effort**: The true formula is undocumented. Candidate B remains the empirical winner among scalar A-D candidates (`70.09%` overall), but the stronger operational heuristic is now Candidate E (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin), which improves `cross_margin` liqPx to `96.55%` on the outlier sample. Validation remains indirect and the residual gap is concentrated in a small number of users.
-2. **US3 live validation is blocked**: the corrected full scan found `0/397` PM accounts, so SC-003 cannot be closed against live API data in the current population.
+2. **US3 live sample is still thin**: the PM solver now exists and one observed PM account validates within tolerance, but the live comparable PM sample is only one position so SC-003 cannot yet be closed.
 3. **Isolated-margin residuals**: `passed_all_accounts` is still false because the two isolated-margin accounts remain outside tolerance. They should be tracked separately from the now-resolved cross-margin blocker.
 
 ---

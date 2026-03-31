@@ -1,67 +1,247 @@
 """Hyperliquid Info API client."""
 
 import asyncio
+import json
 import logging
+import os
+import time
 from typing import Any
 
 import aiohttp
 
 from src.liquidationheatmap.hyperliquid.models import (
+    AccountAbstraction,
     AssetMetaSnapshot,
+    BorrowLendReserveState,
+    BorrowLendUserState,
     ClearinghouseUserState,
+    SpotClearinghouseState,
 )
 
 logger = logging.getLogger(__name__)
 
 
+class _EndpointUnavailableError(RuntimeError):
+    """Raised when an endpoint is temporarily unavailable."""
+
+
+class _EndpointPayloadUnsupportedError(RuntimeError):
+    """Raised when an endpoint does not support a specific payload type."""
+
+
 class HyperliquidInfoClient:
     """Async client for Hyperliquid Info API."""
 
-    BASE_URL = "https://api.hyperliquid.xyz/info"
+    DEFAULT_BASE_URL = "https://api.hyperliquid.xyz/info"
+    DEFAULT_REQUEST_TIMEOUT_SECONDS = 5.0
+    DEFAULT_ENDPOINT_COOLDOWN_SECONDS = 60.0
 
-    def __init__(self, requests_per_minute: int = 10):
+    def __init__(
+        self,
+        requests_per_minute: int = 10,
+        *,
+        base_url: str | None = None,
+        base_urls: list[str] | tuple[str, ...] | None = None,
+        request_timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
+        endpoint_cooldown_seconds: float = DEFAULT_ENDPOINT_COOLDOWN_SECONDS,
+    ):
         self.rate_limit_delay = 60.0 / requests_per_minute
         self._semaphore = asyncio.Semaphore(5)
+        self.request_timeout_seconds = request_timeout_seconds
+        self.endpoint_cooldown_seconds = endpoint_cooldown_seconds
+        self.base_urls = self._resolve_base_urls(
+            base_url=base_url,
+            base_urls=base_urls,
+        )
+        self.base_url = self.base_urls[0]
+        self._endpoint_cooldown_until: dict[str, float] = {}
+        self._unsupported_payload_types: set[tuple[str, str]] = set()
+
+    @classmethod
+    def _resolve_base_urls(
+        cls,
+        *,
+        base_url: str | None,
+        base_urls: list[str] | tuple[str, ...] | None,
+    ) -> list[str]:
+        if base_urls:
+            return cls._normalize_base_urls(base_urls)
+        if base_url:
+            return cls._normalize_base_urls([base_url])
+
+        env_fallback_urls = (
+            os.getenv("HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS")
+            or os.getenv("HYPERLIQUID_INFO_FALLBACK_URLS")
+        )
+        if env_fallback_urls:
+            return cls._normalize_base_urls(env_fallback_urls.split(","))
+
+        env_base_url = (
+            os.getenv("HEATMAP_HYPERLIQUID_INFO_URL")
+            or os.getenv("HYPERLIQUID_INFO_URL")
+            or cls.DEFAULT_BASE_URL
+        )
+        return cls._normalize_base_urls([env_base_url])
+
+    @staticmethod
+    def _normalize_base_urls(base_urls: list[str] | tuple[str, ...]) -> list[str]:
+        normalized: list[str] = []
+        for base_url in base_urls:
+            url = str(base_url).strip()
+            if not url or url in normalized:
+                continue
+            normalized.append(url)
+        if not normalized:
+            raise ValueError("At least one Hyperliquid info endpoint is required")
+        return normalized
+
+    @staticmethod
+    def _payload_type(payload: dict[str, Any]) -> str:
+        return str(payload.get("type", "unknown"))
+
+    @staticmethod
+    def _looks_like_payload_unsupported(raw_body: str) -> bool:
+        body = raw_body.strip()
+        if not body:
+            return False
+        return (
+            "Failed to deserialize" in body
+            or "unknown variant" in body.lower()
+            or "unknown field" in body.lower()
+        )
+
+    def _candidate_base_urls(self, payload_type: str) -> list[str]:
+        now = time.monotonic()
+        candidates = [
+            base_url
+            for base_url in self.base_urls
+            if (base_url, payload_type) not in self._unsupported_payload_types
+            and self._endpoint_cooldown_until.get(base_url, 0.0) <= now
+        ]
+        if candidates:
+            return candidates
+        return [
+            base_url
+            for base_url in self.base_urls
+            if (base_url, payload_type) not in self._unsupported_payload_types
+        ]
+
+    async def _post_to_base_url(
+        self,
+        base_url: str,
+        payload: dict[str, Any],
+        payload_type: str,
+    ) -> Any:
+        backoff = 1.0
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            await asyncio.sleep(self.rate_limit_delay)
+            try:
+                timeout = aiohttp.ClientTimeout(total=self.request_timeout_seconds)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                        base_url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                    ) as response:
+                        raw_body = await response.text()
+                        if response.status == 429:
+                            raise aiohttp.ClientResponseError(
+                                response.request_info,
+                                response.history,
+                                status=response.status,
+                                message="Rate limit exceeded",
+                            )
+                        if response.status >= 400:
+                            if self._looks_like_payload_unsupported(raw_body):
+                                raise _EndpointPayloadUnsupportedError(
+                                    f"{base_url} does not support payload {payload_type}"
+                                )
+                            response.raise_for_status()
+                        try:
+                            return json.loads(raw_body)
+                        except json.JSONDecodeError as exc:
+                            if self._looks_like_payload_unsupported(raw_body):
+                                raise _EndpointPayloadUnsupportedError(
+                                    f"{base_url} does not support payload {payload_type}"
+                                ) from exc
+                            raise _EndpointUnavailableError(
+                                f"{base_url} returned non-JSON response for payload {payload_type}"
+                            ) from exc
+            except _EndpointPayloadUnsupportedError:
+                raise
+            except (
+                aiohttp.ClientResponseError,
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                _EndpointUnavailableError,
+            ) as exc:
+                if attempt == max_retries - 1:
+                    raise _EndpointUnavailableError(
+                        f"Hyperliquid endpoint {base_url} failed for payload {payload_type}"
+                    ) from exc
+                await asyncio.sleep(backoff)
+                backoff *= 2.0
 
     async def _post(self, payload: dict[str, Any]) -> Any:
         """Make a POST request with retry logic and rate limiting."""
+        payload_type = self._payload_type(payload)
         async with self._semaphore:
-            # Simple rate limiting wait
-            await asyncio.sleep(self.rate_limit_delay)
-            
-            backoff = 1.0
-            max_retries = 3
-            
-            for attempt in range(max_retries):
+            last_error: Exception | None = None
+            for base_url in self._candidate_base_urls(payload_type):
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.post(
-                            self.BASE_URL,
-                            json=payload,
-                            headers={"Content-Type": "application/json"}
-                        ) as response:
-                            if response.status == 429:
-                                raise aiohttp.ClientResponseError(
-                                    response.request_info,
-                                    response.history,
-                                    status=response.status,
-                                    message="Rate limit exceeded"
-                                )
-                            response.raise_for_status()
-                            return await response.json()
-                except (aiohttp.ClientResponseError, aiohttp.ClientError, asyncio.TimeoutError) as e:
-                    if attempt == max_retries - 1:
-                        logger.error(f"Hyperliquid API request failed after {max_retries} attempts: {e}")
-                        raise
-                    
-                    # If rate limited or transient error, wait and retry
-                    await asyncio.sleep(backoff)
-                    backoff *= 2.0
+                    return await self._post_to_base_url(
+                        base_url,
+                        payload,
+                        payload_type,
+                    )
+                except _EndpointPayloadUnsupportedError as exc:
+                    self._unsupported_payload_types.add((base_url, payload_type))
+                    last_error = exc
+                    logger.warning("%s", exc)
+                except _EndpointUnavailableError as exc:
+                    self._endpoint_cooldown_until[base_url] = (
+                        time.monotonic() + self.endpoint_cooldown_seconds
+                    )
+                    last_error = exc
+                    logger.warning("%s", exc)
+
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("No Hyperliquid info endpoints configured")
 
     async def get_clearinghouse_state(self, user: str) -> ClearinghouseUserState:
         """Get clearinghouse state for a user."""
         payload = await self._post({"type": "clearinghouseState", "user": user})
         return ClearinghouseUserState.from_api(payload)
+
+    async def get_spot_clearinghouse_state(self, user: str) -> SpotClearinghouseState:
+        """Get spot clearinghouse state for a user."""
+        payload = await self._post({"type": "spotClearinghouseState", "user": user})
+        return SpotClearinghouseState.from_api(payload)
+
+    async def get_user_abstraction(self, user: str) -> AccountAbstraction:
+        """Get account abstraction mode for a user."""
+        payload = await self._post({"type": "userAbstraction", "user": user})
+        return AccountAbstraction.from_api(payload)
+
+    async def get_borrow_lend_user_state(self, user: str) -> BorrowLendUserState:
+        """Get borrow/lend user state for a user."""
+        payload = await self._post({"type": "borrowLendUserState", "user": user})
+        return BorrowLendUserState.from_api(payload)
+
+    async def get_all_borrow_lend_reserve_states(
+        self,
+    ) -> dict[int, BorrowLendReserveState]:
+        """Get all borrow/lend reserve states keyed by token id."""
+        payload = await self._post({"type": "allBorrowLendReserveStates"})
+        reserve_states: dict[int, BorrowLendReserveState] = {}
+        for item in payload:
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                continue
+            reserve_states[int(item[0])] = BorrowLendReserveState.from_api(item[1])
+        return reserve_states
 
     async def get_asset_meta(self) -> AssetMetaSnapshot:
         """Get asset metadata and context."""
@@ -84,4 +264,38 @@ class HyperliquidInfoClient:
         # Gather all requests
         await asyncio.gather(*(fetch_user(u) for u in users))
         
+        return results
+
+    async def get_spot_clearinghouse_states_batch(
+        self, users: list[str]
+    ) -> dict[str, SpotClearinghouseState]:
+        """Get spot clearinghouse state for multiple users concurrently."""
+        results: dict[str, SpotClearinghouseState] = {}
+
+        async def fetch_user(user: str):
+            try:
+                state = await self.get_spot_clearinghouse_state(user)
+                results[user] = state
+            except Exception as e:
+                logger.error(f"Failed to fetch spot clearinghouse state for {user}: {e}")
+
+        await asyncio.gather(*(fetch_user(u) for u in users))
+
+        return results
+
+    async def get_user_abstractions_batch(
+        self, users: list[str]
+    ) -> dict[str, AccountAbstraction]:
+        """Get account abstraction state for multiple users concurrently."""
+        results: dict[str, AccountAbstraction] = {}
+
+        async def fetch_user(user: str):
+            try:
+                abstraction = await self.get_user_abstraction(user)
+                results[user] = abstraction
+            except Exception as e:
+                logger.error(f"Failed to fetch user abstraction for {user}: {e}")
+
+        await asyncio.gather(*(fetch_user(u) for u in users))
+
         return results

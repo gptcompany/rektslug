@@ -1,14 +1,148 @@
 """Tests for the Hyperliquid API client."""
 
 import asyncio
-import pytest
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
-from src.liquidationheatmap.hyperliquid.models import (
-    AssetMetaSnapshot,
-    ClearinghouseUserState,
+import pytest
+
+from src.liquidationheatmap.hyperliquid.api_client import (
+    HyperliquidInfoClient,
+    _EndpointPayloadUnsupportedError,
+    _EndpointUnavailableError,
 )
+from src.liquidationheatmap.hyperliquid.models import (
+    AccountAbstraction,
+    AssetMetaSnapshot,
+    BorrowLendReserveState,
+    BorrowLendUserState,
+    ClearinghouseUserState,
+    SpotClearinghouseState,
+)
+
+
+def configure_json_response(mock_post: MagicMock, payload, *, status: int = 200):
+    response = mock_post.return_value.__aenter__.return_value
+    response.status = status
+    response.text = AsyncMock(return_value=json.dumps(payload))
+    response.raise_for_status = MagicMock()
+    response.request_info = MagicMock()
+    response.history = ()
+    return response
+
+
+def test_client_uses_public_info_api_by_default(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS", raising=False)
+    monkeypatch.delenv("HYPERLIQUID_INFO_FALLBACK_URLS", raising=False)
+    monkeypatch.delenv("HEATMAP_HYPERLIQUID_INFO_URL", raising=False)
+    monkeypatch.delenv("HYPERLIQUID_INFO_URL", raising=False)
+
+    client = HyperliquidInfoClient()
+
+    assert client.base_url == HyperliquidInfoClient.DEFAULT_BASE_URL
+    assert client.base_urls == [HyperliquidInfoClient.DEFAULT_BASE_URL]
+
+
+def test_client_reads_base_url_from_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS", raising=False)
+    monkeypatch.setenv("HEATMAP_HYPERLIQUID_INFO_URL", "http://localhost:3001/info")
+
+    client = HyperliquidInfoClient()
+
+    assert client.base_url == "http://localhost:3001/info"
+    assert client.base_urls == ["http://localhost:3001/info"]
+
+
+def test_client_reads_fallback_base_urls_from_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(
+        "HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS",
+        "http://localhost:3001/info, http://10.0.0.1:3001/info, https://api.hyperliquid.xyz/info",
+    )
+
+    client = HyperliquidInfoClient()
+
+    assert client.base_urls == [
+        "http://localhost:3001/info",
+        "http://10.0.0.1:3001/info",
+        "https://api.hyperliquid.xyz/info",
+    ]
+    assert client.base_url == "http://localhost:3001/info"
+
+
+def test_client_explicit_base_url_overrides_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(
+        "HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS",
+        "http://localhost:3001/info, http://10.0.0.1:3001/info",
+    )
+    monkeypatch.setenv("HEATMAP_HYPERLIQUID_INFO_URL", "http://localhost:3001/info")
+
+    client = HyperliquidInfoClient(base_url="http://127.0.0.1:3999/info")
+
+    assert client.base_url == "http://127.0.0.1:3999/info"
+    assert client.base_urls == ["http://127.0.0.1:3999/info"]
+
+
+@pytest.mark.asyncio
+async def test_post_falls_back_to_next_endpoint_when_primary_is_unavailable():
+    client = HyperliquidInfoClient(
+        base_urls=[
+            "http://localhost:3001/info",
+            "http://10.0.0.1:3001/info",
+            "https://api.hyperliquid.xyz/info",
+        ],
+        endpoint_cooldown_seconds=120.0,
+    )
+    client.rate_limit_delay = 0.0
+
+    with patch.object(
+        client,
+        "_post_to_base_url",
+        side_effect=[
+            _EndpointUnavailableError("local down"),
+            {"ok": True},
+        ],
+    ) as mocked_post:
+        result = await client._post({"type": "userAbstraction", "user": "0x123"})
+
+    assert result == {"ok": True}
+    assert [call.args[0] for call in mocked_post.call_args_list] == [
+        "http://localhost:3001/info",
+        "http://10.0.0.1:3001/info",
+    ]
+    assert client._endpoint_cooldown_until["http://localhost:3001/info"] > 0.0
+
+
+@pytest.mark.asyncio
+async def test_post_skips_endpoint_after_payload_marked_unsupported():
+    client = HyperliquidInfoClient(
+        base_urls=[
+            "http://localhost:3001/info",
+            "http://10.0.0.1:3001/info",
+            "https://api.hyperliquid.xyz/info",
+        ],
+    )
+    client.rate_limit_delay = 0.0
+
+    with patch.object(
+        client,
+        "_post_to_base_url",
+        side_effect=[
+            _EndpointPayloadUnsupportedError("meta unsupported locally"),
+            {"ok": "vps"},
+            {"ok": "public"},
+        ],
+    ) as mocked_post:
+        first = await client._post({"type": "metaAndAssetCtxs"})
+        second = await client._post({"type": "metaAndAssetCtxs"})
+
+    assert first == {"ok": "vps"}
+    assert second == {"ok": "public"}
+    assert [call.args[0] for call in mocked_post.call_args_list] == [
+        "http://localhost:3001/info",
+        "http://10.0.0.1:3001/info",
+        "http://10.0.0.1:3001/info",
+    ]
+    assert ("http://localhost:3001/info", "metaAndAssetCtxs") in client._unsupported_payload_types
 
 @pytest.mark.asyncio
 async def test_get_clearinghouse_state_parses_cross_maintenance_margin():
@@ -33,8 +167,7 @@ async def test_get_clearinghouse_state_parses_cross_maintenance_margin():
     }
     
     with patch("aiohttp.ClientSession.post") as mock_post:
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
-        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+        configure_json_response(mock_post, mock_response)
         
         result = await client.get_clearinghouse_state("0x123")
 
@@ -84,8 +217,7 @@ async def test_get_clearinghouse_state_parses_liquidation_px():
     }
     
     with patch("aiohttp.ClientSession.post") as mock_post:
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
-        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+        configure_json_response(mock_post, mock_response)
         
         result = await client.get_clearinghouse_state("0x123")
 
@@ -99,11 +231,114 @@ async def test_get_clearinghouse_state_handles_timeout():
     with patch("aiohttp.ClientSession.post") as mock_post:
         mock_post.side_effect = asyncio.TimeoutError("Timeout!")
         
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises(_EndpointUnavailableError):
             await client.get_clearinghouse_state("0x123")
         
         # It should retry 3 times
         assert mock_post.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_get_user_abstraction_returns_enum():
+    client = HyperliquidInfoClient()
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        configure_json_response(mock_post, "portfolioMargin")
+
+        result = await client.get_user_abstraction("0x123")
+
+    assert result == AccountAbstraction.PORTFOLIO_MARGIN
+
+
+@pytest.mark.asyncio
+async def test_get_spot_clearinghouse_state_parses_balances():
+    client = HyperliquidInfoClient()
+    mock_response = {
+        "balances": [
+            {
+                "coin": "USDC",
+                "token": 0,
+                "total": "100.5",
+                "hold": "20.25",
+                "entryNtl": "0.0",
+            }
+        ],
+        "tokenToAvailableAfterMaintenance": [[0, "80.25"]],
+    }
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        configure_json_response(mock_post, mock_response)
+
+        result = await client.get_spot_clearinghouse_state("0x123")
+
+    assert isinstance(result, SpotClearinghouseState)
+    assert result.balances[0].coin == "USDC"
+    assert result.balances[0].hold == 20.25
+    assert result.tokenToAvailableAfterMaintenance == [(0, 80.25)]
+
+
+@pytest.mark.asyncio
+async def test_get_borrow_lend_user_state_parses_token_states():
+    client = HyperliquidInfoClient()
+    mock_response = {
+        "tokenToState": [
+            [
+                0,
+                {
+                    "borrow": {"basis": "1.5", "value": "2.5"},
+                    "supply": {"basis": "3.5", "value": "4.5"},
+                },
+            ]
+        ],
+        "health": "healthy",
+        "healthFactor": None,
+    }
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        configure_json_response(mock_post, mock_response)
+
+        result = await client.get_borrow_lend_user_state("0x123")
+
+    assert isinstance(result, BorrowLendUserState)
+    assert result.health == "healthy"
+    assert result.tokenToState[0].borrow.value == 2.5
+    assert result.tokenToState[0].supply.value == 4.5
+
+
+@pytest.mark.asyncio
+async def test_get_all_borrow_lend_reserve_states_parses_map():
+    client = HyperliquidInfoClient()
+    mock_response = [
+        [
+            0,
+            {
+                "borrowYearlyRate": "0.05",
+                "supplyYearlyRate": "0.01",
+                "balance": "100.0",
+                "utilization": "0.1",
+                "oraclePx": "1.0",
+                "ltv": "0.0",
+                "totalSupplied": "200.0",
+                "totalBorrowed": "20.0",
+            },
+        ]
+    ]
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        configure_json_response(mock_post, mock_response)
+
+        result = await client.get_all_borrow_lend_reserve_states()
+
+    assert result[0] == BorrowLendReserveState(
+        borrowYearlyRate=0.05,
+        supplyYearlyRate=0.01,
+        balance=100.0,
+        utilization=0.1,
+        oraclePx=1.0,
+        ltv=0.0,
+        totalSupplied=200.0,
+        totalBorrowed=20.0,
+    )
 
 @pytest.mark.asyncio
 async def test_get_asset_meta_returns_tiers():
@@ -114,8 +349,7 @@ async def test_get_asset_meta_returns_tiers():
     ]
     
     with patch("aiohttp.ClientSession.post") as mock_post:
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
-        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+        configure_json_response(mock_post, mock_response)
         
         result = await client.get_asset_meta()
 
@@ -158,8 +392,7 @@ async def test_get_asset_meta_parses_live_margin_tables_format():
     ]
 
     with patch("aiohttp.ClientSession.post") as mock_post:
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
-        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+        configure_json_response(mock_post, mock_response)
 
         result = await client.get_asset_meta()
 
@@ -204,8 +437,7 @@ async def test_get_asset_meta_infers_piecewise_live_maintenance_deduction():
     ]
 
     with patch("aiohttp.ClientSession.post") as mock_post:
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
-        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+        configure_json_response(mock_post, mock_response)
 
         result = await client.get_asset_meta()
 

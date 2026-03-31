@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-31T14:13:39.577117+00:00",
+  "timestamp": "2026-03-31T14:50:00.798636+00:00",
   "scan_limit": 50,
   "population_sources": [
     "data/validation/hl_reserved_margin_proxy_eth_sample.json",
@@ -13,331 +13,445 @@
     "isolated_margin": 0,
     "portfolio_margin": 0
   },
+  "account_abstraction_counts": {
+    "dexAbstraction": 21,
+    "disabled": 9,
+    "default": 5,
+    "unifiedAccount": 1
+  },
   "portfolio_margin_accounts": [],
   "results": [
     {
       "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 13765380.223287,
-      "total_margin_used": 123147.351338,
-      "cross_maintenance_margin_used": 52472.967254,
+      "account_value": 13764593.635741,
+      "total_margin_used": 124040.672216,
+      "cross_maintenance_margin_used": 51278.038768,
       "position_count": 6,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 32085276.006817,
-      "total_margin_used": 8510963.717731,
-      "cross_maintenance_margin_used": 2264025.346227,
+      "account_value": 32494441.531082,
+      "total_margin_used": 8426950.955942,
+      "cross_maintenance_margin_used": 2240372.703509,
       "position_count": 86,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 1565651.397551,
-      "total_margin_used": 35223.016575,
-      "cross_maintenance_margin_used": 10561.976476,
+      "account_value": 1554861.579724,
+      "total_margin_used": 111907.157112,
+      "cross_maintenance_margin_used": 25179.99073,
       "position_count": 5,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 9289630.03653,
-      "total_margin_used": 578896.858098,
-      "cross_maintenance_margin_used": 289448.02462,
+      "account_value": 9317778.40626,
+      "total_margin_used": 536747.598486,
+      "cross_maintenance_margin_used": 268373.395959,
       "position_count": 144,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 3813269.465249,
-      "total_margin_used": 1048196.699616,
-      "cross_maintenance_margin_used": 524098.349808,
+      "account_value": 3853570.134449,
+      "total_margin_used": 1040136.565776,
+      "cross_maintenance_margin_used": 520068.282888,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x2025137a136bea7446deba681cbfc7cf1970840e",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 2216524.074969,
-      "total_margin_used": 405437.35027,
-      "cross_maintenance_margin_used": 182889.32455,
+      "account_value": 2204183.066753,
+      "total_margin_used": 403814.953277,
+      "cross_maintenance_margin_used": 182237.382757,
       "position_count": 36,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xd911e53d53b663972254e086450fd6198a25961e",
+      "user_abstraction": "default",
       "mode": "cross_margin",
-      "account_value": 6907659.497237,
-      "total_margin_used": 124276.839334,
-      "cross_maintenance_margin_used": 62138.419667,
+      "account_value": 6931820.732244,
+      "total_margin_used": 94783.89248,
+      "cross_maintenance_margin_used": 47391.94624,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xe3b6e3443c8f2080704e7421bad9340f13950acb",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 5996619.235421,
-      "total_margin_used": 205195.001344,
-      "cross_maintenance_margin_used": 82078.000537,
+      "account_value": 6033992.482953,
+      "total_margin_used": 161661.595114,
+      "cross_maintenance_margin_used": 64664.638045,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xb8eb97eaed8367079894d2f1bed69bd220ec1dd5",
+      "user_abstraction": "default",
       "mode": "cross_margin",
-      "account_value": 7179342.354246,
-      "total_margin_used": 73410.543315,
-      "cross_maintenance_margin_used": 36705.271657,
+      "account_value": 7198023.021828,
+      "total_margin_used": 35438.201104,
+      "cross_maintenance_margin_used": 17719.100552,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x4ef1c5ae65ab5b37629b7aa523e7e95e7da528e3",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 447348.758328,
-      "total_margin_used": 2205.32298,
-      "cross_maintenance_margin_used": 140.734936,
+      "account_value": 448268.7712,
+      "total_margin_used": 13831.124425,
+      "cross_maintenance_margin_used": 692.424282,
       "position_count": 2,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xc06dd151c27dbe535ae95797e8aab1bb8b8cc7c0",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 423205.216742,
-      "total_margin_used": 7035.719108,
-      "cross_maintenance_margin_used": 2167.25204,
+      "account_value": 424863.067457,
+      "total_margin_used": 10382.189501,
+      "cross_maintenance_margin_used": 2999.916039,
       "position_count": 2,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xd6e1a6f7bb47aca69aaa511210227d40926ff256",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 587897.633359,
-      "total_margin_used": 121671.441674,
-      "cross_maintenance_margin_used": 41569.485279,
+      "account_value": 592387.688937,
+      "total_margin_used": 120766.635066,
+      "cross_maintenance_margin_used": 41253.738897,
       "position_count": 6,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 7126789.08621,
-      "total_margin_used": 1017434.060088,
-      "cross_maintenance_margin_used": 386649.475653,
+      "account_value": 7152384.930033,
+      "total_margin_used": 1010328.483556,
+      "cross_maintenance_margin_used": 383304.989995,
       "position_count": 52,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x39475d17bcd20adc540e647dae6781b153fbf3b1",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 10163161.104226,
-      "total_margin_used": 183647.742609,
-      "cross_maintenance_margin_used": 58635.738131,
+      "account_value": 10184303.192356,
+      "total_margin_used": 178110.576854,
+      "cross_maintenance_margin_used": 55683.675077,
       "position_count": 36,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x76bf72092bbfe1c935b6d834f70dd9e75b057fd6",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 375746.127609,
-      "total_margin_used": 28785.850617,
-      "cross_maintenance_margin_used": 9050.125103,
+      "account_value": 376395.133299,
+      "total_margin_used": 28578.991909,
+      "cross_maintenance_margin_used": 8980.462252,
       "position_count": 2,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x85ecf584f25db6f146718b86d493e33c5af72052",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 1234560.51604,
-      "total_margin_used": 12212.583128,
-      "cross_maintenance_margin_used": 4885.033251,
+      "account_value": 1232112.427431,
+      "total_margin_used": 11233.692962,
+      "cross_maintenance_margin_used": 4493.477184,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xaf9f722a676230cc44045efe26fe9a85801ca4fa",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 2241667.63357,
-      "total_margin_used": 116310.711808,
-      "cross_maintenance_margin_used": 48693.455485,
+      "account_value": 2234400.897821,
+      "total_margin_used": 120657.105855,
+      "cross_maintenance_margin_used": 50033.913661,
       "position_count": 37,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x34fb5ec7d4e939161946340ea2a1f29254b893de",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 3730378.841413,
-      "total_margin_used": 84134.112492,
-      "cross_maintenance_margin_used": 28453.453953,
+      "account_value": 3735990.356586,
+      "total_margin_used": 75659.992971,
+      "cross_maintenance_margin_used": 24917.617465,
       "position_count": 36,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x0a07eb223ff53b8597b18148ab3dd823f9364d6c",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 1075375.973872,
-      "total_margin_used": 68078.320066,
-      "cross_maintenance_margin_used": 11706.107195,
+      "account_value": 1069442.710026,
+      "total_margin_used": 75787.491486,
+      "cross_maintenance_margin_used": 12845.96558,
       "position_count": 3,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x621c5551678189b9a6c94d929924c225ff1d63ab",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 3355087.555446,
-      "total_margin_used": 98052.543081,
-      "cross_maintenance_margin_used": 37347.519927,
+      "account_value": 3359293.585168,
+      "total_margin_used": 91118.199166,
+      "cross_maintenance_margin_used": 37195.961376,
       "position_count": 41,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "user_abstraction": "disabled",
       "mode": "cross_margin",
-      "account_value": 16007994.5009,
-      "total_margin_used": 3419561.326633,
-      "cross_maintenance_margin_used": 1452239.452076,
+      "account_value": 16038657.585279,
+      "total_margin_used": 3237251.033307,
+      "cross_maintenance_margin_used": 1387437.977561,
       "position_count": 6,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 19206310.631373,
-      "total_margin_used": 6449382.623164,
-      "cross_maintenance_margin_used": 2057535.641893,
+      "account_value": 19760568.214987,
+      "total_margin_used": 6386011.533379,
+      "cross_maintenance_margin_used": 2037504.4145,
       "position_count": 25,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 22506202.812003,
-      "total_margin_used": 8464228.300737,
-      "cross_maintenance_margin_used": 2552126.597733,
+      "account_value": 23020941.944573,
+      "total_margin_used": 8377885.156465,
+      "cross_maintenance_margin_used": 2514557.389461,
       "position_count": 16,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 5657675.952041,
-      "total_margin_used": 2610627.993097,
-      "cross_maintenance_margin_used": 1245594.641612,
+      "account_value": 5752328.971842,
+      "total_margin_used": 2629961.253192,
+      "cross_maintenance_margin_used": 1252502.01412,
       "position_count": 173,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x010461c14e146ac35fe42271bdc1134ee31c703a",
+      "user_abstraction": "default",
       "mode": "cross_margin",
-      "account_value": 134966040.275689,
-      "total_margin_used": 897523.218803,
-      "cross_maintenance_margin_used": 179504.643693,
+      "account_value": 134931421.060361,
+      "total_margin_used": 894036.586461,
+      "cross_maintenance_margin_used": 178807.317232,
       "position_count": 189,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x31ca8395cf837de08b24da3f660e77761dfb974b",
+      "user_abstraction": "default",
       "mode": "cross_margin",
-      "account_value": 135110592.787667,
-      "total_margin_used": 872779.031271,
-      "cross_maintenance_margin_used": 174555.806183,
+      "account_value": 135144099.703643,
+      "total_margin_used": 868318.499139,
+      "cross_maintenance_margin_used": 173663.69976,
       "position_count": 189,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x0c4926daf1250b8da7b9fc339f304d923b94d346",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 2002235.824884,
-      "total_margin_used": 628149.364086,
-      "cross_maintenance_margin_used": 313973.818874,
+      "account_value": 1997944.58172,
+      "total_margin_used": 621701.58442,
+      "cross_maintenance_margin_used": 310767.406006,
       "position_count": 17,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x07fd993f0fa3a185f7207adccd29f7a87404689d",
+      "user_abstraction": "default",
       "mode": "cross_margin",
-      "account_value": 3828538.491543,
-      "total_margin_used": 1812530.640246,
-      "cross_maintenance_margin_used": 892038.475757,
+      "account_value": 3836397.694147,
+      "total_margin_used": 1804690.123142,
+      "cross_maintenance_margin_used": 888133.97263,
       "position_count": 58,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xd0254dd9c10498b256b6ec3bd8de37a9ba4329de",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 727511.581652,
-      "total_margin_used": 658293.663369,
-      "cross_maintenance_margin_used": 329146.831668,
+      "account_value": 721698.787693,
+      "total_margin_used": 658639.212475,
+      "cross_maintenance_margin_used": 329319.606223,
       "position_count": 101,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 3061478.364135,
-      "total_margin_used": 239471.204071,
-      "cross_maintenance_margin_used": 107090.961466,
+      "account_value": 2875417.553422,
+      "total_margin_used": 237309.402972,
+      "cross_maintenance_margin_used": 106149.204023,
       "position_count": 82,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0x7a6d5fc57f6906f337c48fe2763c3a501304f79c",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 1070005.028107,
-      "total_margin_used": 35381.406958,
-      "cross_maintenance_margin_used": 17690.703479,
-      "position_count": 3,
-      "portfolio_margin_ratio": null
+      "account_value": 1063293.406779,
+      "total_margin_used": 34303.684904,
+      "cross_maintenance_margin_used": 17151.842452,
+      "position_count": 2,
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xac7476e14f768e3e67c195e79c2490dd20c70127",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 4438526.372483,
-      "total_margin_used": 282826.590844,
-      "cross_maintenance_margin_used": 112990.598572,
+      "account_value": 4425050.92512,
+      "total_margin_used": 286686.462313,
+      "cross_maintenance_margin_used": 112974.503804,
       "position_count": 40,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xad572a7894c7b0ba4db67c2a7602dd3376d4f094",
+      "user_abstraction": "unifiedAccount",
       "mode": "cross_margin",
-      "account_value": 146685.031388,
-      "total_margin_used": 133564.45,
-      "cross_maintenance_margin_used": 66782.225,
+      "account_value": 162957.212309,
+      "total_margin_used": 132674.17,
+      "cross_maintenance_margin_used": 66337.085,
       "position_count": 1,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 5,
+      "spot_hold_total": 190994.93884100002
     },
     {
       "user": "0xf9109ada2f73c62e9889b45453065f0d99260a2d",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 12369707.722432,
-      "total_margin_used": 1088592.903728,
-      "cross_maintenance_margin_used": 192535.511203,
+      "account_value": 12388828.318645,
+      "total_margin_used": 1064041.126877,
+      "cross_maintenance_margin_used": 177212.532153,
       "position_count": 50,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xd63c228ea09e4d999f5fb3ed7d3529756e3a724f",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 448027.355688,
-      "total_margin_used": 186831.09353,
-      "cross_maintenance_margin_used": 93415.384631,
+      "account_value": 447794.156687,
+      "total_margin_used": 185291.16466,
+      "cross_maintenance_margin_used": 92645.420752,
       "position_count": 101,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     },
     {
       "user": "0xcb2363421221db0ef30f083b8f98f7f57a841327",
+      "user_abstraction": "dexAbstraction",
       "mode": "cross_margin",
-      "account_value": 463335.442344,
-      "total_margin_used": 353865.000312,
-      "cross_maintenance_margin_used": 176932.500148,
+      "account_value": 457670.857653,
+      "total_margin_used": 353111.353778,
+      "cross_maintenance_margin_used": 176555.676876,
       "position_count": 73,
-      "portfolio_margin_ratio": null
+      "portfolio_margin_ratio": null,
+      "spot_balance_count": 0,
+      "spot_hold_total": 0.0
     }
   ]
 }

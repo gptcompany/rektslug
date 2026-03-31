@@ -11,6 +11,26 @@ class MarginMode(StrEnum):
     PORTFOLIO_MARGIN = "portfolio_margin"
 
 
+class AccountAbstraction(StrEnum):
+    """Account abstraction state reported by Hyperliquid."""
+
+    DEFAULT = "default"
+    DISABLED = "disabled"
+    DEX_ABSTRACTION = "dexAbstraction"
+    UNIFIED_ACCOUNT = "unifiedAccount"
+    PORTFOLIO_MARGIN = "portfolioMargin"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_api(cls, payload: str | None) -> "AccountAbstraction":
+        if payload is None:
+            return cls.UNKNOWN
+        try:
+            return cls(str(payload))
+        except ValueError:
+            return cls.UNKNOWN
+
+
 @dataclass(frozen=True)
 class MarginSummary:
     accountValue: float
@@ -160,6 +180,137 @@ class ClearinghouseUserState:
             assetPositions=[ApiPosition.from_api(item) for item in payload.get("assetPositions", [])],
             time=int(payload.get("time", 0)),
             portfolioMarginSummary=PortfolioMarginSummary.from_api(payload.get("portfolioMarginSummary")),
+        )
+
+
+@dataclass(frozen=True)
+class SpotBalance:
+    coin: str
+    token: int
+    total: float
+    hold: float
+    entryNtl: float
+    spotHold: float | None = None
+    ltv: float | None = None
+    supplied: float | None = None
+
+    @classmethod
+    def from_api(cls, payload: dict) -> "SpotBalance":
+        return cls(
+            coin=str(payload.get("coin", "")),
+            token=int(payload.get("token", 0)),
+            total=float(payload.get("total", 0.0)),
+            hold=float(payload.get("hold", 0.0)),
+            entryNtl=float(payload.get("entryNtl", 0.0)),
+            spotHold=(
+                float(payload["spotHold"])
+                if payload.get("spotHold") not in (None, "")
+                else None
+            ),
+            ltv=(
+                float(payload["ltv"])
+                if payload.get("ltv") not in (None, "")
+                else None
+            ),
+            supplied=(
+                float(payload["supplied"])
+                if payload.get("supplied") not in (None, "")
+                else None
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class SpotClearinghouseState:
+    balances: list[SpotBalance]
+    tokenToAvailableAfterMaintenance: list[tuple[int, float]]
+
+    @classmethod
+    def from_api(cls, payload: dict | None) -> "SpotClearinghouseState":
+        data = payload or {}
+        return cls(
+            balances=[SpotBalance.from_api(item) for item in data.get("balances", [])],
+            tokenToAvailableAfterMaintenance=[
+                (int(item[0]), float(item[1]))
+                for item in data.get("tokenToAvailableAfterMaintenance", [])
+                if isinstance(item, (list, tuple)) and len(item) >= 2
+            ],
+        )
+
+
+@dataclass(frozen=True)
+class BorrowLendAmount:
+    basis: float
+    value: float
+
+    @classmethod
+    def from_api(cls, payload: dict | None) -> "BorrowLendAmount":
+        data = payload or {}
+        return cls(
+            basis=float(data.get("basis", 0.0)),
+            value=float(data.get("value", 0.0)),
+        )
+
+
+@dataclass(frozen=True)
+class BorrowLendTokenState:
+    borrow: BorrowLendAmount
+    supply: BorrowLendAmount
+
+    @classmethod
+    def from_api(cls, payload: dict | None) -> "BorrowLendTokenState":
+        data = payload or {}
+        return cls(
+            borrow=BorrowLendAmount.from_api(data.get("borrow")),
+            supply=BorrowLendAmount.from_api(data.get("supply")),
+        )
+
+
+@dataclass(frozen=True)
+class BorrowLendUserState:
+    tokenToState: dict[int, BorrowLendTokenState]
+    health: str | None
+    healthFactor: float | None
+
+    @classmethod
+    def from_api(cls, payload: dict | None) -> "BorrowLendUserState":
+        data = payload or {}
+        token_to_state: dict[int, BorrowLendTokenState] = {}
+        for item in data.get("tokenToState", []):
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                continue
+            token_to_state[int(item[0])] = BorrowLendTokenState.from_api(item[1])
+        health_factor = data.get("healthFactor")
+        return cls(
+            tokenToState=token_to_state,
+            health=data.get("health"),
+            healthFactor=float(health_factor) if health_factor not in (None, "") else None,
+        )
+
+
+@dataclass(frozen=True)
+class BorrowLendReserveState:
+    borrowYearlyRate: float
+    supplyYearlyRate: float
+    balance: float
+    utilization: float
+    oraclePx: float
+    ltv: float
+    totalSupplied: float
+    totalBorrowed: float
+
+    @classmethod
+    def from_api(cls, payload: dict | None) -> "BorrowLendReserveState":
+        data = payload or {}
+        return cls(
+            borrowYearlyRate=float(data.get("borrowYearlyRate", 0.0)),
+            supplyYearlyRate=float(data.get("supplyYearlyRate", 0.0)),
+            balance=float(data.get("balance", 0.0)),
+            utilization=float(data.get("utilization", 0.0)),
+            oraclePx=float(data.get("oraclePx", 0.0)),
+            ltv=float(data.get("ltv", 0.0)),
+            totalSupplied=float(data.get("totalSupplied", 0.0)),
+            totalBorrowed=float(data.get("totalBorrowed", 0.0)),
         )
 
 
@@ -325,6 +476,7 @@ class MarginModeReportSummary:
 class MarginValidationResult:
     user: str
     mode: MarginMode
+    account_abstraction: str | None
     api_total_margin_used: float
     api_cross_maintenance_margin_used: float
     sidecar_total_mmr: float
