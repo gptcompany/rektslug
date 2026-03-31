@@ -84,25 +84,43 @@ def _build_user_state(
     meta: AssetMetaSnapshot,
 ) -> tuple[UserState, dict[int, float], dict[int, list[dict]], dict[str, dict], dict[str, float]]:
     asset_meta = {
-        asset.name: {"idx": idx, "maxLeverage": asset.maxLeverage}
+        asset.name: {
+            "idx": idx,
+            "maxLeverage": asset.maxLeverage,
+            "marginTableId": asset.marginTableId,
+        }
         for idx, asset in enumerate(meta.universe)
     }
     mark_prices = {idx: ctx.markPx for idx, ctx in enumerate(meta.assetContexts)}
 
     tiers = {}
+    for asset_name, info in asset_meta.items():
+        idx = info["idx"]
+        table_id = info["marginTableId"]
+        if table_id in meta.margin_tables:
+            tiers[idx] = [
+                {
+                    "lower_bound": tier.lower_bound,
+                    "mmr_rate": tier.mmr_rate,
+                    "maintenance_deduction": tier.maintenance_deduction,
+                }
+                for tier in meta.margin_tables[table_id]
+            ]
+        else:
+            max_leverage = float(info["maxLeverage"])
+            tiers[idx] = [
+                {
+                    "lower_bound": 0.0,
+                    "mmr_rate": 1.0 / (2.0 * max_leverage) if max_leverage > 0 else 0.01,
+                    "maintenance_deduction": 0.0,
+                }
+            ]
+
     positions = []
     current_positions = {}
     for api_position in state.assetPositions:
         position = api_position.position
         idx = asset_meta[position.coin]["idx"]
-        max_leverage = float(position.maxLeverage)
-        tiers[idx] = [
-            {
-                "lower_bound": 0.0,
-                "mmr_rate": 1.0 / (2.0 * max_leverage) if max_leverage > 0 else 0.01,
-                "maintenance_deduction": 0.0,
-            }
-        ]
         positions.append(
             UserPosition(
                 coin=position.coin,
