@@ -1,0 +1,3035 @@
+{
+  "candidate": "D",
+  "user_count": 9,
+  "positions_compared": 325,
+  "improved_positions": 197,
+  "worsened_positions": 111,
+  "unchanged_positions": 17,
+  "improvement_rate": 0.6061538461538462,
+  "results": [
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 1360513.0746732,
+      "improved_positions": 1,
+      "worsened_positions": 4,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 23721.0466570122,
+          "v1_liquidation_px": 24572.470086692527,
+          "v1_1_liquidation_px": 22418.991626429928,
+          "v1_abs_error": 851.4234296803261,
+          "v1_1_abs_error": 1302.0550305822726,
+          "improved": false
+        },
+        {
+          "coin": "SOL",
+          "api_liquidation_px": 20027.7454202103,
+          "v1_liquidation_px": 20812.94470853148,
+          "v1_1_liquidation_px": 18828.538194733093,
+          "v1_abs_error": 785.1992883211788,
+          "v1_1_abs_error": 1199.2072254772065,
+          "improved": false
+        },
+        {
+          "coin": "BNB",
+          "api_liquidation_px": 32006.4071976159,
+          "v1_liquidation_px": 34455.094614925234,
+          "v1_1_liquidation_px": 31215.777770465236,
+          "v1_abs_error": 2448.6874173093347,
+          "v1_1_abs_error": 790.6294271506631,
+          "improved": true
+        },
+        {
+          "coin": "MNT",
+          "api_liquidation_px": 44.8813442413,
+          "v1_liquidation_px": 46.62106700286098,
+          "v1_1_liquidation_px": 42.22445570999888,
+          "v1_abs_error": 1.7397227615609836,
+          "v1_1_abs_error": 2.656888531301121,
+          "improved": false
+        },
+        {
+          "coin": "LIT",
+          "api_liquidation_px": 183.6229160288,
+          "v1_liquidation_px": 190.81969815867112,
+          "v1_1_liquidation_px": 172.63102068977807,
+          "v1_abs_error": 7.19678212987111,
+          "v1_1_abs_error": 10.991895339021937,
+          "improved": false
+        }
+      ]
+    },
+    {
+      "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 339717.08105675003,
+      "improved_positions": 8,
+      "worsened_positions": 88,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "BTC",
+          "api_liquidation_px": 1010314.0309883575,
+          "v1_liquidation_px": 1012551.3452599465,
+          "v1_1_liquidation_px": 979450.1441270841,
+          "v1_abs_error": 2237.3142715890426,
+          "v1_1_abs_error": 30863.886861273437,
+          "improved": false
+        },
+        {
+          "coin": "ATOM",
+          "api_liquidation_px": 2389142.1851321636,
+          "v1_liquidation_px": 2394806.891284272,
+          "v1_1_liquidation_px": 2310884.6874659047,
+          "v1_abs_error": 5664.706152108498,
+          "v1_1_abs_error": 78257.49766625883,
+          "improved": false
+        },
+        {
+          "coin": "DYDX",
+          "api_liquidation_px": 1878.7389576049,
+          "v1_liquidation_px": 1883.1932064594275,
+          "v1_1_liquidation_px": 1817.2030974740449,
+          "v1_abs_error": 4.454248854527577,
+          "v1_1_abs_error": 61.5358601308551,
+          "improved": false
+        },
+        {
+          "coin": "SOL",
+          "api_liquidation_px": 1375.5332559288,
+          "v1_liquidation_px": 1378.5987523378935,
+          "v1_1_liquidation_px": 1333.2280939242448,
+          "v1_abs_error": 3.065496409093612,
+          "v1_1_abs_error": 42.305162004555086,
+          "improved": false
+        },
+        {
+          "coin": "AVAX",
+          "api_liquidation_px": 5022.2383499839,
+          "v1_liquidation_px": 5034.127864733893,
+          "v1_1_liquidation_px": 4858.031506947749,
+          "v1_abs_error": 11.889514749993396,
+          "v1_1_abs_error": 164.20684303615053,
+          "improved": false
+        },
+        {
+          "coin": "APE",
+          "api_liquidation_px": 43960185.154531814,
+          "v1_liquidation_px": 44064415.747740604,
+          "v1_1_liquidation_px": 42520247.19748265,
+          "v1_abs_error": 104230.59320878983,
+          "v1_1_abs_error": 1439937.9570491612,
+          "improved": false
+        },
+        {
+          "coin": "OP",
+          "api_liquidation_px": 29.1561534542,
+          "v1_liquidation_px": 30.1507500790911,
+          "v1_1_liquidation_px": 29.097956234855662,
+          "v1_abs_error": 0.994596624891102,
+          "v1_1_abs_error": 0.058197219344336304,
+          "improved": true
+        },
+        {
+          "coin": "ARB",
+          "api_liquidation_px": 126.1374323514,
+          "v1_liquidation_px": 130.43547432925243,
+          "v1_1_liquidation_px": 125.86782821519677,
+          "v1_abs_error": 4.298041977852435,
+          "v1_1_abs_error": 0.26960413620322754,
+          "improved": true
+        },
+        {
+          "coin": "DOGE",
+          "api_liquidation_px": 2.6698004286,
+          "v1_liquidation_px": 2.675918126916815,
+          "v1_1_liquidation_px": 2.5853737674403723,
+          "v1_abs_error": 0.00611769831681519,
+          "v1_1_abs_error": 0.0844266611596276,
+          "improved": false
+        },
+        {
+          "coin": "SUI",
+          "api_liquidation_px": 160.4373947747,
+          "v1_liquidation_px": 160.81572567121745,
+          "v1_1_liquidation_px": 155.2110776428754,
+          "v1_abs_error": 0.3783308965174399,
+          "v1_1_abs_error": 5.226317131824601,
+          "improved": false
+        },
+        {
+          "coin": "CRV",
+          "api_liquidation_px": 50.7903436845,
+          "v1_liquidation_px": 50.91024829883561,
+          "v1_1_liquidation_px": 49.13387028192338,
+          "v1_abs_error": 0.11990461433560995,
+          "v1_1_abs_error": 1.6564734025766228,
+          "improved": false
+        },
+        {
+          "coin": "LDO",
+          "api_liquidation_px": 138.2737319341,
+          "v1_liquidation_px": 142.98824770543584,
+          "v1_1_liquidation_px": 137.98903454442544,
+          "v1_abs_error": 4.71451577133584,
+          "v1_1_abs_error": 0.2846973896745624,
+          "improved": true
+        },
+        {
+          "coin": "LINK",
+          "api_liquidation_px": 697.9152775272,
+          "v1_liquidation_px": 699.5499837785377,
+          "v1_1_liquidation_px": 675.3437831802357,
+          "v1_abs_error": 1.6347062513376613,
+          "v1_1_abs_error": 22.5714943469643,
+          "improved": false
+        },
+        {
+          "coin": "CFX",
+          "api_liquidation_px": 29602.8720459229,
+          "v1_liquidation_px": 29673.060997572797,
+          "v1_1_liquidation_px": 28633.216855984952,
+          "v1_abs_error": 70.1889516498959,
+          "v1_1_abs_error": 969.6551899379483,
+          "improved": false
+        },
+        {
+          "coin": "XRP",
+          "api_liquidation_px": 25.6554764484,
+          "v1_liquidation_px": 25.71313183829633,
+          "v1_1_liquidation_px": 24.85897148936599,
+          "v1_abs_error": 0.05765538989632901,
+          "v1_1_abs_error": 0.7965049590340101,
+          "improved": false
+        },
+        {
+          "coin": "BCH",
+          "api_liquidation_px": 30622.8233548402,
+          "v1_liquidation_px": 30694.45795167257,
+          "v1_1_liquidation_px": 29635.12262370597,
+          "v1_abs_error": 71.63459683237306,
+          "v1_1_abs_error": 987.7007311342277,
+          "improved": false
+        },
+        {
+          "coin": "COMP",
+          "api_liquidation_px": 62800282.097649336,
+          "v1_liquidation_px": 62949182.94507229,
+          "v1_1_liquidation_px": 60743227.87327521,
+          "v1_abs_error": 148900.84742295742,
+          "v1_1_abs_error": 2057054.224374123,
+          "improved": false
+        },
+        {
+          "coin": "YGG",
+          "api_liquidation_px": 4664.9959908752,
+          "v1_liquidation_px": 4676.056737864683,
+          "v1_1_liquidation_px": 4512.192883347399,
+          "v1_abs_error": 11.06074698948305,
+          "v1_1_abs_error": 152.80310752780042,
+          "improved": false
+        },
+        {
+          "coin": "kSHIB",
+          "api_liquidation_px": 2.2142838648,
+          "v1_liquidation_px": 2.289790003916299,
+          "v1_1_liquidation_px": 2.209756857428291,
+          "v1_abs_error": 0.07550613911629878,
+          "v1_1_abs_error": 0.004527007371708969,
+          "improved": true
+        },
+        {
+          "coin": "SEI",
+          "api_liquidation_px": 8928400.70022,
+          "v1_liquidation_px": 9232544.286430936,
+          "v1_1_liquidation_px": 8909004.20923403,
+          "v1_abs_error": 304143.5862109363,
+          "v1_1_abs_error": 19396.49098596908,
+          "improved": true
+        },
+        {
+          "coin": "ZRO",
+          "api_liquidation_px": 95.9696632349,
+          "v1_liquidation_px": 96.19298841133842,
+          "v1_1_liquidation_px": 92.88888687210768,
+          "v1_abs_error": 0.2233251764384221,
+          "v1_1_abs_error": 3.080776362792321,
+          "improved": false
+        },
+        {
+          "coin": "DOT",
+          "api_liquidation_px": 711.7339671125,
+          "v1_liquidation_px": 735.9952890149402,
+          "v1_1_liquidation_px": 710.2476185763766,
+          "v1_abs_error": 24.261321902440272,
+          "v1_1_abs_error": 1.486348536123387,
+          "improved": true
+        },
+        {
+          "coin": "BANANA",
+          "api_liquidation_px": 2240445.1677690344,
+          "v1_liquidation_px": 2245757.3061096063,
+          "v1_1_liquidation_px": 2167058.368413062,
+          "v1_abs_error": 5312.138340571895,
+          "v1_1_abs_error": 73386.79935597256,
+          "improved": false
+        },
+        {
+          "coin": "ARK",
+          "api_liquidation_px": 8289635.061605142,
+          "v1_liquidation_px": 8309289.973465542,
+          "v1_1_liquidation_px": 8018103.903988329,
+          "v1_abs_error": 19654.91186039988,
+          "v1_1_abs_error": 271531.15761681367,
+          "improved": false
+        },
+        {
+          "coin": "KAS",
+          "api_liquidation_px": 18.6475599824,
+          "v1_liquidation_px": 18.691697576105508,
+          "v1_1_liquidation_px": 18.037802380674876,
+          "v1_abs_error": 0.04413759370550707,
+          "v1_1_abs_error": 0.6097576017251249,
+          "improved": false
+        },
+        {
+          "coin": "ADA",
+          "api_liquidation_px": 51.1449824729,
+          "v1_liquidation_px": 51.2656594449543,
+          "v1_1_liquidation_px": 49.47783900500656,
+          "v1_abs_error": 0.12067697205430505,
+          "v1_1_abs_error": 1.667143467893439,
+          "improved": false
+        },
+        {
+          "coin": "TON",
+          "api_liquidation_px": 314.0927578425,
+          "v1_liquidation_px": 324.8082535004341,
+          "v1_1_liquidation_px": 313.4692188568105,
+          "v1_abs_error": 10.71549565793407,
+          "v1_1_abs_error": 0.6235389856894926,
+          "improved": true
+        },
+        {
+          "coin": "POLYX",
+          "api_liquidation_px": 52800.2684260236,
+          "v1_liquidation_px": 52925.45894742384,
+          "v1_1_liquidation_px": 51070.77060680465,
+          "v1_abs_error": 125.19052140023996,
+          "v1_1_abs_error": 1729.497819218952,
+          "improved": false
+        },
+        {
+          "coin": "PENDLE",
+          "api_liquidation_px": 209335.3538188312,
+          "v1_liquidation_px": 209831.68997690766,
+          "v1_1_liquidation_px": 202478.50640425074,
+          "v1_abs_error": 496.33615807644674,
+          "v1_1_abs_error": 6856.847414580465,
+          "improved": false
+        },
+        {
+          "coin": "FET",
+          "api_liquidation_px": 99.3839199572,
+          "v1_liquidation_px": 99.61900976622107,
+          "v1_1_liquidation_px": 96.13617158490781,
+          "v1_abs_error": 0.23508980902106202,
+          "v1_1_abs_error": 3.247748372292193,
+          "improved": false
+        },
+        {
+          "coin": "NEAR",
+          "api_liquidation_px": 580.2348501492,
+          "v1_liquidation_px": 581.6077804839431,
+          "v1_1_liquidation_px": 561.2679188409309,
+          "v1_abs_error": 1.372930334743046,
+          "v1_1_abs_error": 18.96693130826918,
+          "improved": false
+        },
+        {
+          "coin": "FIL",
+          "api_liquidation_px": 416.0623910158,
+          "v1_liquidation_px": 417.0469052221199,
+          "v1_1_liquidation_px": 402.46125172338134,
+          "v1_abs_error": 0.9845142063198864,
+          "v1_1_abs_error": 13.60113929241868,
+          "improved": false
+        },
+        {
+          "coin": "PYTH",
+          "api_liquidation_px": 8792037.052815454,
+          "v1_liquidation_px": 8812883.171450121,
+          "v1_1_liquidation_px": 8504049.46139853,
+          "v1_abs_error": 20846.118634667248,
+          "v1_1_abs_error": 287987.59141692333,
+          "improved": false
+        },
+        {
+          "coin": "USTC",
+          "api_liquidation_px": 4386.0546740612,
+          "v1_liquidation_px": 4396.454098325685,
+          "v1_1_liquidation_px": 4242.387394898587,
+          "v1_abs_error": 10.399424264484878,
+          "v1_1_abs_error": 143.66727916261243,
+          "improved": false
+        },
+        {
+          "coin": "RSR",
+          "api_liquidation_px": 2264.3104683718,
+          "v1_liquidation_px": 2269.679196003699,
+          "v1_1_liquidation_px": 2190.1418921312015,
+          "v1_abs_error": 5.368727631898764,
+          "v1_1_abs_error": 74.16857624059867,
+          "improved": false
+        },
+        {
+          "coin": "JTO",
+          "api_liquidation_px": 8792037.290790908,
+          "v1_liquidation_px": 8812883.40943012,
+          "v1_1_liquidation_px": 8504049.69937853,
+          "v1_abs_error": 20846.1186392121,
+          "v1_1_abs_error": 287987.5914123785,
+          "improved": false
+        },
+        {
+          "coin": "ACE",
+          "api_liquidation_px": 82797.1083979396,
+          "v1_liquidation_px": 82993.42194028707,
+          "v1_1_liquidation_px": 80085.05129029491,
+          "v1_abs_error": 196.3135423474596,
+          "v1_1_abs_error": 2712.057107644694,
+          "improved": false
+        },
+        {
+          "coin": "WIF",
+          "api_liquidation_px": 67.1554822712,
+          "v1_liquidation_px": 67.31428322376532,
+          "v1_1_liquidation_px": 64.9616588251762,
+          "v1_abs_error": 0.1588009525653149,
+          "v1_1_abs_error": 2.1938234460237993,
+          "improved": false
+        },
+        {
+          "coin": "PEOPLE",
+          "api_liquidation_px": 8289634.905189428,
+          "v1_liquidation_px": 8309289.817052542,
+          "v1_1_liquidation_px": 8018103.747575329,
+          "v1_abs_error": 19654.911863114685,
+          "v1_1_abs_error": 271531.15761409886,
+          "improved": false
+        },
+        {
+          "coin": "XAI",
+          "api_liquidation_px": 5921167.794082654,
+          "v1_liquidation_px": 5935207.016839675,
+          "v1_1_liquidation_px": 5727216.967213093,
+          "v1_abs_error": 14039.222757020965,
+          "v1_1_abs_error": 193950.8268695604,
+          "improved": false
+        },
+        {
+          "coin": "MANTA",
+          "api_liquidation_px": 61268.6121701425,
+          "v1_liquidation_px": 61413.881289582714,
+          "v1_1_liquidation_px": 59261.73000002459,
+          "v1_abs_error": 145.26911944021413,
+          "v1_1_abs_error": 2006.8821701179113,
+          "improved": false
+        },
+        {
+          "coin": "UMA",
+          "api_liquidation_px": 82896349.39215428,
+          "v1_liquidation_px": 83092898.5107554,
+          "v1_1_liquidation_px": 80181037.81598328,
+          "v1_abs_error": 196549.11860112846,
+          "v1_1_abs_error": 2715311.576170996,
+          "improved": false
+        },
+        {
+          "coin": "ALT",
+          "api_liquidation_px": 10587.0241388374,
+          "v1_liquidation_px": 10612.126196406824,
+          "v1_1_liquidation_px": 10240.241050203485,
+          "v1_abs_error": 25.102057569423778,
+          "v1_1_abs_error": 346.7830886339143,
+          "improved": false
+        },
+        {
+          "coin": "MAVIA",
+          "api_liquidation_px": 5354.0518827099,
+          "v1_liquidation_px": 5366.746394018951,
+          "v1_1_liquidation_px": 5178.678145309261,
+          "v1_abs_error": 12.69451130905054,
+          "v1_1_abs_error": 175.37373740063958,
+          "improved": false
+        },
+        {
+          "coin": "W",
+          "api_liquidation_px": 87920370.15465453,
+          "v1_liquidation_px": 88128831.34105119,
+          "v1_1_liquidation_px": 85040494.24053529,
+          "v1_abs_error": 208461.18639665842,
+          "v1_1_abs_error": 2879875.9141192436,
+          "improved": false
+        },
+        {
+          "coin": "STRK",
+          "api_liquidation_px": 48521.2098138973,
+          "v1_liquidation_px": 48636.25461875343,
+          "v1_1_liquidation_px": 46931.87432045547,
+          "v1_abs_error": 115.04480485613021,
+          "v1_1_abs_error": 1589.3354934418312,
+          "improved": false
+        },
+        {
+          "coin": "BOME",
+          "api_liquidation_px": 61404.703337854,
+          "v1_liquidation_px": 61550.29527755958,
+          "v1_1_liquidation_px": 59393.36142958022,
+          "v1_abs_error": 145.5919397055768,
+          "v1_1_abs_error": 2011.3419082737819,
+          "improved": false
+        },
+        {
+          "coin": "ETHFI",
+          "api_liquidation_px": 192.4934314067,
+          "v1_liquidation_px": 192.94891419003,
+          "v1_1_liquidation_px": 186.20422963446688,
+          "v1_abs_error": 0.45548278332998393,
+          "v1_1_abs_error": 6.2892017722331275,
+          "improved": false
+        },
+        {
+          "coin": "MNT",
+          "api_liquidation_px": 475245.9381995085,
+          "v1_liquidation_px": 476372.7554432497,
+          "v1_1_liquidation_px": 459679.041386407,
+          "v1_abs_error": 1126.817243741185,
+          "v1_1_abs_error": 15566.896813101543,
+          "improved": false
+        },
+        {
+          "coin": "MERL",
+          "api_liquidation_px": 83.6621788763,
+          "v1_liquidation_px": 83.86048898867486,
+          "v1_1_liquidation_px": 80.92253930067328,
+          "v1_abs_error": 0.1983101123748554,
+          "v1_1_abs_error": 2.7396395756267253,
+          "improved": false
+        },
+        {
+          "coin": "POPCAT",
+          "api_liquidation_px": 8289634.946504571,
+          "v1_liquidation_px": 8309289.858363543,
+          "v1_1_liquidation_px": 8018103.788886329,
+          "v1_abs_error": 19654.911858972162,
+          "v1_1_abs_error": 271531.1576182414,
+          "improved": false
+        },
+        {
+          "coin": "EIGEN",
+          "api_liquidation_px": 203096.4232194292,
+          "v1_liquidation_px": 203577.96904155976,
+          "v1_1_liquidation_px": 196443.90320530217,
+          "v1_abs_error": 481.5458221305453,
+          "v1_1_abs_error": 6652.520014127047,
+          "improved": false
+        },
+        {
+          "coin": "REZ",
+          "api_liquidation_px": 1463.0521942622,
+          "v1_liquidation_px": 1466.5211182282992,
+          "v1_1_liquidation_px": 1415.1292951649011,
+          "v1_abs_error": 3.4689239660992826,
+          "v1_1_abs_error": 47.922899097298796,
+          "improved": false
+        },
+        {
+          "coin": "NOT",
+          "api_liquidation_px": 18259.1080638408,
+          "v1_liquidation_px": 18302.40082124128,
+          "v1_1_liquidation_px": 17661.02181358222,
+          "v1_abs_error": 43.292757400482515,
+          "v1_1_abs_error": 598.0862502585769,
+          "improved": false
+        },
+        {
+          "coin": "ZK",
+          "api_liquidation_px": 37896.7287682014,
+          "v1_liquidation_px": 37986.58272785397,
+          "v1_1_liquidation_px": 36655.40294314884,
+          "v1_abs_error": 89.8539596525734,
+          "v1_1_abs_error": 1241.3258250525614,
+          "improved": false
+        },
+        {
+          "coin": "SCR",
+          "api_liquidation_px": 77400.926687547,
+          "v1_liquidation_px": 77584.44593927677,
+          "v1_1_liquidation_px": 74865.62176115153,
+          "v1_abs_error": 183.51925172976917,
+          "v1_1_abs_error": 2535.3049263954745,
+          "improved": false
+        },
+        {
+          "coin": "PNUT",
+          "api_liquidation_px": 66000.317267525,
+          "v1_liquidation_px": 66156.8054192798,
+          "v1_1_liquidation_px": 63838.44499350581,
+          "v1_abs_error": 156.48815175480559,
+          "v1_1_abs_error": 2161.872274019188,
+          "improved": false
+        },
+        {
+          "coin": "XLM",
+          "api_liquidation_px": 248.8070391358,
+          "v1_liquidation_px": 249.39654201804584,
+          "v1_1_liquidation_px": 240.66280400012806,
+          "v1_abs_error": 0.5895028822458244,
+          "v1_1_abs_error": 8.144235135671948,
+          "improved": false
+        },
+        {
+          "coin": "SAND",
+          "api_liquidation_px": 195378.674963899,
+          "v1_liquidation_px": 195841.92204478045,
+          "v1_1_liquidation_px": 188978.95071030068,
+          "v1_abs_error": 463.2470808814687,
+          "v1_1_abs_error": 6399.72425359831,
+          "improved": false
+        },
+        {
+          "coin": "ME",
+          "api_liquidation_px": 479169.7472355904,
+          "v1_liquidation_px": 480305.8693084128,
+          "v1_1_liquidation_px": 463474.3045987472,
+          "v1_abs_error": 1136.1220728223561,
+          "v1_1_abs_error": 15695.442636843189,
+          "improved": false
+        },
+        {
+          "coin": "MOVE",
+          "api_liquidation_px": 8289634.917001713,
+          "v1_liquidation_px": 8309289.828857542,
+          "v1_1_liquidation_px": 8018103.759380328,
+          "v1_abs_error": 19654.91185582895,
+          "v1_1_abs_error": 271531.15762138553,
+          "improved": false
+        },
+        {
+          "coin": "VIRTUAL",
+          "api_liquidation_px": 401.9523587315,
+          "v1_liquidation_px": 402.9038309301669,
+          "v1_1_liquidation_px": 388.80769233699834,
+          "v1_abs_error": 0.9514721986669201,
+          "v1_1_abs_error": 13.144666394501655,
+          "improved": false
+        },
+        {
+          "coin": "PENGU",
+          "api_liquidation_px": 1.8701310183,
+          "v1_liquidation_px": 1.8745496490259017,
+          "v1_1_liquidation_px": 1.8090879613306372,
+          "v1_abs_error": 0.004418630725901762,
+          "v1_1_abs_error": 0.06104305696936274,
+          "improved": false
+        },
+        {
+          "coin": "USUAL",
+          "api_liquidation_px": 37475.758514256,
+          "v1_liquidation_px": 37564.61436449161,
+          "v1_1_liquidation_px": 36248.22164533603,
+          "v1_abs_error": 88.85585023560998,
+          "v1_1_abs_error": 1227.5368689199677,
+          "improved": false
+        },
+        {
+          "coin": "FARTCOIN",
+          "api_liquidation_px": 21.993064961,
+          "v1_liquidation_px": 22.04448829160627,
+          "v1_1_liquidation_px": 21.278062814475128,
+          "v1_abs_error": 0.051423330606269246,
+          "v1_1_abs_error": 0.7150021465248741,
+          "improved": false
+        },
+        {
+          "coin": "AIXBT",
+          "api_liquidation_px": 8289634.922120572,
+          "v1_liquidation_px": 8309289.833980544,
+          "v1_1_liquidation_px": 8018103.764503329,
+          "v1_abs_error": 19654.91185997147,
+          "v1_1_abs_error": 271531.157617243,
+          "improved": false
+        },
+        {
+          "coin": "ZEREBRO",
+          "api_liquidation_px": 44093.8088057508,
+          "v1_liquidation_px": 44198.356209263526,
+          "v1_1_liquidation_px": 42649.49413757622,
+          "v1_abs_error": 104.5474035127263,
+          "v1_1_abs_error": 1444.3146681745784,
+          "improved": false
+        },
+        {
+          "coin": "BIO",
+          "api_liquidation_px": 17525.6719433893,
+          "v1_liquidation_px": 17567.225668252737,
+          "v1_1_liquidation_px": 16951.610299379132,
+          "v1_abs_error": 41.55372486343549,
+          "v1_1_abs_error": 574.0616440101694,
+          "improved": false
+        },
+        {
+          "coin": "S",
+          "api_liquidation_px": 87049.9122546445,
+          "v1_liquidation_px": 87256.30946990219,
+          "v1_1_liquidation_px": 84198.5499644409,
+          "v1_abs_error": 206.39721525768982,
+          "v1_1_abs_error": 2851.3622902036004,
+          "improved": false
+        },
+        {
+          "coin": "MORPHO",
+          "api_liquidation_px": 727.3388067358,
+          "v1_liquidation_px": 729.0599774812284,
+          "v1_1_liquidation_px": 703.5639228249427,
+          "v1_abs_error": 1.7211707454284806,
+          "v1_1_abs_error": 23.774883910857284,
+          "improved": false
+        },
+        {
+          "coin": "TRUMP",
+          "api_liquidation_px": 230.4746740953,
+          "v1_liquidation_px": 231.0140513309558,
+          "v1_1_liquidation_px": 223.02321736913163,
+          "v1_abs_error": 0.5393772356557918,
+          "v1_1_abs_error": 7.451456726168374,
+          "improved": false
+        },
+        {
+          "coin": "ANIME",
+          "api_liquidation_px": 4.2679454912,
+          "v1_liquidation_px": 4.278054076968338,
+          "v1_1_liquidation_px": 4.128296123794,
+          "v1_abs_error": 0.010108585768338507,
+          "v1_1_abs_error": 0.1396493674060002,
+          "improved": false
+        },
+        {
+          "coin": "VVV",
+          "api_liquidation_px": 985.5212570554,
+          "v1_liquidation_px": 987.8444532363754,
+          "v1_1_liquidation_px": 953.4501770535179,
+          "v1_abs_error": 2.323196180975401,
+          "v1_1_abs_error": 32.07108000188214,
+          "improved": false
+        },
+        {
+          "coin": "BERA",
+          "api_liquidation_px": 14458.6573491292,
+          "v1_liquidation_px": 14492.938090190957,
+          "v1_1_liquidation_px": 13985.071439884116,
+          "v1_abs_error": 34.280741061757,
+          "v1_1_abs_error": 473.5859092450846,
+          "improved": false
+        },
+        {
+          "coin": "LAYER",
+          "api_liquidation_px": 8289634.975855714,
+          "v1_liquidation_px": 8309289.887715542,
+          "v1_1_liquidation_px": 8018103.818238328,
+          "v1_abs_error": 19654.911859828047,
+          "v1_1_abs_error": 271531.1576173855,
+          "improved": false
+        },
+        {
+          "coin": "IP",
+          "api_liquidation_px": 635.9773455498,
+          "v1_liquidation_px": 637.4840232442234,
+          "v1_1_liquidation_px": 615.1627043317334,
+          "v1_abs_error": 1.506677694423388,
+          "v1_1_abs_error": 20.81464121806664,
+          "improved": false
+        },
+        {
+          "coin": "WCT",
+          "api_liquidation_px": 34396.8805906627,
+          "v1_liquidation_px": 34478.43624253337,
+          "v1_1_liquidation_px": 33270.19529034576,
+          "v1_abs_error": 81.55565187066532,
+          "v1_1_abs_error": 1126.6853003169454,
+          "improved": false
+        },
+        {
+          "coin": "HYPER",
+          "api_liquidation_px": 224044.2707068957,
+          "v1_liquidation_px": 224575.4845409606,
+          "v1_1_liquidation_px": 216705.59077130616,
+          "v1_abs_error": 531.2138340648962,
+          "v1_1_abs_error": 7338.679935589549,
+          "improved": false
+        },
+        {
+          "coin": "ZORA",
+          "api_liquidation_px": 64762.7871236987,
+          "v1_liquidation_px": 64916.34112560581,
+          "v1_1_liquidation_px": 62641.44995781507,
+          "v1_abs_error": 153.55400190711225,
+          "v1_1_abs_error": 2121.337165883626,
+          "improved": false
+        },
+        {
+          "coin": "SOPH",
+          "api_liquidation_px": 6.0627628223,
+          "v1_liquidation_px": 6.077118254222322,
+          "v1_1_liquidation_px": 5.864443589370964,
+          "v1_abs_error": 0.014355431922322026,
+          "v1_1_abs_error": 0.19831923292903575,
+          "improved": false
+        },
+        {
+          "coin": "RESOLV",
+          "api_liquidation_px": 62.7438728216,
+          "v1_liquidation_px": 62.89256328204238,
+          "v1_1_liquidation_px": 60.69009545097783,
+          "v1_abs_error": 0.14869046044238132,
+          "v1_1_abs_error": 2.0537773706221714,
+          "improved": false
+        },
+        {
+          "coin": "PUMP",
+          "api_liquidation_px": 0.2310207045,
+          "v1_liquidation_px": 0.2315644385556562,
+          "v1_1_liquidation_px": 0.22350905853591427,
+          "v1_abs_error": 0.000543734055656192,
+          "v1_1_abs_error": 0.007511645964085739,
+          "improved": false
+        },
+        {
+          "coin": "PROVE",
+          "api_liquidation_px": 50.8603053215,
+          "v1_liquidation_px": 50.98034291233856,
+          "v1_1_liquidation_px": 49.20184670845393,
+          "v1_abs_error": 0.1200375908385567,
+          "v1_1_abs_error": 1.6584586130460721,
+          "improved": false
+        },
+        {
+          "coin": "XPL",
+          "api_liquidation_px": 20.4367181344,
+          "v1_liquidation_px": 21.134095053645847,
+          "v1_1_liquidation_px": 20.396644794722544,
+          "v1_abs_error": 0.6973769192458477,
+          "v1_1_abs_error": 0.04007333967745552,
+          "improved": true
+        },
+        {
+          "coin": "WLFI",
+          "api_liquidation_px": 10.2256751451,
+          "v1_liquidation_px": 10.249682859725135,
+          "v1_1_liquidation_px": 9.893995524000552,
+          "v1_abs_error": 0.02400771462513518,
+          "v1_1_abs_error": 0.3316796210994486,
+          "improved": false
+        },
+        {
+          "coin": "ASTER",
+          "api_liquidation_px": 109.7729631933,
+          "v1_liquidation_px": 110.03162557462429,
+          "v1_1_liquidation_px": 106.199561473329,
+          "v1_abs_error": 0.2586623813242852,
+          "v1_1_abs_error": 3.5734017199710024,
+          "improved": false
+        },
+        {
+          "coin": "STBL",
+          "api_liquidation_px": 1036204.3939871786,
+          "v1_liquidation_px": 1038661.2579736927,
+          "v1_1_liquidation_px": 1002262.999289041,
+          "v1_abs_error": 2456.8639865141595,
+          "v1_1_abs_error": 33941.394698137534,
+          "improved": false
+        },
+        {
+          "coin": "0G",
+          "api_liquidation_px": 360419.3963180497,
+          "v1_liquidation_px": 361273.9577132844,
+          "v1_1_liquidation_px": 348613.6938229708,
+          "v1_abs_error": 854.5613952347194,
+          "v1_1_abs_error": 11805.702495078905,
+          "improved": false
+        },
+        {
+          "coin": "ZEC",
+          "api_liquidation_px": 8540.6609390878,
+          "v1_liquidation_px": 8560.364992857729,
+          "v1_1_liquidation_px": 8268.450889607007,
+          "v1_abs_error": 19.704053769928578,
+          "v1_1_abs_error": 272.2100494807928,
+          "improved": false
+        },
+        {
+          "coin": "MON",
+          "api_liquidation_px": 16.2196796794,
+          "v1_liquidation_px": 16.25808269811656,
+          "v1_1_liquidation_px": 15.689144808278046,
+          "v1_abs_error": 0.03840301871656138,
+          "v1_1_abs_error": 0.5305348711219526,
+          "improved": false
+        },
+        {
+          "coin": "CC",
+          "api_liquidation_px": 224044.3357468957,
+          "v1_liquidation_px": 224575.5495809606,
+          "v1_1_liquidation_px": 216705.65581130618,
+          "v1_abs_error": 531.2138340648962,
+          "v1_1_abs_error": 7338.67993558952,
+          "improved": false
+        },
+        {
+          "coin": "ICP",
+          "api_liquidation_px": 462.0212166535,
+          "v1_liquidation_px": 463.11090098152636,
+          "v1_1_liquidation_px": 446.96138206482794,
+          "v1_abs_error": 1.089684328026351,
+          "v1_1_abs_error": 15.05983458867206,
+          "improved": false
+        },
+        {
+          "coin": "LIT",
+          "api_liquidation_px": 1042.5317766814,
+          "v1_liquidation_px": 1045.0014359514364,
+          "v1_1_liquidation_px": 1008.4097641443758,
+          "v1_abs_error": 2.4696592700363453,
+          "v1_1_abs_error": 34.12201253702426,
+          "improved": false
+        },
+        {
+          "coin": "XMR",
+          "api_liquidation_px": 42721.518859711,
+          "v1_liquidation_px": 42822.04342927047,
+          "v1_1_liquidation_px": 41332.92749509884,
+          "v1_abs_error": 100.524569559464,
+          "v1_1_abs_error": 1388.5913646121626,
+          "improved": false
+        },
+        {
+          "coin": "AXS",
+          "api_liquidation_px": 175.7559010227,
+          "v1_liquidation_px": 176.1701408502033,
+          "v1_1_liquidation_px": 170.03617134486765,
+          "v1_abs_error": 0.4142398275033088,
+          "v1_1_abs_error": 5.719729677832333,
+          "improved": false
+        },
+        {
+          "coin": "SKR",
+          "api_liquidation_px": 2447.5050369419,
+          "v1_liquidation_px": 2453.3080884828883,
+          "v1_1_liquidation_px": 2367.336411636944,
+          "v1_abs_error": 5.8030515409882355,
+          "v1_1_abs_error": 80.1686253049561,
+          "improved": false
+        }
+      ]
+    },
+    {
+      "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+      "mode": "isolated_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 2510.539400000002,
+      "improved_positions": 133,
+      "worsened_positions": 0,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "BTC",
+          "api_liquidation_px": 1194684.1869122405,
+          "v1_liquidation_px": 1313390.3316228266,
+          "v1_1_liquidation_px": 1312767.4555460531,
+          "v1_abs_error": 118706.14471058617,
+          "v1_1_abs_error": 118083.26863381267,
+          "improved": true
+        },
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 155098.6742903777,
+          "v1_liquidation_px": 171222.16933545412,
+          "v1_1_liquidation_px": 171137.57504639722,
+          "v1_abs_error": 16123.495045076415,
+          "v1_1_abs_error": 16038.900756019517,
+          "improved": true
+        },
+        {
+          "coin": "ATOM",
+          "api_liquidation_px": 296.1092147008,
+          "v1_liquidation_px": 327.1314016206008,
+          "v1_1_liquidation_px": 326.9686381430498,
+          "v1_abs_error": 31.022186919800788,
+          "v1_1_abs_error": 30.859423442249806,
+          "improved": true
+        },
+        {
+          "coin": "DYDX",
+          "api_liquidation_px": 12.4619833493,
+          "v1_liquidation_px": 13.764693793070112,
+          "v1_1_liquidation_px": 13.757858888663618,
+          "v1_abs_error": 1.3027104437701116,
+          "v1_1_abs_error": 1.2958755393636174,
+          "improved": true
+        },
+        {
+          "coin": "SOL",
+          "api_liquidation_px": 8811.6628103377,
+          "v1_liquidation_px": 9731.262031942699,
+          "v1_1_liquidation_px": 9726.437047738245,
+          "v1_abs_error": 919.5992216049981,
+          "v1_1_abs_error": 914.7742374005447,
+          "improved": true
+        },
+        {
+          "coin": "AVAX",
+          "api_liquidation_px": 325.9344216477,
+          "v1_liquidation_px": 359.32382251240784,
+          "v1_1_liquidation_px": 359.14863377488854,
+          "v1_abs_error": 33.38940086470785,
+          "v1_1_abs_error": 33.214212127188546,
+          "improved": true
+        },
+        {
+          "coin": "APE",
+          "api_liquidation_px": 15.6367025623,
+          "v1_liquidation_px": 17.275400459522157,
+          "v1_1_liquidation_px": 17.26680273657305,
+          "v1_abs_error": 1.6386978972221566,
+          "v1_1_abs_error": 1.6301001742730516,
+          "improved": true
+        },
+        {
+          "coin": "LTC",
+          "api_liquidation_px": 1872.2379689724,
+          "v1_liquidation_px": 2063.8203070437285,
+          "v1_1_liquidation_px": 2062.8150939112584,
+          "v1_abs_error": 191.58233807132842,
+          "v1_1_abs_error": 190.57712493885833,
+          "improved": true
+        },
+        {
+          "coin": "ARB",
+          "api_liquidation_px": 38.3633673249,
+          "v1_liquidation_px": 42.99796425553391,
+          "v1_1_liquidation_px": 42.976506023832826,
+          "v1_abs_error": 4.634596930633911,
+          "v1_1_abs_error": 4.613138698932829,
+          "improved": true
+        },
+        {
+          "coin": "DOGE",
+          "api_liquidation_px": 25.761067511,
+          "v1_liquidation_px": 28.465730216594014,
+          "v1_1_liquidation_px": 28.4515396075718,
+          "v1_abs_error": 2.7046627055940142,
+          "v1_1_abs_error": 2.690472096571799,
+          "improved": true
+        },
+        {
+          "coin": "INJ",
+          "api_liquidation_px": 1536.3001239878,
+          "v1_liquidation_px": 1721.9555537184976,
+          "v1_1_liquidation_px": 1721.0957946732758,
+          "v1_abs_error": 185.65542973069773,
+          "v1_1_abs_error": 184.7956706854759,
+          "improved": true
+        },
+        {
+          "coin": "CRV",
+          "api_liquidation_px": 2.777072068,
+          "v1_liquidation_px": 3.0465487986979327,
+          "v1_1_liquidation_px": 3.0451348881455904,
+          "v1_abs_error": 0.2694767306979329,
+          "v1_1_abs_error": 0.2680628201455906,
+          "improved": true
+        },
+        {
+          "coin": "LDO",
+          "api_liquidation_px": 29.0016334712,
+          "v1_liquidation_px": 32.48705491268701,
+          "v1_1_liquidation_px": 32.470972424816104,
+          "v1_abs_error": 3.4854214414870057,
+          "v1_1_abs_error": 3.469338953616102,
+          "improved": true
+        },
+        {
+          "coin": "STX",
+          "api_liquidation_px": 39.2394029502,
+          "v1_liquidation_px": 43.35053961971527,
+          "v1_1_liquidation_px": 43.32896954018088,
+          "v1_abs_error": 4.111136669515268,
+          "v1_1_abs_error": 4.089566589980876,
+          "improved": true
+        },
+        {
+          "coin": "CFX",
+          "api_liquidation_px": 0.9214044942,
+          "v1_liquidation_px": 1.0128265097410374,
+          "v1_1_liquidation_px": 1.0123468791904207,
+          "v1_abs_error": 0.09142201554103735,
+          "v1_1_abs_error": 0.09094238499042062,
+          "improved": true
+        },
+        {
+          "coin": "GMX",
+          "api_liquidation_px": 367.7861881524,
+          "v1_liquidation_px": 405.87432410797385,
+          "v1_1_liquidation_px": 405.674470020529,
+          "v1_abs_error": 38.088135955573875,
+          "v1_1_abs_error": 37.88828186812901,
+          "improved": true
+        },
+        {
+          "coin": "SNX",
+          "api_liquidation_px": 143.2449262766,
+          "v1_liquidation_px": 158.3090050920801,
+          "v1_1_liquidation_px": 158.22996874842036,
+          "v1_abs_error": 15.064078815480087,
+          "v1_1_abs_error": 14.98504247182035,
+          "improved": true
+        },
+        {
+          "coin": "XRP",
+          "api_liquidation_px": 70.9750860892,
+          "v1_liquidation_px": 78.31242473358806,
+          "v1_1_liquidation_px": 78.27392754339415,
+          "v1_abs_error": 7.337338644388055,
+          "v1_1_abs_error": 7.298841454194147,
+          "improved": true
+        },
+        {
+          "coin": "APT",
+          "api_liquidation_px": 545.57207117,
+          "v1_liquidation_px": 602.9629423792708,
+          "v1_1_liquidation_px": 602.6618313864992,
+          "v1_abs_error": 57.39087120927081,
+          "v1_1_abs_error": 57.08976021649926,
+          "improved": true
+        },
+        {
+          "coin": "AAVE",
+          "api_liquidation_px": 2306.9644252344,
+          "v1_liquidation_px": 2539.598700273216,
+          "v1_1_liquidation_px": 2538.377985350532,
+          "v1_abs_error": 232.63427503881576,
+          "v1_1_abs_error": 231.41356011613198,
+          "improved": true
+        },
+        {
+          "coin": "COMP",
+          "api_liquidation_px": 1097.5886062535,
+          "v1_liquidation_px": 1211.3671405518294,
+          "v1_1_liquidation_px": 1210.7701495485244,
+          "v1_abs_error": 113.7785342983293,
+          "v1_1_abs_error": 113.18154329502431,
+          "improved": true
+        },
+        {
+          "coin": "WLD",
+          "api_liquidation_px": 254.5165394426,
+          "v1_liquidation_px": 281.3051443209677,
+          "v1_1_liquidation_px": 281.16459293486054,
+          "v1_abs_error": 26.78860487836772,
+          "v1_1_abs_error": 26.648053492260544,
+          "improved": true
+        },
+        {
+          "coin": "YGG",
+          "api_liquidation_px": 9.5700857265,
+          "v1_liquidation_px": 10.57473789475741,
+          "v1_1_liquidation_px": 10.569466843373602,
+          "v1_abs_error": 1.0046521682574099,
+          "v1_1_abs_error": 0.999381116873602,
+          "improved": true
+        },
+        {
+          "coin": "UNI",
+          "api_liquidation_px": 140.5737102175,
+          "v1_liquidation_px": 155.01005424430457,
+          "v1_1_liquidation_px": 154.93430874819444,
+          "v1_abs_error": 14.436344026804562,
+          "v1_1_abs_error": 14.360598530694432,
+          "improved": true
+        },
+        {
+          "coin": "RUNE",
+          "api_liquidation_px": 44.0817098018,
+          "v1_liquidation_px": 48.683750675414274,
+          "v1_1_liquidation_px": 48.65960524110431,
+          "v1_abs_error": 4.602040873614271,
+          "v1_1_abs_error": 4.5778954393043065,
+          "improved": true
+        },
+        {
+          "coin": "ZRO",
+          "api_liquidation_px": 32.6126181584,
+          "v1_liquidation_px": 35.847760775666494,
+          "v1_1_liquidation_px": 35.830785969318576,
+          "v1_abs_error": 3.235142617266497,
+          "v1_1_abs_error": 3.2181678109185796,
+          "improved": true
+        },
+        {
+          "coin": "DOT",
+          "api_liquidation_px": 54.2043575144,
+          "v1_liquidation_px": 60.673163340866374,
+          "v1_1_liquidation_px": 60.643448498858255,
+          "v1_abs_error": 6.468805826466372,
+          "v1_1_abs_error": 6.439090984458254,
+          "improved": true
+        },
+        {
+          "coin": "BANANA",
+          "api_liquidation_px": 810.5371535653,
+          "v1_liquidation_px": 895.5947470555844,
+          "v1_1_liquidation_px": 895.1484818307222,
+          "v1_abs_error": 85.05759349028449,
+          "v1_1_abs_error": 84.61132826542223,
+          "improved": true
+        },
+        {
+          "coin": "TRB",
+          "api_liquidation_px": 1658.7692304249,
+          "v1_liquidation_px": 1831.9610422692456,
+          "v1_1_liquidation_px": 1831.0523812970787,
+          "v1_abs_error": 173.1918118443457,
+          "v1_1_abs_error": 172.2831508721788,
+          "improved": true
+        },
+        {
+          "coin": "ARK",
+          "api_liquidation_px": 9.5472763391,
+          "v1_liquidation_px": 10.536112129260822,
+          "v1_1_liquidation_px": 10.530924024620015,
+          "v1_abs_error": 0.988835790160822,
+          "v1_1_abs_error": 0.9836476855200154,
+          "improved": true
+        },
+        {
+          "coin": "KAS",
+          "api_liquidation_px": 4.0938825332,
+          "v1_liquidation_px": 4.521861504865806,
+          "v1_1_liquidation_px": 4.51961603629427,
+          "v1_abs_error": 0.427978971665806,
+          "v1_1_abs_error": 0.4257335030942695,
+          "improved": true
+        },
+        {
+          "coin": "TIA",
+          "api_liquidation_px": 171.8574978271,
+          "v1_liquidation_px": 189.93431932312868,
+          "v1_1_liquidation_px": 189.8394760312171,
+          "v1_abs_error": 18.076821496028685,
+          "v1_1_abs_error": 17.981978204117098,
+          "improved": true
+        },
+        {
+          "coin": "TON",
+          "api_liquidation_px": 87.8707305152,
+          "v1_liquidation_px": 98.41450355704143,
+          "v1_1_liquidation_px": 98.36590195355247,
+          "v1_abs_error": 10.543773041841433,
+          "v1_1_abs_error": 10.495171438352472,
+          "improved": true
+        },
+        {
+          "coin": "MINA",
+          "api_liquidation_px": 5.3147582843,
+          "v1_liquidation_px": 5.869189158888825,
+          "v1_1_liquidation_px": 5.866280290155092,
+          "v1_abs_error": 0.5544308745888253,
+          "v1_1_abs_error": 0.5515220058550918,
+          "improved": true
+        },
+        {
+          "coin": "POLYX",
+          "api_liquidation_px": 11.422931702,
+          "v1_liquidation_px": 12.621683612014976,
+          "v1_1_liquidation_px": 12.615394144734474,
+          "v1_abs_error": 1.1987519100149768,
+          "v1_1_abs_error": 1.1924624427344739,
+          "improved": true
+        },
+        {
+          "coin": "GAS",
+          "api_liquidation_px": 342.1534966736,
+          "v1_liquidation_px": 378.03938235224365,
+          "v1_1_liquidation_px": 377.85110060527444,
+          "v1_abs_error": 35.88588567864366,
+          "v1_1_abs_error": 35.69760393167445,
+          "improved": true
+        },
+        {
+          "coin": "PENDLE",
+          "api_liquidation_px": 262.6446183961,
+          "v1_liquidation_px": 290.1989700977041,
+          "v1_1_liquidation_px": 290.05440124070435,
+          "v1_abs_error": 27.554351701604105,
+          "v1_1_abs_error": 27.409782844604365,
+          "improved": true
+        },
+        {
+          "coin": "FET",
+          "api_liquidation_px": 14.1151608126,
+          "v1_liquidation_px": 15.577857888697622,
+          "v1_1_liquidation_px": 15.570183270878726,
+          "v1_abs_error": 1.4626970760976228,
+          "v1_1_abs_error": 1.4550224582787266,
+          "improved": true
+        },
+        {
+          "coin": "MEME",
+          "api_liquidation_px": 0.037709162,
+          "v1_liquidation_px": 0.04162792731723853,
+          "v1_1_liquidation_px": 0.04160736681100971,
+          "v1_abs_error": 0.003918765317238532,
+          "v1_1_abs_error": 0.003898204811009713,
+          "improved": true
+        },
+        {
+          "coin": "ORDI",
+          "api_liquidation_px": 1811.5722135785,
+          "v1_liquidation_px": 2002.2162812462939,
+          "v1_1_liquidation_px": 2001.21603446552,
+          "v1_abs_error": 190.64406766779393,
+          "v1_1_abs_error": 189.64382088701996,
+          "improved": true
+        },
+        {
+          "coin": "NEO",
+          "api_liquidation_px": 824.2583537717,
+          "v1_liquidation_px": 910.8296851505283,
+          "v1_1_liquidation_px": 910.3754636618197,
+          "v1_abs_error": 86.5713313788284,
+          "v1_1_abs_error": 86.11710989011976,
+          "improved": true
+        },
+        {
+          "coin": "ZEN",
+          "api_liquidation_px": 757.9389344666,
+          "v1_liquidation_px": 837.2407422381774,
+          "v1_1_liquidation_px": 836.8246710552412,
+          "v1_abs_error": 79.30180777157739,
+          "v1_1_abs_error": 78.88573658864118,
+          "improved": true
+        },
+        {
+          "coin": "PYTH",
+          "api_liquidation_px": 12.098530918,
+          "v1_liquidation_px": 13.369241944452423,
+          "v1_1_liquidation_px": 13.36257494123197,
+          "v1_abs_error": 1.2707110264524228,
+          "v1_1_abs_error": 1.2640440232319694,
+          "improved": true
+        },
+        {
+          "coin": "SUSHI",
+          "api_liquidation_px": 1088.6970738066,
+          "v1_liquidation_px": 1203.3904116168983,
+          "v1_1_liquidation_px": 1202.7886524126798,
+          "v1_abs_error": 114.69333781029832,
+          "v1_1_abs_error": 114.09157860607979,
+          "improved": true
+        },
+        {
+          "coin": "IMX",
+          "api_liquidation_px": 228.4337041368,
+          "v1_liquidation_px": 252.4884133413582,
+          "v1_1_liquidation_px": 252.36220598751365,
+          "v1_abs_error": 24.054709204558208,
+          "v1_1_abs_error": 23.928501850713644,
+          "improved": true
+        },
+        {
+          "coin": "kBONK",
+          "api_liquidation_px": 0.5175424908,
+          "v1_liquidation_px": 0.5714565449178153,
+          "v1_1_liquidation_px": 0.5711736803925409,
+          "v1_abs_error": 0.05391405411781525,
+          "v1_1_abs_error": 0.05363118959254087,
+          "improved": true
+        },
+        {
+          "coin": "SUPER",
+          "api_liquidation_px": 27.6250041463,
+          "v1_liquidation_px": 30.52456848711226,
+          "v1_1_liquidation_px": 30.50935540182215,
+          "v1_abs_error": 2.8995643408122582,
+          "v1_1_abs_error": 2.884351255522148,
+          "improved": true
+        },
+        {
+          "coin": "JUP",
+          "api_liquidation_px": 6.4169637769,
+          "v1_liquidation_px": 7.182438457972532,
+          "v1_1_liquidation_px": 7.1789236712497475,
+          "v1_abs_error": 0.7654746810725319,
+          "v1_1_abs_error": 0.7619598943497472,
+          "improved": true
+        },
+        {
+          "coin": "JTO",
+          "api_liquidation_px": 30.5765362638,
+          "v1_liquidation_px": 33.76916398917046,
+          "v1_1_liquidation_px": 33.752413346644445,
+          "v1_abs_error": 3.192627725370457,
+          "v1_1_abs_error": 3.175877082844444,
+          "improved": true
+        },
+        {
+          "coin": "ACE",
+          "api_liquidation_px": 12.2902813767,
+          "v1_liquidation_px": 13.573184401169895,
+          "v1_1_liquidation_px": 13.566453944615738,
+          "v1_abs_error": 1.2829030244698956,
+          "v1_1_abs_error": 1.2761725679157383,
+          "improved": true
+        },
+        {
+          "coin": "CAKE",
+          "api_liquidation_px": 1003.5085672637,
+          "v1_liquidation_px": 1109.098803051265,
+          "v1_1_liquidation_px": 1108.544805956734,
+          "v1_abs_error": 105.5902357875649,
+          "v1_1_abs_error": 105.03623869303408,
+          "improved": true
+        },
+        {
+          "coin": "ENS",
+          "api_liquidation_px": 323.2991265823,
+          "v1_liquidation_px": 356.76899028725813,
+          "v1_1_liquidation_px": 356.59339040501766,
+          "v1_abs_error": 33.46986370495813,
+          "v1_1_abs_error": 33.29426382271765,
+          "improved": true
+        },
+        {
+          "coin": "ETC",
+          "api_liquidation_px": 1714.0594566164,
+          "v1_liquidation_px": 1893.8021372396634,
+          "v1_1_liquidation_px": 1892.8590812980347,
+          "v1_abs_error": 179.74268062326337,
+          "v1_1_abs_error": 178.79962468163467,
+          "improved": true
+        },
+        {
+          "coin": "XAI",
+          "api_liquidation_px": 0.9874993822,
+          "v1_liquidation_px": 1.0905862823445942,
+          "v1_1_liquidation_px": 1.0900454184007677,
+          "v1_abs_error": 0.1030869001445942,
+          "v1_1_abs_error": 0.10254603620076774,
+          "improved": true
+        },
+        {
+          "coin": "MANTA",
+          "api_liquidation_px": 3.601451248,
+          "v1_liquidation_px": 3.9744452766316516,
+          "v1_1_liquidation_px": 3.9724882964430916,
+          "v1_abs_error": 0.37299402863165154,
+          "v1_1_abs_error": 0.3710370484430916,
+          "improved": true
+        },
+        {
+          "coin": "UMA",
+          "api_liquidation_px": 43.7570525158,
+          "v1_liquidation_px": 48.32517987086774,
+          "v1_1_liquidation_px": 48.30121236992619,
+          "v1_abs_error": 4.568127355067745,
+          "v1_1_abs_error": 4.5441598541261925,
+          "improved": true
+        },
+        {
+          "coin": "ONDO",
+          "api_liquidation_px": 29.9079249385,
+          "v1_liquidation_px": 33.50748432067712,
+          "v1_1_liquidation_px": 33.49085921182592,
+          "v1_abs_error": 3.599559382177123,
+          "v1_1_abs_error": 3.5829342733259217,
+          "improved": true
+        },
+        {
+          "coin": "ALT",
+          "api_liquidation_px": 0.4113112049,
+          "v1_liquidation_px": 0.45398154474961777,
+          "v1_1_liquidation_px": 0.4537576881314028,
+          "v1_abs_error": 0.04267033984961777,
+          "v1_1_abs_error": 0.04244648323140282,
+          "improved": true
+        },
+        {
+          "coin": "ZETA",
+          "api_liquidation_px": 6.3965312144,
+          "v1_liquidation_px": 7.065476025999202,
+          "v1_1_liquidation_px": 7.061966286853098,
+          "v1_abs_error": 0.6689448115992018,
+          "v1_1_abs_error": 0.6654350724530973,
+          "improved": true
+        },
+        {
+          "coin": "DYM",
+          "api_liquidation_px": 32.4616653047,
+          "v1_liquidation_px": 35.879472656149844,
+          "v1_1_liquidation_px": 35.861540515789684,
+          "v1_abs_error": 3.417807351449845,
+          "v1_1_abs_error": 3.399875211089686,
+          "improved": true
+        },
+        {
+          "coin": "W",
+          "api_liquidation_px": 8.574336276,
+          "v1_liquidation_px": 9.476244359313203,
+          "v1_1_liquidation_px": 9.471512336505004,
+          "v1_abs_error": 0.9019080833132023,
+          "v1_1_abs_error": 0.8971760605050036,
+          "improved": true
+        },
+        {
+          "coin": "STRK",
+          "api_liquidation_px": 7.6658956678,
+          "v1_liquidation_px": 8.470018332021068,
+          "v1_1_liquidation_px": 8.465799305516787,
+          "v1_abs_error": 0.8041226642210679,
+          "v1_1_abs_error": 0.7999036377167874,
+          "improved": true
+        },
+        {
+          "coin": "TAO",
+          "api_liquidation_px": 71287.531438085,
+          "v1_liquidation_px": 78765.83807111341,
+          "v1_1_liquidation_px": 78726.60089977134,
+          "v1_abs_error": 7478.3066330284055,
+          "v1_1_abs_error": 7439.069461686333,
+          "improved": true
+        },
+        {
+          "coin": "kFLOKI",
+          "api_liquidation_px": 11.8137166845,
+          "v1_liquidation_px": 13.055564181045302,
+          "v1_1_liquidation_px": 13.049048605027332,
+          "v1_abs_error": 1.2418474965453026,
+          "v1_1_abs_error": 1.235331920527333,
+          "improved": true
+        },
+        {
+          "coin": "ETHFI",
+          "api_liquidation_px": 8502.101978967,
+          "v1_liquidation_px": 9397.90281376535,
+          "v1_1_liquidation_px": 9393.202837353787,
+          "v1_abs_error": 895.8008347983487,
+          "v1_1_abs_error": 891.1008583867861,
+          "improved": true
+        },
+        {
+          "coin": "ENA",
+          "api_liquidation_px": 4.8755554052,
+          "v1_liquidation_px": 5.379422636635284,
+          "v1_1_liquidation_px": 5.376779017166882,
+          "v1_abs_error": 0.5038672314352839,
+          "v1_1_abs_error": 0.501223611966882,
+          "improved": true
+        },
+        {
+          "coin": "SAGA",
+          "api_liquidation_px": 1.6049156338,
+          "v1_liquidation_px": 1.7709944019184982,
+          "v1_1_liquidation_px": 1.7701230398212995,
+          "v1_abs_error": 0.1660787681184983,
+          "v1_1_abs_error": 0.16520740602129957,
+          "improved": true
+        },
+        {
+          "coin": "MERL",
+          "api_liquidation_px": 16.5147123467,
+          "v1_liquidation_px": 18.252401841213874,
+          "v1_1_liquidation_px": 18.243284741063526,
+          "v1_abs_error": 1.737689494513873,
+          "v1_1_abs_error": 1.7285723943635247,
+          "improved": true
+        },
+        {
+          "coin": "HBAR",
+          "api_liquidation_px": 28.3378907396,
+          "v1_liquidation_px": 31.314533025088977,
+          "v1_1_liquidation_px": 31.298915536513423,
+          "v1_abs_error": 2.9766422854889782,
+          "v1_1_abs_error": 2.9610247969134242,
+          "improved": true
+        },
+        {
+          "coin": "POPCAT",
+          "api_liquidation_px": 2.4683661736,
+          "v1_liquidation_px": 2.723437283113931,
+          "v1_1_liquidation_px": 2.722099006708352,
+          "v1_abs_error": 0.25507110951393086,
+          "v1_1_abs_error": 0.25373283310835193,
+          "improved": true
+        },
+        {
+          "coin": "REZ",
+          "api_liquidation_px": 0.0621489725,
+          "v1_liquidation_px": 0.06834704245863638,
+          "v1_1_liquidation_px": 0.06831452317106482,
+          "v1_abs_error": 0.006198069958636372,
+          "v1_1_abs_error": 0.006165550671064814,
+          "improved": true
+        },
+        {
+          "coin": "TURBO",
+          "api_liquidation_px": 0.0626997819,
+          "v1_liquidation_px": 0.06919723640937195,
+          "v1_1_liquidation_px": 0.06916314109997111,
+          "v1_abs_error": 0.006497454509371947,
+          "v1_1_abs_error": 0.006463359199971111,
+          "improved": true
+        },
+        {
+          "coin": "BRETT",
+          "api_liquidation_px": 3.4678057055,
+          "v1_liquidation_px": 3.832563729771313,
+          "v1_1_liquidation_px": 3.8306499665063263,
+          "v1_abs_error": 0.3647580242713131,
+          "v1_1_abs_error": 0.3628442610063263,
+          "improved": true
+        },
+        {
+          "coin": "ZK",
+          "api_liquidation_px": 0.8989411319,
+          "v1_liquidation_px": 0.9918158264318172,
+          "v1_1_liquidation_px": 0.9913285426597483,
+          "v1_abs_error": 0.09287469453181718,
+          "v1_1_abs_error": 0.09238741075974832,
+          "improved": true
+        },
+        {
+          "coin": "POL",
+          "api_liquidation_px": 6.8912649201,
+          "v1_liquidation_px": 7.607615000876828,
+          "v1_1_liquidation_px": 7.603856567701934,
+          "v1_abs_error": 0.7163500807768282,
+          "v1_1_abs_error": 0.7125916476019336,
+          "improved": true
+        },
+        {
+          "coin": "CELO",
+          "api_liquidation_px": 0.1153239341,
+          "v1_liquidation_px": 2.814578702067235,
+          "v1_1_liquidation_px": 2.813211428135211,
+          "v1_abs_error": 2.699254767967235,
+          "v1_1_abs_error": 2.697887494035211,
+          "improved": true
+        },
+        {
+          "coin": "HMSTR",
+          "api_liquidation_px": 0.0070067086,
+          "v1_liquidation_px": 0.007730873429826985,
+          "v1_1_liquidation_px": 0.007727073968877609,
+          "v1_abs_error": 0.0007241648298269851,
+          "v1_1_abs_error": 0.0007203653688776096,
+          "improved": true
+        },
+        {
+          "coin": "SCR",
+          "api_liquidation_px": 7.7928258247,
+          "v1_liquidation_px": 8.609662747629717,
+          "v1_1_liquidation_px": 8.605377065949154,
+          "v1_abs_error": 0.8168369229297161,
+          "v1_1_abs_error": 0.812551241249154,
+          "improved": true
+        },
+        {
+          "coin": "GOAT",
+          "api_liquidation_px": 2.2155786607,
+          "v1_liquidation_px": 2.4470908131100297,
+          "v1_1_liquidation_px": 2.4458761377590372,
+          "v1_abs_error": 0.23151215241002987,
+          "v1_1_abs_error": 0.23029747705903736,
+          "improved": true
+        },
+        {
+          "coin": "MOODENG",
+          "api_liquidation_px": 20.3109071025,
+          "v1_liquidation_px": 22.44614447255628,
+          "v1_1_liquidation_px": 22.434941550307638,
+          "v1_abs_error": 2.135237370056281,
+          "v1_1_abs_error": 2.124034447807638,
+          "improved": true
+        },
+        {
+          "coin": "PNUT",
+          "api_liquidation_px": 11.3773506697,
+          "v1_liquidation_px": 12.572007863269553,
+          "v1_1_liquidation_px": 12.565739879654853,
+          "v1_abs_error": 1.1946571935695527,
+          "v1_1_abs_error": 1.1883892099548525,
+          "improved": true
+        },
+        {
+          "coin": "ALGO",
+          "api_liquidation_px": 11.1377900882,
+          "v1_liquidation_px": 12.302537106939717,
+          "v1_1_liquidation_px": 12.296425968484499,
+          "v1_abs_error": 1.1647470187397175,
+          "v1_1_abs_error": 1.1586358802844998,
+          "improved": true
+        },
+        {
+          "coin": "ME",
+          "api_liquidation_px": 208.7246181604,
+          "v1_liquidation_px": 230.7070263762088,
+          "v1_1_liquidation_px": 230.5916917218398,
+          "v1_abs_error": 21.98240821580879,
+          "v1_1_abs_error": 21.86707356143978,
+          "improved": true
+        },
+        {
+          "coin": "MOVE",
+          "api_liquidation_px": 8.2237098659,
+          "v1_liquidation_px": 9.088318991378062,
+          "v1_1_liquidation_px": 9.083782659006811,
+          "v1_abs_error": 0.8646091254780615,
+          "v1_1_abs_error": 0.8600727931068111,
+          "improved": true
+        },
+        {
+          "coin": "VIRTUAL",
+          "api_liquidation_px": 16.2844047094,
+          "v1_liquidation_px": 17.93116238559044,
+          "v1_1_liquidation_px": 17.922522690363685,
+          "v1_abs_error": 1.6467576761904397,
+          "v1_1_abs_error": 1.6381179809636848,
+          "improved": true
+        },
+        {
+          "coin": "USUAL",
+          "api_liquidation_px": 2.6761889655,
+          "v1_liquidation_px": 2.9567990887649036,
+          "v1_1_liquidation_px": 2.9553268173349747,
+          "v1_abs_error": 0.2806101232649034,
+          "v1_1_abs_error": 0.2791378518349745,
+          "improved": true
+        },
+        {
+          "coin": "FARTCOIN",
+          "api_liquidation_px": 22.2130776062,
+          "v1_liquidation_px": 24.535320534527226,
+          "v1_1_liquidation_px": 24.523136469757453,
+          "v1_abs_error": 2.3222429283272277,
+          "v1_1_abs_error": 2.3100588635574546,
+          "improved": true
+        },
+        {
+          "coin": "AIXBT",
+          "api_liquidation_px": 1.7663517617,
+          "v1_liquidation_px": 1.950021762065712,
+          "v1_1_liquidation_px": 1.9490581044079909,
+          "v1_abs_error": 0.18367000036571213,
+          "v1_1_abs_error": 0.1827063427079909,
+          "improved": true
+        },
+        {
+          "coin": "GRIFFAIN",
+          "api_liquidation_px": 0.8489987268,
+          "v1_liquidation_px": 0.9372557212620674,
+          "v1_1_liquidation_px": 0.9367926755765323,
+          "v1_abs_error": 0.08825699446206736,
+          "v1_1_abs_error": 0.08779394877653235,
+          "improved": true
+        },
+        {
+          "coin": "SPX",
+          "api_liquidation_px": 20.8085865776,
+          "v1_liquidation_px": 22.972582763301673,
+          "v1_1_liquidation_px": 22.96122870616568,
+          "v1_abs_error": 2.1639961857016736,
+          "v1_1_abs_error": 2.152642128565681,
+          "improved": true
+        },
+        {
+          "coin": "S",
+          "api_liquidation_px": 16.153121844,
+          "v1_liquidation_px": 17.85083597336903,
+          "v1_1_liquidation_px": 17.841928569181107,
+          "v1_abs_error": 1.6977141293690288,
+          "v1_1_abs_error": 1.6888067251811059,
+          "improved": true
+        },
+        {
+          "coin": "MORPHO",
+          "api_liquidation_px": 20.791801877,
+          "v1_liquidation_px": 22.824006677687844,
+          "v1_1_liquidation_px": 22.81334435006669,
+          "v1_abs_error": 2.0322048006878433,
+          "v1_1_abs_error": 2.021542473066688,
+          "improved": true
+        },
+        {
+          "coin": "TRUMP",
+          "api_liquidation_px": 436.0447276995,
+          "v1_liquidation_px": 481.67497707353914,
+          "v1_1_liquidation_px": 481.4355692469667,
+          "v1_abs_error": 45.630249374039124,
+          "v1_1_abs_error": 45.390841547466664,
+          "improved": true
+        },
+        {
+          "coin": "MELANIA",
+          "api_liquidation_px": 75.7076653798,
+          "v1_liquidation_px": 83.67251144035694,
+          "v1_1_liquidation_px": 83.63072244442563,
+          "v1_abs_error": 7.964846060556937,
+          "v1_1_abs_error": 7.923057064625624,
+          "improved": true
+        },
+        {
+          "coin": "ANIME",
+          "api_liquidation_px": 0.2498458285,
+          "v1_liquidation_px": 0.27569125678136186,
+          "v1_1_liquidation_px": 0.27555565409806426,
+          "v1_abs_error": 0.025845428281361854,
+          "v1_1_abs_error": 0.025709825598064256,
+          "improved": true
+        },
+        {
+          "coin": "VINE",
+          "api_liquidation_px": 9.2969721304,
+          "v1_liquidation_px": 10.274866044614589,
+          "v1_1_liquidation_px": 10.269735348491928,
+          "v1_abs_error": 0.9778939142145884,
+          "v1_1_abs_error": 0.9727632180919272,
+          "improved": true
+        },
+        {
+          "coin": "VVV",
+          "api_liquidation_px": 29.0040146753,
+          "v1_liquidation_px": 31.389356733981362,
+          "v1_1_liquidation_px": 31.37684318229088,
+          "v1_abs_error": 2.3853420586813634,
+          "v1_1_abs_error": 2.3728285069908814,
+          "improved": true
+        },
+        {
+          "coin": "BERA",
+          "api_liquidation_px": 263.8020590093,
+          "v1_liquidation_px": 291.5513559556814,
+          "v1_1_liquidation_px": 291.40576528029743,
+          "v1_abs_error": 27.749296946381378,
+          "v1_1_abs_error": 27.603706270997407,
+          "improved": true
+        },
+        {
+          "coin": "LAYER",
+          "api_liquidation_px": 28.4908593268,
+          "v1_liquidation_px": 31.484781424477546,
+          "v1_1_liquidation_px": 31.469073274262307,
+          "v1_abs_error": 2.9939220976775474,
+          "v1_1_abs_error": 2.978213947462308,
+          "improved": true
+        },
+        {
+          "coin": "IP",
+          "api_liquidation_px": 154.9714138722,
+          "v1_liquidation_px": 171.2454447632776,
+          "v1_1_liquidation_px": 171.16006039852323,
+          "v1_abs_error": 16.274030891077587,
+          "v1_1_abs_error": 16.188646526323225,
+          "improved": true
+        },
+        {
+          "coin": "NIL",
+          "api_liquidation_px": 4.933544061,
+          "v1_liquidation_px": 5.449802240811964,
+          "v1_1_liquidation_px": 5.447093599513304,
+          "v1_abs_error": 0.5162581798119641,
+          "v1_1_abs_error": 0.5135495385133035,
+          "improved": true
+        },
+        {
+          "coin": "PAXG",
+          "api_liquidation_px": 357094.35087864,
+          "v1_liquidation_px": 399973.8997015253,
+          "v1_1_liquidation_px": 399776.1501436093,
+          "v1_abs_error": 42879.54882288526,
+          "v1_1_abs_error": 42681.799264969304,
+          "improved": true
+        },
+        {
+          "coin": "PROMPT",
+          "api_liquidation_px": 2.4477406742,
+          "v1_liquidation_px": 2.7025459448416957,
+          "v1_1_liquidation_px": 2.7012090369741744,
+          "v1_abs_error": 0.2548052706416959,
+          "v1_1_abs_error": 0.2534683627741745,
+          "improved": true
+        },
+        {
+          "coin": "BABY",
+          "api_liquidation_px": 0.8128780186,
+          "v1_liquidation_px": 0.8970864859154929,
+          "v1_1_liquidation_px": 0.8966446605680746,
+          "v1_abs_error": 0.08420846731549292,
+          "v1_1_abs_error": 0.0837666419680746,
+          "improved": true
+        },
+        {
+          "coin": "WCT",
+          "api_liquidation_px": 9.1565171959,
+          "v1_liquidation_px": 10.115498422142895,
+          "v1_1_liquidation_px": 10.110466960082356,
+          "v1_abs_error": 0.9589812262428961,
+          "v1_1_abs_error": 0.9539497641823562,
+          "improved": true
+        },
+        {
+          "coin": "HYPER",
+          "api_liquidation_px": 6.4046138902,
+          "v1_liquidation_px": 7.070601171426158,
+          "v1_1_liquidation_px": 7.067107064921487,
+          "v1_abs_error": 0.6659872812261574,
+          "v1_1_abs_error": 0.6624931747214866,
+          "improved": true
+        },
+        {
+          "coin": "ZORA",
+          "api_liquidation_px": 14.0797022333,
+          "v1_liquidation_px": 15.561728560848536,
+          "v1_1_liquidation_px": 15.553952843439781,
+          "v1_abs_error": 1.4820263275485352,
+          "v1_1_abs_error": 1.47425061013978,
+          "improved": true
+        },
+        {
+          "coin": "INIT",
+          "api_liquidation_px": 22.8126634725,
+          "v1_liquidation_px": 25.2083607622782,
+          "v1_1_liquidation_px": 25.19579130600317,
+          "v1_abs_error": 2.3956972897782016,
+          "v1_1_abs_error": 2.3831278335031705,
+          "improved": true
+        },
+        {
+          "coin": "DOOD",
+          "api_liquidation_px": 0.1464705321,
+          "v1_liquidation_px": 0.16158823501278177,
+          "v1_1_liquidation_px": 0.16150892251471774,
+          "v1_abs_error": 0.015117702912781777,
+          "v1_1_abs_error": 0.015038390414717745,
+          "improved": true
+        },
+        {
+          "coin": "RESOLV",
+          "api_liquidation_px": 106.4471301367,
+          "v1_liquidation_px": 117.658747216446,
+          "v1_1_liquidation_px": 117.59992345300262,
+          "v1_abs_error": 11.211617079746006,
+          "v1_1_abs_error": 11.15279331630262,
+          "improved": true
+        },
+        {
+          "coin": "SYRUP",
+          "api_liquidation_px": 5.9228102045,
+          "v1_liquidation_px": 6.525268697548942,
+          "v1_1_liquidation_px": 6.522107476018219,
+          "v1_abs_error": 0.6024584930489416,
+          "v1_1_abs_error": 0.5992972715182185,
+          "improved": true
+        },
+        {
+          "coin": "PUMP",
+          "api_liquidation_px": 0.028618871,
+          "v1_liquidation_px": 0.03145568507380131,
+          "v1_1_liquidation_px": 0.0314408012189697,
+          "v1_abs_error": 0.002836814073801309,
+          "v1_1_abs_error": 0.0028219302189697003,
+          "improved": true
+        },
+        {
+          "coin": "XPL",
+          "api_liquidation_px": 1.3862075206,
+          "v1_liquidation_px": 1.5475896941364298,
+          "v1_1_liquidation_px": 1.546860803799751,
+          "v1_abs_error": 0.1613821735364298,
+          "v1_1_abs_error": 0.16065328319975114,
+          "improved": true
+        },
+        {
+          "coin": "WLFI",
+          "api_liquidation_px": 31.8517407816,
+          "v1_liquidation_px": 35.197381146534795,
+          "v1_1_liquidation_px": 35.17982762749577,
+          "v1_abs_error": 3.3456403649347948,
+          "v1_1_abs_error": 3.3280868458957684,
+          "improved": true
+        },
+        {
+          "coin": "LINEA",
+          "api_liquidation_px": 0.5549458318,
+          "v1_liquidation_px": 0.6131027846704459,
+          "v1_1_liquidation_px": 0.6127976485214528,
+          "v1_abs_error": 0.058156952870445866,
+          "v1_1_abs_error": 0.05785181672145279,
+          "improved": true
+        },
+        {
+          "coin": "SKY",
+          "api_liquidation_px": 2.678795402,
+          "v1_liquidation_px": 2.9531778899749788,
+          "v1_1_liquidation_px": 2.951738292952603,
+          "v1_abs_error": 0.2743824879749788,
+          "v1_1_abs_error": 0.2729428909526028,
+          "improved": true
+        },
+        {
+          "coin": "AVNT",
+          "api_liquidation_px": 473.3537819096,
+          "v1_liquidation_px": 523.2162634081216,
+          "v1_1_liquidation_px": 522.9546507825537,
+          "v1_abs_error": 49.86248149852156,
+          "v1_1_abs_error": 49.6008688729537,
+          "improved": true
+        },
+        {
+          "coin": "0G",
+          "api_liquidation_px": 524.797951327,
+          "v1_liquidation_px": 580.0438069318465,
+          "v1_1_liquidation_px": 579.7539509358489,
+          "v1_abs_error": 55.2458556048465,
+          "v1_1_abs_error": 54.95599960884897,
+          "improved": true
+        },
+        {
+          "coin": "HEMI",
+          "api_liquidation_px": 1.9033267402,
+          "v1_liquidation_px": 2.10323460803584,
+          "v1_1_liquidation_px": 2.1021857554888386,
+          "v1_abs_error": 0.19990786783583991,
+          "v1_1_abs_error": 0.19885901528883854,
+          "improved": true
+        },
+        {
+          "coin": "2Z",
+          "api_liquidation_px": 21.3942609827,
+          "v1_liquidation_px": 23.640513205827414,
+          "v1_1_liquidation_px": 23.62872783469928,
+          "v1_abs_error": 2.2462522231274136,
+          "v1_1_abs_error": 2.2344668519992794,
+          "improved": true
+        },
+        {
+          "coin": "ZEC",
+          "api_liquidation_px": 861.8462361057,
+          "v1_liquidation_px": 928.3290103441133,
+          "v1_1_liquidation_px": 927.9798817230732,
+          "v1_abs_error": 66.4827742384133,
+          "v1_1_abs_error": 66.13364561737319,
+          "improved": true
+        },
+        {
+          "coin": "MON",
+          "api_liquidation_px": 0.480717305,
+          "v1_liquidation_px": 0.5289473183414852,
+          "v1_1_liquidation_px": 0.5286942079504289,
+          "v1_abs_error": 0.048230013341485245,
+          "v1_1_abs_error": 0.04797690295042889,
+          "improved": true
+        },
+        {
+          "coin": "MET",
+          "api_liquidation_px": 13.8003734146,
+          "v1_liquidation_px": 15.240099386617432,
+          "v1_1_liquidation_px": 15.232545605623997,
+          "v1_abs_error": 1.439725972017433,
+          "v1_1_abs_error": 1.432172191023998,
+          "improved": true
+        },
+        {
+          "coin": "ICP",
+          "api_liquidation_px": 1282.3877023935,
+          "v1_liquidation_px": 1417.2716939635516,
+          "v1_1_liquidation_px": 1416.5640013913176,
+          "v1_abs_error": 134.88399157005165,
+          "v1_1_abs_error": 134.17629899781764,
+          "improved": true
+        },
+        {
+          "coin": "AERO",
+          "api_liquidation_px": 23.4996654077,
+          "v1_liquidation_px": 25.94258726224584,
+          "v1_1_liquidation_px": 25.92977045354113,
+          "v1_abs_error": 2.4429218545458404,
+          "v1_1_abs_error": 2.430105045841131,
+          "improved": true
+        },
+        {
+          "coin": "STABLE",
+          "api_liquidation_px": 1.2127400207,
+          "v1_liquidation_px": 1.3379634743949633,
+          "v1_1_liquidation_px": 1.337306467045913,
+          "v1_abs_error": 0.12522345369496324,
+          "v1_1_abs_error": 0.12456644634591285,
+          "improved": true
+        },
+        {
+          "coin": "FOGO",
+          "api_liquidation_px": 1.5085795599,
+          "v1_liquidation_px": 1.6657219330365753,
+          "v1_1_liquidation_px": 1.6648974888216412,
+          "v1_abs_error": 0.1571423731365753,
+          "v1_1_abs_error": 0.1563179289216412,
+          "improved": true
+        },
+        {
+          "coin": "LIT",
+          "api_liquidation_px": 21.7690638994,
+          "v1_liquidation_px": 23.97637338363019,
+          "v1_1_liquidation_px": 23.964792705092876,
+          "v1_abs_error": 2.2073094842301906,
+          "v1_1_abs_error": 2.1957288056928768,
+          "improved": true
+        },
+        {
+          "coin": "XMR",
+          "api_liquidation_px": 3094.7218148976,
+          "v1_liquidation_px": 3386.171463726929,
+          "v1_1_liquidation_px": 3384.642320778457,
+          "v1_abs_error": 291.4496488293289,
+          "v1_1_abs_error": 289.92050588085704,
+          "improved": true
+        },
+        {
+          "coin": "AXS",
+          "api_liquidation_px": 41.5459457533,
+          "v1_liquidation_px": 45.80433207473658,
+          "v1_1_liquidation_px": 45.781989685780424,
+          "v1_abs_error": 4.258386321436575,
+          "v1_1_abs_error": 4.23604393248042,
+          "improved": true
+        },
+        {
+          "coin": "DASH",
+          "api_liquidation_px": 10536.1055432226,
+          "v1_liquidation_px": 11642.807210279483,
+          "v1_1_liquidation_px": 11637.000695891209,
+          "v1_abs_error": 1106.7016670568828,
+          "v1_1_abs_error": 1100.8951526686087,
+          "improved": true
+        },
+        {
+          "coin": "SKR",
+          "api_liquidation_px": 6.3192182319,
+          "v1_liquidation_px": 6.983050370256517,
+          "v1_1_liquidation_px": 6.979567455669478,
+          "v1_abs_error": 0.6638321383565176,
+          "v1_1_abs_error": 0.6603492237694777,
+          "improved": true
+        },
+        {
+          "coin": "AZTEC",
+          "api_liquidation_px": 4.772806751,
+          "v1_liquidation_px": 5.273707906441203,
+          "v1_1_liquidation_px": 5.271079838530188,
+          "v1_abs_error": 0.5009011554412028,
+          "v1_1_abs_error": 0.49827308753018773,
+          "improved": true
+        }
+      ]
+    },
+    {
+      "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 402046.70565660007,
+      "improved_positions": 0,
+      "worsened_positions": 2,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 256453.2251487874,
+          "v1_liquidation_px": 256510.82412096355,
+          "v1_1_liquidation_px": 190007.7978145294,
+          "v1_abs_error": 57.598972176143434,
+          "v1_1_abs_error": 66445.42733425801,
+          "improved": false
+        },
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 593.7655717989,
+          "v1_liquidation_px": 593.8881734603326,
+          "v1_1_liquidation_px": 448.47292165836956,
+          "v1_abs_error": 0.12260166143255447,
+          "v1_1_abs_error": 145.2926501405305,
+          "improved": false
+        }
+      ]
+    },
+    {
+      "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+      "mode": "isolated_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 0.0,
+      "improved_positions": 0,
+      "worsened_positions": 0,
+      "unchanged_positions": 17,
+      "positions": [
+        {
+          "coin": "BTC",
+          "api_liquidation_px": 289728.4764268362,
+          "v1_liquidation_px": 333250.63738345954,
+          "v1_1_liquidation_px": 333250.63738345954,
+          "v1_abs_error": 43522.160956623324,
+          "v1_1_abs_error": 43522.160956623324,
+          "improved": null
+        },
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 2785.6209734115,
+          "v1_liquidation_px": 2924.814243419895,
+          "v1_1_liquidation_px": 2924.814243419895,
+          "v1_abs_error": 139.19327000839485,
+          "v1_1_abs_error": 139.19327000839485,
+          "improved": null
+        },
+        {
+          "coin": "AVAX",
+          "api_liquidation_px": 83.8114687001,
+          "v1_liquidation_px": 98.4850497430648,
+          "v1_1_liquidation_px": 98.4850497430648,
+          "v1_abs_error": 14.673581042964813,
+          "v1_1_abs_error": 14.673581042964813,
+          "improved": null
+        },
+        {
+          "coin": "BNB",
+          "api_liquidation_px": 13492.1810675828,
+          "v1_liquidation_px": 16642.995250669974,
+          "v1_1_liquidation_px": 16642.995250669974,
+          "v1_abs_error": 3150.8141830871737,
+          "v1_1_abs_error": 3150.8141830871737,
+          "improved": null
+        },
+        {
+          "coin": "WLD",
+          "api_liquidation_px": 281.885486462,
+          "v1_liquidation_px": 337.1343665342362,
+          "v1_1_liquidation_px": 337.1343665342362,
+          "v1_abs_error": 55.248880072236204,
+          "v1_1_abs_error": 55.248880072236204,
+          "improved": null
+        },
+        {
+          "coin": "ADA",
+          "api_liquidation_px": 608.8824068409,
+          "v1_liquidation_px": 728.290847043319,
+          "v1_1_liquidation_px": 728.290847043319,
+          "v1_abs_error": 119.408440202419,
+          "v1_1_abs_error": 119.408440202419,
+          "improved": null
+        },
+        {
+          "coin": "WIF",
+          "api_liquidation_px": 12996.4530851542,
+          "v1_liquidation_px": 15546.201889687642,
+          "v1_1_liquidation_px": 15546.201889687642,
+          "v1_abs_error": 2549.748804533441,
+          "v1_1_abs_error": 2549.748804533441,
+          "improved": null
+        },
+        {
+          "coin": "TAO",
+          "api_liquidation_px": 7116.2603118632,
+          "v1_liquidation_px": 8451.216764680366,
+          "v1_1_liquidation_px": 8451.216764680366,
+          "v1_abs_error": 1334.9564528171668,
+          "v1_1_abs_error": 1334.9564528171668,
+          "improved": null
+        },
+        {
+          "coin": "POPCAT",
+          "api_liquidation_px": 3408.9973153112,
+          "v1_liquidation_px": 4077.8017743198657,
+          "v1_1_liquidation_px": 4077.8017743198657,
+          "v1_abs_error": 668.8044590086656,
+          "v1_1_abs_error": 668.8044590086656,
+          "improved": null
+        },
+        {
+          "coin": "GOAT",
+          "api_liquidation_px": 46.4276268756,
+          "v1_liquidation_px": 55.53269373732845,
+          "v1_1_liquidation_px": 55.53269373732845,
+          "v1_abs_error": 9.105066861728453,
+          "v1_1_abs_error": 9.105066861728453,
+          "improved": null
+        },
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 114.3626438877,
+          "v1_liquidation_px": 130.39939128881218,
+          "v1_1_liquidation_px": 130.39939128881218,
+          "v1_abs_error": 16.03674740111218,
+          "v1_1_abs_error": 16.03674740111218,
+          "improved": null
+        },
+        {
+          "coin": "FARTCOIN",
+          "api_liquidation_px": 1.9752471361,
+          "v1_liquidation_px": 2.328738348621445,
+          "v1_1_liquidation_px": 2.328738348621445,
+          "v1_abs_error": 0.3534912125214451,
+          "v1_1_abs_error": 0.3534912125214451,
+          "improved": null
+        },
+        {
+          "coin": "PUMP",
+          "api_liquidation_px": 0.0685661994,
+          "v1_liquidation_px": 0.08168671105705687,
+          "v1_1_liquidation_px": 0.08168671105705687,
+          "v1_abs_error": 0.013120511657056869,
+          "v1_1_abs_error": 0.013120511657056869,
+          "improved": null
+        },
+        {
+          "coin": "LINEA",
+          "api_liquidation_px": 113.2201748776,
+          "v1_liquidation_px": 135.43234062404346,
+          "v1_1_liquidation_px": 135.43234062404346,
+          "v1_abs_error": 22.21216574644346,
+          "v1_1_abs_error": 22.21216574644346,
+          "improved": null
+        },
+        {
+          "coin": "ASTER",
+          "api_liquidation_px": 12.2207818353,
+          "v1_liquidation_px": 14.485204290151675,
+          "v1_1_liquidation_px": 14.485204290151675,
+          "v1_abs_error": 2.2644224548516743,
+          "v1_1_abs_error": 2.2644224548516743,
+          "improved": null
+        },
+        {
+          "coin": "LIT",
+          "api_liquidation_px": 1.2526206134,
+          "v1_liquidation_px": 400.66028643663975,
+          "v1_1_liquidation_px": 400.66028643663975,
+          "v1_abs_error": 399.40766582323977,
+          "v1_1_abs_error": 399.40766582323977,
+          "improved": null
+        },
+        {
+          "coin": "XMR",
+          "api_liquidation_px": 6374.4214135253,
+          "v1_liquidation_px": 7560.764150638729,
+          "v1_1_liquidation_px": 7560.764150638729,
+          "v1_abs_error": 1186.3427371134294,
+          "v1_1_abs_error": 1186.3427371134294,
+          "improved": null
+        }
+      ]
+    },
+    {
+      "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 252802.9368144,
+      "improved_positions": 1,
+      "worsened_positions": 0,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "ASTER",
+          "api_liquidation_px": 1.0416669003,
+          "v1_liquidation_px": 1.0564341730296918,
+          "v1_1_liquidation_px": 1.0273506276028033,
+          "v1_abs_error": 0.014767272729691694,
+          "v1_1_abs_error": 0.014316272697196819,
+          "improved": true
+        }
+      ]
+    },
+    {
+      "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 16.90977625,
+      "improved_positions": 0,
+      "worsened_positions": 13,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 3758.3688924455,
+          "v1_liquidation_px": 3642.1421685562736,
+          "v1_1_liquidation_px": 3642.1406922293595,
+          "v1_abs_error": 116.22672388922638,
+          "v1_1_abs_error": 116.22820021614052,
+          "improved": false
+        },
+        {
+          "coin": "BNB",
+          "api_liquidation_px": 262829883.6457394,
+          "v1_liquidation_px": 254404050.74678755,
+          "v1_1_liquidation_px": 254403810.38038734,
+          "v1_abs_error": 8425832.898951858,
+          "v1_1_abs_error": 8426073.26535207,
+          "improved": false
+        },
+        {
+          "coin": "BCH",
+          "api_liquidation_px": 50848399.17245767,
+          "v1_liquidation_px": 47347770.94531879,
+          "v1_1_liquidation_px": 47347726.21046098,
+          "v1_abs_error": 3500628.2271388844,
+          "v1_1_abs_error": 3500672.9619966894,
+          "improved": false
+        },
+        {
+          "coin": "UNI",
+          "api_liquidation_px": 200.3932116869,
+          "v1_liquidation_px": 186.84139301413725,
+          "v1_1_liquidation_px": 186.84121984694573,
+          "v1_abs_error": 13.55181867276275,
+          "v1_1_abs_error": 13.551991839954269,
+          "improved": false
+        },
+        {
+          "coin": "ENA",
+          "api_liquidation_px": 27.8743359675,
+          "v1_liquidation_px": 25.96171777835665,
+          "v1_1_liquidation_px": 25.96169333753104,
+          "v1_abs_error": 1.9126181891433482,
+          "v1_1_abs_error": 1.912642629968957,
+          "improved": false
+        },
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 64.7669350544,
+          "v1_liquidation_px": 62.88159707945826,
+          "v1_1_liquidation_px": 62.88157313989537,
+          "v1_abs_error": 1.8853379749417343,
+          "v1_1_abs_error": 1.885361914504621,
+          "improved": false
+        },
+        {
+          "coin": "FARTCOIN",
+          "api_liquidation_px": 3.108908131,
+          "v1_liquidation_px": 2.9068183872389115,
+          "v1_1_liquidation_px": 2.906815805226155,
+          "v1_abs_error": 0.20208974376108868,
+          "v1_1_abs_error": 0.20209232577384517,
+          "improved": false
+        },
+        {
+          "coin": "PUMP",
+          "api_liquidation_px": 0.2364361867,
+          "v1_liquidation_px": 0.2202744885871542,
+          "v1_1_liquidation_px": 0.22027428206806723,
+          "v1_abs_error": 0.01616169811284579,
+          "v1_1_abs_error": 0.01616190463193276,
+          "improved": false
+        },
+        {
+          "coin": "XPL",
+          "api_liquidation_px": 10.4971952121,
+          "v1_liquidation_px": 10.167509744724446,
+          "v1_1_liquidation_px": 10.167500223473334,
+          "v1_abs_error": 0.32968546737555293,
+          "v1_1_abs_error": 0.3296949886266649,
+          "improved": false
+        },
+        {
+          "coin": "WLFI",
+          "api_liquidation_px": 4.0605414424,
+          "v1_liquidation_px": 3.787844439830302,
+          "v1_1_liquidation_px": 3.7878409552906938,
+          "v1_abs_error": 0.27269700256969776,
+          "v1_1_abs_error": 0.27270048710930617,
+          "improved": false
+        },
+        {
+          "coin": "ASTER",
+          "api_liquidation_px": 3.696221551,
+          "v1_liquidation_px": 3.488521354350801,
+          "v1_1_liquidation_px": 3.4885187008971195,
+          "v1_abs_error": 0.2077001966491987,
+          "v1_1_abs_error": 0.20770285010288037,
+          "improved": false
+        },
+        {
+          "coin": "ZEC",
+          "api_liquidation_px": 4390.9453823308,
+          "v1_liquidation_px": 4104.467862267116,
+          "v1_1_liquidation_px": 4104.464202749533,
+          "v1_abs_error": 286.4775200636841,
+          "v1_1_abs_error": 286.4811795812675,
+          "improved": false
+        },
+        {
+          "coin": "MON",
+          "api_liquidation_px": 1.3076246577,
+          "v1_liquidation_px": 1.2191696689451978,
+          "v1_1_liquidation_px": 1.2191685386472175,
+          "v1_abs_error": 0.08845498875480207,
+          "v1_1_abs_error": 0.08845611905278239,
+          "improved": false
+        }
+      ]
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 1077445.1787890499,
+      "improved_positions": 54,
+      "worsened_positions": 0,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 5306.6126002553,
+          "v1_liquidation_px": 5493.216431440906,
+          "v1_1_liquidation_px": 5372.8827156657735,
+          "v1_abs_error": 186.6038311856055,
+          "v1_1_abs_error": 66.27011541047341,
+          "improved": true
+        },
+        {
+          "coin": "ATOM",
+          "api_liquidation_px": 1217.1486781167,
+          "v1_liquidation_px": 1287.3137076726578,
+          "v1_1_liquidation_px": 1241.9941528528261,
+          "v1_abs_error": 70.16502955595774,
+          "v1_1_abs_error": 24.845474736126107,
+          "improved": true
+        },
+        {
+          "coin": "AVAX",
+          "api_liquidation_px": 1142.2108392322,
+          "v1_liquidation_px": 1223.1417065785326,
+          "v1_1_liquidation_px": 1180.3435039645497,
+          "v1_abs_error": 80.93086734633266,
+          "v1_1_abs_error": 38.13266473234967,
+          "improved": true
+        },
+        {
+          "coin": "BNB",
+          "api_liquidation_px": 19023.1364541699,
+          "v1_liquidation_px": 20938.38305896412,
+          "v1_1_liquidation_px": 20222.040169968775,
+          "v1_abs_error": 1915.246604794218,
+          "v1_1_abs_error": 1198.903715798875,
+          "improved": true
+        },
+        {
+          "coin": "LTC",
+          "api_liquidation_px": 2372.3909337608,
+          "v1_liquidation_px": 2539.6987385524676,
+          "v1_1_liquidation_px": 2452.0735508571624,
+          "v1_abs_error": 167.30780479166742,
+          "v1_1_abs_error": 79.68261709636226,
+          "improved": true
+        },
+        {
+          "coin": "DOGE",
+          "api_liquidation_px": 1.5162695498,
+          "v1_liquidation_px": 1.621912868259136,
+          "v1_1_liquidation_px": 1.567988110197413,
+          "v1_abs_error": 0.10564331845913588,
+          "v1_1_abs_error": 0.05171856039741285,
+          "improved": true
+        },
+        {
+          "coin": "INJ",
+          "api_liquidation_px": 68801770.8155119,
+          "v1_liquidation_px": 72773506.60397054,
+          "v1_1_liquidation_px": 70208160.9401871,
+          "v1_abs_error": 3971735.7884586453,
+          "v1_1_abs_error": 1406390.1246751994,
+          "improved": true
+        },
+        {
+          "coin": "SUI",
+          "api_liquidation_px": 114.6264654449,
+          "v1_liquidation_px": 122.74885462706814,
+          "v1_1_liquidation_px": 118.45291037507764,
+          "v1_abs_error": 8.122389182168135,
+          "v1_1_abs_error": 3.8264449301776295,
+          "improved": true
+        },
+        {
+          "coin": "kPEPE",
+          "api_liquidation_px": 0.3485717757,
+          "v1_liquidation_px": 0.3732568399025489,
+          "v1_1_liquidation_px": 0.36021806491981173,
+          "v1_abs_error": 0.0246850642025489,
+          "v1_1_abs_error": 0.011646289219811756,
+          "improved": true
+        },
+        {
+          "coin": "CRV",
+          "api_liquidation_px": 12.1209228673,
+          "v1_liquidation_px": 12.97701978548542,
+          "v1_1_liquidation_px": 12.527305363648258,
+          "v1_abs_error": 0.8560969181854201,
+          "v1_1_abs_error": 0.4063824963482592,
+          "improved": true
+        },
+        {
+          "coin": "LDO",
+          "api_liquidation_px": 15.4041493483,
+          "v1_liquidation_px": 16.9636986833659,
+          "v1_1_liquidation_px": 16.377386661290295,
+          "v1_abs_error": 1.5595493350659009,
+          "v1_1_abs_error": 0.9732373129902943,
+          "improved": true
+        },
+        {
+          "coin": "LINK",
+          "api_liquidation_px": 150.38362994,
+          "v1_liquidation_px": 160.86982138415857,
+          "v1_1_liquidation_px": 155.50933120301627,
+          "v1_abs_error": 10.486191444158578,
+          "v1_1_abs_error": 5.125701263016282,
+          "improved": true
+        },
+        {
+          "coin": "STX",
+          "api_liquidation_px": 6407260.205077384,
+          "v1_liquidation_px": 6777133.604427523,
+          "v1_1_liquidation_px": 6538232.234407778,
+          "v1_abs_error": 369873.3993501393,
+          "v1_1_abs_error": 130972.02933039423,
+          "improved": true
+        },
+        {
+          "coin": "XRP",
+          "api_liquidation_px": 59.122712463,
+          "v1_liquidation_px": 62.45852947180294,
+          "v1_1_liquidation_px": 60.30398858075737,
+          "v1_abs_error": 3.335817008802941,
+          "v1_1_abs_error": 1.1812761177573705,
+          "improved": true
+        },
+        {
+          "coin": "BCH",
+          "api_liquidation_px": 134314.1931754911,
+          "v1_liquidation_px": 143844.28517883705,
+          "v1_1_liquidation_px": 138790.01442506714,
+          "v1_abs_error": 9530.092003345955,
+          "v1_1_abs_error": 4475.821249576053,
+          "improved": true
+        },
+        {
+          "coin": "AAVE",
+          "api_liquidation_px": 3129.5397590528,
+          "v1_liquidation_px": 3349.63156327915,
+          "v1_1_liquidation_px": 3235.0378843446406,
+          "v1_abs_error": 220.09180422635018,
+          "v1_1_abs_error": 105.49812529184055,
+          "improved": true
+        },
+        {
+          "coin": "WLD",
+          "api_liquidation_px": 20.1537677731,
+          "v1_liquidation_px": 21.579108192770885,
+          "v1_1_liquidation_px": 20.828223632731135,
+          "v1_abs_error": 1.425340419670885,
+          "v1_1_abs_error": 0.6744558596311343,
+          "improved": true
+        },
+        {
+          "coin": "kSHIB",
+          "api_liquidation_px": 45215.9809777817,
+          "v1_liquidation_px": 49844.87151206202,
+          "v1_1_liquidation_px": 48087.78544097746,
+          "v1_abs_error": 4628.890534280319,
+          "v1_1_abs_error": 2871.80446319576,
+          "improved": true
+        },
+        {
+          "coin": "UNI",
+          "api_liquidation_px": 286.9259050003,
+          "v1_liquidation_px": 307.22729479112974,
+          "v1_1_liquidation_px": 296.52273255485176,
+          "v1_abs_error": 20.301389790829717,
+          "v1_1_abs_error": 9.596827554551737,
+          "improved": true
+        },
+        {
+          "coin": "SEI",
+          "api_liquidation_px": 18.4976749237,
+          "v1_liquidation_px": 20.388603754046024,
+          "v1_1_liquidation_px": 19.671724882905888,
+          "v1_abs_error": 1.8909288303460237,
+          "v1_1_abs_error": 1.1740499592058882,
+          "improved": true
+        },
+        {
+          "coin": "TIA",
+          "api_liquidation_px": 121.328484052,
+          "v1_liquidation_px": 129.93998036453056,
+          "v1_1_liquidation_px": 125.36999636839367,
+          "v1_abs_error": 8.611496312530562,
+          "v1_1_abs_error": 4.041512316393678,
+          "improved": true
+        },
+        {
+          "coin": "ADA",
+          "api_liquidation_px": 187.4631977191,
+          "v1_liquidation_px": 200.77337649841022,
+          "v1_1_liquidation_px": 193.70465334344706,
+          "v1_abs_error": 13.310178779310206,
+          "v1_1_abs_error": 6.241455624347054,
+          "improved": true
+        },
+        {
+          "coin": "NEAR",
+          "api_liquidation_px": 227.0917163533,
+          "v1_liquidation_px": 243.19569908273934,
+          "v1_1_liquidation_px": 234.66473681416346,
+          "v1_abs_error": 16.103982729439338,
+          "v1_1_abs_error": 7.573020460863461,
+          "improved": true
+        },
+        {
+          "coin": "PYTH",
+          "api_liquidation_px": 11.1018264642,
+          "v1_liquidation_px": 11.740457690462248,
+          "v1_1_liquidation_px": 11.327965537289495,
+          "v1_abs_error": 0.6386312262622482,
+          "v1_1_abs_error": 0.2261390730894952,
+          "improved": true
+        },
+        {
+          "coin": "kBONK",
+          "api_liquidation_px": 0.3473911839,
+          "v1_liquidation_px": 0.3719353408601892,
+          "v1_1_liquidation_px": 0.3590315246593953,
+          "v1_abs_error": 0.02454415696018919,
+          "v1_1_abs_error": 0.011640340759395296,
+          "improved": true
+        },
+        {
+          "coin": "ONDO",
+          "api_liquidation_px": 25.1767360258,
+          "v1_liquidation_px": 27.74033318540729,
+          "v1_1_liquidation_px": 26.771846967474985,
+          "v1_abs_error": 2.5635971596072906,
+          "v1_1_abs_error": 1.5951109416749851,
+          "improved": true
+        },
+        {
+          "coin": "TAO",
+          "api_liquidation_px": 15810.7626687193,
+          "v1_liquidation_px": 16705.427379886813,
+          "v1_1_liquidation_px": 16127.576018976786,
+          "v1_abs_error": 894.664711167512,
+          "v1_1_abs_error": 316.8133502574856,
+          "improved": true
+        },
+        {
+          "coin": "ENA",
+          "api_liquidation_px": 2.2969616586,
+          "v1_liquidation_px": 2.458037990719376,
+          "v1_1_liquidation_px": 2.374688857663967,
+          "v1_abs_error": 0.161076332119376,
+          "v1_1_abs_error": 0.07772719906396697,
+          "improved": true
+        },
+        {
+          "coin": "POPCAT",
+          "api_liquidation_px": 11.1684966143,
+          "v1_liquidation_px": 11.810462410697056,
+          "v1_1_liquidation_px": 11.395810644326358,
+          "v1_abs_error": 0.6419657963970558,
+          "v1_1_abs_error": 0.22731403002635808,
+          "improved": true
+        },
+        {
+          "coin": "EIGEN",
+          "api_liquidation_px": 87.0252127491,
+          "v1_liquidation_px": 92.03940107117451,
+          "v1_1_liquidation_px": 88.80073491731508,
+          "v1_abs_error": 5.014188322074503,
+          "v1_1_abs_error": 1.7755221682150761,
+          "improved": true
+        },
+        {
+          "coin": "PNUT",
+          "api_liquidation_px": 524346.6647893485,
+          "v1_liquidation_px": 554615.745374887,
+          "v1_1_liquidation_px": 535064.9346547083,
+          "v1_abs_error": 30269.080585538526,
+          "v1_1_abs_error": 10718.269865359762,
+          "improved": true
+        },
+        {
+          "coin": "XLM",
+          "api_liquidation_px": 8756588.813904243,
+          "v1_liquidation_px": 9262082.459682614,
+          "v1_1_liquidation_px": 8935583.920655629,
+          "v1_abs_error": 505493.645778371,
+          "v1_1_abs_error": 178995.10675138608,
+          "improved": true
+        },
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 169.9121395168,
+          "v1_liquidation_px": 181.15000357015822,
+          "v1_1_liquidation_px": 176.08826351865983,
+          "v1_abs_error": 11.237864053358209,
+          "v1_1_abs_error": 6.176124001859819,
+          "improved": true
+        },
+        {
+          "coin": "VIRTUAL",
+          "api_liquidation_px": 43.9803489058,
+          "v1_liquidation_px": 46.481344294378296,
+          "v1_1_liquidation_px": 44.86598917097343,
+          "v1_abs_error": 2.5009953885782963,
+          "v1_1_abs_error": 0.8856402651734285,
+          "improved": true
+        },
+        {
+          "coin": "PENGU",
+          "api_liquidation_px": 1.5645843719,
+          "v1_liquidation_px": 1.65452619561527,
+          "v1_1_liquidation_px": 1.5964327373190004,
+          "v1_abs_error": 0.08994182371526982,
+          "v1_1_abs_error": 0.03184836541900027,
+          "improved": true
+        },
+        {
+          "coin": "FARTCOIN",
+          "api_liquidation_px": 3.0897446453,
+          "v1_liquidation_px": 3.305323465077574,
+          "v1_1_liquidation_px": 3.1949419428993115,
+          "v1_abs_error": 0.21557881977757365,
+          "v1_1_abs_error": 0.1051972975993114,
+          "improved": true
+        },
+        {
+          "coin": "AIXBT",
+          "api_liquidation_px": 27.7793187122,
+          "v1_liquidation_px": 29.38160037605718,
+          "v1_1_liquidation_px": 28.346686036948153,
+          "v1_abs_error": 1.6022816638571804,
+          "v1_1_abs_error": 0.5673673247481545,
+          "improved": true
+        },
+        {
+          "coin": "GRIFFAIN",
+          "api_liquidation_px": 7006.6978258708,
+          "v1_liquidation_px": 7411.174454943817,
+          "v1_1_liquidation_px": 7149.922845619335,
+          "v1_abs_error": 404.47662907301674,
+          "v1_1_abs_error": 143.22501974853458,
+          "improved": true
+        },
+        {
+          "coin": "SPX",
+          "api_liquidation_px": 52.5447368259,
+          "v1_liquidation_px": 55.56240432466746,
+          "v1_1_liquidation_px": 53.613317569759296,
+          "v1_abs_error": 3.0176674987674588,
+          "v1_1_abs_error": 1.0685807438592931,
+          "improved": true
+        },
+        {
+          "coin": "MORPHO",
+          "api_liquidation_px": 509.2711937143,
+          "v1_liquidation_px": 538.5830029715835,
+          "v1_1_liquidation_px": 519.6504295781832,
+          "v1_abs_error": 29.31180925728347,
+          "v1_1_abs_error": 10.379235863883196,
+          "improved": true
+        },
+        {
+          "coin": "VVV",
+          "api_liquidation_px": 331.7679111625,
+          "v1_liquidation_px": 350.55456413025496,
+          "v1_1_liquidation_px": 338.4210328778509,
+          "v1_abs_error": 18.786652967754947,
+          "v1_1_abs_error": 6.653121715350892,
+          "improved": true
+        },
+        {
+          "coin": "BERA",
+          "api_liquidation_px": 996.46202901,
+          "v1_liquidation_px": 1053.9591345852625,
+          "v1_1_liquidation_px": 1016.8217191986279,
+          "v1_abs_error": 57.49710557526248,
+          "v1_1_abs_error": 20.359690188627837,
+          "improved": true
+        },
+        {
+          "coin": "IP",
+          "api_liquidation_px": 50.0909844981,
+          "v1_liquidation_px": 52.952512356887354,
+          "v1_1_liquidation_px": 51.104315009131376,
+          "v1_abs_error": 2.8615278587873547,
+          "v1_1_abs_error": 1.013330511031377,
+          "improved": true
+        },
+        {
+          "coin": "PAXG",
+          "api_liquidation_px": 86650.7503004063,
+          "v1_liquidation_px": 95280.41228295876,
+          "v1_1_liquidation_px": 92083.10231806405,
+          "v1_abs_error": 8629.661982552454,
+          "v1_1_abs_error": 5432.352017657744,
+          "improved": true
+        },
+        {
+          "coin": "PUMP",
+          "api_liquidation_px": 0.0611549933,
+          "v1_liquidation_px": 0.06546104359350668,
+          "v1_1_liquidation_px": 0.0632131855070132,
+          "v1_abs_error": 0.004306050293506683,
+          "v1_1_abs_error": 0.0020581922070131986,
+          "improved": true
+        },
+        {
+          "coin": "XPL",
+          "api_liquidation_px": 1.6225914604,
+          "v1_liquidation_px": 1.7839782840259382,
+          "v1_1_liquidation_px": 1.7242713447618603,
+          "v1_abs_error": 0.16138682362593815,
+          "v1_1_abs_error": 0.10167988436186026,
+          "improved": true
+        },
+        {
+          "coin": "WLFI",
+          "api_liquidation_px": 17.7463680569,
+          "v1_liquidation_px": 18.76504289695582,
+          "v1_1_liquidation_px": 18.107073323512147,
+          "v1_abs_error": 1.0186748400558194,
+          "v1_1_abs_error": 0.36070526661214686,
+          "improved": true
+        },
+        {
+          "coin": "ASTER",
+          "api_liquidation_px": 158.8078369897,
+          "v1_liquidation_px": 167.93605567108793,
+          "v1_1_liquidation_px": 162.04009698162213,
+          "v1_abs_error": 9.12821868138792,
+          "v1_1_abs_error": 3.2322599919221204,
+          "improved": true
+        },
+        {
+          "coin": "AVNT",
+          "api_liquidation_px": 62.8279898385,
+          "v1_liquidation_px": 66.4472501715688,
+          "v1_1_liquidation_px": 64.10956853902451,
+          "v1_abs_error": 3.6192603330687945,
+          "v1_1_abs_error": 1.2815787005245056,
+          "improved": true
+        },
+        {
+          "coin": "2Z",
+          "api_liquidation_px": 41.8730898036,
+          "v1_liquidation_px": 44.28590670780131,
+          "v1_1_liquidation_px": 42.72745765860382,
+          "v1_abs_error": 2.412816904201307,
+          "v1_1_abs_error": 0.8543678550038152,
+          "improved": true
+        },
+        {
+          "coin": "ZEC",
+          "api_liquidation_px": 14577.4992733323,
+          "v1_liquidation_px": 15607.730106000357,
+          "v1_1_liquidation_px": 15065.686005871266,
+          "v1_abs_error": 1030.2308326680577,
+          "v1_1_abs_error": 488.1867325389667,
+          "improved": true
+        },
+        {
+          "coin": "MON",
+          "api_liquidation_px": 6.5686781127,
+          "v1_liquidation_px": 6.9465538587571265,
+          "v1_1_liquidation_px": 6.702486353524177,
+          "v1_abs_error": 0.3778757460571267,
+          "v1_1_abs_error": 0.13380824082417764,
+          "improved": true
+        },
+        {
+          "coin": "MET",
+          "api_liquidation_px": 35.921740358,
+          "v1_liquidation_px": 37.987513505109284,
+          "v1_1_liquidation_px": 36.65322983977368,
+          "v1_abs_error": 2.065773147109283,
+          "v1_1_abs_error": 0.7314894817736786,
+          "improved": true
+        },
+        {
+          "coin": "LIT",
+          "api_liquidation_px": 54.4954205775,
+          "v1_liquidation_px": 57.593959939229535,
+          "v1_1_liquidation_px": 55.59261218111489,
+          "v1_abs_error": 3.098539361729536,
+          "v1_1_abs_error": 1.0971916036148883,
+          "improved": true
+        }
+      ]
+    },
+    {
+      "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "mode": "cross_margin",
+      "reserved_margin_candidate": "D",
+      "reserved_margin_estimate": 3015.3210000000654,
+      "improved_positions": 0,
+      "worsened_positions": 4,
+      "unchanged_positions": 0,
+      "positions": [
+        {
+          "coin": "BTC",
+          "api_liquidation_px": 1254331.2299469362,
+          "v1_liquidation_px": 1213325.6031609233,
+          "v1_1_liquidation_px": 1213113.1126549214,
+          "v1_abs_error": 41005.6267860129,
+          "v1_1_abs_error": 41218.11729201488,
+          "improved": false
+        },
+        {
+          "coin": "ETH",
+          "api_liquidation_px": 6348.0243432159,
+          "v1_liquidation_px": 6199.887128961233,
+          "v1_1_liquidation_px": 6199.122518876988,
+          "v1_abs_error": 148.13721425466701,
+          "v1_1_abs_error": 148.90182433891277,
+          "improved": false
+        },
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 131.8418063311,
+          "v1_liquidation_px": 129.1999521379098,
+          "v1_1_liquidation_px": 129.18295045146286,
+          "v1_abs_error": 2.6418541931901984,
+          "v1_1_abs_error": 2.6588558796371444,
+          "improved": false
+        },
+        {
+          "coin": "PAXG",
+          "api_liquidation_px": 11106.8488041487,
+          "v1_liquidation_px": 10880.760381162796,
+          "v1_1_liquidation_px": 10879.591271497986,
+          "v1_abs_error": 226.0884229859039,
+          "v1_1_abs_error": 227.25753265071398,
+          "improved": false
+        }
+      ]
+    }
+  ]
+}
