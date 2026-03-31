@@ -1,6 +1,7 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import List
+from typing import Callable, List
 
 from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
 from src.liquidationheatmap.hyperliquid.margin_math import (
@@ -209,9 +210,15 @@ class MarginValidator:
         asset_margin_tiers: dict[int, list[dict]],
         cross_maintenance_margin_used: float,
     ):
-        spot_state: SpotClearinghouseState = await self.client.get_spot_clearinghouse_state(user)
-        borrow_lend_user_state: BorrowLendUserState = await self.client.get_borrow_lend_user_state(user)
-        reserve_states = await self.client.get_all_borrow_lend_reserve_states()
+        (
+            spot_state,
+            borrow_lend_user_state,
+            reserve_states,
+        ) = await asyncio.gather(
+            self.client.get_spot_clearinghouse_state(user),
+            self.client.get_borrow_lend_user_state(user),
+            self.client.get_all_borrow_lend_reserve_states(),
+        )
         return self.portfolio_solver.compute_portfolio_margin(
             user_address=user,
             positions=positions,
@@ -412,14 +419,27 @@ class MarginValidator:
             liq_px_summary=liq_px_summary,
         )
 
-    async def validate_batch(self, users: List[str]) -> MarginValidationReport:
+    async def validate_batch(
+        self,
+        users: List[str],
+        *,
+        progress_callback: Callable[[str, int, int, bool], None] | None = None,
+    ) -> MarginValidationReport:
         results = []
+        total_users = len(users)
+        completed = 0
         for user in users:
             try:
                 res = await self.validate_user(user)
                 results.append(res)
+                completed += 1
+                if progress_callback is not None:
+                    progress_callback(user, completed, total_users, True)
             except Exception as e:
                 logger.warning("Error validating user %s: %s", user, e)
+                completed += 1
+                if progress_callback is not None:
+                    progress_callback(user, completed, total_users, False)
 
         if not results:
             return MarginValidationReport(

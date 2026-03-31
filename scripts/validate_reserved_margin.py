@@ -161,6 +161,14 @@ def _format_optional_float(value: float | None) -> str:
     return f"{value:.4f}" if value is not None else "n/a"
 
 
+def _print_validation_progress(user: str, completed: int, total: int, success: bool) -> None:
+    status = "ok" if success else "failed"
+    print(
+        f"[{completed}/{total}] {user} {status}",
+        flush=True,
+    )
+
+
 def _resolve_existing_data_file(path_str: str) -> Path:
     path = Path(path_str)
     if path.exists():
@@ -430,7 +438,12 @@ async def main():
         orders_by_user=_load_orders_by_user(args.file),
         reserved_margin_candidate=args.reserved_margin_candidate,
     )
-    report = await validator.validate_batch(users)
+    report = await validator.validate_batch(
+        users,
+        progress_callback=(
+            _print_validation_progress if len(users) > 1 else None
+        ),
+    )
     
     print(f"\n--- Validation Report ---")
     print(f"Users analyzed: {report.users_analyzed}")

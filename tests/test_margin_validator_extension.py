@@ -15,6 +15,7 @@ from src.liquidationheatmap.hyperliquid.models import (
     AssetMetaSnapshot,
     AssetMeta,
     AssetContext,
+    MarginValidationResult,
 )
 
 def make_simple_state(portfolio_margin_summary=None, asset_positions=None):
@@ -128,8 +129,49 @@ async def test_validate_batch_continues_after_failure():
     assert report.results[0].user == "0x1"
     assert report.results[1].user == "0x3"
 
+
+@pytest.mark.asyncio
+async def test_validate_batch_reports_progress_for_success_and_failure():
+    validator = MarginValidator(client=AsyncMock())
+    validator.validate_user = AsyncMock(side_effect=[
+        make_validation_result("0x1"),
+        Exception("boom"),
+        make_validation_result("0x3"),
+    ])
+    progress = []
+
+    report = await validator.validate_batch(
+        ["0x1", "0x2", "0x3"],
+        progress_callback=lambda user, completed, total, success: progress.append(
+            (user, completed, total, success)
+        ),
+    )
+
+    assert report.users_analyzed == 2
+    assert progress == [
+        ("0x1", 1, 3, True),
+        ("0x2", 2, 3, False),
+        ("0x3", 3, 3, True),
+    ]
+
+
 def test_build_liq_px_summary_no_comparable_positions():
     validator = MarginValidator()
     # If all positions have deviation_liq_px_v1 as None
     summary = validator._build_liq_px_summary([])
     assert summary is None
+
+
+def make_validation_result(user: str):
+    return MarginValidationResult(
+        user=user,
+        mode=MarginMode.CROSS_MARGIN,
+        account_abstraction="default",
+        api_total_margin_used=200.0,
+        api_cross_maintenance_margin_used=100.0,
+        sidecar_total_mmr=100.0,
+        deviation_mmr_pct=0.0,
+        positions=[],
+        factors=[],
+        liq_px_summary=None,
+    )

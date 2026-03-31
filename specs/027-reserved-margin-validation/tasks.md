@@ -141,7 +141,7 @@
 - [x] T026 [US3] Implement `compute_portfolio_margin()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: completed as a documented pre-alpha PM solver using `spotClearinghouseState`, `borrowLendUserState`, `allBorrowLendReserveStates`, API-anchored `availableAfterMaintenance`, and cross-maintenance MMR deltas.
 - [x] T027 [US3] Implement `solve_portfolio_liquidation_price()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: completed with a target-price root solve over API-anchored PM liquidation value.
 - [x] T028 [US3] Green tests from T025 — verified with `uv run pytest tests/test_portfolio_solver.py -v`
-- [-] T029 [US3] Validate against live API for PM accounts found during US2: compare `liquidationPx` within 1% — SC-003. Initial live validation on 2026-03-31 is promising but incomplete: account `0xb1c4...` matched within tolerance (`solver=52.8967`, `api=53.0335`, `0.26%` error), while the other observed PM accounts did not provide a comparable PM `liquidationPx` (`0xdc00...` has no positions, `0xfc8b...` returns `null` liqPx). More PM observations are still needed to close SC-003 formally.
+- [-] T029 [US3] Validate against live API for PM accounts found during US2: compare `liquidationPx` within 1% — SC-003. Live validation remains promising but incomplete. On 2026-03-31, the PM path was rerun against the three observed PM accounts using the healthy VPS/public `/info` chain (`10.0.0.1 -> public`) because the local consensus `/info` endpoint was unstable. Account `0xb1c4...` remained within tolerance (`solver=52.9651`, `api=53.0340`, `0.13%` error), while the other observed PM accounts still did not provide a comparable PM `liquidationPx` (`0xdc00...` has no positions, `0xfc8b...` returns `null` liqPx). More PM observations are still needed to close SC-003 formally.
 
 **Checkpoint**: The PM solver now exists and has one successful live comparison under 1%, so US3 has moved from "blocked" to "partially validated". SC-003 remains open because the live comparable sample is still too small.
 
@@ -151,10 +151,10 @@
 
 **Purpose**: Integration, documentation, and final validation
 
-- [ ] T030 Run full test suite: `uv run pytest tests/test_hyperliquid_sidecar.py tests/test_api_client.py tests/test_margin_validator.py tests/test_portfolio_solver.py -v --tb=short`
-- [ ] T031 Generate final validation report: run `scripts/validate_reserved_margin.py` with full outlier set, verify SC-001 (MMR) and SC-005 (no unknown gaps > 5%)
+- [x] T030 Run full test suite: verified on 2026-03-31 with the expanded Hyperliquid suite (`tests/test_hyperliquid_sidecar.py`, `tests/test_api_client.py`, `tests/test_api_client_extension.py`, `tests/test_margin_validator.py`, `tests/test_margin_validator_extension.py`, `tests/test_portfolio_solver.py`, `tests/test_portfolio_solver_extension.py`, `tests/test_validate_reserved_margin_cli.py`) — `121 passed`
+- [-] T031 Generate final validation report: rerun on 2026-03-31 via the healthy VPS/public `/info` fallback chain because the local consensus `/info` endpoint was unhealthy. Artifact refreshed at `data/validation/margin_validation_report.json`. Current result is **not a full pass**: `users_analyzed = 9`, `cross_margin tolerance_rate = 0.8889`, `mean_mmr_deviation_pct = 0.3087`, with `0x7717... = 1.7431%` the only user above tolerance. SC-001 therefore remains open on the current rerun. SC-005 also remains open pending explicit review of the residual `unknown` attribution tails.
 - [x] T032 Update contracts in `specs/027-reserved-margin-validation/contracts/` to reflect discovered API fields (`crossMaintenanceMarginUsed`, `crossMarginSummary`, `userAbstraction`, `spotClearinghouseState`, borrow/lend PM endpoints)
-- [ ] T033 Update `research.md` with final validation results, formula selection rationale, and V1 vs V1.1 comparison conclusions
+- [x] T033 Update `research.md` with final validation results, formula selection rationale, V1 vs V1.1 comparison conclusions, and the current operational note that live validation should prefer the VPS/public `/info` chain while the local consensus node is being stabilized
 
 ---
 
@@ -205,9 +205,9 @@ Phase 1 (Setup) — T001+T002 [P] T004
 
 ### Key Risks
 
-1. **US4 reserved-margin estimate is still best-effort**: The true formula is undocumented. Candidate B remains the empirical winner among scalar A-D candidates (`70.09%` overall), but the stronger operational heuristic is now Candidate E (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin), which improves `cross_margin` liqPx to `96.55%` on the outlier sample. Validation remains indirect and the residual gap is concentrated in a small number of users.
-2. **US3 live sample is still thin**: the PM solver now exists and one observed PM account validates within tolerance, but the live comparable PM sample is only one position so SC-003 cannot yet be closed.
-3. **Isolated-margin residuals**: `passed_all_accounts` is still false because the two isolated-margin accounts remain outside tolerance. They should be tracked separately from the now-resolved cross-margin blocker.
+1. **US4 reserved-margin estimate is still best-effort**: The true formula is undocumented. Candidate B remains the empirical winner among scalar A-D candidates (`70.09%` overall), but the stronger operational heuristic is now Candidate E (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin). The latest live rerun on 2026-03-31 still shows meaningful liqPx wins globally (`217/322` improved) but no longer supports the earlier claim that cross-margin MMR is fully closed, because one user (`0x7717...`) is back above the 1% tolerance.
+2. **US3 live sample is still thin**: the PM solver now exists and one observed PM account validates within tolerance (`0xb1c4...` at `0.13%` error on the latest rerun), but the live comparable PM sample is still only one position so SC-003 cannot yet be closed.
+3. **Operational dependency on local `/info`**: the local consensus node's `/info` endpoint is currently unstable, so live validation should use the VPS/public fallback chain until the node team completes stabilization.
 
 ---
 

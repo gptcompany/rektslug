@@ -339,6 +339,47 @@ The validator was updated to:
 - The continuity-based inference for `maintenance_deduction` is empirically validated by the whale rerun, even though Hyperliquid does not expose the deduction explicitly in the live payload.
 - Cross-margin MMR validation is no longer the primary risk in `spec-027`.
 
+### Phase C: Current rerun on the healthy VPS/public `/info` chain
+
+Because the local consensus node's `/info` endpoint later became unstable on 2026-03-31, the outlier report was rerun with:
+
+```bash
+HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS=http://10.0.0.1:3001/info,https://api.hyperliquid.xyz/info
+```
+
+using the same 9 outlier users and refreshing `data/validation/margin_validation_report.json`.
+
+#### Current results
+
+- `users_analyzed = 9`
+- `margin_mode_distribution = {"cross_margin": 9}`
+- `cross_margin tolerance_rate = 0.8889`
+- `mean_mmr_deviation_pct = 0.3087`
+- `passed_cross_margin_only = false`
+- `passed_all_accounts = false`
+
+Only one user is currently above the 1% MMR tolerance:
+
+- `0x7717...`: `1.7431%`
+
+All other users remained below tolerance:
+
+- `0x31dea2...`: `0.0773%`
+- `0x57dd78...`: `0.1380%`
+- `0x7b7f72...`: `0.0984%`
+- `0x7fdafd...`: `0.1456%`
+- `0xab5e6f...`: `0.1082%`
+- `0xd47587...`: `0.3062%`
+- `0xecb63c...`: `0.0807%`
+- `0xfc667a...`: `0.0811%`
+
+#### Interpretation
+
+1. The tiered-MMR fix still holds: the whale accounts remain close.
+2. The stronger earlier claim "`cross_margin tolerance_rate = 1.0000` is now closed" should no longer be treated as the authoritative current state.
+3. The current blocker for SC-001 is narrow but real: one cross-margin user (`0x7717...`) is back over the threshold on the refreshed rerun.
+4. Operationally, the rerun should be trusted more than local-node reads because it was forced through the healthy VPS/public `/info` chain after the local consensus endpoint was found unstable.
+
 ## 9. Reserved-Margin Candidate Selection After Tiered-MMR Fix
 
 **Operational Baseline at This Stage**: Candidate B (`reserved = notional * 1/(2 * max_leverage)`).
@@ -484,6 +525,44 @@ A live comparison was run against the three observed PM accounts:
    - routing the validator/report path through the PM solver
    - gathering more PM observations with non-null API `liqPx`
    - understanding when PM accounts fall back to non-PM behavior under pre-alpha caps
+
+### Updated PM rerun on the healthy `/info` chain
+
+The PM validation was rerun later on 2026-03-31 using the healthy VPS/public `/info` chain for the same reason as the outlier rerun: the local consensus `/info` endpoint had entered an unhealthy state and was resetting local connections.
+
+Refreshed live PM result:
+
+- `0xb1c4...`
+  - API `liqPx = 53.0340`
+  - Solver `liqPx = 52.9651`
+  - absolute deviation `0.0689`
+  - relative deviation `0.13%`
+- `0xdc00...`
+  - no active perp positions
+  - not comparable for `liqPx`
+- `0xfc8b...`
+  - API `liqPx = null`
+  - still not comparable for `liqPx`
+
+This improves confidence in the PM liqPx path for the one comparable account, but it does not change the status of SC-003: the live comparable PM sample is still too small to close the story formally.
+
+### Operational note on backend health
+
+During the same session, the local workstation consensus container was found to be unstable:
+
+- `localhost:3001/info` reset connections even for simple POST payloads
+- Docker still reported the container `Up`
+- but `docker top` / `docker exec` failed with `task ... not found`
+- logs showed `hl-visor` restart loops with `child_low_memory: true`
+- the container state carried `OOMKilled=true`
+
+Therefore, until the node team stabilizes the local consensus stack, live validation should prefer:
+
+```bash
+HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS=http://10.0.0.1:3001/info,https://api.hyperliquid.xyz/info
+```
+
+This is an operational workaround, not a modeling conclusion.
 
 
 ---
