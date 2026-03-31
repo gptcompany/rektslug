@@ -9,11 +9,15 @@ from scripts.capture_hyperliquid_info_snapshots import (
     _build_snapshot_entry,
     _load_default_watchlist,
     _load_watchlist,
+    _requires_spot_clearinghouse_state,
     capture_snapshots,
 )
 from src.liquidationheatmap.hyperliquid.models import (
     AccountAbstraction,
     ApiPosition,
+    AssetContext,
+    AssetMeta,
+    AssetMetaSnapshot,
     BorrowLendAmount,
     BorrowLendReserveState,
     BorrowLendTokenState,
@@ -73,13 +77,26 @@ def test_build_snapshot_entry_tracks_comparable_positions():
         clearinghouse_state=make_state(liq_px=53.0),
         spot_state=make_spot_state(),
         borrow_lend_user_state=make_borrow_lend_user_state(),
+        asset_meta_snapshot={
+            "universe": [{"name": "HYPE"}],
+            "assetContexts": [{"markPx": 55.0}],
+            "margin_tables": {},
+        },
+        captured_at="2026-03-31T00:00:00+00:00",
     )
 
     assert entry["user_abstraction"] == "portfolioMargin"
     assert entry["position_count"] == 1
     assert entry["comparable_position_count"] == 1
     assert entry["comparable_positions"] == [{"coin": "HYPE", "liquidation_px": 53.0}]
+    assert entry["mark_prices_by_coin"] == {"HYPE": 55.0}
+    assert "portfolio_margin_summary_missing" in entry["warnings"]
     assert entry["spot_clearinghouse_state"]["balances"][0]["coin"] == "USDC"
+
+
+def test_requires_spot_clearinghouse_state_false_for_default():
+    assert not _requires_spot_clearinghouse_state(AccountAbstraction.DEFAULT)
+
 
 @pytest.mark.asyncio
 async def test_capture_snapshots_collects_portfolio_margin_states(monkeypatch):
@@ -100,6 +117,7 @@ async def test_capture_snapshots_collects_portfolio_margin_states(monkeypatch):
     mock_client.get_clearinghouse_state.return_value = make_state(liq_px=53.0)
     mock_client.get_spot_clearinghouse_state.return_value = make_spot_state()
     mock_client.get_borrow_lend_user_state.return_value = make_borrow_lend_user_state()
+    mock_client.get_asset_meta.return_value = make_asset_snapshot()
 
     monkeypatch.setattr(
         "scripts.capture_hyperliquid_info_snapshots.HyperliquidInfoClient",
@@ -112,8 +130,56 @@ async def test_capture_snapshots_collects_portfolio_margin_states(monkeypatch):
     assert payload["users_succeeded"] == 1
     assert payload["users_failed"] == 0
     assert payload["reserve_state_token_count"] == 1
+    assert payload["warnings"] == []
     assert payload["snapshots"][0]["comparable_position_count"] == 1
+    assert payload["snapshots"][0]["mark_prices_by_coin"] == {"HYPE": 55.0}
     assert payload["snapshots"][0]["borrow_lend_user_state"]["health"] == "healthy"
+    assert payload["snapshots"][0]["asset_meta_snapshot"]["universe"][0]["name"] == "HYPE"
+
+
+@pytest.mark.asyncio
+async def test_capture_snapshots_skips_spot_fetch_for_default_abstraction(monkeypatch):
+    mock_client = AsyncMock()
+    mock_client.get_all_borrow_lend_reserve_states.return_value = {}
+    mock_client.get_asset_meta.return_value = make_asset_snapshot()
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
+    mock_client.get_clearinghouse_state.return_value = make_state(liq_px=53.0)
+
+    monkeypatch.setattr(
+        "scripts.capture_hyperliquid_info_snapshots.HyperliquidInfoClient",
+        lambda requests_per_minute=120: mock_client,
+    )
+
+    payload = await capture_snapshots(["0xabc"])
+
+    assert payload["users_succeeded"] == 1
+    assert payload["snapshots"][0]["spot_clearinghouse_state"] is None
+    assert payload["snapshots"][0]["borrow_lend_user_state"] is None
+    mock_client.get_spot_clearinghouse_state.assert_not_called()
+    mock_client.get_borrow_lend_user_state.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_capture_snapshots_records_meta_warning_and_stepful_failure(monkeypatch):
+    mock_client = AsyncMock()
+    mock_client.get_all_borrow_lend_reserve_states.return_value = {}
+    mock_client.get_asset_meta.side_effect = RuntimeError("meta unavailable")
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.PORTFOLIO_MARGIN
+    mock_client.get_clearinghouse_state.return_value = make_state(liq_px=53.0)
+    mock_client.get_spot_clearinghouse_state.side_effect = TimeoutError("slow spot")
+
+    monkeypatch.setattr(
+        "scripts.capture_hyperliquid_info_snapshots.HyperliquidInfoClient",
+        lambda requests_per_minute=120: mock_client,
+    )
+
+    payload = await capture_snapshots(["0xabc"])
+
+    assert payload["users_succeeded"] == 0
+    assert payload["users_failed"] == 1
+    assert payload["warnings"] == ["metaAndAssetCtxs_unavailable:RuntimeError:meta unavailable"]
+    assert payload["failures"][0]["step"] == "get_spot_and_borrow_lend_state"
+    assert payload["failures"][0]["error_type"] == "TimeoutError"
 
 
 def make_state(liq_px: float | None) -> ClearinghouseUserState:
@@ -174,6 +240,22 @@ def make_spot_state() -> SpotClearinghouseState:
             )
         ],
         tokenToAvailableAfterMaintenance=[(0, 500.0)],
+    )
+
+
+def make_asset_snapshot() -> AssetMetaSnapshot:
+    return AssetMetaSnapshot(
+        universe=[
+            AssetMeta(
+                name="HYPE",
+                szDecimals=2,
+                maxLeverage=20,
+                onlyIsolated=False,
+                marginTableId=0,
+            )
+        ],
+        assetContexts=[AssetContext(markPx=55.0)],
+        margin_tables={},
     )
 
 
