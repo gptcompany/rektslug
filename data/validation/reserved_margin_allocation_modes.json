@@ -1,0 +1,347 @@
+{
+  "candidate": "B",
+  "modes": {
+    "global": {
+      "all_accounts": {
+        "mode": "global",
+        "positions_compared": 322,
+        "improved_positions": 226,
+        "worsened_positions": 96,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 131879.13699841243,
+        "v1_1_mean_abs_error": 156055.90773523352,
+        "improvement_rate": 0.7018633540372671
+      },
+      "cross_margin_only": {
+        "mode": "global",
+        "positions_compared": 174,
+        "improved_positions": 78,
+        "worsened_positions": 96,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 243238.2654918164,
+        "v1_1_mean_abs_error": 287980.6795970839,
+        "improvement_rate": 0.4482758620689655
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 98,
+          "improved_positions": 8,
+          "worsened_positions": 90,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.08163265306122448
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "allocation_mode": "global",
+          "positions_compared": 131,
+          "improved_positions": 131,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "allocation_mode": "global",
+          "positions_compared": 17,
+          "improved_positions": 17,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "allocation_mode": "global",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    "target_coin_only": {
+      "all_accounts": {
+        "mode": "target_coin_only",
+        "positions_compared": 321,
+        "improved_positions": 3,
+        "worsened_positions": 4,
+        "unchanged_positions": 314,
+        "v1_mean_abs_error": 135544.69035344408,
+        "v1_1_mean_abs_error": 135784.20268598894,
+        "improvement_rate": 0.009345794392523364
+      },
+      "cross_margin_only": {
+        "mode": "target_coin_only",
+        "positions_compared": 173,
+        "improved_positions": 2,
+        "worsened_positions": 4,
+        "unchanged_positions": 167,
+        "v1_mean_abs_error": 250666.05905648725,
+        "v1_1_mean_abs_error": 251110.47211343335,
+        "improvement_rate": 0.011560693641618497
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 3,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 98,
+          "improved_positions": 0,
+          "worsened_positions": 1,
+          "unchanged_positions": 97,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 131,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 131,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 2,
+          "improved_positions": 0,
+          "worsened_positions": 2,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 17,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 16,
+          "improvement_rate": 0.058823529411764705
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 1,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 1,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 13,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 13,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 53,
+          "improved_positions": 2,
+          "worsened_positions": 0,
+          "unchanged_positions": 51,
+          "improvement_rate": 0.03773584905660377
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_only",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 1,
+          "unchanged_positions": 2,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    "target_coin_weighted": {
+      "all_accounts": {
+        "mode": "target_coin_weighted",
+        "positions_compared": 321,
+        "improved_positions": 3,
+        "worsened_positions": 4,
+        "unchanged_positions": 314,
+        "v1_mean_abs_error": 136974.3211632516,
+        "v1_1_mean_abs_error": 137297.2073219379,
+        "improvement_rate": 0.009345794392523364
+      },
+      "cross_margin_only": {
+        "mode": "target_coin_weighted",
+        "positions_compared": 173,
+        "improved_positions": 2,
+        "worsened_positions": 4,
+        "unchanged_positions": 167,
+        "v1_mean_abs_error": 253304.2516725698,
+        "v1_1_mean_abs_error": 253903.3641410266,
+        "improvement_rate": 0.011560693641618497
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 3,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 98,
+          "improved_positions": 0,
+          "worsened_positions": 1,
+          "unchanged_positions": 97,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 131,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 131,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 2,
+          "improved_positions": 0,
+          "worsened_positions": 2,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 17,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 16,
+          "improvement_rate": 0.058823529411764705
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 1,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 1,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 13,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 13,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 53,
+          "improved_positions": 2,
+          "worsened_positions": 0,
+          "unchanged_positions": 51,
+          "improvement_rate": 0.03773584905660377
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "allocation_mode": "target_coin_weighted",
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 1,
+          "unchanged_positions": 2,
+          "improvement_rate": 0.0
+        }
+      ]
+    }
+  }
+}
