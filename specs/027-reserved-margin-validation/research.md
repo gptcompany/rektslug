@@ -365,6 +365,40 @@ The validator was updated to:
    - `0xfc667a...` remains fully worsened
    - `passed_all_accounts` is still false because the isolated-margin MMR issue is separate from the cross-margin liqPx heuristic
 
+## 10. Portfolio-Margin Detection Scan (2026-03-31)
+
+After the initial `36`-user ranked scan returned zero PM accounts, the detection workflow was extended to reconstruct the full active-user population from the proxy report metadata and replay feeds.
+
+### Full-population scan result
+
+- Population reconstructed: `397` users
+- Mode distribution:
+  - `361` `cross_margin`
+  - `36` `isolated_margin`
+  - `0` `portfolio_margin`
+- Output artifact: `data/validation/portfolio_margin_accounts_full.json`
+
+### Interpretation
+
+1. The earlier `0/36` result was not just a top-N sampling artifact.
+2. A detection bug was also found and fixed during this scan: accounts with mixed `cross` and `isolated` positions had been over-classified as `isolated_margin`. The corrected rule is "isolated only if all positions are isolated".
+3. The corrected full scan still found zero PM accounts on the reconstructed anchor-relevant population available from the retained `2026-03-21` feeds.
+4. This materially strengthens the case that US3 live validation is blocked by population availability, not by detection logic alone.
+
+### Raw payload sanity check
+
+A direct `clearinghouseState` inspection was run on several of the largest `cross_margin` and formerly `isolated_margin` accounts.
+
+- Top-level keys remained limited to:
+  - `assetPositions`
+  - `crossMaintenanceMarginUsed`
+  - `crossMarginSummary`
+  - `marginSummary`
+  - `time`
+  - `withdrawable`
+- No sampled whale payload exposed any additional `portfolio*` fields beyond the absent `portfolioMarginSummary`.
+- Mixed accounts such as `0xf910...` and `0x7717...` showed leverage-type counts like `49 cross / 1 isolated` and `171 cross / 2 isolated`, confirming the original isolated-mode heuristic was too broad.
+
 
 ---
 

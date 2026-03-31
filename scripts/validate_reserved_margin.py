@@ -6,11 +6,18 @@ import asyncio
 import dataclasses
 import json
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
 
 from src.liquidationheatmap.hyperliquid.margin_math import DEFAULT_RESERVED_MARGIN_CANDIDATE
 from src.liquidationheatmap.hyperliquid.margin_validator import MarginValidator
 from src.liquidationheatmap.hyperliquid.models import MarginValidationReport
-from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
+from src.liquidationheatmap.hyperliquid.sidecar import (
+    SidecarPositionReconstructor,
+    UserOrder,
+    iter_zst_jsonl,
+)
 
 
 DEFAULT_USERS = [
@@ -25,6 +32,48 @@ DEFAULT_USERS = [
     "0xfc667a4e6db7365da093375f68b31a876cd64d5d",
 ]
 
+DEFAULT_VALIDATION_OUTPUT = "validation_report.json"
+DEFAULT_MODE_SCAN_OUTPUT = "data/validation/portfolio_margin_accounts.json"
+DEFAULT_MODE_SCAN_LIMIT = 50
+DEFAULT_MODE_SCAN_FILES = [
+    "data/validation/hl_reserved_margin_proxy_eth_sample.json",
+    "data/validation/hl_reserved_margin_outliers_eth_sample.json",
+]
+DEFAULT_MODE_POPULATION_REPORT = DEFAULT_MODE_SCAN_FILES[0]
+DEFAULT_MODE_BATCH_SIZE = 25
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+def _extract_users_from_payload(data: object) -> list[str]:
+    extracted: list[str] = []
+
+    if isinstance(data, dict):
+        extracted.extend(
+            key for key in data.keys() if isinstance(key, str) and key.startswith("0x")
+        )
+        for value in data.values():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str) and item.startswith("0x"):
+                        extracted.append(item)
+                    elif isinstance(item, dict):
+                        user = item.get("user")
+                        if isinstance(user, str) and user.startswith("0x"):
+                            extracted.append(user)
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, str) and item.startswith("0x"):
+                extracted.append(item)
+            elif isinstance(item, dict):
+                user = item.get("user")
+                if isinstance(user, str) and user.startswith("0x"):
+                    extracted.append(user)
+
+    return _dedupe_preserve_order(extracted)
+
 
 def _load_users(users: list[str] | None, file_path: str | None) -> list[str]:
     loaded_users: list[str] = list(users or [])
@@ -37,27 +86,16 @@ def _load_users(users: list[str] | None, file_path: str | None) -> list[str]:
             print(f"Error reading file {file_path}: {e}")
             sys.exit(1)
 
-        if isinstance(data, dict):
-            extracted = [key for key in data.keys() if str(key).startswith("0x")]
-            if not extracted and isinstance(data.get("users"), list):
-                extracted = [
-                    item.get("user")
-                    for item in data["users"]
-                    if isinstance(item, dict) and str(item.get("user", "")).startswith("0x")
-                ]
-            if not extracted:
-                print(f"Warning: Could not find user addresses as top-level keys in {file_path}")
-            loaded_users.extend(extracted)
-        elif isinstance(data, list):
-            loaded_users.extend(
-                item for item in data if isinstance(item, str) and item.startswith("0x")
-            )
+        extracted = _extract_users_from_payload(data)
+        if not extracted:
+            print(f"Warning: Could not find user addresses in {file_path}")
+        loaded_users.extend(extracted)
 
     if not loaded_users:
         print("No users provided. Using default test set (from research.md).")
         loaded_users = DEFAULT_USERS.copy()
 
-    return sorted(set(loaded_users))
+    return _dedupe_preserve_order(loaded_users)
 
 
 def _load_orders_by_user(file_path: str | None) -> dict[str, list[UserOrder]]:
@@ -117,12 +155,151 @@ def _serialize_report(report: MarginValidationReport) -> dict:
 def _format_optional_float(value: float | None) -> str:
     return f"{value:.4f}" if value is not None else "n/a"
 
+
+def _resolve_existing_data_file(path_str: str) -> Path:
+    path = Path(path_str)
+    if path.exists():
+        return path
+
+    parent = path.parent
+    if not parent.exists():
+        raise FileNotFoundError(path)
+
+    candidates = sorted(
+        candidate for candidate in parent.glob("*.zst") if candidate.is_file()
+    )
+    if len(candidates) == 1:
+        return candidates[0]
+
+    raise FileNotFoundError(path)
+
+
+def _load_full_population_from_proxy_report(report_path: str) -> list[str]:
+    report = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    metadata = report.get("metadata", {})
+
+    source_anchor = Path(metadata["source_anchor"])
+    target_coin = metadata["target_coin"]
+    order_status_file = _resolve_existing_data_file(metadata["order_status_file"])
+    raw_book_diff_file = _resolve_existing_data_file(metadata["raw_book_diff_file"])
+
+    reconstructor = SidecarPositionReconstructor()
+    active_user_ids = reconstructor.collect_active_order_users_from_blocks(
+        order_status_blocks=iter_zst_jsonl(order_status_file),
+        raw_book_diff_blocks=iter_zst_jsonl(raw_book_diff_file),
+    )
+    sidecar_state = reconstructor.load_abci_anchor(
+        source_anchor,
+        target_coin=target_coin,
+        target_users=active_user_ids,
+    )
+    return sorted(sidecar_state.users)
+
+
+def _resolve_mode_scan_users(
+    users: list[str] | None,
+    file_path: str | None,
+    *,
+    full_population: bool = False,
+    limit: int = DEFAULT_MODE_SCAN_LIMIT,
+) -> tuple[list[str], list[str]]:
+    if users or file_path:
+        if full_population:
+            population_report = file_path or DEFAULT_MODE_POPULATION_REPORT
+            loaded_users = _load_full_population_from_proxy_report(population_report)
+            return loaded_users, [population_report, "full_population"]
+        source = [file_path] if file_path else ["cli_users"]
+        return _load_users(users, file_path)[:limit], source
+
+    if full_population:
+        return (
+            _load_full_population_from_proxy_report(DEFAULT_MODE_POPULATION_REPORT),
+            [DEFAULT_MODE_POPULATION_REPORT, "full_population"],
+        )
+
+    resolved_users: list[str] = []
+    sources: list[str] = []
+    for candidate in DEFAULT_MODE_SCAN_FILES:
+        path = Path(candidate)
+        if not path.exists():
+            continue
+        batch = _load_users([], str(path))
+        if not batch:
+            continue
+        resolved_users.extend(batch)
+        sources.append(str(path))
+
+    if not resolved_users:
+        return DEFAULT_USERS[:limit], ["DEFAULT_USERS"]
+
+    return _dedupe_preserve_order(resolved_users)[:limit], sources
+
+
+def _resolve_output_path(output: str, *, detect_modes: bool) -> str:
+    if detect_modes and output == DEFAULT_VALIDATION_OUTPUT:
+        return DEFAULT_MODE_SCAN_OUTPUT
+    return output
+
+
+def _build_mode_detection_payload(
+    results: list[dict],
+    *,
+    scanned_users: list[str],
+    sources: list[str],
+    limit: int,
+) -> dict:
+    mode_counts = {
+        "cross_margin": 0,
+        "isolated_margin": 0,
+        "portfolio_margin": 0,
+    }
+    failures = 0
+    portfolio_accounts: list[dict] = []
+
+    for item in results:
+        mode = item.get("mode")
+        if mode in mode_counts:
+            mode_counts[mode] += 1
+            if mode == "portfolio_margin":
+                portfolio_accounts.append(
+                    {
+                        "user": item["user"],
+                        "portfolio_margin_ratio": item.get("portfolio_margin_ratio"),
+                        "account_value": item.get("account_value"),
+                        "position_count": item.get("position_count"),
+                    }
+                )
+        else:
+            failures += 1
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "scan_limit": limit,
+        "population_sources": sources,
+        "users_requested": len(scanned_users),
+        "users_succeeded": len(results) - failures,
+        "users_failed": failures,
+        "mode_counts": mode_counts,
+        "portfolio_margin_accounts": portfolio_accounts,
+        "results": results,
+    }
+
+
+def _chunked(values: list[str], size: int) -> Iterable[list[str]]:
+    for start in range(0, len(values), size):
+        yield values[start : start + size]
+
 async def main():
     parser = argparse.ArgumentParser(description="Validate Hyperliquid MMR calculations vs API")
     parser.add_argument("--users", nargs="+", help="Specific user addresses to validate")
     parser.add_argument("--file", "--outliers", dest="file", type=str, help="JSON file containing user addresses (e.g. outliers sample)")
-    parser.add_argument("--output", type=str, default="validation_report.json", help="Output JSON report path")
+    parser.add_argument("--output", type=str, default=DEFAULT_VALIDATION_OUTPUT, help="Output JSON report path")
     parser.add_argument("--detect-modes", action="store_true", help="Only detect margin modes for the users (skips full validation)")
+    parser.add_argument(
+        "--detect-modes-full-population",
+        action="store_true",
+        help="Reconstruct the full active-user population from the proxy report metadata instead of using ranked top-N lists.",
+    )
     parser.add_argument(
         "--reserved-margin-candidate",
         default=DEFAULT_RESERVED_MARGIN_CANDIDATE,
@@ -131,29 +308,82 @@ async def main():
     )
     args = parser.parse_args()
 
-    users = _load_users(args.users, args.file)
+    output_path = _resolve_output_path(args.output, detect_modes=args.detect_modes)
     
     if args.detect_modes:
-        print(f"Detecting modes for {len(users)} users (up to 50 max)...")
-        users = users[:50]
-        
+        users, sources = _resolve_mode_scan_users(
+            args.users,
+            args.file,
+            full_population=args.detect_modes_full_population,
+            limit=DEFAULT_MODE_SCAN_LIMIT,
+        )
+        print(
+            "Detecting modes for "
+            f"{len(users)} users "
+            f"({'full population' if args.detect_modes_full_population else f'cap {DEFAULT_MODE_SCAN_LIMIT}'})..."
+        )
         validator = MarginValidator()
-        modes_count = {"cross_margin": 0, "isolated_margin": 0, "portfolio_margin": 0}
-        
-        for u in users:
-            try:
-                state = await validator.client.get_clearinghouse_state(u)
+        detection_results: list[dict] = []
+        batch_size = DEFAULT_MODE_BATCH_SIZE if args.detect_modes_full_population else len(users)
+
+        for batch_index, batch in enumerate(_chunked(users, batch_size), start=1):
+            if args.detect_modes_full_population:
+                print(
+                    f"Fetching batch {batch_index} "
+                    f"({len(batch)} users, processed {min(batch_index * batch_size, len(users))}/{len(users)})..."
+                )
+            states = await validator.client.get_clearinghouse_states_batch(batch)
+            for u in batch:
+                state = states.get(u)
+                if state is None:
+                    print(f"Failed to fetch {u}")
+                    detection_results.append(
+                        {
+                            "user": u,
+                            "mode": None,
+                            "error": "Failed to fetch clearinghouse state",
+                        }
+                    )
+                    continue
+
                 mode = validator.detect_margin_mode(state)
                 print(f"User {u}: {mode.value}")
-                modes_count[mode.value] += 1
-            except Exception as e:
-                print(f"Failed to fetch {u}: {e}")
-                
+                detection_results.append(
+                    {
+                        "user": u,
+                        "mode": mode.value,
+                        "account_value": state.marginSummary.accountValue,
+                        "total_margin_used": state.marginSummary.totalMarginUsed,
+                        "cross_maintenance_margin_used": state.crossMaintenanceMarginUsed,
+                        "position_count": len(state.assetPositions),
+                        "portfolio_margin_ratio": (
+                            state.portfolioMarginSummary.portfolioMarginRatio
+                            if state.portfolioMarginSummary is not None
+                            else None
+                        ),
+                    }
+                )
+
+        payload = _build_mode_detection_payload(
+            detection_results,
+            scanned_users=users,
+            sources=sources,
+            limit=(len(users) if args.detect_modes_full_population else DEFAULT_MODE_SCAN_LIMIT),
+        )
+
         print("\n--- Detection Summary ---")
-        for mode, count in modes_count.items():
+        for mode, count in payload["mode_counts"].items():
             print(f"{mode}: {count}")
+        print(f"portfolio_accounts: {len(payload['portfolio_margin_accounts'])}")
+
+        output = Path(output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        print(f"\nDetection report saved to {output}")
         return
 
+    users = _load_users(args.users, args.file)
     print(f"Validating {len(users)} users...")
     
     validator = MarginValidator(
@@ -229,10 +459,12 @@ async def main():
                         f"  {position.coin} liqPx deviation: {position.liq_px_deviation_pct:.4f}%"
                     )
         
-    with open(args.output, "w", encoding="utf-8") as f:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8") as f:
         json.dump(_serialize_report(report), f, indent=2)
         
-    print(f"\nDetailed report saved to {args.output}")
+    print(f"\nDetailed report saved to {output}")
 
 if __name__ == "__main__":
     asyncio.run(main())

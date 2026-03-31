@@ -90,15 +90,18 @@ class MarginValidator:
         if isinstance(state, ClearinghouseUserState):
             if state.portfolioMarginSummary is not None:
                 return MarginMode.PORTFOLIO_MARGIN
-            if any(ap.position.leverage.type == "isolated" for ap in state.assetPositions):
+            leverage_types = [ap.position.leverage.type for ap in state.assetPositions]
+            if leverage_types and all(lev_type == "isolated" for lev_type in leverage_types):
                 return MarginMode.ISOLATED_MARGIN
             return MarginMode.CROSS_MARGIN
 
         if state.get("portfolioMarginSummary"):
             return MarginMode.PORTFOLIO_MARGIN
-        for ap in state.get("assetPositions", []):
-            lev = ap.get("position", {}).get("leverage", {})
-            if lev.get("type") == "isolated":
+        leverage_types = [
+            ap.get("position", {}).get("leverage", {}).get("type")
+            for ap in state.get("assetPositions", [])
+        ]
+        if leverage_types and all(lev_type == "isolated" for lev_type in leverage_types):
                 return MarginMode.ISOLATED_MARGIN
         return MarginMode.CROSS_MARGIN
 

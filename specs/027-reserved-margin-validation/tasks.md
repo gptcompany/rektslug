@@ -114,11 +114,11 @@
 
 ### Implementation for User Story 2
 
-- [x] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from parsed `ClearinghouseUserState` or raw API response (check `portfolioMarginSummary` presence, then per-position `leverage.type`)
-- [-] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: partially implemented. The flag exists and classifies provided/default users, but it does not yet scan a broader high-OI population or persist `data/validation/portfolio_margin_accounts.json`.
+- [x] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from parsed `ClearinghouseUserState` or raw API response (check `portfolioMarginSummary` presence, then treat the account as `isolated_margin` only when all positions are isolated; mixed `cross + isolated` accounts remain `cross_margin`)
+- [x] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: completed. The flag now supports both ranked-population scans and full-population reconstruction from the proxy report metadata, correcting stale feed paths when needed, and persists the detection artifact by default. A follow-up bugfix corrected mixed `cross + isolated` accounts that had been over-classified as `isolated_margin`; the corrected full scan run on 2026-03-31 found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`).
 - [x] T024 [US2] Green tests from T021 — verify with `uv run pytest tests/test_margin_validator.py -v -k "portfolio or margin_mode"`
 
-**Checkpoint**: SC-002 validated. Margin mode detection working. Note: if 0 PM accounts found in scan, SC-002 is partially validated (detection logic correct, but no live PM data).
+**Checkpoint**: SC-002 detection logic is validated and the broader scan is complete. On 2026-03-31, the corrected full reconstructed population scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so live PM examples are still unavailable and US3/T029 remains blocked for live validation.
 
 ---
 

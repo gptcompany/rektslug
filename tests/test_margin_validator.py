@@ -204,6 +204,11 @@ def test_detect_margin_mode_isolated():
     state = make_state(leverage_type="isolated")
     assert validator.detect_margin_mode(state) == MarginMode.ISOLATED_MARGIN
 
+def test_detect_margin_mode_mixed_defaults_to_cross():
+    validator = MarginValidator()
+    state = make_state(leverage_type=["cross", "isolated"])
+    assert validator.detect_margin_mode(state) == MarginMode.CROSS_MARGIN
+
 def test_detect_margin_mode_portfolio():
     validator = MarginValidator()
     state = make_state(
@@ -220,10 +225,11 @@ def test_detect_margin_mode_portfolio():
 
 def make_state(
     cross_maintenance_margin_used: float = 100.0,
-    leverage_type: str = "cross",
+    leverage_type: str | list[str] = "cross",
     portfolio_margin_summary: PortfolioMarginSummary | None = None,
     szi: float = 1.0,
 ) -> ClearinghouseUserState:
+    leverage_types = leverage_type if isinstance(leverage_type, list) else [leverage_type]
     return ClearinghouseUserState(
         marginSummary=MarginSummary(
             accountValue=1000.0,
@@ -245,14 +251,14 @@ def make_state(
             ApiPosition(
                 type="oneWay",
                 position=PositionData(
-                    coin="ETH",
+                    coin="ETH" if index == 0 else f"ALT{index}",
                     szi=szi,
-                    entryPx=2000.0,
-                    positionValue=szi * 2000.0,
+                    entryPx=2000.0 + index,
+                    positionValue=szi * (2000.0 + index),
                     unrealizedPnl=0.0,
                     returnOnEquity=0.0,
                     liquidationPx=1800.0,
-                    leverage=Leverage(type=leverage_type, value=20),
+                    leverage=Leverage(type=lev_type, value=20),
                     marginUsed=100.0,
                     maxLeverage=50,
                     cumFunding=PositionCumFunding(
@@ -262,6 +268,7 @@ def make_state(
                     ),
                 ),
             )
+            for index, lev_type in enumerate(leverage_types)
         ],
     )
 
