@@ -130,7 +130,7 @@
 
 **Dependencies**: US2 (detection).
 
-**RISK**: 0/9 outlier users are portfolio-margin. PM is alpha (March 2026, >$5M volume). Live validation (T029) may be impossible. Defer entire phase if no PM accounts are found during US2 scan. Implement with synthetic test data; validate live when PM accounts become available.
+**RISK**: 0/9 outlier users were portfolio-margin, and the corrected full-population scan on 2026-03-31 found `0/397` PM accounts. PM is alpha (March 2026, >$5M volume). Live validation (T029) is therefore blocked on account availability. Implement with synthetic test data only if we explicitly choose to proceed without live validation.
 
 ### Tests for User Story 3
 
@@ -141,9 +141,9 @@
 - [ ] T026 [US3] Implement `compute_portfolio_margin()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: net-risk netting across positions, compute `portfolio_margin_ratio`, `netting_benefit`
 - [ ] T027 [US3] Implement `solve_portfolio_liquidation_price()` in `src/liquidationheatmap/hyperliquid/portfolio_solver.py`: solve for target coin price that pushes PMR > 0.95
 - [ ] T028 [US3] Green tests from T025 — verify with `uv run pytest tests/test_portfolio_solver.py -v`
-- [ ] T029 [US3] Validate against live API for PM accounts (if found during US2): compare `liquidationPx` within 1% — SC-003. If no PM accounts found, document as deferred.
+- [-] T029 [US3] Validate against live API for PM accounts (if found during US2): compare `liquidationPx` within 1% — SC-003. Deferred on 2026-03-31 because the corrected full-population scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so no live PM examples are available in the current dataset.
 
-**Checkpoint**: SC-003 validated (or deferred with documented rationale).
+**Checkpoint**: SC-003 is currently deferred with documented rationale. Live PM validation can resume only if PM accounts become observable, or if we explicitly accept a synthetic-only PM solver phase.
 
 ---
 
@@ -167,7 +167,7 @@
 - **Phase 3 (US1 - MMR & LiqPx Validation)**: Depends on Phase 2 (API client) — **MVP**
 - **Phase 4 (US4 - Solver V1.1)**: Depends on Phase 3 (baseline liqPx deviations from US1)
 - **Phase 5 (US2 - PM Detection)**: Depends on Phase 2 (API client) — independent of US1/US4
-- **Phase 6 (US3 - PM Solver)**: Depends on Phase 5 (detection) — likely blocked until PM accounts found
+- **Phase 6 (US3 - PM Solver)**: Depends on Phase 5 (detection) — currently deferred for live validation until PM accounts are found
 - **Phase 7 (Polish)**: Depends on all desired phases complete
 
 ### User Story Dependencies
@@ -176,7 +176,7 @@
 Phase 1 (Setup) — T001+T002 [P] T004
   └─> Phase 2 (API Client)
         ├─> Phase 3 (US1: MMR + LiqPx Validation) ──> Phase 4 (US4: Solver V1.1)
-        └─> Phase 5 (US2: PM Detection) ──> Phase 6 (US3: PM Solver) [likely deferred]
+        └─> Phase 5 (US2: PM Detection) ──> Phase 6 (US3: PM Solver) [live validation deferred]
 ```
 
 ### Parallel Opportunities
@@ -200,13 +200,13 @@ Phase 1 (Setup) — T001+T002 [P] T004
 ### Full Delivery
 
 1. Phases 1-4: P1 stories (US1 + US4) — core value
-2. Phases 5-6: P2 stories (US2 + US3) — portfolio margin (likely deferred if no PM accounts exist)
+2. Phases 5-6: P2 stories (US2 + US3) — portfolio margin (`US2` complete; `US3` live validation deferred unless PM accounts become available or we choose a synthetic-only implementation)
 3. Phase 7: Polish and final reports
 
 ### Key Risks
 
 1. **US4 reserved-margin estimate is still best-effort**: The true formula is undocumented. Candidate B remains the empirical winner among scalar A-D candidates (`70.09%` overall), but the stronger operational heuristic is now Candidate E (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin), which improves `cross_margin` liqPx to `96.55%` on the outlier sample. Validation remains indirect and the residual gap is concentrated in a small number of users.
-2. **US3 likely blocked**: 0/9 users are PM. May need broader population scan or future spec.
+2. **US3 live validation is blocked**: the corrected full scan found `0/397` PM accounts, so SC-003 cannot be closed against live API data in the current population.
 3. **Isolated-margin residuals**: `passed_all_accounts` is still false because the two isolated-margin accounts remain outside tolerance. They should be tracked separately from the now-resolved cross-margin blocker.
 
 ---

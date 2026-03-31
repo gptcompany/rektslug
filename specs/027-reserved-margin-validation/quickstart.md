@@ -27,11 +27,19 @@ jq '{user_count, within_tolerance_count, tolerance_rate, passed}' \
 ## 2. Detect Portfolio-Margin Accounts (US2)
 
 ```bash
-# Scan accounts for portfolio-margin mode
+# Scan the ranked population from validation artifacts
 uv run python scripts/validate_reserved_margin.py \
   --detect-modes \
   --output data/validation/portfolio_margin_accounts.json
+
+# Scan the full reconstructed active-user population
+uv run python scripts/validate_reserved_margin.py \
+  --detect-modes \
+  --detect-modes-full-population \
+  --output data/validation/portfolio_margin_accounts_full.json
 ```
+
+**Current observed result (2026-03-31)**: the corrected full scan found `0/397` `portfolio_margin` accounts (`361 cross_margin`, `36 isolated_margin`), so live PM validation remains deferred.
 
 ## 3. Run Solver V1.1 (US4)
 

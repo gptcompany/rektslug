@@ -385,6 +385,14 @@ After the initial `36`-user ranked scan returned zero PM accounts, the detection
 3. The corrected full scan still found zero PM accounts on the reconstructed anchor-relevant population available from the retained `2026-03-21` feeds.
 4. This materially strengthens the case that US3 live validation is blocked by population availability, not by detection logic alone.
 
+### Spec impact
+
+- `US2` can be treated as complete for detection and scan coverage.
+- `US3/T029` should be treated as deferred in the current spec state:
+  - not because the PM marker is obviously wrong
+  - but because no live PM accounts were observable in the reconstructed `397`-user population
+- Any PM solver work that happens before new PM accounts appear is necessarily synthetic-only.
+
 ### Raw payload sanity check
 
 A direct `clearinghouseState` inspection was run on several of the largest `cross_margin` and formerly `isolated_margin` accounts.
