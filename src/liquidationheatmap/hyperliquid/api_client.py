@@ -2,9 +2,14 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import aiohttp
+
+from src.liquidationheatmap.hyperliquid.models import (
+    AssetMetaSnapshot,
+    ClearinghouseUserState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +23,7 @@ class HyperliquidInfoClient:
         self.rate_limit_delay = 60.0 / requests_per_minute
         self._semaphore = asyncio.Semaphore(5)
 
-    async def _post(self, payload: Dict[str, Any]) -> Any:
+    async def _post(self, payload: dict[str, Any]) -> Any:
         """Make a POST request with retry logic and rate limiting."""
         async with self._semaphore:
             # Simple rate limiting wait
@@ -44,7 +49,7 @@ class HyperliquidInfoClient:
                                 )
                             response.raise_for_status()
                             return await response.json()
-                except (aiohttp.ClientResponseError, aiohttp.ClientError) as e:
+                except (aiohttp.ClientResponseError, aiohttp.ClientError, asyncio.TimeoutError) as e:
                     if attempt == max_retries - 1:
                         logger.error(f"Hyperliquid API request failed after {max_retries} attempts: {e}")
                         raise
@@ -53,17 +58,21 @@ class HyperliquidInfoClient:
                     await asyncio.sleep(backoff)
                     backoff *= 2.0
 
-    async def get_clearinghouse_state(self, user: str) -> Dict[str, Any]:
+    async def get_clearinghouse_state(self, user: str) -> ClearinghouseUserState:
         """Get clearinghouse state for a user."""
-        return await self._post({"type": "clearinghouseState", "user": user})
+        payload = await self._post({"type": "clearinghouseState", "user": user})
+        return ClearinghouseUserState.from_api(payload)
 
-    async def get_asset_meta(self) -> List[Any]:
+    async def get_asset_meta(self) -> AssetMetaSnapshot:
         """Get asset metadata and context."""
-        return await self._post({"type": "metaAndAssetCtxs"})
+        payload = await self._post({"type": "metaAndAssetCtxs"})
+        return AssetMetaSnapshot.from_api(payload)
 
-    async def get_clearinghouse_states_batch(self, users: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_clearinghouse_states_batch(
+        self, users: list[str]
+    ) -> dict[str, ClearinghouseUserState]:
         """Get clearinghouse state for multiple users concurrently."""
-        results = {}
+        results: dict[str, ClearinghouseUserState] = {}
         
         async def fetch_user(user: str):
             try:

@@ -28,7 +28,7 @@
 **Purpose**: API-response DTOs, validation report types, and dependency setup (distinct from existing sidecar types `UserPosition`, `UserState`, `UserOrder` in sidecar.py)
 
 - [-] T001 [P] Add `httpx` dependency to `pyproject.toml` and run `uv lock` (WAIVED: kept aiohttp as it was already present)
-- [-] T002 [P] Create API-response DTOs in `src/liquidationheatmap/hyperliquid/models.py`: `MarginMode` enum, `MarginSummary` (with `cross_maintenance_margin_used` field), `CrossMarginSummary`, `ApiPosition`, `PortfolioMarginSummary`, `AssetMeta`, `MarginTier`, `ClearinghouseUserState` (Partial: API client still returns raw dicts)
+- [x] T002 [P] Create API-response DTOs in `src/liquidationheatmap/hyperliquid/models.py`: `MarginMode` enum, `MarginSummary` (with `cross_maintenance_margin_used` field), `CrossMarginSummary`, `ApiPosition`, `PortfolioMarginSummary`, `AssetMeta`, `MarginTier`, `ClearinghouseUserState`
 - [x] T003 Create validation report types in `src/liquidationheatmap/hyperliquid/models.py` (append): `PositionMarginComparison` (with `liq_px_deviation_pct`), `FactorAttribution` (rename `resting_order_reserve` to `estimated_resting_order_reserve` to reflect best-effort nature), `MarginValidationResult`, `MarginValidationReport`
 - [x] T004 [P] Extract `get_margin_tier()` and `compute_position_maintenance_margin()` as standalone functions in `src/liquidationheatmap/hyperliquid/margin_math.py` (refactored from `SidecarPositionReconstructor` instance methods at sidecar.py:1618-1638). Update sidecar.py to delegate to these functions. Verify existing tests pass: `uv run pytest tests/test_hyperliquid_sidecar.py -v`
 
@@ -41,7 +41,7 @@
 **Purpose**: Hyperliquid Info API client — blocks US1, US2, US4
 
 - [x] T005 Write failing tests for `HyperliquidInfoClient` in `tests/test_api_client.py`: `test_get_clearinghouse_state_parses_cross_maintenance_margin`, `test_get_clearinghouse_state_parses_liquidation_px`, `test_get_clearinghouse_state_handles_timeout`, `test_get_asset_meta_returns_tiers`, `test_batch_query_returns_partial_on_failure`
-- [x] T006 Implement `HyperliquidInfoClient` in `src/liquidationheatmap/hyperliquid/api_client.py`: `get_clearinghouse_state()` (parse `crossMaintenanceMarginUsed`, per-position `marginUsed` + `liquidationPx`), `get_asset_meta()`, `get_clearinghouse_states_batch()` with httpx async, rate limiting (10 req/min), exponential backoff on 429, partial-result dict return
+- [x] T006 Implement `HyperliquidInfoClient` in `src/liquidationheatmap/hyperliquid/api_client.py`: `get_clearinghouse_state()` (parse `crossMaintenanceMarginUsed`, per-position `marginUsed` + `liquidationPx`), `get_asset_meta()`, `get_clearinghouse_states_batch()` with async client, rate limiting (10 req/min), exponential backoff on 429, partial-result dict return
 - [x] T007 Green the tests from T005 — verify with `uv run pytest tests/test_api_client.py -v`
 - [x] T008 Update `src/liquidationheatmap/hyperliquid/__init__.py` to export new modules (`models`, `api_client`, `margin_math`)
 
@@ -62,10 +62,10 @@
 ### Implementation for User Story 1
 
 - [x] T010 [US1] Implement `validate_user()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: query API via `HyperliquidInfoClient`, compute MMR from **API-reported positions and mark prices** (same-instant fair comparison, NOT ABCI snapshot data) using extracted `compute_position_maintenance_margin()` from `margin_math.py`. Compare against `crossMaintenanceMarginUsed`. Also compare `solve_liquidation_price()` vs API `liquidationPx` per position. Return `MarginValidationResult` with per-position `liq_px_deviation_pct`.
-- [-] T011 [US1] Implement `attribute_factors()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: decompose MMR deviation > 1% into `FactorAttribution` (multi-tier rounding, funding timing, `estimated_resting_order_reserve`, unknown residual). Note: resting-order reserve is NOT visible in API — all attribution is best-effort estimation. (Partial: attribute_factors assigns everything to estimated_resting_order_reserve)
+- [x] T011 [US1] Implement `attribute_factors()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: decompose MMR deviation > 1% into `FactorAttribution` (multi-tier rounding, funding timing, `estimated_resting_order_reserve`, unknown residual). Note: resting-order reserve is NOT visible in API — all attribution is best-effort estimation.
 - [x] T012 [US1] Implement `validate_batch()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: batch validation with `MarginValidationReport` aggregation, `tolerance_rate`, `margin_mode_distribution`
 - [x] T013 [US1] Green all tests from T009 — verify with `uv run pytest tests/test_margin_validator.py -v`
-- [-] T014 [US1] Create CLI script `scripts/validate_reserved_margin.py`: load outlier JSON, call `validate_batch()`, write JSON report (including per-position `liquidationPx` comparison) to `--output` path (Partial: CLI works but the report doesn't yet strictly adhere to a clean JSON DTO dump)
+- [x] T014 [US1] Create CLI script `scripts/validate_reserved_margin.py`: load outlier JSON, call `validate_batch()`, write JSON report (including per-position `liquidationPx` comparison) to `--output` path
 
 ### Live Validation for User Story 1
 

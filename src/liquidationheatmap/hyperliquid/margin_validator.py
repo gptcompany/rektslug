@@ -1,22 +1,36 @@
-"""Margin Validator for Hyperliquid."""
-
+import logging
 from datetime import datetime, timezone
-import asyncio
 from typing import List
 
 from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
 from src.liquidationheatmap.hyperliquid.models import (
-    MarginMode, MarginValidationResult, PositionMarginComparison, 
-    MarginValidationReport
+    AssetMetaSnapshot,
+    ClearinghouseUserState,
+    FactorAttribution,
+    MarginMode,
+    MarginValidationReport,
+    MarginValidationResult,
+    PositionMarginComparison,
 )
 from src.liquidationheatmap.hyperliquid.margin_math import compute_position_maintenance_margin
-from src.liquidationheatmap.hyperliquid.sidecar import UserPosition
+from src.liquidationheatmap.hyperliquid.sidecar import UserPosition, UserState, SidecarPositionReconstructor
+
+logger = logging.getLogger(__name__)
+
 
 class MarginValidator:
     def __init__(self, client: HyperliquidInfoClient = None):
         self.client = client or HyperliquidInfoClient()
-    
-    def detect_margin_mode(self, state: dict) -> MarginMode:
+        self.reconstructor = SidecarPositionReconstructor()
+
+    def detect_margin_mode(self, state: ClearinghouseUserState | dict) -> MarginMode:
+        if isinstance(state, ClearinghouseUserState):
+            if state.portfolioMarginSummary is not None:
+                return MarginMode.PORTFOLIO_MARGIN
+            if any(ap.position.leverage.type == "isolated" for ap in state.assetPositions):
+                return MarginMode.ISOLATED_MARGIN
+            return MarginMode.CROSS_MARGIN
+
         if state.get("portfolioMarginSummary"):
             return MarginMode.PORTFOLIO_MARGIN
         for ap in state.get("assetPositions", []):
@@ -25,85 +39,200 @@ class MarginValidator:
                 return MarginMode.ISOLATED_MARGIN
         return MarginMode.CROSS_MARGIN
 
+    def attribute_factors(self, deviation_pct: float, gap_usd: float) -> list[FactorAttribution]:
+        """Decompose margin deviations exceeding 1% into identifiable factor categories."""
+        if deviation_pct <= 1.0 or gap_usd <= 0:
+            return []
+
+        factors: list[FactorAttribution] = []
+
+        if deviation_pct <= 1.5:
+            factors.append(
+                FactorAttribution(
+                    category="multi_tier_rounding",
+                    estimated_impact_usd=gap_usd,
+                    description="Small gap is consistent with tier rounding or mark-price alignment noise.",
+                )
+            )
+            return factors
+
+        funding_component = min(gap_usd * 0.1, 25.0)
+        if funding_component > 0:
+            factors.append(
+                FactorAttribution(
+                    category="funding_timing",
+                    estimated_impact_usd=funding_component,
+                    description="Portion of the gap plausibly explained by funding timing mismatch.",
+                )
+            )
+
+        reserve_component = max(gap_usd - funding_component, 0.0)
+        reserve_estimate = reserve_component * 0.7
+        if reserve_estimate > 0:
+            factors.append(
+                FactorAttribution(
+                    category="estimated_resting_order_reserve",
+                    estimated_impact_usd=reserve_estimate,
+                    description="Best-effort estimate of hidden reserved margin for resting orders.",
+                )
+            )
+
+        unknown_residual = max(gap_usd - funding_component - reserve_estimate, 0.0)
+        if unknown_residual > 0:
+            factors.append(
+                FactorAttribution(
+                    category="unknown",
+                    estimated_impact_usd=unknown_residual,
+                    description="Residual gap not explained by current heuristics.",
+                )
+            )
+
+        return factors
+
     async def validate_user(self, user: str) -> MarginValidationResult:
-        state = await self.client.get_clearinghouse_state(user)
-        meta = await self.client.get_asset_meta()
-        
+        state: ClearinghouseUserState = await self.client.get_clearinghouse_state(user)
+        meta: AssetMetaSnapshot = await self.client.get_asset_meta()
+
         mode = self.detect_margin_mode(state)
-        
-        api_total_margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", "0"))
-        api_cross_maintenance_margin_used = float(state.get("crossMaintenanceMarginUsed", "0"))
-        
-        asset_meta = {}
-        for idx, asset in enumerate(meta[0]["universe"]):
-            asset_meta[asset["name"]] = {"idx": idx, "szDecimals": asset["szDecimals"]}
-        
-        # Build marks
-        mark_prices = {}
-        for idx, ctx in enumerate(meta[1]):
-            mark_prices[idx] = float(ctx["markPx"])
-            
-        positions = []
+
+        api_total_margin_used = state.marginSummary.totalMarginUsed
+        api_cross_maintenance_margin_used = state.crossMaintenanceMarginUsed
+        account_value = state.marginSummary.accountValue
+
+        asset_meta = {
+            asset.name: {"idx": idx, "szDecimals": asset.szDecimals}
+            for idx, asset in enumerate(meta.universe)
+        }
+        mark_prices = {
+            idx: ctx.markPx
+            for idx, ctx in enumerate(meta.assetContexts)
+        }
+
+        positions_cm = []
+        sidecar_positions = []
         sidecar_total_mmr = 0.0
-        
-        for ap in state.get("assetPositions", []):
-            pos_data = ap["position"]
-            coin = pos_data["coin"]
-            size = float(pos_data["szi"])
-            entry_px = float(pos_data["entryPx"])
-            api_margin_used = float(pos_data["marginUsed"])
-            api_liq_px = pos_data.get("liquidationPx")
-            api_liq_px = float(api_liq_px) if api_liq_px else None
-            max_leverage = float(pos_data["maxLeverage"])
-            
+
+        for ap in state.assetPositions:
+            pos_data = ap.position
+            coin = pos_data.coin
+            size = pos_data.szi
+            entry_px = pos_data.entryPx
+            api_margin_used = pos_data.marginUsed
+            api_liq_px = pos_data.liquidationPx
+            max_leverage = float(pos_data.maxLeverage)
+
             idx = asset_meta[coin]["idx"]
             mark = mark_prices[idx]
-            
+
             # Simple single-tier reconstruction based on maxLeverage
             mmr_rate = 1.0 / (2.0 * max_leverage) if max_leverage > 0 else 0.01
             tiers = {idx: [{"lower_bound": 0, "mmr_rate": mmr_rate, "maintenance_deduction": 0.0}]}
-            
-            # Mock UserPosition for the math function
+
             up = UserPosition(
-                coin=coin, asset_idx=idx, size=size, entry_px=entry_px,
-                margin=api_margin_used, leverage=max_leverage, cum_funding=0.0
+                coin=coin,
+                asset_idx=idx,
+                size=size,
+                entry_px=entry_px,
+                margin=api_margin_used,
+                leverage=max_leverage,
+                cum_funding=pos_data.cumFunding.sinceOpen,
             )
-            
+            sidecar_positions.append(up)
+
             sidecar_mmr = compute_position_maintenance_margin(up, mark_prices, tiers)
             sidecar_total_mmr += sidecar_mmr
-            
-            positions.append(PositionMarginComparison(
-                coin=coin, size=size, entry_px=entry_px, mark_px=mark,
-                api_margin_used=api_margin_used, api_liquidation_px=api_liq_px,
-                sidecar_mmr=sidecar_mmr, sidecar_liquidation_px_v1=None,
-                sidecar_liquidation_px_v1_1=None, deviation_liq_px_v1=None,
-                deviation_liq_px_v1_1=None
+
+            positions_cm.append({
+                "coin": coin,
+                "size": size,
+                "entry_px": entry_px,
+                "mark_px": mark,
+                "api_margin_used": api_margin_used,
+                "api_liquidation_px": api_liq_px,
+                "sidecar_mmr": sidecar_mmr,
+                "tiers": tiers,
+            })
+
+        user_state = UserState(user=user, balance=account_value, positions=tuple(sidecar_positions))
+
+        final_positions = []
+        for p in positions_cm:
+            sidecar_liq_px_v1 = self.reconstructor.solve_liquidation_price(
+                user_state, p["coin"], mark_prices, p["tiers"]
+            )
+
+            dev_liq_px_v1 = None
+            liq_px_dev_pct = None
+            if sidecar_liq_px_v1 is not None and p["api_liquidation_px"] is not None:
+                dev_liq_px_v1 = abs(sidecar_liq_px_v1 - p["api_liquidation_px"])
+                if p["api_liquidation_px"] > 0:
+                    liq_px_dev_pct = dev_liq_px_v1 / p["api_liquidation_px"] * 100.0
+
+            final_positions.append(PositionMarginComparison(
+                coin=p["coin"],
+                size=p["size"],
+                entry_px=p["entry_px"],
+                mark_px=p["mark_px"],
+                api_margin_used=p["api_margin_used"],
+                api_liquidation_px=p["api_liquidation_px"],
+                sidecar_mmr=p["sidecar_mmr"],
+                sidecar_liquidation_px_v1=sidecar_liq_px_v1,
+                sidecar_liquidation_px_v1_1=None,
+                deviation_liq_px_v1=dev_liq_px_v1,
+                deviation_liq_px_v1_1=None,
+                liq_px_deviation_pct=liq_px_dev_pct,
             ))
-            
+
+        deviation_mmr_pct = 0.0
+        gap_usd = abs(api_cross_maintenance_margin_used - sidecar_total_mmr)
         if api_cross_maintenance_margin_used > 0:
-            deviation_mmr_pct = abs(api_cross_maintenance_margin_used - sidecar_total_mmr) / api_cross_maintenance_margin_used * 100.0
-        else:
-            deviation_mmr_pct = 0.0
-            
+            deviation_mmr_pct = gap_usd / api_cross_maintenance_margin_used * 100.0
+
+        factors = self.attribute_factors(deviation_mmr_pct, gap_usd)
+
         return MarginValidationResult(
-            user=user, mode=mode,
+            user=user,
+            mode=mode,
             api_total_margin_used=api_total_margin_used,
             api_cross_maintenance_margin_used=api_cross_maintenance_margin_used,
             sidecar_total_mmr=sidecar_total_mmr,
             deviation_mmr_pct=deviation_mmr_pct,
-            positions=positions
+            positions=final_positions,
+            factors=factors,
         )
 
     async def validate_batch(self, users: List[str]) -> MarginValidationReport:
         results = []
         for user in users:
-            results.append(await self.validate_user(user))
-            
-        mean_deviation = sum(r.deviation_mmr_pct for r in results) / len(results) if results else 0.0
-        
+            try:
+                res = await self.validate_user(user)
+                results.append(res)
+            except Exception as e:
+                logger.warning("Error validating user %s: %s", user, e)
+
+        if not results:
+            return MarginValidationReport(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                users_analyzed=0,
+                tolerance_rate=0.0,
+                mean_mmr_deviation_pct=0.0,
+                margin_mode_distribution={},
+                results=[],
+            )
+
+        mean_deviation = sum(r.deviation_mmr_pct for r in results) / len(results)
+        tolerance_rate = sum(1 for r in results if r.deviation_mmr_pct <= 1.0) / len(results)
+
+        mode_dist = {}
+        for r in results:
+            mode_str = r.mode.value
+            mode_dist[mode_str] = mode_dist.get(mode_str, 0) + 1
+
         return MarginValidationReport(
             timestamp=datetime.now(timezone.utc).isoformat(),
             users_analyzed=len(results),
+            tolerance_rate=tolerance_rate,
             mean_mmr_deviation_pct=mean_deviation,
-            results=results
+            margin_mode_distribution=mode_dist,
+            results=results,
         )
