@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-03-31T00:00:00+00:00",
+  "source": "repo_address_probe",
+  "source_paths": [
+    "data/validation",
+    "specs/027-reserved-margin-validation",
+    "tests/fixtures/hyperliquid"
+  ],
+  "users_scanned": 430,
+  "pm_found": 3,
+  "pm_comparable_users": 1,
+  "pm_candidates": [
+    {
+      "user": "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 1,
+      "comparable_position_count": 1,
+      "coins_with_api_liqpx": [
+        "HYPE"
+      ],
+      "api_liqpx": {
+        "HYPE": 53.0344316426
+      },
+      "account_value": 10077.09502,
+      "cross_maintenance_margin_used": 1687.035504
+    },
+    {
+      "user": "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 0,
+      "comparable_position_count": 0,
+      "coins_with_api_liqpx": [],
+      "api_liqpx": {},
+      "account_value": 0.0,
+      "cross_maintenance_margin_used": 0.0
+    },
+    {
+      "user": "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c",
+      "user_abstraction": "portfolioMargin",
+      "position_count": 1,
+      "comparable_position_count": 0,
+      "coins_with_api_liqpx": [],
+      "api_liqpx": {},
+      "account_value": 309.372862,
+      "cross_maintenance_margin_used": 127.35912
+    }
+  ]
+}

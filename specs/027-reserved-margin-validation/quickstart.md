@@ -39,7 +39,7 @@ uv run python scripts/validate_reserved_margin.py \
   --output data/validation/portfolio_margin_accounts_full.json
 ```
 
-**Current observed result (2026-03-31)**: the corrected `userAbstraction`-based full scan classified `394/397` users successfully and found `355 cross_margin`, `36 isolated_margin`, `3 portfolio_margin`, plus abstraction counts `176 dexAbstraction`, `122 default`, `39 disabled`, `53 unifiedAccount`, `3 portfolioMargin`, `1 unknown`. Live PM validation is therefore unblocked on account discovery.
+**Current observed result (2026-03-31)**: the corrected `userAbstraction`-based full scan classified `394/397` users successfully and found `355 cross_margin`, `36 isolated_margin`, `3 portfolio_margin`, plus abstraction counts `176 dexAbstraction`, `122 default`, `39 disabled`, `53 unifiedAccount`, `3 portfolioMargin`, `1 unknown`. A follow-up repo-wide probe over `430` distinct local addresses still found only the same `3` PM accounts and only `1` comparable PM `liqPx` case (`data/validation/portfolio_margin_repo_scan.json`), so live PM validation is unblocked on discovery but still constrained by sample size.
 
 ## 3. Run Solver V1.1 (US4)
 

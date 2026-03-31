@@ -545,6 +545,32 @@ Refreshed live PM result:
 
 This improves confidence in the PM liqPx path for the one comparable account, but it does not change the status of SC-003: the live comparable PM sample is still too small to close the story formally.
 
+### Repo-wide address probe for additional PM examples
+
+To test whether the PM sample was only limited by the original reconstructed cohort, a second live probe scanned every distinct EVM address already present in the local validation artifacts, spec files, and Hyperliquid PM fixtures:
+
+- source paths:
+  - `data/validation`
+  - `specs/027-reserved-margin-validation`
+  - `tests/fixtures/hyperliquid`
+- unique addresses scanned: `430`
+- artifact: `data/validation/portfolio_margin_repo_scan.json`
+
+Result:
+
+- total `portfolio_margin` users found: `3`
+- comparable PM users with non-null API `liqPx`: `1`
+- the scan did **not** uncover any PM accounts beyond the same three already found in the corrected full-population scan:
+  - `0xb1c4...` — still the only comparable PM account
+  - `0xdc00...` — no active positions
+  - `0xfc8b...` — `api_liqPx = null`
+
+Inference:
+
+1. The remaining SC-003 gap is not caused by a narrow ETH-only cohort anymore.
+2. Across the local observability surface currently available in this repo, PM accounts remain genuinely sparse.
+3. Closing SC-003 now requires either new live PM observations outside the current local address universe or a future rerun after additional PM accounts appear in upstream datasets.
+
 ### Operational note on backend health
 
 During the same session, the local workstation consensus container was found to be unstable:
