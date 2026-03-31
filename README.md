@@ -12,18 +12,18 @@
 ![Issues](https://img.shields.io/github/issues/gptcompany/rektslug?style=flat-square)
 ![Last Commit](https://img.shields.io/github/last-commit/gptcompany/rektslug?style=flat-square)
 
-Calculate and visualize cryptocurrency liquidation levels from Binance futures data using DuckDB analytics and FastAPI REST endpoints. Leverages open-source models (py-liquidation-map) for battle-tested algorithms.
+Calculate and visualize cryptocurrency liquidation levels from Binance futures data using a QuestDB hot path, DuckDB analytical compute/cache paths, and FastAPI REST endpoints. Leverages open-source models (py-liquidation-map) for battle-tested algorithms.
 
 Primary runtime configuration is now centralized in `src/liquidationheatmap/settings.py`, with shell wrappers loading the same environment contract through `scripts/lib/runtime_env.sh`. Environment overrides are documented in `.env.example`.
 
-`rektslug` is the core production service: it owns the dashboard endpoints and the feature API surface that downstream trading systems (including NT Trader) should consume. The upstream `ccxt-data-pipeline` remains an external collector; `rektslug` is responsible for syncing that upstream data into its local DuckDB state and serving stable API contracts.
+`rektslug` is the core production service: it owns the dashboard endpoints and the feature API surface that downstream trading systems (including NT Trader) should consume. The upstream `ccxt-data-pipeline` remains an external collector; `rektslug` is responsible for syncing that upstream data into its local runtime stores and serving stable API contracts.
 
 ## Production Core Runtime
 
 The production baseline now lives in this repo:
 
 - `rektslug-api`: FastAPI core service
-- `rektslug-sync`: near-real-time Parquet -> DuckDB gap-fill worker (5 minute loop by default)
+- `rektslug-sync`: near-real-time Parquet -> QuestDB gap-fill worker (5 minute loop by default, using DuckDB in-process for Parquet reads where needed)
 
 Start the core runtime:
 
@@ -111,7 +111,7 @@ Legacy aliases still exist for compatibility (`/coinglass`, `/heatmap_30d.html`,
 ## Architecture
 
 **3-Layer Design**:
-1. **Data**: DuckDB (zero-copy CSV ingestion, fast analytics)
+1. **Data**: QuestDB for hot/latest serving, DuckDB for analytical compute/cache/history
 2. **API**: FastAPI (REST endpoints) + Redis (pub/sub streaming)
 3. **Viz**: Plotly.js (interactive heatmaps)
 
@@ -121,12 +121,13 @@ See `ARCHITECTURE.md` for the repo summary and `docs/ARCHITECTURE.md` for the ca
 
 - **Raw CSV**: `/media/sam/3TB-WDC/binance-history-data-downloader/data/` (HDD, read-only)
   - BTCUSDT/, ETHUSDT/: aggTrades, bookDepth, fundingRate, metrics (Open Interest)
-- **Database**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` (NVMe, fast I/O)
-  - Tables: aggtrades_history (4.1B rows), klines_*_history, open_interest_history
+- **QuestDB**: Hot serving store for latest market state and realtime API paths
+- **DuckDB**: `/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb` (NVMe, fast I/O)
+  - Used for analytical compute, historical coverage, and precomputed cache paths
 - **N8N Container**: `/workspace/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb`
 - **Cache**: `data/cache/` (Redis snapshots, temporary files)
 
-**Note**: Raw CSV is read-only on HDD. DuckDB database on NVMe is the single source of truth.
+**Note**: Raw CSV is read-only on HDD. QuestDB is the hot-path serving store; DuckDB remains the analytical engine and historical/cache store.
 
 ## Supported Trading Pairs
 
@@ -329,7 +330,7 @@ tail -f /var/log/liquidationheatmap/cache-update.log
 http://localhost:8002
 ```
 
-### Available Endpoints
+The canonical API/runtime contract now lives in `docs/ARCHITECTURE.md`, `docs/api_guide.md`, and `docs/QUESTDB_RUNTIME_BOUNDARY_MATRIX.md`. The summary below only lists the active endpoint families.
 
 #### 1. Health Check
 ```bash
@@ -337,66 +338,45 @@ GET /health
 ```
 Returns API status.
 
-#### 2. Liquidation Levels
+#### 2. Legacy Liquidation Levels
 ```bash
 GET /liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30
 ```
-**Parameters**:
-- `symbol`: Trading pair (default: BTCUSDT)
-- `model`: Model type (`openinterest` | `binance_standard` | `ensemble`)
-- `timeframe`: Lookback period in days (7 | 30 | 90, default: 30)
-
-**Returns**: Long liquidations (below price) and short liquidations (above price).
-
-**Examples**:
-```bash
-# OpenInterest model (recommended) - BTC 30 days
-curl "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=openinterest&timeframe=30"
-
-# ETH 7 days
-curl "http://localhost:8002/liquidations/levels?symbol=ETHUSDT&model=openinterest&timeframe=7"
-
-# Binance Standard model (legacy)
-curl "http://localhost:8002/liquidations/levels?symbol=BTCUSDT&model=binance_standard&timeframe=30"
-```
+Legacy static levels endpoint kept for compatibility with the liq-map frontend and validation flows. This route still uses DuckDB analytical compute.
 
 #### 3. Historical Liquidations
 ```bash
-GET /liquidations/history?symbol=BTCUSDT&aggregate=true&start=2024-10-29T18:00:00
+GET /liquidations/history?symbol=BTCUSDT&limit=100
 ```
-**Parameters**:
-- `symbol`: Trading pair (default: BTCUSDT)
-- `aggregate`: Group by timestamp and side (default: false)
-- `start`: Start datetime (ISO format, optional)
-- `end`: End datetime (ISO format, optional)
-
-**Returns**: Historical liquidation records or aggregated data.
-
-**Examples**:
-```bash
-# Aggregated data for time-series
-curl "http://localhost:8002/liquidations/history?symbol=BTCUSDT&aggregate=true"
-
-# Raw records with date filtering
-curl "http://localhost:8002/liquidations/history?symbol=BTCUSDT&start=2024-10-01&end=2024-10-31"
-```
+QuestDB-backed liquidation history endpoint for recent records.
 
 #### 4. Liquidation Heatmap
 ```bash
 GET /liquidations/heatmap?symbol=BTCUSDT&model=binance_standard
 ```
-**Parameters**:
-- `symbol`: Trading pair (default: BTCUSDT)
-- `model`: Model type (`binance_standard` | `ensemble`)
-- `timeframe`: Time bucket (1h|4h|12h|1d|7d|30d, default: 1d)
-
-**Returns**: Pre-aggregated heatmap data with density and volume per time+price bucket.
+QuestDB-backed latest-state lookup plus in-process model compute.
 
 **Examples**:
 ```bash
 curl "http://localhost:8002/liquidations/heatmap?symbol=BTCUSDT&model=ensemble"
 curl "http://localhost:8002/liquidations/heatmap?symbol=ETHUSDT&model=binance_standard"
 ```
+
+#### 5. Heatmap Timeseries
+```bash
+GET /liquidations/heatmap-timeseries?symbol=BTCUSDT&time_window=1d
+```
+Hybrid path:
+- hot recent windows prefer QuestDB live reconstruction
+- cold windows and precomputed cache paths still use DuckDB
+
+#### 6. Market Data
+```bash
+GET /prices/klines?symbol=BTCUSDT&interval=5m&limit=100
+GET /data/date-range?symbol=BTCUSDT
+```
+- `1m` and `5m` klines are QuestDB hot-path routes
+- colder historical intervals remain separate historical paths
 
 ## Frontend Entry Points
 
@@ -424,7 +404,8 @@ Legacy frontend implementations are archived under `frontend/legacy/`. The legac
 - Ensemble (weighted average)
 
 ✅ **Data Ingestion**:
-- DuckDB zero-copy CSV loading (<5s per 10GB)
+- QuestDB hot-path ingestion for realtime serving
+- DuckDB analytical ingestion/cache paths
 - Open Interest & Funding Rate tracking
 - Data validation & quality checks
 
