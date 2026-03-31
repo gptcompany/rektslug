@@ -2,6 +2,8 @@
 
 Date: 2026-03-31
 
+See also: `docs/QUESTDB_RUNTIME_BOUNDARY_MATRIX.md` for the frozen endpoint-by-endpoint runtime split after Phase 2.
+
 ## Scope
 
 This phase completes the transition of hot latest-state lookups to QuestDB, officially establishing the architectural boundary between **QuestDB (Real-time Serving)** and **DuckDB (Analytical Compute & Caching)**.
