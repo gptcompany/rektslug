@@ -6,6 +6,9 @@ if TYPE_CHECKING:
     from src.liquidationheatmap.hyperliquid.sidecar import UserPosition
 
 
+DEFAULT_RESERVED_MARGIN_CANDIDATE = "B"
+
+
 def get_margin_tier(notional: float, tiers: List[dict]) -> dict:
     """Find the applicable margin tier for a given notional value."""
     for t in tiers:

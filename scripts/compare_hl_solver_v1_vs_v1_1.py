@@ -9,7 +9,10 @@ import json
 from dataclasses import asdict, dataclass
 
 from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
-from src.liquidationheatmap.hyperliquid.margin_math import estimate_reserved_margin
+from src.liquidationheatmap.hyperliquid.margin_math import (
+    DEFAULT_RESERVED_MARGIN_CANDIDATE,
+    estimate_reserved_margin,
+)
 from src.liquidationheatmap.hyperliquid.models import AssetMetaSnapshot, ClearinghouseUserState
 from src.liquidationheatmap.hyperliquid.sidecar import (
     SidecarPositionReconstructor,
@@ -217,7 +220,7 @@ async def main() -> None:
     )
     parser.add_argument(
         "--candidate",
-        default="A",
+        default=DEFAULT_RESERVED_MARGIN_CANDIDATE,
         choices=["A", "B", "C", "D"],
         help="Reserved-margin candidate to apply.",
     )

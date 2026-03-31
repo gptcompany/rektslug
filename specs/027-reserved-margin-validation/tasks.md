@@ -94,7 +94,7 @@
 - [x] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
 - [x] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
 - [x] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
-- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users: for each user, compute `|V1_liqpx - API_liqpx|` vs `|V1.1_liqpx - API_liqpx|`. Document whether V1.1 improves accuracy. Save comparison to `data/validation/solver_v1_vs_v1.1_comparison.json`. SC-004. Completed with live candidate ranking on 2026-03-31: A improved 205/326 (62.88%), B improved 218/324 (67.28%), C improved 197/325 (60.62%), D improved 197/325 (60.62%). Current best baseline is Candidate B.
+- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users: for each user, compute `|V1_liqpx - API_liqpx|` vs `|V1.1_liqpx - API_liqpx|`. Document whether V1.1 improves accuracy. Save comparison to `data/validation/solver_v1_vs_v1.1_comparison.json`. SC-004. Completed with live candidate ranking on 2026-03-31: A improved 205/326 (62.88%), B improved 218/324 (67.28%), C improved 197/325 (60.62%), D improved 197/325 (60.62%). Current best baseline is Candidate B, and the comparison script now defaults to B.
 
 **Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence.
 
@@ -205,7 +205,7 @@ Phase 1 (Setup) — T001+T002 [P] T004
 
 ### Key Risks
 
-1. **US4 reserved-margin estimate is best-effort**: The true formula is undocumented. Candidate A is a reasonable guess but may not match the exchange exactly. Validation is indirect (does liqPx improve?).
+1. **US4 reserved-margin estimate is best-effort**: The true formula is undocumented. Candidate B is the current empirical best baseline on the live outlier benchmark, but it still only improves 67.28% of compared positions. Validation remains indirect (does liqPx improve?).
 2. **US3 likely blocked**: 0/9 users are PM. May need broader population scan or future spec.
 3. **Multi-tier margin correction**: 1 user (171 positions) shows 1.66% deviation. Tiered MMR in `_get_margin_tier()` should handle this, but needs verification with that specific user.
 
