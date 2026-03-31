@@ -2,7 +2,7 @@
 
 import json
 
-from scripts.validate_reserved_margin import _load_users, _serialize_report
+from scripts.validate_reserved_margin import _load_orders_by_user, _load_users, _serialize_report
 from src.liquidationheatmap.hyperliquid.models import (
     MarginMode,
     MarginValidationReport,
@@ -74,3 +74,38 @@ def test_serialize_report_adds_summary_fields():
     assert payload["passed"] is True
     assert payload["user_count"] == 1
     assert payload["results"][0]["mode"] == "cross_margin"
+
+
+def test_load_orders_by_user_reads_nested_orders(tmp_path):
+    path = tmp_path / "outliers_with_orders.json"
+    path.write_text(
+        json.dumps(
+            {
+                "users": [
+                    {
+                        "user": "0xabc",
+                        "orders": [
+                            {
+                                "oid": 1,
+                                "coin": "ETH",
+                                "side": "B",
+                                "size": 1.0,
+                                "orig_size": 1.0,
+                                "limit_px": 2000.0,
+                                "reduce_only": False,
+                                "is_trigger": False,
+                                "is_position_tpsl": False,
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    orders_by_user = _load_orders_by_user(str(path))
+
+    assert list(orders_by_user) == ["0xabc"]
+    assert orders_by_user["0xabc"][0].coin == "ETH"
+    assert orders_by_user["0xabc"][0].limit_px == 2000.0

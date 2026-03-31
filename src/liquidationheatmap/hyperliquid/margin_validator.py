@@ -3,6 +3,11 @@ from datetime import datetime, timezone
 from typing import List
 
 from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
+from src.liquidationheatmap.hyperliquid.margin_math import (
+    DEFAULT_RESERVED_MARGIN_CANDIDATE,
+    compute_position_maintenance_margin,
+    estimate_reserved_margin,
+)
 from src.liquidationheatmap.hyperliquid.models import (
     AssetMetaSnapshot,
     ClearinghouseUserState,
@@ -12,16 +17,28 @@ from src.liquidationheatmap.hyperliquid.models import (
     MarginValidationResult,
     PositionMarginComparison,
 )
-from src.liquidationheatmap.hyperliquid.margin_math import compute_position_maintenance_margin
-from src.liquidationheatmap.hyperliquid.sidecar import UserPosition, UserState, SidecarPositionReconstructor
+from src.liquidationheatmap.hyperliquid.sidecar import (
+    SidecarPositionReconstructor,
+    UserOrder,
+    UserPosition,
+    UserState,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class MarginValidator:
-    def __init__(self, client: HyperliquidInfoClient = None):
+    def __init__(
+        self,
+        client: HyperliquidInfoClient = None,
+        *,
+        orders_by_user: dict[str, list[UserOrder]] | None = None,
+        reserved_margin_candidate: str = DEFAULT_RESERVED_MARGIN_CANDIDATE,
+    ):
         self.client = client or HyperliquidInfoClient()
         self.reconstructor = SidecarPositionReconstructor()
+        self.orders_by_user = orders_by_user or {}
+        self.reserved_margin_candidate = reserved_margin_candidate
 
     def detect_margin_mode(self, state: ClearinghouseUserState | dict) -> MarginMode:
         if isinstance(state, ClearinghouseUserState):
@@ -89,6 +106,25 @@ class MarginValidator:
 
         return factors
 
+    def _estimate_reserved_margin(
+        self,
+        user: str,
+        mark_prices: dict[int, float],
+        asset_meta: dict[str, dict],
+        current_positions: dict[str, float],
+    ) -> float | None:
+        orders = self.orders_by_user.get(user)
+        if not orders:
+            return None
+
+        return estimate_reserved_margin(
+            orders,
+            self.reserved_margin_candidate,
+            mark_prices=mark_prices,
+            asset_meta=asset_meta,
+            current_positions=current_positions,
+        )
+
     async def validate_user(self, user: str) -> MarginValidationResult:
         state: ClearinghouseUserState = await self.client.get_clearinghouse_state(user)
         meta: AssetMetaSnapshot = await self.client.get_asset_meta()
@@ -111,6 +147,7 @@ class MarginValidator:
         positions_cm = []
         sidecar_positions = []
         sidecar_total_mmr = 0.0
+        current_positions = {}
 
         for ap in state.assetPositions:
             pos_data = ap.position
@@ -138,6 +175,7 @@ class MarginValidator:
                 cum_funding=pos_data.cumFunding.sinceOpen,
             )
             sidecar_positions.append(up)
+            current_positions[coin] = size
 
             sidecar_mmr = compute_position_maintenance_margin(up, mark_prices, tiers)
             sidecar_total_mmr += sidecar_mmr
@@ -154,6 +192,15 @@ class MarginValidator:
             })
 
         user_state = UserState(user=user, balance=account_value, positions=tuple(sidecar_positions))
+        reserved_margin = self._estimate_reserved_margin(
+            user,
+            mark_prices,
+            {
+                asset.name: {"idx": idx, "maxLeverage": asset.maxLeverage}
+                for idx, asset in enumerate(meta.universe)
+            },
+            current_positions,
+        )
 
         final_positions = []
         for p in positions_cm:
@@ -162,11 +209,24 @@ class MarginValidator:
             )
 
             dev_liq_px_v1 = None
+            sidecar_liq_px_v1_1 = None
+            dev_liq_px_v1_1 = None
             liq_px_dev_pct = None
             if sidecar_liq_px_v1 is not None and p["api_liquidation_px"] is not None:
                 dev_liq_px_v1 = abs(sidecar_liq_px_v1 - p["api_liquidation_px"])
                 if p["api_liquidation_px"] > 0:
                     liq_px_dev_pct = dev_liq_px_v1 / p["api_liquidation_px"] * 100.0
+
+            if reserved_margin is not None:
+                sidecar_liq_px_v1_1 = self.reconstructor.solve_liquidation_price(
+                    user_state,
+                    p["coin"],
+                    mark_prices,
+                    p["tiers"],
+                    reserved_margin=reserved_margin,
+                )
+                if sidecar_liq_px_v1_1 is not None and p["api_liquidation_px"] is not None:
+                    dev_liq_px_v1_1 = abs(sidecar_liq_px_v1_1 - p["api_liquidation_px"])
 
             final_positions.append(PositionMarginComparison(
                 coin=p["coin"],
@@ -177,9 +237,9 @@ class MarginValidator:
                 api_liquidation_px=p["api_liquidation_px"],
                 sidecar_mmr=p["sidecar_mmr"],
                 sidecar_liquidation_px_v1=sidecar_liq_px_v1,
-                sidecar_liquidation_px_v1_1=None,
+                sidecar_liquidation_px_v1_1=sidecar_liq_px_v1_1,
                 deviation_liq_px_v1=dev_liq_px_v1,
-                deviation_liq_px_v1_1=None,
+                deviation_liq_px_v1_1=dev_liq_px_v1_1,
                 liq_px_deviation_pct=liq_px_dev_pct,
             ))
 

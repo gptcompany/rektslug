@@ -19,6 +19,7 @@ from src.liquidationheatmap.hyperliquid.models import (
     PositionCumFunding,
     PositionData,
 )
+from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
 
 
 @pytest.mark.asyncio
@@ -52,6 +53,40 @@ async def test_validate_user_liq_px_comparison():
         assert result.positions[0].api_liquidation_px == 1800.0
         assert result.positions[0].sidecar_liquidation_px_v1 == 1750.0
         assert result.positions[0].deviation_liq_px_v1 == 50.0
+
+
+@pytest.mark.asyncio
+async def test_validate_user_computes_v1_1_when_orders_available():
+    mock_client = AsyncMock()
+    mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
+    mock_client.get_asset_meta.return_value = make_asset_snapshot()
+
+    validator = MarginValidator(
+        client=mock_client,
+        orders_by_user={
+            "0x123": [
+                UserOrder(
+                    user="0x123",
+                    oid=1,
+                    coin="ETH",
+                    side="B",
+                    limit_px=2000.0,
+                    size=1.0,
+                )
+            ]
+        },
+    )
+
+    with patch.object(
+        validator.reconstructor,
+        "solve_liquidation_price",
+        side_effect=[1750.0, 1775.0],
+    ):
+        result = await validator.validate_user("0x123")
+
+    assert result.positions[0].sidecar_liquidation_px_v1 == 1750.0
+    assert result.positions[0].sidecar_liquidation_px_v1_1 == 1775.0
+    assert result.positions[0].deviation_liq_px_v1_1 == 25.0
 
 
 @pytest.mark.asyncio

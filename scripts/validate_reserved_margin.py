@@ -7,8 +7,10 @@ import dataclasses
 import json
 import sys
 
+from src.liquidationheatmap.hyperliquid.margin_math import DEFAULT_RESERVED_MARGIN_CANDIDATE
 from src.liquidationheatmap.hyperliquid.margin_validator import MarginValidator
 from src.liquidationheatmap.hyperliquid.models import MarginValidationReport
+from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
 
 
 DEFAULT_USERS = [
@@ -58,6 +60,48 @@ def _load_users(users: list[str] | None, file_path: str | None) -> list[str]:
     return sorted(set(loaded_users))
 
 
+def _load_orders_by_user(file_path: str | None) -> dict[str, list[UserOrder]]:
+    if not file_path:
+        return {}
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+
+    if not isinstance(data, dict) or not isinstance(data.get("users"), list):
+        return {}
+
+    orders_by_user: dict[str, list[UserOrder]] = {}
+    for item in data["users"]:
+        user = item.get("user")
+        if not isinstance(item, dict) or not isinstance(user, str):
+            continue
+        orders = []
+        for order in item.get("orders", []):
+            orders.append(
+                UserOrder(
+                    user=user,
+                    oid=int(order["oid"]),
+                    coin=str(order["coin"]),
+                    side=str(order["side"]),
+                    limit_px=float(order["limit_px"]),
+                    size=float(order["size"]),
+                    orig_size=float(order["orig_size"]) if order.get("orig_size") is not None else None,
+                    tif=order.get("tif"),
+                    order_type=order.get("order_type"),
+                    reduce_only=bool(order.get("reduce_only", False)),
+                    is_trigger=bool(order.get("is_trigger", False)),
+                    is_position_tpsl=bool(order.get("is_position_tpsl", False)),
+                    status=order.get("status"),
+                )
+            )
+        if orders:
+            orders_by_user[user] = orders
+    return orders_by_user
+
+
 def _serialize_report(report: MarginValidationReport) -> dict:
     report_dict = dataclasses.asdict(report)
     report_dict["passed"] = report.tolerance_rate >= 0.9
@@ -70,6 +114,12 @@ async def main():
     parser.add_argument("--file", "--outliers", dest="file", type=str, help="JSON file containing user addresses (e.g. outliers sample)")
     parser.add_argument("--output", type=str, default="validation_report.json", help="Output JSON report path")
     parser.add_argument("--detect-modes", action="store_true", help="Only detect margin modes for the users (skips full validation)")
+    parser.add_argument(
+        "--reserved-margin-candidate",
+        default=DEFAULT_RESERVED_MARGIN_CANDIDATE,
+        choices=["A", "B", "C", "D"],
+        help="Reserved-margin candidate used for V1.1 comparisons when reconstructed orders are available.",
+    )
     args = parser.parse_args()
 
     users = _load_users(args.users, args.file)
@@ -97,7 +147,10 @@ async def main():
 
     print(f"Validating {len(users)} users...")
     
-    validator = MarginValidator()
+    validator = MarginValidator(
+        orders_by_user=_load_orders_by_user(args.file),
+        reserved_margin_candidate=args.reserved_margin_candidate,
+    )
     report = await validator.validate_batch(users)
     
     print(f"\n--- Validation Report ---")
@@ -110,9 +163,16 @@ async def main():
         print(f"  Deviation: {r.deviation_mmr_pct:.4f}%")
         for position in r.positions:
             if position.liq_px_deviation_pct is not None:
-                print(
-                    f"  {position.coin} liqPx deviation: {position.liq_px_deviation_pct:.4f}%"
-                )
+                if position.deviation_liq_px_v1_1 is not None:
+                    print(
+                        f"  {position.coin} liqPx | "
+                        f"V1={position.deviation_liq_px_v1:.4f} "
+                        f"V1.1={position.deviation_liq_px_v1_1:.4f}"
+                    )
+                else:
+                    print(
+                        f"  {position.coin} liqPx deviation: {position.liq_px_deviation_pct:.4f}%"
+                    )
         
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(_serialize_report(report), f, indent=2)
