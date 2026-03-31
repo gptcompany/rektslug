@@ -3,6 +3,10 @@
   "users_analyzed": 9,
   "tolerance_rate": 0.6666666666666666,
   "mean_mmr_deviation_pct": 5.548992131823031,
+  "passed_all_accounts": false,
+  "passed_cross_margin_only": false,
+  "passed": false,
+  "user_count": 9,
   "margin_mode_distribution": {
     "cross_margin": 7,
     "isolated_margin": 2
@@ -6743,7 +6747,5 @@
     "v1_mean_abs_error": 185312.01614160318,
     "v1_1_mean_abs_error": 165238.4552490004,
     "improvement_rate": 0.9847560975609756
-  },
-  "passed": false,
-  "user_count": 9
+  }
 }

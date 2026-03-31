@@ -104,7 +104,12 @@ def _load_orders_by_user(file_path: str | None) -> dict[str, list[UserOrder]]:
 
 def _serialize_report(report: MarginValidationReport) -> dict:
     report_dict = dataclasses.asdict(report)
-    report_dict["passed"] = report.tolerance_rate >= 0.9
+    cross_summary = report.mode_summaries.get("cross_margin")
+    report_dict["passed_all_accounts"] = report.tolerance_rate >= 0.9
+    report_dict["passed_cross_margin_only"] = (
+        cross_summary.tolerance_rate >= 0.9 if cross_summary is not None else False
+    )
+    report_dict["passed"] = report_dict["passed_all_accounts"]
     report_dict["user_count"] = report.users_analyzed
     return report_dict
 
@@ -160,6 +165,12 @@ async def main():
     print(f"\n--- Validation Report ---")
     print(f"Users analyzed: {report.users_analyzed}")
     print(f"Mean MMR Deviation: {report.mean_mmr_deviation_pct:.4f}%\n")
+    cross_summary = report.mode_summaries.get("cross_margin")
+    print(
+        "Pass status: "
+        f"all_accounts={report.tolerance_rate >= 0.9} "
+        f"cross_margin_only={cross_summary.tolerance_rate >= 0.9 if cross_summary is not None else False}\n"
+    )
     if report.liq_px_summary is not None:
         print(
             "Global liqPx summary: "

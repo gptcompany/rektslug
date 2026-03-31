@@ -91,9 +91,41 @@ def test_serialize_report_adds_summary_fields():
     payload = _serialize_report(report)
 
     assert payload["passed"] is True
+    assert payload["passed_all_accounts"] is True
+    assert payload["passed_cross_margin_only"] is True
     assert payload["user_count"] == 1
     assert payload["results"][0]["mode"] == "cross_margin"
     assert payload["liq_px_summary"]["improved_positions"] == 1
+
+
+def test_serialize_report_marks_cross_only_failure_without_cross_summary():
+    report = MarginValidationReport(
+        timestamp="2026-03-31T00:00:00+00:00",
+        users_analyzed=1,
+        tolerance_rate=0.95,
+        mean_mmr_deviation_pct=0.5,
+        margin_mode_distribution={"isolated_margin": 1},
+        mode_summaries={},
+        results=[
+            MarginValidationResult(
+                user="0xabc",
+                mode=MarginMode.ISOLATED_MARGIN,
+                api_total_margin_used=10.0,
+                api_cross_maintenance_margin_used=5.0,
+                sidecar_total_mmr=5.0,
+                deviation_mmr_pct=0.5,
+                positions=[],
+                factors=[],
+            )
+        ],
+        liq_px_summary=None,
+    )
+
+    payload = _serialize_report(report)
+
+    assert payload["passed"] is True
+    assert payload["passed_all_accounts"] is True
+    assert payload["passed_cross_margin_only"] is False
 
 
 def test_load_orders_by_user_reads_nested_orders(tmp_path):
