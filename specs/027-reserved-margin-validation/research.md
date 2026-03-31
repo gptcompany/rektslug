@@ -353,31 +353,30 @@ using the same 9 outlier users and refreshing `data/validation/margin_validation
 
 - `users_analyzed = 9`
 - `margin_mode_distribution = {"cross_margin": 9}`
-- `cross_margin tolerance_rate = 0.8889`
-- `mean_mmr_deviation_pct = 0.3087`
-- `passed_cross_margin_only = false`
-- `passed_all_accounts = false`
+- `cross_margin tolerance_rate = 1.0000`
+- `mean_mmr_deviation_pct = 0.1784`
+- `passed_cross_margin_only = true`
+- `passed_all_accounts = true`
 
-Only one user is currently above the 1% MMR tolerance:
-
-- `0x7717...`: `1.7431%`
+The last residual blocker was resolved by correcting the MMR comparison for mixed `cross + isolated` accounts: for `cross_margin` validation, the sidecar MMR reference now excludes isolated-position maintenance that Hyperliquid does not include in `crossMaintenanceMarginUsed`.
 
 All other users remained below tolerance:
 
-- `0x31dea2...`: `0.0773%`
-- `0x57dd78...`: `0.1380%`
-- `0x7b7f72...`: `0.0984%`
-- `0x7fdafd...`: `0.1456%`
-- `0xab5e6f...`: `0.1082%`
-- `0xd47587...`: `0.3062%`
-- `0xecb63c...`: `0.0807%`
-- `0xfc667a...`: `0.0811%`
+- `0x31dea2...`: `0.2961%`
+- `0x57dd78...`: `0.2089%`
+- `0x7717...`: `0.0331%`
+- `0x7b7f72...`: `0.1460%`
+- `0x7fdafd...`: `0.0156%`
+- `0xab5e6f...`: `0.0673%`
+- `0xd47587...`: `0.3612%`
+- `0xecb63c...`: `0.2568%`
+- `0xfc667a...`: `0.2209%`
 
 #### Interpretation
 
 1. The tiered-MMR fix still holds: the whale accounts remain close.
-2. The stronger earlier claim "`cross_margin tolerance_rate = 1.0000` is now closed" should no longer be treated as the authoritative current state.
-3. The current blocker for SC-001 is narrow but real: one cross-margin user (`0x7717...`) is back over the threshold on the refreshed rerun.
+2. The mixed-account comparison bug was real. `0x7717...` was a `cross_margin` account with two isolated positions; once those isolated maintenance requirements were excluded from the cross-margin reference, the MMR gap collapsed from `1.7431%` to `0.0331%`.
+3. SC-001 is now closed again on the authoritative healthy-chain rerun, and this refreshed report also satisfies SC-005 because no user carries an `unknown` attribution tail above 5% of total margin.
 4. Operationally, the rerun should be trusted more than local-node reads because it was forced through the healthy VPS/public `/info` chain after the local consensus endpoint was found unstable.
 
 ## 9. Reserved-Margin Candidate Selection After Tiered-MMR Fix

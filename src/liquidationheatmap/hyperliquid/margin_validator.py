@@ -290,6 +290,7 @@ class MarginValidator:
             entry_px = pos_data.entryPx
             api_margin_used = pos_data.marginUsed
             api_liq_px = pos_data.liquidationPx
+            leverage_type = pos_data.leverage.type
             
             if coin not in asset_meta_lookup:
                 logger.warning("Coin %s not found in asset meta", coin)
@@ -313,7 +314,8 @@ class MarginValidator:
 
             # Use full asset_margin_tiers for MMR calculation
             sidecar_mmr = compute_position_maintenance_margin(up, mark_prices, asset_margin_tiers)
-            sidecar_total_mmr += sidecar_mmr
+            if mode != MarginMode.CROSS_MARGIN or leverage_type != "isolated":
+                sidecar_total_mmr += sidecar_mmr
 
             positions_cm.append({
                 "coin": coin,

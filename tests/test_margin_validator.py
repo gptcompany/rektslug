@@ -79,6 +79,102 @@ async def test_validate_user_tiered_mmr():
 
 
 @pytest.mark.asyncio
+async def test_validate_user_mixed_cross_account_excludes_isolated_mmr_from_cross_reference():
+    mock_client = AsyncMock()
+    mock_client.get_clearinghouse_state.return_value = ClearinghouseUserState(
+        marginSummary=MarginSummary(
+            accountValue=1000.0,
+            totalMarginUsed=200.0,
+            totalNtlPos=0.0,
+            totalRawUsd=0.0,
+        ),
+        crossMarginSummary=CrossMarginSummary(
+            accountValue=1000.0,
+            totalMarginUsed=200.0,
+            totalNtlPos=0.0,
+            totalRawUsd=0.0,
+        ),
+        crossMaintenanceMarginUsed=20.0,
+        withdrawable=800.0,
+        time=1234567890,
+        assetPositions=[
+            ApiPosition(
+                type="oneWay",
+                position=PositionData(
+                    coin="ETH",
+                    szi=1.0,
+                    entryPx=2000.0,
+                    positionValue=2000.0,
+                    unrealizedPnl=0.0,
+                    returnOnEquity=0.0,
+                    liquidationPx=1800.0,
+                    leverage=Leverage(type="cross", value=20),
+                    marginUsed=100.0,
+                    maxLeverage=50,
+                    cumFunding=PositionCumFunding(
+                        allTime=0.0,
+                        sinceOpen=0.0,
+                        sinceChange=0.0,
+                    ),
+                ),
+            ),
+            ApiPosition(
+                type="oneWay",
+                position=PositionData(
+                    coin="ALT1",
+                    szi=1.0,
+                    entryPx=1000.0,
+                    positionValue=1000.0,
+                    unrealizedPnl=0.0,
+                    returnOnEquity=0.0,
+                    liquidationPx=900.0,
+                    leverage=Leverage(type="isolated", value=20),
+                    marginUsed=50.0,
+                    maxLeverage=50,
+                    cumFunding=PositionCumFunding(
+                        allTime=0.0,
+                        sinceOpen=0.0,
+                        sinceChange=0.0,
+                    ),
+                ),
+            ),
+        ],
+    )
+    mock_client.get_user_abstraction.return_value = AccountAbstraction.DEFAULT
+    mock_client.get_asset_meta.return_value = AssetMetaSnapshot(
+        universe=[
+            AssetMeta(
+                name="ETH",
+                szDecimals=4,
+                maxLeverage=50,
+                onlyIsolated=False,
+                marginTableId=0,
+            ),
+            AssetMeta(
+                name="ALT1",
+                szDecimals=4,
+                maxLeverage=50,
+                onlyIsolated=False,
+                marginTableId=1,
+            ),
+        ],
+        assetContexts=[
+            AssetContext(markPx=2000.0),
+            AssetContext(markPx=1000.0),
+        ],
+        margin_tables={},
+    )
+
+    validator = MarginValidator(client=mock_client)
+    result = await validator.validate_user("0x123")
+
+    assert result.mode == MarginMode.CROSS_MARGIN
+    assert result.sidecar_total_mmr == 20.0
+    assert result.deviation_mmr_pct == 0.0
+    assert [position.sidecar_mmr for position in result.positions] == [20.0, 10.0]
+
+
+@pytest.mark.asyncio
 async def test_validate_user_liq_px_comparison():
     mock_client = AsyncMock()
     mock_client.get_clearinghouse_state.return_value = make_state(cross_maintenance_margin_used=100.0)
