@@ -466,8 +466,8 @@ GET  /liq_map_1w.html                                             # Legacy direc
 ```
 
 **Flow Summary**:
-1. **Ingestion**: Historical CSV → DuckDB (zero-copy) + Binance API → in-memory cache
-2. **Calculation**: DuckDB query → Liquidation models → Clustering → API response
+1. **Ingestion**: Historical CSV/Parquet → DuckDB analytical reads + QuestDB hot serving tables
+2. **Calculation**: QuestDB latest state + DuckDB analytical compute/cache → Liquidation models → Clustering → API response
 3. **Presentation**: REST API → Plotly.js → Interactive charts
 
 **Cache Strategy**:
@@ -481,7 +481,7 @@ Two systemd timers manage data freshness:
 
 ### 1. CCXT Gap Fill (every 5 minutes)
 
-Near-real-time bridge from ccxt-data-pipeline Parquet catalog into DuckDB (T-2 → T-0).
+Near-real-time bridge from ccxt-data-pipeline Parquet catalog into QuestDB (T-2 → T-0), using DuckDB only as the in-process Parquet query engine.
 
 | Item | Value |
 |------|-------|
@@ -528,7 +528,7 @@ Bulk ingestion of full Binance historical CSV data.
 **Decision**: Use QuestDB for hot real-time serving and DuckDB for heavy analytical compute and caching.
 
 **Rationale**:
-- **QuestDB (Hot Path)**: Designed specifically for fast ingestion and low-latency querying of time-series data. It is the single source of truth for all real-time API endpoints (`/prices/klines`, `/liquidations/history`, latest market state). It receives hot data continuously via ILP.
+- **QuestDB (Hot Path)**: Designed specifically for fast ingestion and low-latency querying of time-series data. It is the single source of truth for hot market-state lookups and fully QuestDB-backed endpoints such as `/prices/klines` and `/liquidations/history`. It receives hot data continuously via ILP.
 - **DuckDB (Compute & Cache Path)**: Highly optimized for columnar analytics. Used for the heavy lifting in liquidation map generation (`calculate_liquidations_oi_based`), caching pre-computed heatmap timeseries, and reading long-term historical datasets (e.g. Parquet reads or legacy CSV loads).
 - **Separation of Concerns**: This avoids the single-writer lock contention issues historically seen with DuckDB during live gap-fill operations while keeping complex analytics queries on the engine best suited for them.
 

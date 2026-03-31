@@ -9,7 +9,8 @@ import math
 
 from pydantic import BaseModel
 
-from src.liquidationheatmap.ingestion.db_service import DuckDBService
+from src.liquidationheatmap.ingestion.db_service import DuckDBService, _get_fallback_price
+from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 from src.liquidationheatmap.models.profiles import get_profile
 
 SUPPORTED_PUBLIC_LIQMAP_SYMBOLS = {"BTCUSDT", "ETHUSDT"}
@@ -112,6 +113,18 @@ class _BuilderMetadata:
     is_stale_real_data: bool
     timeframe_days: int
     step: Decimal
+
+
+def _load_latest_public_price(symbol: str) -> Decimal:
+    """Resolve the public builder anchor price from QuestDB hot data."""
+    qdb = QuestDBService()
+    if qdb.is_available():
+        for interval in ("1m", "5m", None):
+            price = qdb.get_latest_price(symbol, interval=interval)
+            if price is not None:
+                return Decimal(str(price))
+
+    return _get_fallback_price(symbol)
 
 
 def resolve_public_liqmap_step(symbol: str, timeframe: str) -> Decimal:
@@ -397,8 +410,8 @@ def _load_public_liqmap_metadata(
     step: Decimal,
 ) -> _BuilderMetadata:
     timeframe_days = SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES[timeframe]
+    current_price = _load_latest_public_price(symbol)
     with DuckDBService(read_only=True) as db:
-        current_price, _ = db.get_historical_latest_open_interest(symbol)
         table_name, _interval = db._resolve_oi_kline_source(
             symbol=symbol,
             lookback_days=timeframe_days,

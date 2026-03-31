@@ -120,6 +120,64 @@ class TestLiquidationLatestQuestDB:
         assert len(response.json()["models"]) == 3
         mock_db_cls.assert_not_called()
 
+    @patch("src.liquidationheatmap.api.routers.liquidations.EnsembleModel")
+    @patch("src.liquidationheatmap.api.routers.liquidations._get_latest_funding_with_questdb")
+    @patch("src.liquidationheatmap.api.routers.liquidations._get_latest_oi_with_questdb")
+    def test_heatmap_ensemble_uses_questdb_funding(
+        self, mock_latest_oi, mock_latest_funding, mock_ensemble_cls
+    ):
+        mock_latest_oi.return_value = (50000.0, Decimal("1000000"))
+        mock_latest_funding.return_value = Decimal("0.0002")
+        mock_ensemble = mock_ensemble_cls.return_value
+        mock_ensemble.calculate_liquidations.return_value = []
+
+        response = client.get("/liquidations/heatmap?symbol=BTCUSDT&model=ensemble")
+
+        assert response.status_code == 200
+        mock_ensemble.calculate_liquidations.assert_called_once_with(
+            50000.0,
+            Decimal("1000000"),
+            symbol="BTCUSDT",
+            funding_rate=Decimal("0.0002"),
+        )
+
+    @patch("src.liquidationheatmap.api.routers.liquidations.EnsembleModel")
+    @patch("src.liquidationheatmap.api.routers.liquidations.FundingAdjustedModel")
+    @patch("src.liquidationheatmap.api.routers.liquidations.BinanceStandardModel")
+    @patch("src.liquidationheatmap.api.routers.liquidations._get_latest_funding_with_questdb")
+    @patch("src.liquidationheatmap.api.routers.liquidations._get_latest_oi_with_questdb")
+    def test_compare_models_uses_questdb_funding_for_funding_sensitive_models(
+        self,
+        mock_latest_oi,
+        mock_latest_funding,
+        mock_standard_cls,
+        mock_funding_cls,
+        mock_ensemble_cls,
+    ):
+        mock_latest_oi.return_value = (50000.0, Decimal("1000000"))
+        mock_latest_funding.return_value = Decimal("0.0003")
+        mock_standard_cls.return_value.calculate_liquidations.return_value = []
+        mock_funding = mock_funding_cls.return_value
+        mock_funding.calculate_liquidations.return_value = []
+        mock_ensemble = mock_ensemble_cls.return_value
+        mock_ensemble.calculate_liquidations.return_value = []
+
+        response = client.get("/liquidations/compare-models?symbol=BTCUSDT")
+
+        assert response.status_code == 200
+        mock_funding.calculate_liquidations.assert_called_once_with(
+            50000.0,
+            Decimal("1000000"),
+            symbol="BTCUSDT",
+            funding_rate=Decimal("0.0003"),
+        )
+        mock_ensemble.calculate_liquidations.assert_called_once_with(
+            50000.0,
+            Decimal("1000000"),
+            symbol="BTCUSDT",
+            funding_rate=Decimal("0.0003"),
+        )
+
 
 class TestHeatmapTimeseriesQuestDB:
     @staticmethod

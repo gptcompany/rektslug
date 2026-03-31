@@ -1,6 +1,8 @@
 """Unit tests for the spec-022 public liqmap builder helpers."""
 
+from datetime import datetime, timezone
 from decimal import Decimal
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,6 +12,7 @@ from src.liquidationheatmap.api.public_liqmap import (
     CoinankPublicCumulativePoint,
     CoinankPublicGrid,
     CoinankPublicMapResponse,
+    _load_public_liqmap_metadata,
     build_cumulative_series,
     derive_public_liqmap_range,
     expand_public_leverage_ladder,
@@ -171,3 +174,38 @@ def test_one_day_range_keeps_returned_edge_buckets_visible():
 
     assert one_day_range[0] <= 88.0
     assert one_day_range[1] >= 112.0
+
+
+def test_public_builder_metadata_uses_questdb_for_latest_price(monkeypatch):
+    questdb = MagicMock()
+    questdb.is_available.return_value = True
+    questdb.get_latest_price.side_effect = [60123.45]
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.QuestDBService",
+        lambda: questdb,
+    )
+
+    db = MagicMock()
+    db.get_historical_latest_open_interest.side_effect = AssertionError(
+        "latest price should not come from DuckDB"
+    )
+    db._resolve_oi_kline_source.return_value = ("klines_5m_history", "5m")
+    db.conn.execute.return_value.fetchone.return_value = (
+        datetime(2026, 3, 31, 12, 0, tzinfo=timezone.utc),
+    )
+    db_context = MagicMock()
+    db_context.__enter__.return_value = db
+    db_context.__exit__.return_value = False
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.DuckDBService",
+        lambda **_kwargs: db_context,
+    )
+
+    metadata = _load_public_liqmap_metadata(
+        symbol="BTCUSDT",
+        timeframe="1d",
+        step=Decimal("10"),
+    )
+
+    assert metadata.current_price == Decimal("60123.45")
+    assert metadata.last_data_timestamp == datetime(2026, 3, 31, 12, 0, tzinfo=timezone.utc)

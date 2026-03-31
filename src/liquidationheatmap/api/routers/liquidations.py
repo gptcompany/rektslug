@@ -799,8 +799,18 @@ async def get_heatmap(
 
     def _load_heatmap_response():
         current_price, open_interest = _get_latest_oi_with_questdb(symbol)
-        calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
-        liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
+        if model == "ensemble":
+            funding_rate = _get_latest_funding_with_questdb(symbol)
+            calc_model = EnsembleModel()
+            liqs = calc_model.calculate_liquidations(
+                current_price,
+                open_interest,
+                symbol=symbol,
+                funding_rate=funding_rate,
+            )
+        else:
+            calc_model = BinanceStandardModel()
+            liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
 
         long_liqs = [
             {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
@@ -831,13 +841,22 @@ async def get_heatmap(
         ):
             raise
         current_price = float(_get_fallback_price(symbol))
-        calc_model = EnsembleModel() if model == "ensemble" else BinanceStandardModel()
         open_interest = _fallback_open_interest(symbol, current_price)
-        liqs = calc_model.calculate_liquidations(
-            Decimal(str(current_price)),
-            open_interest,
-            symbol=symbol,
-        )
+        if model == "ensemble":
+            calc_model = EnsembleModel()
+            liqs = calc_model.calculate_liquidations(
+                Decimal(str(current_price)),
+                open_interest,
+                symbol=symbol,
+                funding_rate=Decimal("0"),
+            )
+        else:
+            calc_model = BinanceStandardModel()
+            liqs = calc_model.calculate_liquidations(
+                Decimal(str(current_price)),
+                open_interest,
+                symbol=symbol,
+            )
         long_liqs = [
             {"price_level": float(l.price_level), "volume": float(l.liquidation_volume)}
             for l in liqs
@@ -1292,6 +1311,7 @@ async def get_liquidation_history(
 async def compare_models(symbol: str = "BTCUSDT"):
     def _load_model_comparison():
         current_price, open_interest = _get_latest_oi_with_questdb(symbol)
+        funding_rate = _get_latest_funding_with_questdb(symbol)
 
         models = []
         for model_cls, name in [
@@ -1300,7 +1320,15 @@ async def compare_models(symbol: str = "BTCUSDT"):
             (EnsembleModel, "ensemble"),
         ]:
             model = model_cls()
-            liqs = model.calculate_liquidations(current_price, open_interest, symbol)
+            if name == "binance_standard":
+                liqs = model.calculate_liquidations(current_price, open_interest, symbol=symbol)
+            else:
+                liqs = model.calculate_liquidations(
+                    current_price,
+                    open_interest,
+                    symbol=symbol,
+                    funding_rate=funding_rate,
+                )
 
             avg_conf = 0.95
             if name == "ensemble":
@@ -1335,6 +1363,7 @@ async def compare_models(symbol: str = "BTCUSDT"):
 
         current_price = _get_fallback_price(symbol)
         open_interest = _fallback_open_interest(symbol, float(current_price))
+        funding_rate = Decimal("0")
         models = []
         for model_cls, name in [
             (BinanceStandardModel, "binance_standard"),
@@ -1342,7 +1371,15 @@ async def compare_models(symbol: str = "BTCUSDT"):
             (EnsembleModel, "ensemble"),
         ]:
             calc_model = model_cls()
-            liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol)
+            if name == "binance_standard":
+                liqs = calc_model.calculate_liquidations(current_price, open_interest, symbol=symbol)
+            else:
+                liqs = calc_model.calculate_liquidations(
+                    current_price,
+                    open_interest,
+                    symbol=symbol,
+                    funding_rate=funding_rate,
+                )
             avg_conf = 0.95
             if name == "ensemble":
                 avg_conf = 0.98
