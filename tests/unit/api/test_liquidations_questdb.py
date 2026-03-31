@@ -10,6 +10,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from src.liquidationheatmap.api.heatmap_models import HeatmapTimeseriesMetadata, HeatmapTimeseriesResponse
 from src.liquidationheatmap.api.main import app
 from src.liquidationheatmap.api.routers.liquidations import _get_latest_oi_with_questdb
 from src.liquidationheatmap.models.position import HeatmapSnapshot
@@ -214,6 +215,31 @@ class TestHeatmapTimeseriesQuestDB:
         assert response.json()["meta"]["total_snapshots"] == 1
         mock_db_cls.assert_not_called()
 
+    @patch("src.liquidationheatmap.api.routers.liquidations._try_duckdb_ts_cache")
+    @patch("src.liquidationheatmap.api.routers.liquidations.DuckDBService")
+    @patch("src.liquidationheatmap.api.routers.liquidations._load_heatmap_snapshots_from_questdb")
+    def test_heatmap_timeseries_hot_window_skips_duckdb_precomputed_cache(
+        self, mock_qdb_loader, mock_db_cls, mock_ts_cache
+    ):
+        mock_qdb_loader.return_value = [
+            self._snapshot(datetime.now(timezone.utc) - timedelta(minutes=15))
+        ]
+
+        response = client.get(
+            "/liquidations/heatmap-timeseries",
+            params={
+                "symbol": "BTCUSDT",
+                "interval": "15m",
+                "start_time": (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat(),
+                "price_bin_size": 100,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.headers["X-Heatmap-Backend"] == "questdb-live"
+        mock_ts_cache.assert_not_called()
+        mock_db_cls.assert_not_called()
+
     @patch("src.liquidationheatmap.api.routers.liquidations.DuckDBService")
     @patch("src.liquidationheatmap.api.routers.liquidations._load_heatmap_snapshots_from_questdb")
     def test_heatmap_timeseries_falls_back_to_duckdb_when_hot_questdb_unavailable(
@@ -237,6 +263,46 @@ class TestHeatmapTimeseriesQuestDB:
         assert response.headers["X-Heatmap-Backend"] == "duckdb-live"
         assert response.json()["meta"]["total_snapshots"] == 0
         mock_db.get_heatmap_timeseries.assert_called_once()
+
+    @patch("src.liquidationheatmap.api.routers.liquidations._get_latest_oi_with_questdb")
+    @patch("src.liquidationheatmap.api.routers.liquidations._try_duckdb_ts_cache")
+    @patch("src.liquidationheatmap.api.routers.liquidations._load_heatmap_snapshots_from_questdb")
+    @patch("src.liquidationheatmap.api.routers.liquidations.DuckDBService")
+    def test_heatmap_timeseries_cold_window_uses_duckdb_cache_before_live_compute(
+        self, mock_db_cls, mock_qdb_loader, mock_ts_cache, mock_latest_oi
+    ):
+        mock_latest_oi.return_value = (50000.0, Decimal("1000000"))
+        cached_response = HeatmapTimeseriesResponse(
+            data=[],
+            meta=HeatmapTimeseriesMetadata(
+                symbol="BTCUSDT",
+                start_time=(datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),
+                end_time=datetime.now(timezone.utc).isoformat(),
+                interval="15m",
+                total_snapshots=0,
+                price_range={"min": 0, "max": 0},
+                total_long_volume=0.0,
+                total_short_volume=0.0,
+                total_consumed=0,
+            ),
+        )
+        mock_ts_cache.return_value = cached_response
+
+        response = client.get(
+            "/liquidations/heatmap-timeseries",
+            params={
+                "symbol": "BTCUSDT",
+                "interval": "15m",
+                "start_time": (datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.headers["X-Heatmap-Source"] == "cache"
+        assert response.headers["X-Heatmap-Backend"] == "duckdb-cache"
+        mock_ts_cache.assert_called_once()
+        mock_qdb_loader.assert_not_called()
+        mock_db_cls.assert_not_called()
 
     @patch("src.liquidationheatmap.api.routers.liquidations._load_heatmap_snapshots_from_questdb")
     @patch("src.liquidationheatmap.api.routers.liquidations.DuckDBService")

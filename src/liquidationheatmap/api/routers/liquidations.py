@@ -1105,9 +1105,12 @@ async def get_heatmap_timeseries(
         response.headers["X-Heatmap-Backend"] = "memory"
         return cached
 
-    # DuckDB pre-computed cache (spec-024): only for default params
+    use_questdb_live = _should_use_questdb_live_timeseries(eff_interval, eff_start_time_str)
+
+    # DuckDB pre-computed cache (spec-024): only for default params on cold windows.
+    # Hot windows prefer QuestDB live reconstruction to keep DuckDB out of the hot path.
     uses_custom_params = leverage_weights is not None or price_bin_size is not None
-    if not uses_custom_params and eff_interval in ("15m", "1h"):
+    if not use_questdb_live and not uses_custom_params and eff_interval in ("15m", "1h"):
         try:
             db_cached_response = _try_duckdb_ts_cache(
                 symbol=symbol,
@@ -1134,8 +1137,6 @@ async def get_heatmap_timeseries(
 
     # Query DB (live computation)
     response.headers["X-Heatmap-Source"] = "live"
-
-    use_questdb_live = _should_use_questdb_live_timeseries(eff_interval, eff_start_time_str)
     backend_source = "duckdb-live"
 
     def _load_heatmap_snapshots():
