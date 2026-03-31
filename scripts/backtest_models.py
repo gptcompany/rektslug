@@ -51,7 +51,7 @@ def backtest_model(model, symbol: str = "BTCUSDT") -> Dict:
     """
     with DuckDBService() as db:
         # Get latest market data
-        current_price, open_interest = db.get_latest_open_interest(symbol)
+        current_price, open_interest = db.get_historical_latest_open_interest(symbol)
 
         # Get actual historical liquidations from database
         actual_query = """

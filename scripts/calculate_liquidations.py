@@ -61,12 +61,12 @@ def main():
     # Fetch data from DuckDB
     with DuckDBService() as db:
         console.print("[yellow]Fetching data from DuckDB...[/yellow]")
-        current_price, open_interest = db.get_latest_open_interest(args.symbol)
+        current_price, open_interest = db.get_historical_latest_open_interest(args.symbol)
 
         if args.funding_rate is not None:
             funding_rate = Decimal(str(args.funding_rate))
         else:
-            funding_rate = db.get_latest_funding_rate(args.symbol)
+            funding_rate = db.get_historical_latest_funding_rate(args.symbol)
 
         console.print(f"✓ Current Price: ${current_price:,.2f}")
         console.print(f"✓ Open Interest: ${open_interest:,.2f}")

@@ -61,7 +61,7 @@ def _resolve_profile_bin_size(symbol: str, lookback_days: int) -> float:
 
         profile = get_profile("rektslug-ank")
         with DuckDBService(read_only=True) as db:
-            current_price, _ = db.get_latest_open_interest(symbol)
+            current_price, _ = db.get_historical_latest_open_interest(symbol)
         bin_size = profile.get_bin_size(lookback_days, float(current_price), symbol)
         logger.info(f"[{symbol}] Resolved profile bin_size={bin_size} (price={current_price})")
         return float(bin_size)

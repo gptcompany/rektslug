@@ -32,7 +32,7 @@ class TestE2EIntegration:
         # Step 1: Verify data ingestion (via DuckDBService)
         # Use read_only=True to match API connections (avoid DuckDB config conflict)
         with DuckDBService(read_only=True) as db:
-            current_price, open_interest = db.get_latest_open_interest("BTCUSDT")
+            current_price, open_interest = db.get_historical_latest_open_interest("BTCUSDT")
 
             assert current_price > 0
             assert open_interest > 0

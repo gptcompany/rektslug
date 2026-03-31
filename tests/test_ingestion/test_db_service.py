@@ -52,7 +52,7 @@ class TestDuckDBService:
         db_path = tmp_path / "test.duckdb"
 
         with DuckDBService(str(db_path)) as db:
-            current_price, open_interest = db.get_latest_open_interest("BTCUSDT")
+            current_price, open_interest = db.get_historical_latest_open_interest("BTCUSDT")
 
             # Should return real data from sample CSV (not default mock)
             assert isinstance(current_price, Decimal)
@@ -65,7 +65,7 @@ class TestDuckDBService:
         db_path = tmp_path / "test.duckdb"
 
         with DuckDBService(str(db_path)) as db:
-            funding_rate = db.get_latest_funding_rate("BTCUSDT")
+            funding_rate = db.get_historical_latest_funding_rate("BTCUSDT")
 
             assert isinstance(funding_rate, Decimal)
             # Should be realistic funding rate
@@ -77,7 +77,7 @@ class TestDuckDBService:
 
         # Load data first time
         with DuckDBService(str(db_path)) as db:
-            current_price1, oi1 = db.get_latest_open_interest("BTCUSDT")
+            current_price1, oi1 = db.get_historical_latest_open_interest("BTCUSDT")
 
             # Count rows - table might be created by load_oi_from_csv if data found
             try:
@@ -89,7 +89,7 @@ class TestDuckDBService:
 
         # Load data second time (should not duplicate)
         with DuckDBService(str(db_path)) as db:
-            current_price2, oi2 = db.get_latest_open_interest("BTCUSDT")
+            current_price2, oi2 = db.get_historical_latest_open_interest("BTCUSDT")
 
             try:
                 count2 = db.conn.execute(

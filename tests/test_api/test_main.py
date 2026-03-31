@@ -168,26 +168,6 @@ class TestLiquidationsWithRealData:
 
 
 @pytest.mark.skipif(not _db_exists, reason="DuckDB not available in CI")
-class TestHistoricalLiquidationsEndpoint:
-    """Tests for /liquidations/history endpoint (T047)."""
-
-    def test_history_returns_200_with_valid_params(self, client):
-        """Test that history endpoint returns 200 with valid params."""
-        response = client.get("/liquidations/history?symbol=BTCUSDT")
-        assert response.status_code == 200
-
-    def test_history_returns_list_of_records(self, client):
-        """Test that history returns list of liquidation records from DB."""
-        response = client.get("/liquidations/history?symbol=BTCUSDT")
-        data = response.json()
-
-        assert isinstance(data, list)
-        # If liquidation_history table doesn't exist, should return empty list
-        # In production with real data, this would have len > 0
-        assert len(data) >= 0
-
-
-@pytest.mark.skipif(not _db_exists, reason="DuckDB not available in CI")
 class TestLiquidationsTimeframeParameter:
     """Tests for timeframe parameter in /liquidations/levels endpoint."""
 

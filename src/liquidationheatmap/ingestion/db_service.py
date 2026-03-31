@@ -494,7 +494,7 @@ class DuckDBService:
 
         self._initialized = True
 
-    def get_latest_open_interest(self, symbol: str = "BTCUSDT") -> Tuple[Decimal, Decimal]:
+    def get_historical_latest_open_interest(self, symbol: str = "BTCUSDT") -> Tuple[Decimal, Decimal]:
         """Get latest Open Interest and current price for symbol.
 
         Args:
@@ -622,7 +622,7 @@ class DuckDBService:
 
         return current_price, oi_value
 
-    def get_latest_funding_rate(self, symbol: str = "BTCUSDT") -> Decimal:
+    def get_historical_latest_funding_rate(self, symbol: str = "BTCUSDT") -> Decimal:
         """Get latest funding rate for symbol.
 
         Args:

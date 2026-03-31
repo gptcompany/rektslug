@@ -24,7 +24,8 @@ LiquidationHeatmap is a cryptocurrency liquidation analysis system that calculat
 
 | Component | Technology | Version | Justification |
 |-----------|------------|---------|---------------|
-| **Database** | DuckDB | 0.9.0+ | Zero-copy CSV ingestion, columnar analytics, no server overhead |
+| **Hot Serving DB** | QuestDB | Latest | Ingestion and low-latency real-time serving of time-series data |
+| **Compute/Cache DB** | DuckDB | 0.9.0+ | Heavy analytics, historical data processing, pre-aggregated caching |
 | **Backend API** | FastAPI | 0.104.0+ | Async support, auto-generated docs, Pydantic validation |
 | **Data Processing** | Pandas + NumPy | 2.1.0+ / 1.24.0+ | Industry-standard for numerical analysis |
 | **Clustering** | scikit-learn | 1.3.0+ | DBSCAN implementation for liquidation zone detection |
@@ -522,7 +523,16 @@ Bulk ingestion of full Binance historical CSV data.
 
 ## Key Technical Decisions
 
-### 1. DuckDB for Analytics Storage
+### 1. Dual-Database Architecture: QuestDB + DuckDB
+
+**Decision**: Use QuestDB for hot real-time serving and DuckDB for heavy analytical compute and caching.
+
+**Rationale**:
+- **QuestDB (Hot Path)**: Designed specifically for fast ingestion and low-latency querying of time-series data. It is the single source of truth for all real-time API endpoints (`/prices/klines`, `/liquidations/history`, latest market state). It receives hot data continuously via ILP.
+- **DuckDB (Compute & Cache Path)**: Highly optimized for columnar analytics. Used for the heavy lifting in liquidation map generation (`calculate_liquidations_oi_based`), caching pre-computed heatmap timeseries, and reading long-term historical datasets (e.g. Parquet reads or legacy CSV loads).
+- **Separation of Concerns**: This avoids the single-writer lock contention issues historically seen with DuckDB during live gap-fill operations while keeping complex analytics queries on the engine best suited for them.
+
+### 2. DuckDB for Analytics Storage
 
 **Decision**: Use DuckDB instead of PostgreSQL/MySQL.
 

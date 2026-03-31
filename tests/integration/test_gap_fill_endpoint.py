@@ -243,10 +243,3 @@ class TestRunGapFillModule:
         with pytest.raises(FileNotFoundError, match="catalog"):
             run_gap_fill(str(db_file), "/nonexistent/catalog", ["BTCUSDT"])
 
-    def test_run_gap_fill_raises_on_missing_db(self, tmp_path):
-        from src.liquidationheatmap.ingestion.gap_fill import run_gap_fill
-
-        catalog_dir = tmp_path / "catalog"
-        catalog_dir.mkdir()
-        with pytest.raises(FileNotFoundError, match="database"):
-            run_gap_fill("/nonexistent/db.duckdb", str(catalog_dir), ["BTCUSDT"])

@@ -398,7 +398,7 @@ def _load_public_liqmap_metadata(
 ) -> _BuilderMetadata:
     timeframe_days = SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES[timeframe]
     with DuckDBService(read_only=True) as db:
-        current_price, _ = db.get_latest_open_interest(symbol)
+        current_price, _ = db.get_historical_latest_open_interest(symbol)
         table_name, _interval = db._resolve_oi_kline_source(
             symbol=symbol,
             lookback_days=timeframe_days,

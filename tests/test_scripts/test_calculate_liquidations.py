@@ -15,8 +15,8 @@ class TestCalculateLiquidations:
         # Mock DB
         mock_db = MagicMock()
         mock_db_cls.return_value.__enter__.return_value = mock_db
-        mock_db.get_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
-        mock_db.get_latest_funding_rate.return_value = Decimal("0.0001")
+        mock_db.get_historical_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
+        mock_db.get_historical_latest_funding_rate.return_value = Decimal("0.0001")
         
         # Mock Model
         mock_model = MagicMock()
@@ -48,8 +48,8 @@ class TestCalculateLiquidations:
         """Should use EnsembleModel when requested."""
         mock_db = MagicMock()
         mock_db_cls.return_value.__enter__.return_value = mock_db
-        mock_db.get_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
-        mock_db.get_latest_funding_rate.return_value = Decimal("0.0001")
+        mock_db.get_historical_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
+        mock_db.get_historical_latest_funding_rate.return_value = Decimal("0.0001")
         
         mock_model = MagicMock()
         mock_model_cls.return_value = mock_model
@@ -68,7 +68,7 @@ class TestCalculateLiquidations:
         """Should use FundingAdjustedModel when requested."""
         mock_db = MagicMock()
         mock_db_cls.return_value.__enter__.return_value = mock_db
-        mock_db.get_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
+        mock_db.get_historical_latest_open_interest.return_value = (Decimal("50000.0"), Decimal("1000000.0"))
         
         mock_model = MagicMock()
         mock_model_cls.return_value = mock_model
