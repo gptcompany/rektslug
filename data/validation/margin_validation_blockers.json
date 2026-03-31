@@ -1,0 +1,245 @@
+{
+  "generated_at": "2026-03-31T10:22:32.070826+00:00",
+  "sources": {
+    "report_timestamp": "2026-03-31T02:50:24.697838+00:00",
+    "report_path": "data/validation/margin_validation_report.json",
+    "outlier_sample_path": "data/validation/hl_reserved_margin_outliers_eth_sample.json"
+  },
+  "summary": {
+    "users_analyzed": 9,
+    "tolerance_rate": 0.6666666666666666,
+    "passed_all_accounts": false,
+    "passed_cross_margin_only": false,
+    "cross_margin_users": 7,
+    "isolated_margin_users": 2,
+    "cross_margin_tolerance_rate": 0.7142857142857143,
+    "cross_margin_mean_mmr_deviation_pct": 6.827882259688461
+  },
+  "cross_margin_blockers": [
+    {
+      "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+      "deviation_mmr_pct": 38.603195099066454,
+      "api_cross_maintenance_margin_used": 2591221.425237,
+      "sidecar_total_mmr": 3591515.6874700496,
+      "mmr_gap_usd": 1000294.2622330496,
+      "position_count": 19,
+      "active_order_count": 1,
+      "non_reduce_only_order_count": 1,
+      "solver_mmr_total_from_sample": 1433240.190948,
+      "sample_margin_gap_total": -1432483.190948,
+      "liq_px_positions_compared": 13,
+      "liq_px_improved_positions": 12,
+      "liq_px_worsened_positions": 1,
+      "liq_px_improvement_rate": 0.9230769230769231,
+      "top_positions": [
+        {
+          "coin": "ETH",
+          "size": -15168.3638,
+          "mark_px": 2129.7,
+          "entry_px": 2065.654501,
+          "estimated_notional_usd": 32304064.384859994,
+          "maintenance_margin": 646081.287697,
+          "margin": 55.0
+        },
+        {
+          "coin": "HYPE",
+          "size": -180502.86,
+          "mark_px": 39.422,
+          "entry_px": 33.313671,
+          "estimated_notional_usd": 7115783.746919999,
+          "maintenance_margin": 355789.187346,
+          "margin": 52.0
+        },
+        {
+          "coin": "ASTER",
+          "size": -6736872.0,
+          "mark_px": 0.68322,
+          "entry_px": 0.7014,
+          "estimated_notional_usd": 4602765.687840001,
+          "maintenance_margin": 46027.656878,
+          "margin": 5.0
+        }
+      ]
+    },
+    {
+      "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "deviation_mmr_pct": 9.110095957781663,
+      "api_cross_maintenance_margin_used": 1645377.853111,
+      "sidecar_total_mmr": 1795273.3543975,
+      "mmr_gap_usd": 149895.5012864999,
+      "position_count": 6,
+      "active_order_count": 24,
+      "non_reduce_only_order_count": 24,
+      "solver_mmr_total_from_sample": 2303843.155271,
+      "sample_margin_gap_total": -2303522.155271,
+      "liq_px_positions_compared": 4,
+      "liq_px_improved_positions": 3,
+      "liq_px_worsened_positions": 1,
+      "liq_px_improvement_rate": 0.75,
+      "top_positions": [
+        {
+          "coin": "PAXG",
+          "size": -3100.046,
+          "mark_px": 4508.0,
+          "entry_px": 4848.880048,
+          "estimated_notional_usd": 13975007.367999999,
+          "maintenance_margin": 1247500.7368,
+          "margin": 51.0
+        },
+        {
+          "coin": "HYPE",
+          "size": -331432.85,
+          "mark_px": 39.422,
+          "entry_px": 38.272778,
+          "estimated_notional_usd": 13065745.812699998,
+          "maintenance_margin": 653287.290635,
+          "margin": 52.0
+        },
+        {
+          "coin": "BTC",
+          "size": -82.2783,
+          "mark_px": 69700.0,
+          "entry_px": 69987.929493,
+          "estimated_notional_usd": 5734797.51,
+          "maintenance_margin": 71684.968875,
+          "margin": 56.0
+        }
+      ]
+    },
+    {
+      "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "deviation_mmr_pct": 0.027772916721605766,
+      "api_cross_maintenance_margin_used": 2199405.059488,
+      "sidecar_total_mmr": 2200015.8984235423,
+      "mmr_gap_usd": 610.838935542386,
+      "position_count": 86,
+      "active_order_count": 208,
+      "non_reduce_only_order_count": 208,
+      "solver_mmr_total_from_sample": 2298218.426552,
+      "sample_margin_gap_total": -2296087.426552,
+      "liq_px_positions_compared": 54,
+      "liq_px_improved_positions": 54,
+      "liq_px_worsened_positions": 0,
+      "liq_px_improvement_rate": 1.0,
+      "top_positions": [
+        {
+          "coin": "BTC",
+          "size": 337.88495,
+          "mark_px": 69700.0,
+          "entry_px": 70289.887454,
+          "estimated_notional_usd": 23550581.015,
+          "maintenance_margin": 294382.262688,
+          "margin": 56.0
+        },
+        {
+          "coin": "ETH",
+          "size": -7362.512,
+          "mark_px": 2129.7,
+          "entry_px": 2149.291933,
+          "estimated_notional_usd": 15679941.806399997,
+          "maintenance_margin": 313598.836128,
+          "margin": 55.0
+        },
+        {
+          "coin": "HYPE",
+          "size": -341162.95,
+          "mark_px": 39.422,
+          "entry_px": 40.344047,
+          "estimated_notional_usd": 13449325.8149,
+          "maintenance_margin": 672466.290745,
+          "margin": 52.0
+        }
+      ]
+    },
+    {
+      "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+      "deviation_mmr_pct": 0.016548218750289004,
+      "api_cross_maintenance_margin_used": 252677.149311,
+      "sidecar_total_mmr": 252635.3357436,
+      "mmr_gap_usd": -41.81356739997864,
+      "position_count": 143,
+      "active_order_count": 89,
+      "non_reduce_only_order_count": 89,
+      "solver_mmr_total_from_sample": 141876.495586,
+      "sample_margin_gap_total": -139991.495586,
+      "liq_px_positions_compared": 97,
+      "liq_px_improved_positions": 97,
+      "liq_px_worsened_positions": 0,
+      "liq_px_improvement_rate": 1.0,
+      "top_positions": [
+        {
+          "coin": "BTC",
+          "size": 23.28374,
+          "mark_px": 69700.0,
+          "entry_px": 70116.377253,
+          "estimated_notional_usd": 1622876.678,
+          "maintenance_margin": 20285.958475,
+          "margin": 56.0
+        },
+        {
+          "coin": "HYPE",
+          "size": 16140.96,
+          "mark_px": 39.422,
+          "entry_px": 39.877333,
+          "estimated_notional_usd": 636308.9251199999,
+          "maintenance_margin": 31815.446256,
+          "margin": 52.0
+        },
+        {
+          "coin": "ETH",
+          "size": -291.1978,
+          "mark_px": 2129.7,
+          "entry_px": 2149.303564,
+          "estimated_notional_usd": 620163.9546599999,
+          "maintenance_margin": 12403.279093,
+          "margin": 55.0
+        }
+      ]
+    },
+    {
+      "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "deviation_mmr_pct": 0.01313011757967153,
+      "api_cross_maintenance_margin_used": 75495.958546,
+      "sidecar_total_mmr": 75486.045837875,
+      "mmr_gap_usd": -9.912708124989877,
+      "position_count": 6,
+      "active_order_count": 50,
+      "non_reduce_only_order_count": 50,
+      "solver_mmr_total_from_sample": 63589.066245,
+      "sample_margin_gap_total": -63363.066245,
+      "liq_px_positions_compared": 5,
+      "liq_px_improved_positions": 5,
+      "liq_px_worsened_positions": 0,
+      "liq_px_improvement_rate": 1.0,
+      "top_positions": [
+        {
+          "coin": "BTC",
+          "size": 35.8127,
+          "mark_px": 69700.0,
+          "entry_px": 70257.367064,
+          "estimated_notional_usd": 2496145.19,
+          "maintenance_margin": 31201.814875,
+          "margin": 56.0
+        },
+        {
+          "coin": "ETH",
+          "size": 335.9257,
+          "mark_px": 2129.7,
+          "entry_px": 2149.150721,
+          "estimated_notional_usd": 715420.96329,
+          "maintenance_margin": 14308.419266,
+          "margin": 55.0
+        },
+        {
+          "coin": "BNB",
+          "size": -400.0,
+          "mark_px": 638.51,
+          "entry_px": 1181.96453,
+          "estimated_notional_usd": 255404.0,
+          "maintenance_margin": 12770.2,
+          "margin": 51.0
+        }
+      ]
+    }
+  ]
+}
