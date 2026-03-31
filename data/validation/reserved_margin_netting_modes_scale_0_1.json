@@ -1,0 +1,876 @@
+{
+  "candidate": "B",
+  "scale": 0.1,
+  "results": [
+    {
+      "netting_mode": "per_order_mmr",
+      "all_accounts": {
+        "mode": "per_order_mmr",
+        "positions_compared": 322,
+        "improved_positions": 225,
+        "worsened_positions": 97,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 125078.27714959648,
+        "improvement_rate": 0.6987577639751553
+      },
+      "cross_margin_only": {
+        "mode": "per_order_mmr",
+        "positions_compared": 175,
+        "improved_positions": 78,
+        "worsened_positions": 97,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 229436.08557929363,
+        "improvement_rate": 0.44571428571428573
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 98713.13937039998,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 33078.49451335,
+          "positions_compared": 98,
+          "improved_positions": 8,
+          "worsened_positions": 90,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.08163265306122448
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 244.181812,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 36661.78331772,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 2.2676792,
+          "positions_compared": 17,
+          "improved_positions": 17,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 24749.217482360003,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 108413.76828496999,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 295.5084000000001,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    {
+      "netting_mode": "side_max_per_order_mmr",
+      "all_accounts": {
+        "mode": "side_max_per_order_mmr",
+        "positions_compared": 322,
+        "improved_positions": 315,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 123627.5957013213,
+        "improvement_rate": 0.9782608695652174
+      },
+      "cross_margin_only": {
+        "mode": "side_max_per_order_mmr",
+        "positions_compared": 175,
+        "improved_positions": 168,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 226766.7594428721,
+        "improvement_rate": 0.96
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 71735.43445802,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 16539.96685585,
+          "positions_compared": 98,
+          "improved_positions": 98,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 122.09090600000002,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 20121.92875226,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 2.2676792000000003,
+          "positions_compared": 17,
+          "improved_positions": 17,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 12377.696420880002,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 57862.35365081002,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 147.7542,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    {
+      "netting_mode": "net_delta_mmr",
+      "all_accounts": {
+        "mode": "net_delta_mmr",
+        "positions_compared": 322,
+        "improved_positions": 298,
+        "worsened_positions": 7,
+        "unchanged_positions": 17,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 123673.91460124202,
+        "improvement_rate": 0.9254658385093167
+      },
+      "cross_margin_only": {
+        "mode": "net_delta_mmr",
+        "positions_compared": 175,
+        "improved_positions": 168,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 226851.98599810284,
+        "improvement_rate": 0.96
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 71735.43445802001,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 16538.527657500003,
+          "positions_compared": 98,
+          "improved_positions": 98,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 122.090906,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 19814.582870560007,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 0.0,
+          "positions_compared": 17,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 17,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 12377.696420880002,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 52764.56483296,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 147.7541999999994,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    }
+  ],
+  "ranked": [
+    {
+      "netting_mode": "side_max_per_order_mmr",
+      "all_accounts": {
+        "mode": "side_max_per_order_mmr",
+        "positions_compared": 322,
+        "improved_positions": 315,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 123627.5957013213,
+        "improvement_rate": 0.9782608695652174
+      },
+      "cross_margin_only": {
+        "mode": "side_max_per_order_mmr",
+        "positions_compared": 175,
+        "improved_positions": 168,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 226766.7594428721,
+        "improvement_rate": 0.96
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 71735.43445802,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 16539.96685585,
+          "positions_compared": 98,
+          "improved_positions": 98,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 122.09090600000002,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 20121.92875226,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 2.2676792000000003,
+          "positions_compared": 17,
+          "improved_positions": 17,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 12377.696420880002,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 57862.35365081002,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "side_max_per_order_mmr",
+          "reserved_margin_estimate": 147.7542,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    {
+      "netting_mode": "net_delta_mmr",
+      "all_accounts": {
+        "mode": "net_delta_mmr",
+        "positions_compared": 322,
+        "improved_positions": 298,
+        "worsened_positions": 7,
+        "unchanged_positions": 17,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 123673.91460124202,
+        "improvement_rate": 0.9254658385093167
+      },
+      "cross_margin_only": {
+        "mode": "net_delta_mmr",
+        "positions_compared": 175,
+        "improved_positions": 168,
+        "worsened_positions": 7,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 226851.98599810284,
+        "improvement_rate": 0.96
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 71735.43445802001,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 16538.527657500003,
+          "positions_compared": 98,
+          "improved_positions": 98,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 122.090906,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 19814.582870560007,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 0.0,
+          "positions_compared": 17,
+          "improved_positions": 0,
+          "worsened_positions": 0,
+          "unchanged_positions": 17,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 12377.696420880002,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 52764.56483296,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "net_delta_mmr",
+          "reserved_margin_estimate": 147.7541999999994,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    },
+    {
+      "netting_mode": "per_order_mmr",
+      "all_accounts": {
+        "mode": "per_order_mmr",
+        "positions_compared": 322,
+        "improved_positions": 225,
+        "worsened_positions": 97,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 124342.0104582085,
+        "v1_1_mean_abs_error": 125078.27714959648,
+        "improvement_rate": 0.6987577639751553
+      },
+      "cross_margin_only": {
+        "mode": "per_order_mmr",
+        "positions_compared": 175,
+        "improved_positions": 78,
+        "worsened_positions": 97,
+        "unchanged_positions": 0,
+        "v1_mean_abs_error": 228081.210103326,
+        "v1_1_mean_abs_error": 229436.08557929363,
+        "improvement_rate": 0.44571428571428573
+      },
+      "users": [
+        {
+          "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 98713.13937039998,
+          "positions_compared": 3,
+          "improved_positions": 3,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 33078.49451335,
+          "positions_compared": 98,
+          "improved_positions": 8,
+          "worsened_positions": 90,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.08163265306122448
+        },
+        {
+          "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+          "mode": "isolated_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 244.181812,
+          "positions_compared": 130,
+          "improved_positions": 130,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 36661.78331772,
+          "positions_compared": 4,
+          "improved_positions": 0,
+          "worsened_positions": 4,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        },
+        {
+          "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+          "mode": "isolated_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 2.2676792,
+          "positions_compared": 17,
+          "improved_positions": 17,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 24749.217482360003,
+          "positions_compared": 1,
+          "improved_positions": 1,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 0.8284867500000002,
+          "positions_compared": 13,
+          "improved_positions": 13,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 108413.76828496999,
+          "positions_compared": 53,
+          "improved_positions": 53,
+          "worsened_positions": 0,
+          "unchanged_positions": 0,
+          "improvement_rate": 1.0
+        },
+        {
+          "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+          "mode": "cross_margin",
+          "netting_mode": "per_order_mmr",
+          "reserved_margin_estimate": 295.5084000000001,
+          "positions_compared": 3,
+          "improved_positions": 0,
+          "worsened_positions": 3,
+          "unchanged_positions": 0,
+          "improvement_rate": 0.0
+        }
+      ]
+    }
+  ],
+  "winner": {
+    "netting_mode": "side_max_per_order_mmr",
+    "all_accounts": {
+      "mode": "side_max_per_order_mmr",
+      "positions_compared": 322,
+      "improved_positions": 315,
+      "worsened_positions": 7,
+      "unchanged_positions": 0,
+      "v1_mean_abs_error": 124342.0104582085,
+      "v1_1_mean_abs_error": 123627.5957013213,
+      "improvement_rate": 0.9782608695652174
+    },
+    "cross_margin_only": {
+      "mode": "side_max_per_order_mmr",
+      "positions_compared": 175,
+      "improved_positions": 168,
+      "worsened_positions": 7,
+      "unchanged_positions": 0,
+      "v1_mean_abs_error": 228081.210103326,
+      "v1_1_mean_abs_error": 226766.7594428721,
+      "improvement_rate": 0.96
+    },
+    "users": [
+      {
+        "user": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 71735.43445802,
+        "positions_compared": 3,
+        "improved_positions": 3,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0x57dd78cd36e76e2011e8f6dc25cabbaba994494b",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 16539.96685585,
+        "positions_compared": 98,
+        "improved_positions": 98,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0x7717a7a245d9f950e586822b8c9b46863ed7bd7e",
+        "mode": "isolated_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 122.09090600000002,
+        "positions_compared": 130,
+        "improved_positions": 130,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0x7b7f72a28fe109fa703eeed7984f2a8a68fedee2",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 20121.92875226,
+        "positions_compared": 4,
+        "improved_positions": 0,
+        "worsened_positions": 4,
+        "unchanged_positions": 0,
+        "improvement_rate": 0.0
+      },
+      {
+        "user": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
+        "mode": "isolated_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 2.2676792000000003,
+        "positions_compared": 17,
+        "improved_positions": 17,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0xab5e6f394951c28ab1873007e373202689cdbec3",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 12377.696420880002,
+        "positions_compared": 1,
+        "improved_positions": 1,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0xd47587702a91731dc1089b5db0932cf820151a91",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 0.8284867500000002,
+        "positions_compared": 13,
+        "improved_positions": 13,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 57862.35365081002,
+        "positions_compared": 53,
+        "improved_positions": 53,
+        "worsened_positions": 0,
+        "unchanged_positions": 0,
+        "improvement_rate": 1.0
+      },
+      {
+        "user": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+        "mode": "cross_margin",
+        "netting_mode": "side_max_per_order_mmr",
+        "reserved_margin_estimate": 147.7542,
+        "positions_compared": 3,
+        "improved_positions": 0,
+        "worsened_positions": 3,
+        "unchanged_positions": 0,
+        "improvement_rate": 0.0
+      }
+    ]
+  }
+}

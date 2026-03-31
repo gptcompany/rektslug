@@ -94,9 +94,9 @@
 - [x] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
 - [x] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
 - [x] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
-- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users. Completed on 2026-03-31 and reranked after the tiered-MMR fix. **Candidate B remains the best overall baseline** at `225/321` improved positions (`70.09%`), ahead of A (`66.67%`), D (`64.49%`), and C (`64.17%`). However, the standard validation report still shows weak `cross_margin` liqPx performance (`78/174`, `44.83%`), so the remaining issue is reserved-margin allocation quality rather than candidate selection.
+- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users. Completed on 2026-03-31 and reranked after the tiered-MMR fix. **Candidate B remains the best scalar baseline among A-D** at `225/321` improved positions (`70.09%`), ahead of A (`66.67%`), D (`64.49%`), and C (`64.17%`). A later netting refinement introduced **Candidate E** (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin), which lifted the standard validation report to `168/174` improved `cross_margin` positions (`96.55%`) and `315/321` improved globally (`98.13%`).
 
-**Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence. Current baseline: Candidate B.
+**Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement is now materially better with the netted `Candidate E` heuristic. Current baseline: Candidate E.
 
 ---
 
@@ -205,7 +205,7 @@ Phase 1 (Setup) — T001+T002 [P] T004
 
 ### Key Risks
 
-1. **US4 reserved-margin estimate is best-effort**: The true formula is undocumented. Candidate B remains the empirical winner after reranking on the tiered-MMR baseline (`70.09%` overall), but the standard validation report still shows only `44.83%` improvement on `cross_margin` positions. Validation remains indirect and the residual problem appears to be reserved-margin allocation, not candidate choice.
+1. **US4 reserved-margin estimate is still best-effort**: The true formula is undocumented. Candidate B remains the empirical winner among scalar A-D candidates (`70.09%` overall), but the stronger operational heuristic is now Candidate E (`0.1 * max(buy_side_mmr, sell_side_mmr)` per coin), which improves `cross_margin` liqPx to `96.55%` on the outlier sample. Validation remains indirect and the residual gap is concentrated in a small number of users.
 2. **US3 likely blocked**: 0/9 users are PM. May need broader population scan or future spec.
 3. **Isolated-margin residuals**: `passed_all_accounts` is still false because the two isolated-margin accounts remain outside tolerance. They should be tracked separately from the now-resolved cross-margin blocker.
 

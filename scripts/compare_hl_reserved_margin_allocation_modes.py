@@ -217,7 +217,7 @@ async def main() -> None:
     parser.add_argument(
         "--candidate",
         default=DEFAULT_RESERVED_MARGIN_CANDIDATE,
-        choices=["A", "B", "C", "D"],
+        choices=["A", "B", "C", "D", "E"],
         help="Reserved-margin candidate used for both allocation modes.",
     )
     parser.add_argument(

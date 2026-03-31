@@ -341,7 +341,7 @@ The validator was updated to:
 
 ## 9. Reserved-Margin Candidate Selection After Tiered-MMR Fix
 
-**Operational Baseline**: Candidate B (`reserved = notional * 1/(2 * max_leverage)`).
+**Operational Baseline at This Stage**: Candidate B (`reserved = notional * 1/(2 * max_leverage)`).
 
 ### Reranked results on the corrected tiered-MMR baseline
 
@@ -355,10 +355,15 @@ The validator was updated to:
 ### Conclusions
 
 1. **The old pre-fix ranking was no longer authoritative** once tiered MMR was corrected.
-2. **Candidate B still won after reranking**, so there is no evidence that the previous default should be changed.
-3. **The residual liqPx problem is not candidate selection**:
-   - the standard validation report still shows weak `cross_margin` liqPx performance (`78/174`, `44.83%`)
-   - this implies the remaining gap is likely about how reserved margin is distributed across positions/coins, not which scalar candidate is used globally
+2. **Candidate B still won after reranking**, so it remained the best scalar A-D baseline.
+3. **A later netting refinement solved most of the residual liqPx gap**:
+   - using `Candidate E = 0.1 * max(buy_side_mmr, sell_side_mmr)` per coin
+   - the standard validation report moved to `168/174` improved `cross_margin` positions (`96.55%`)
+   - global liqPx improvement reached `315/321` (`98.13%`)
+4. **The remaining residual is now narrow**:
+   - `0x7b7f...` remains fully worsened
+   - `0xfc667a...` remains fully worsened
+   - `passed_all_accounts` is still false because the isolated-margin MMR issue is separate from the cross-margin liqPx heuristic
 
 
 ---

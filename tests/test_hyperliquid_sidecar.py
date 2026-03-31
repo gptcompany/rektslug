@@ -1646,8 +1646,29 @@ def test_estimate_reserved_margin_candidates():
     res_b = estimate_reserved_margin(orders, "B", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}})
     res_c = estimate_reserved_margin(orders, "C", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}}, current_positions={"ETH": 0.0})
     res_d = estimate_reserved_margin(orders, "D", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}}, current_positions={"ETH": 0.0})
+    res_e = estimate_reserved_margin(orders, "E", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}})
     
     assert res_a == 100.0  # (1.0 * 2000) / 20
     assert res_b == 50.0   # (1.0 * 2000) * (1 / (2*20))
     assert res_c == 100.0
     assert res_d == 100.0
+    assert res_e == 5.0
+
+
+def test_estimate_reserved_margin_candidate_e_uses_larger_side_only():
+    from src.liquidationheatmap.hyperliquid.margin_math import estimate_reserved_margin
+    from src.liquidationheatmap.hyperliquid.sidecar import UserOrder
+
+    orders = [
+        UserOrder(user="0x123", oid=1, coin="ETH", side="B", limit_px=2000.0, size=1.0),
+        UserOrder(user="0x123", oid=2, coin="ETH", side="B", limit_px=2000.0, size=1.0),
+        UserOrder(user="0x123", oid=3, coin="ETH", side="A", limit_px=2000.0, size=1.0),
+    ]
+
+    marks = {0: 2000.0}
+
+    res_b = estimate_reserved_margin(orders, "B", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}})
+    res_e = estimate_reserved_margin(orders, "E", mark_prices=marks, asset_meta={"ETH": {"idx": 0, "maxLeverage": 20}})
+
+    assert res_b == 150.0
+    assert res_e == 10.0

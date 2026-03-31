@@ -126,7 +126,7 @@ async def main():
     parser.add_argument(
         "--reserved-margin-candidate",
         default=DEFAULT_RESERVED_MARGIN_CANDIDATE,
-        choices=["A", "B", "C", "D"],
+        choices=["A", "B", "C", "D", "E"],
         help="Reserved-margin candidate used for V1.1 comparisons when reconstructed orders are available.",
     )
     args = parser.parse_args()

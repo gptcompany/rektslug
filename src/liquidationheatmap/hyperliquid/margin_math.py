@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from src.liquidationheatmap.hyperliquid.sidecar import UserPosition
 
 
-DEFAULT_RESERVED_MARGIN_CANDIDATE = "B"
+DEFAULT_RESERVED_MARGIN_CANDIDATE = "E"
 
 
 def get_margin_tier(notional: float, tiers: List[Any]) -> Any:
@@ -51,11 +51,12 @@ def estimate_reserved_margin(
     current_positions: Dict[str, float] = None,
 ) -> float:
     """
-    Estimate reserved margin based on 4 candidates:
+    Estimate reserved margin based on 5 candidates:
     A: IM per order
     B: MMR per order
     C: Net delta IM
     D: Total IM if all fill - current IM
+    E: 10% of the larger opening-side MMR per coin
     """
     current_positions = current_positions or {}
     total_reserve = 0.0
@@ -88,6 +89,11 @@ def estimate_reserved_margin(
                     mmr_rate = 1.0 / (2.0 * max_lev)
                     # simplified deduction = 0 for estimation, or we could look up the tier
                     total_reserve += notional * mmr_rate
+        elif candidate_type == "E":
+            buy_notional = sum(o.size * mark for o in coin_orders if o.side == "B")
+            sell_notional = sum(o.size * mark for o in coin_orders if o.side == "A")
+            mmr_rate = 1.0 / (2.0 * max_lev)
+            total_reserve += max(buy_notional, sell_notional) * mmr_rate * 0.1
         
         elif candidate_type in ("C", "D"):
             current_sz = current_positions.get(coin, 0.0)
