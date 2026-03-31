@@ -230,7 +230,7 @@ async def test_get_clearinghouse_state_parses_liquidation_px():
 
 @pytest.mark.asyncio
 async def test_get_clearinghouse_state_handles_timeout():
-    client = HyperliquidInfoClient()
+    client = HyperliquidInfoClient(base_urls=["https://api.hyperliquid.xyz/info"])
     client.rate_limit_delay = 0.0  # speed up test
     
     with patch("aiohttp.ClientSession.post") as mock_post:
