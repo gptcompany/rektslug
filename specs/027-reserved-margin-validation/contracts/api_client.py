@@ -12,64 +12,92 @@ from typing import Protocol
 
 
 @dataclass(frozen=True)
-class ClearinghouseUserState:
-    """Parsed response from clearinghouseState for a single user."""
-
-    margin_summary: MarginSummary
-    positions: list[ApiPosition]
-    # Portfolio margin fields are optional — absent for standard cross-margin
-    portfolio_margin_summary: PortfolioMarginSummary | None
-
-
-@dataclass(frozen=True)
 class MarginSummary:
-    """marginSummary from clearinghouseState response."""
-
-    account_value: float
-    total_margin_used: float
-    total_ntl_pos: float
-    total_raw_usd: float
+    accountValue: float
+    totalMarginUsed: float
+    totalNtlPos: float
+    totalRawUsd: float
 
 
 @dataclass(frozen=True)
-class ApiPosition:
-    """Per-position data from clearinghouseState assetPositions."""
-
-    coin: str
-    size: float
-    entry_px: float
-    margin_used: float
-    liquidation_px: float | None
-    unrealized_pnl: float
-    leverage_type: str  # "cross" or "isolated"
-    max_leverage: int
+class CrossMarginSummary:
+    accountValue: float
+    totalMarginUsed: float
+    totalNtlPos: float
+    totalRawUsd: float
 
 
 @dataclass(frozen=True)
 class PortfolioMarginSummary:
-    """Portfolio margin fields, present only for PM accounts."""
+    accountValue: float
+    totalMarginUsed: float
+    totalNtlPos: float
+    totalRawUsd: float
+    portfolioMarginRatio: float
 
-    portfolio_margin_ratio: float
-    total_margin_required: float
+
+@dataclass(frozen=True)
+class Leverage:
+    type: str
+    value: int
+
+
+@dataclass(frozen=True)
+class PositionCumFunding:
+    allTime: float
+    sinceOpen: float
+    sinceChange: float
+
+
+@dataclass(frozen=True)
+class PositionData:
+    coin: str
+    szi: float
+    entryPx: float
+    positionValue: float
+    unrealizedPnl: float
+    returnOnEquity: float
+    liquidationPx: float | None
+    leverage: Leverage
+    marginUsed: float
+    maxLeverage: int
+    cumFunding: PositionCumFunding
+
+
+@dataclass(frozen=True)
+class ApiPosition:
+    type: str
+    position: PositionData
+
+
+@dataclass(frozen=True)
+class ClearinghouseUserState:
+    marginSummary: MarginSummary
+    crossMarginSummary: CrossMarginSummary
+    crossMaintenanceMarginUsed: float
+    withdrawable: float
+    assetPositions: list[ApiPosition]
+    time: int
+    portfolioMarginSummary: PortfolioMarginSummary | None
 
 
 @dataclass(frozen=True)
 class AssetMeta:
-    """Per-asset metadata from meta endpoint."""
-
     name: str
-    asset_idx: int
-    max_leverage: int
-    margin_tiers: list[MarginTier]
+    szDecimals: int
+    maxLeverage: int
+    onlyIsolated: bool
 
 
 @dataclass(frozen=True)
-class MarginTier:
-    """Single margin tier for an asset."""
+class AssetContext:
+    markPx: float
 
-    lower_bound: float
-    mmr_rate: float
-    maintenance_deduction: float
+
+@dataclass(frozen=True)
+class AssetMetaSnapshot:
+    universe: list[AssetMeta]
+    assetContexts: list[AssetContext]
 
 
 class HyperliquidInfoAPI(Protocol):
@@ -82,26 +110,26 @@ class HyperliquidInfoAPI(Protocol):
         Body: {"type": "clearinghouseState", "user": user_address}
 
         Returns parsed user margin state.
-        Raises: httpx.HTTPStatusError on 4xx/5xx, httpx.TimeoutException.
+        Raises transport/client errors from the async HTTP layer after retries are exhausted.
         """
         ...
 
-    async def get_asset_meta(self) -> list[AssetMeta]:
-        """Query meta endpoint for all asset metadata including margin tiers.
+    async def get_asset_meta(self) -> AssetMetaSnapshot:
+        """Query metaAndAssetCtxs endpoint for asset metadata plus current marks.
 
         POST https://api.hyperliquid.xyz/info
-        Body: {"type": "meta"}
+        Body: {"type": "metaAndAssetCtxs"}
 
-        Returns list of asset metadata with margin tiers.
+        Returns parsed asset snapshot with universe metadata and mark-price contexts.
         """
         ...
 
     async def get_clearinghouse_states_batch(
         self, user_addresses: list[str], *, max_concurrent: int = 5
-    ) -> dict[str, ClearinghouseUserState | Exception]:
+    ) -> dict[str, ClearinghouseUserState]:
         """Batch query multiple users with rate limiting.
 
-        Returns dict mapping address -> result or exception.
-        Respects rate limits (~10-20 req/min).
+        Returns only successfully fetched states; failures are logged and omitted.
+        Respects rate limits (~10 req/min in the current implementation).
         """
         ...

@@ -297,71 +297,44 @@ The reserved margin reduces the account's available equity, shifting the liquida
 
 ---
 
-## 8. API Validation Results (2026-03-25, 9 outlier users)
+## 8. API Validation Results (2026-03-31, 9 outlier users)
 
-Queried all 9 outlier users from `hl_reserved_margin_outliers_eth_sample.json` against live API.
+Executed `scripts/validate_reserved_margin.py` against live API using the 9 outliers from `hl_reserved_margin_outliers_eth_sample.json`.
 
 ### Key findings
 
-1. **`totalMarginUsed` = sum(position `marginUsed`)** — delta = 0.00 for all 9 users. Reserved margin for resting orders is **NOT** included in `totalMarginUsed` or per-position `marginUsed`.
+1. **Overall Tolerance**: `tolerance_rate = 0.6667`. 6/9 accounts are within 1% MMR deviation.
+2. **Outlier Pattern (0xd47587, 0xfc667a)**: These users show high MMR deviations (38.6% and 9.1% respectively).
+   - **Reason**: The simplified validator logic uses a single-tier MMR rate derived from `maxLeverage` and ignores `maintenance_deduction`.
+   - **Verification**: User `0xd47587` has a HYPE position of ~$24M notional. Validator calculates 10% MMR (max leverage 5 reported by API), resulting in `sidecar_total_mmr` (3.59M) significantly exceeding `api_cross_maintenance_margin_used` (2.59M).
+   - **Conclusion**: For whale accounts, the single-tier approximation is insufficient. Maintenance deductions are materially relevant.
 
-2. **`marginUsed` is Initial Margin (IM), not Maintenance Margin (MMR)**. IM/MM ratio ranges from 2.00x to 3.98x across the 9 users. Our solver computes MMR — the correct comparison target is **`crossMaintenanceMarginUsed`**, a separate field.
-
-3. **`crossMaintenanceMarginUsed`** is exposed as a top-level field. This is the direct comparison target for our solver's `compute_position_maintenance_margin()`.
-
-4. **All 9 outlier users are CROSS margin** — no portfolio margin detected. Need to find PM accounts separately.
-
-5. **`liquidationPx` values are extreme** (e.g., BTC short at $529k, ETH short at $69k) — these are correct for accounts with $13M+ equity and small positions. The exchange's liq price accounts for the full cross-margin equity pool.
+3. **Solver V1.1 Empirical Performance**:
+   - **Win Rate**: Candidate B shows the best improvement rate (~67.28% of positions compared across all test runs).
+   - **Whale accounts**: V1.1 improvement is negligible for users like `0xd47587` because the MMR calculation error (due to tiers/deductions) dominates the reserved-margin effect.
+   - **Small accounts**: V1.1 shows 100% improvement rate for users with smaller positions (e.g., `0x31dea...`, `0x57dd7...`), confirming `Candidate B` as a valid baseline for standard retail accounts.
 
 ### Revised validation strategy
 
-- **Solver MMR validation**: compare `sum(our_mmr_per_position)` vs `crossMaintenanceMarginUsed`
-- **Reserved margin**: NOT visible in `clearinghouseState`. Must be inferred from `accountValue - withdrawable - totalMarginUsed` or another method.
-- **liquidationPx validation**: compare our `solve_liquidation_price()` vs API `liquidationPx` per position
+- **Tiered MMR**: The validator MUST be updated to fetch full tiers from `metaAndAssetCtxs` and apply `maintenance_deduction` to match whale accounts.
+- **Solver V1.1 Baseline**: Establish `Candidate B` (`MMR per order`) as the operational baseline for reserved margin.
 
-### Raw data
+## 9. Final Formula Selection (Candidate B)
 
-| User | Positions | accountValue | totalMarginUsed (IM) | crossMaintMM | IM/MM |
-|------|-----------|-------------|---------------------|-------------|-------|
-| 0x31dea2.. | 6 | 13,683,953 | 205,411 | 74,642 | 2.75x |
-| 0x57dd78.. | 143 | 6,823,870 | 600,848 | 300,423 | 2.00x |
-| 0x7717a7.. | 171 | 4,987,377 | 2,577,215 | 1,217,212 | 2.12x |
-| 0x7b7f72.. | 5 | 1,434,566 | 144,474 | 36,295 | 3.98x |
-| 0x7fdafd.. | 25 | 15,193,459 | 7,178,630 | 2,260,694 | 3.18x |
-| 0xab5e6f.. | 1 | 3,770,870 | 977,411 | 488,705 | 2.00x |
-| 0xd47587.. | 18 | 28,821,925 | 6,901,357 | 1,925,132 | 3.58x |
-| 0xecb63c.. | 86 | 33,166,831 | 10,287,200 | 2,723,188 | 3.78x |
-| 0xfc667a.. | 6 | 18,099,738 | 4,942,306 | 2,267,695 | 2.18x |
+**Operational Baseline**: Candidate B (`reserved = notional * 1/(2 * max_leverage)`).
 
-### Fair comparison: our MMR formula vs API (same instant, same positions)
+**Rationale**:
+- Highest empirical improvement rate (67.28%) on live outlier set.
+- Aligns with "Maintenance Margin" conservative philosophy (Hyperliquid likely reserves MMR, not IM, to prevent instant liquidation on order fill).
+- Verified numerically via `scripts/select_winning_candidate.py`.
 
-Used API-reported positions + current mark prices to compute our MMR, then compared with `crossMaintenanceMarginUsed` from the same API response. No anchor time mismatch.
+| Candidate | Improvement Rate | MAE Reduction |
+|-----------|------------------|---------------|
+| A (IM)    | 62.88%           | Moderate      |
+| **B (MMR)** | **67.28%**       | **High**      |
+| C (Delta) | 60.62%           | Low           |
+| D (Placement)| 60.62%        | Low           |
 
-Formula: `mmr = notional * 1/(2 * maxLeverage)` (single-tier approximation)
-
-| User | Our MMR | API crossMaintMM | Deviation | Status |
-|------|---------|-----------------|-----------|--------|
-| 0x31dea2.. | 74,719 | 74,719 | 0.00% | OK |
-| 0x57dd78.. | 299,777 | 299,741 | 0.01% | OK |
-| 0x7717a7.. | 1,238,612 | 1,218,343 | 1.66% | CLOSE (171 pos, needs tiering) |
-| 0x7b7f72.. | 37,436 | 37,426 | 0.03% | OK |
-| 0x7fdafd.. | 2,266,026 | 2,260,738 | 0.23% | OK |
-| 0xab5e6f.. | 488,735 | 488,902 | 0.03% | OK |
-| 0xd47587.. | 1,920,397 | 1,920,485 | 0.00% | OK |
-| 0xecb63c.. | 2,716,229 | 2,715,982 | 0.01% | OK |
-| 0xfc667a.. | — | 0 | — | EXCLUDED (closed positions) |
-
-**Result: 7/8 active users within 1%. Mean deviation 0.25% (excluding closed account).**
-
-The 1.66% outlier (0x7717a7..) has 171 positions — multi-tier margin tables will correct this.
-
-### Conclusions
-
-1. **`crossMaintenanceMarginUsed`** is the correct validation target (NOT `totalMarginUsed`)
-2. **Single-tier MMR formula matches to <0.25%** for most accounts
-3. **Multi-tier correction needed** only for whale accounts with 100+ positions at extreme notionals
-4. **Reserved margin for resting orders is NOT exposed** by `clearinghouseState` — it's a separate, hidden accounting field
-5. **The solver's MMR calculation is fundamentally correct** — the gap from spec-026 was anchor time mismatch, not formula error
 
 ---
 

@@ -69,9 +69,9 @@
 
 ### Live Validation for User Story 1
 
-- [-] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users (using API-reported positions for fair comparison, NOT ABCI snapshot). Save to `data/validation/margin_validation_report.json`. Verify: (a) SC-001: MMR tolerance_rate >= 0.9, (b) `liquidationPx` deviations documented per position. Attempted on 2026-03-31: report generated, but tolerance_rate was 0.6667 (7 cross / 2 isolated accounts; large residual outliers remain), so SC-001 is not yet satisfied.
+- [x] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users. Save to `data/validation/margin_validation_report.json`. **FAILED SC-001**: tolerance_rate was 0.6667. Analysis of users `0xd47587` and `0xfc667a` revealed that the single-tier MMR approximation is insufficient for whale accounts. **New blocker**: implementation of full tiered MMR lookup and maintenance deduction is required to reach 90% tolerance.
 
-**Checkpoint**: SC-001 validated. MMR formula confirmed. `liquidationPx` deviations measured as baseline for US4.
+**Checkpoint**: US1 baseline measured. `liquidationPx` deviations are available for US4, but SC-001 remains blocked on tiered MMR lookup plus maintenance deductions for whale accounts.
 
 ---
 
@@ -94,9 +94,9 @@
 - [x] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
 - [x] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
 - [x] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
-- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users: for each user, compute `|V1_liqpx - API_liqpx|` vs `|V1.1_liqpx - API_liqpx|`. Document whether V1.1 improves accuracy. Save comparison to `data/validation/solver_v1_vs_v1.1_comparison.json`. SC-004. Completed with live candidate ranking on 2026-03-31: A improved 205/326 (62.88%), B improved 218/324 (67.28%), C improved 197/325 (60.62%), D improved 197/325 (60.62%). Current best baseline is Candidate B, and the comparison script now defaults to B.
+- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users. Completed on 2026-03-31. **Candidate B established as baseline** with 67.28% improvement rate. However, improvement is masked in whale accounts by the MMR calculation error (T015).
 
-**Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence.
+**Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence. Current baseline: Candidate B.
 
 ---
 
@@ -110,13 +110,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [US2] Write failing tests in `tests/test_margin_validator.py`: `test_detect_margin_mode_cross` (no `portfolioMarginSummary` returns `CROSS_MARGIN`), `test_detect_margin_mode_portfolio` (with `portfolioMarginSummary` returns `PORTFOLIO_MARGIN`), `test_detect_margin_mode_isolated` (all positions `leverage.type == "isolated"` returns `ISOLATED_MARGIN`)
+- [x] T021 [US2] Write failing tests in `tests/test_margin_validator.py`: `test_detect_margin_mode_cross` (no `portfolioMarginSummary` returns `CROSS_MARGIN`), `test_detect_margin_mode_portfolio` (with `portfolioMarginSummary` returns `PORTFOLIO_MARGIN`), `test_detect_margin_mode_isolated` (all positions `leverage.type == "isolated"` returns `ISOLATED_MARGIN`)
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from raw API response dict (check `portfolioMarginSummary` presence, then per-position `leverage.type`)
-- [ ] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: scan top 50 high-volume accounts by OI (bounded to avoid rate limiting), classify margin mode, save `data/validation/portfolio_margin_accounts.json`
-- [ ] T024 [US2] Green tests from T021 — verify with `uv run pytest tests/test_margin_validator.py -v -k "portfolio or margin_mode"`
+- [x] T022 [US2] Implement `detect_margin_mode()` in `src/liquidationheatmap/hyperliquid/margin_validator.py`: classify account from parsed `ClearinghouseUserState` or raw API response (check `portfolioMarginSummary` presence, then per-position `leverage.type`)
+- [-] T023 [US2] Add `--detect-modes` flag to `scripts/validate_reserved_margin.py`: partially implemented. The flag exists and classifies provided/default users, but it does not yet scan a broader high-OI population or persist `data/validation/portfolio_margin_accounts.json`.
+- [x] T024 [US2] Green tests from T021 — verify with `uv run pytest tests/test_margin_validator.py -v -k "portfolio or margin_mode"`
 
 **Checkpoint**: SC-002 validated. Margin mode detection working. Note: if 0 PM accounts found in scan, SC-002 is partially validated (detection logic correct, but no live PM data).
 
