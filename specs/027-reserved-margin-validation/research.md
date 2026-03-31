@@ -301,39 +301,64 @@ The reserved margin reduces the account's available equity, shifting the liquida
 
 Executed `scripts/validate_reserved_margin.py` against live API using the 9 outliers from `hl_reserved_margin_outliers_eth_sample.json`.
 
-### Key findings
+### Phase A: Initial live validation before tiered-MMR fix
 
-1. **Overall Tolerance**: `tolerance_rate = 0.6667`. 6/9 accounts are within 1% MMR deviation.
-2. **Outlier Pattern (0xd47587, 0xfc667a)**: These users show high MMR deviations (38.6% and 9.1% respectively).
-   - **Reason**: The simplified validator logic uses a single-tier MMR rate derived from `maxLeverage` and ignores `maintenance_deduction`.
-   - **Verification**: User `0xd47587` has a HYPE position of ~$24M notional. Validator calculates 10% MMR (max leverage 5 reported by API), resulting in `sidecar_total_mmr` (3.59M) significantly exceeding `api_cross_maintenance_margin_used` (2.59M).
-   - **Conclusion**: For whale accounts, the single-tier approximation is insufficient. Maintenance deductions are materially relevant.
+1. **Overall tolerance was insufficient**: `tolerance_rate = 0.6667`.
+2. **The blocker was concentrated in two cross-margin whales**:
+   - `0xd47587`: `38.6%` MMR deviation
+   - `0xfc667a`: `9.1%` MMR deviation
+3. **Root cause**:
+   - the validator was still using a single-tier MMR rate derived from `maxLeverage`
+   - it ignored tier-specific `maintenance_deduction`
+   - this was enough to dominate the error budget for large notionals
+4. **Consequence**: SC-001 was blocked even though the small/medium cross-margin accounts were already close.
 
-3. **Solver V1.1 Empirical Performance**:
-   - **Win Rate**: Candidate B shows the best improvement rate (~67.28% of positions compared across all test runs).
-   - **Whale accounts**: V1.1 improvement is negligible for users like `0xd47587` because the MMR calculation error (due to tiers/deductions) dominates the reserved-margin effect.
-   - **Small accounts**: V1.1 shows 100% improvement rate for users with smaller positions (e.g., `0x31dea...`, `0x57dd7...`), confirming `Candidate B` as a valid baseline for standard retail accounts.
+### Phase B: Tiered-MMR fix and live rerun
 
-### Revised validation strategy
+The validator was updated to:
+- parse live `metaAndAssetCtxs` `marginTables`
+- support the live camelCase payload (`marginTiers`, `lowerBound`, `maxLeverage`)
+- infer missing `maintenance_deduction` by enforcing continuity of the piecewise MMR function when the live payload omits it
 
-- **Tiered MMR**: The validator MUST be updated to fetch full tiers from `metaAndAssetCtxs` and apply `maintenance_deduction` to match whale accounts.
-- **Solver V1.1 Baseline**: Establish `Candidate B` (`MMR per order`) as the operational baseline for reserved margin.
+### Key findings after the fix
 
-## 9. Final Formula Selection (Candidate B)
+1. **Cross-margin blocker closed**:
+   - `cross_margin tolerance_rate = 1.0000`
+   - `cross_margin mean_mmr_deviation_pct = 0.0108`
+2. **The whale outliers were effectively neutralized**:
+   - `0xd47587`: `38.6% -> 0.0236%`
+   - `0xfc667a`: `9.1% -> 0.0042%`
+3. **All-accounts pass is still false**:
+   - `passed_cross_margin_only = true`
+   - `passed_all_accounts = false`
+   - the remaining failures are the two `isolated_margin` accounts, not the cross-margin model
+
+### Interpretation
+
+- The original blocker was exactly the missing tier structure plus maintenance deduction.
+- The continuity-based inference for `maintenance_deduction` is empirically validated by the whale rerun, even though Hyperliquid does not expose the deduction explicitly in the live payload.
+- Cross-margin MMR validation is no longer the primary risk in `spec-027`.
+
+## 9. Reserved-Margin Candidate Selection After Tiered-MMR Fix
 
 **Operational Baseline**: Candidate B (`reserved = notional * 1/(2 * max_leverage)`).
 
-**Rationale**:
-- Highest empirical improvement rate (67.28%) on live outlier set.
-- Aligns with "Maintenance Margin" conservative philosophy (Hyperliquid likely reserves MMR, not IM, to prevent instant liquidation on order fill).
-- Verified numerically via `scripts/select_winning_candidate.py`.
+### Reranked results on the corrected tiered-MMR baseline
 
-| Candidate | Improvement Rate | MAE Reduction |
-|-----------|------------------|---------------|
-| A (IM)    | 62.88%           | Moderate      |
-| **B (MMR)** | **67.28%**       | **High**      |
-| C (Delta) | 60.62%           | Low           |
-| D (Placement)| 60.62%        | Low           |
+| Candidate | Improved Positions | Total Compared | Improvement Rate |
+|-----------|--------------------|----------------|------------------|
+| **B (MMR)** | **225** | **321** | **70.09%** |
+| A (IM) | 214 | 321 | 66.67% |
+| D (Placement) | 207 | 321 | 64.49% |
+| C (Delta) | 206 | 321 | 64.17% |
+
+### Conclusions
+
+1. **The old pre-fix ranking was no longer authoritative** once tiered MMR was corrected.
+2. **Candidate B still won after reranking**, so there is no evidence that the previous default should be changed.
+3. **The residual liqPx problem is not candidate selection**:
+   - the standard validation report still shows weak `cross_margin` liqPx performance (`78/174`, `44.83%`)
+   - this implies the remaining gap is likely about how reserved margin is distributed across positions/coins, not which scalar candidate is used globally
 
 
 ---

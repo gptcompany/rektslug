@@ -171,6 +171,49 @@ async def test_get_asset_meta_parses_live_margin_tables_format():
     assert result.margin_tables[56][1].lower_bound == 0.0
     assert result.margin_tables[56][1].mmr_rate == 0.0125
 
+
+@pytest.mark.asyncio
+async def test_get_asset_meta_infers_piecewise_live_maintenance_deduction():
+    client = HyperliquidInfoClient()
+    mock_response = [
+        {
+            "universe": [
+                {
+                    "name": "BTC",
+                    "szDecimals": 5,
+                    "maxLeverage": 20,
+                    "onlyIsolated": False,
+                    "marginTableId": 99,
+                }
+            ],
+            "marginTables": [
+                [
+                    99,
+                    {
+                        "description": "synthetic three-tier table",
+                        "marginTiers": [
+                            {"lowerBound": "0.0", "maxLeverage": 40},
+                            {"lowerBound": "150000000.0", "maxLeverage": 20},
+                            {"lowerBound": "300000000.0", "maxLeverage": 10},
+                        ],
+                    },
+                ]
+            ],
+        },
+        [{"markPx": "50000.0"}],
+    ]
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value=mock_response)
+        mock_post.return_value.__aenter__.return_value.raise_for_status = MagicMock()
+
+        result = await client.get_asset_meta()
+
+    tiers = result.margin_tables[99]
+    assert [tier.lower_bound for tier in tiers] == [300000000.0, 150000000.0, 0.0]
+    assert [tier.mmr_rate for tier in tiers] == [0.05, 0.025, 0.0125]
+    assert [tier.maintenance_deduction for tier in tiers] == [9375000.0, 1875000.0, 0.0]
+
 @pytest.mark.asyncio
 async def test_batch_query_returns_partial_on_failure():
     client = HyperliquidInfoClient()

@@ -69,9 +69,9 @@
 
 ### Live Validation for User Story 1
 
-- [x] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users. Save to `data/validation/margin_validation_report.json`. **FAILED SC-001**: tolerance_rate was 0.6667. Analysis of users `0xd47587` and `0xfc667a` revealed that the single-tier MMR approximation is insufficient for whale accounts. **New blocker**: implementation of full tiered MMR lookup and maintenance deduction is required to reach 90% tolerance.
+- [x] T015 [US1] Run `scripts/validate_reserved_margin.py` against live API with 9 outlier users + 1-2 control users. Save to `data/validation/margin_validation_report.json`. First pass on 2026-03-31 failed SC-001 (`tolerance_rate = 0.6667`) and exposed whale outliers `0xd47587` / `0xfc667a`. After the tiered-MMR fix that parses live `marginTables` and infers missing maintenance deductions, the rerun reached `cross_margin tolerance_rate = 1.0000` with `0xd47587 = 0.0236%` and `0xfc667a = 0.0042%`. `passed_all_accounts` remains `false` because the two `isolated_margin` accounts are still out of tolerance.
 
-**Checkpoint**: US1 baseline measured. `liquidationPx` deviations are available for US4, but SC-001 remains blocked on tiered MMR lookup plus maintenance deductions for whale accounts.
+**Checkpoint**: US1 cross-margin blocker is closed. `cross_margin` now satisfies SC-001, while `all_accounts` still fails because isolated-margin validation remains a separate residual issue. `liquidationPx` deviations remain available for US4.
 
 ---
 
@@ -94,7 +94,7 @@
 - [x] T017 [US4] Add `reserved_margin: float = 0.0` parameter to `solve_liquidation_price()` in `src/liquidationheatmap/hyperliquid/sidecar.py`: subtract from `account_base` (`balance + other_pnl - reserved_margin`)
 - [x] T018 [E] [US4] Implement `estimate_reserved_margin()` in `src/liquidationheatmap/hyperliquid/margin_math.py`: compute estimated reserved margin from `OrderExposureBounds.exposure_increasing_notional_upper_bound` using Candidate A (`notional / max_leverage`). This is a best-effort estimate — the true formula is not publicly documented.
 - [x] T019 [US4] Green all tests from T016 — verify with `uv run pytest tests/test_hyperliquid_sidecar.py -v -k "v1_1 or reserved"`
-- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users. Completed on 2026-03-31. **Candidate B established as baseline** with 67.28% improvement rate. However, improvement is masked in whale accounts by the MMR calculation error (T015).
+- [x] T020 [US4] Compare V1 vs V1.1 `liquidationPx` against API values for US1 outlier users. Completed on 2026-03-31 and reranked after the tiered-MMR fix. **Candidate B remains the best overall baseline** at `225/321` improved positions (`70.09%`), ahead of A (`66.67%`), D (`64.49%`), and C (`64.17%`). However, the standard validation report still shows weak `cross_margin` liqPx performance (`78/174`, `44.83%`), so the remaining issue is reserved-margin allocation quality rather than candidate selection.
 
 **Checkpoint**: Solver V1.1 integrated. `liquidationPx` improvement (or lack thereof) documented with concrete evidence. Current baseline: Candidate B.
 
@@ -205,15 +205,15 @@ Phase 1 (Setup) — T001+T002 [P] T004
 
 ### Key Risks
 
-1. **US4 reserved-margin estimate is best-effort**: The true formula is undocumented. Candidate B is the current empirical best baseline on the live outlier benchmark, but it still only improves 67.28% of compared positions. Validation remains indirect (does liqPx improve?).
+1. **US4 reserved-margin estimate is best-effort**: The true formula is undocumented. Candidate B remains the empirical winner after reranking on the tiered-MMR baseline (`70.09%` overall), but the standard validation report still shows only `44.83%` improvement on `cross_margin` positions. Validation remains indirect and the residual problem appears to be reserved-margin allocation, not candidate choice.
 2. **US3 likely blocked**: 0/9 users are PM. May need broader population scan or future spec.
-3. **Multi-tier margin correction**: 1 user (171 positions) shows 1.66% deviation. Tiered MMR in `_get_margin_tier()` should handle this, but needs verification with that specific user.
+3. **Isolated-margin residuals**: `passed_all_accounts` is still false because the two isolated-margin accounts remain outside tolerance. They should be tracked separately from the now-resolved cross-margin blocker.
 
 ---
 
 ## Notes
 
-- **Research confirmed**: MMR formula `notional / (2 * maxLeverage)` matches API to 0.25% mean deviation
+- **Research confirmed**: Cross-margin MMR validation now depends on live tier tables plus inferred maintenance deductions, not the old flat `notional / (2 * maxLeverage)` shortcut
 - **Reserved margin is hidden**: API does not expose it in `clearinghouseState` — must be estimated from exposure bounds
 - **Comparison target**: Use `crossMaintenanceMarginUsed` (MMR), NOT `totalMarginUsed` (IM)
 - **Fair comparison**: Always use API-reported positions + mark prices for MMR computation (same-instant), NOT ABCI snapshot data
