@@ -101,6 +101,18 @@ TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY = max(
     0.0,
     float(os.getenv("HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY", "0.2")),
 )
+TOP_POSITION_MIN_TARGET_SHARE = min(
+    1.0,
+    max(0.0, float(os.getenv("HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE", "0.0"))),
+)
+TOP_POSITION_MAX_POSITION_COUNT_RAW = int(
+    os.getenv("HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT", "0")
+)
+TOP_POSITION_MAX_POSITION_COUNT = (
+    TOP_POSITION_MAX_POSITION_COUNT_RAW
+    if TOP_POSITION_MAX_POSITION_COUNT_RAW > 0
+    else None
+)
 
 
 @dataclass(frozen=True)
@@ -186,6 +198,8 @@ class TopPositionSelectorConfig:
     require_side_consistency: bool
     concentration_share_power: float
     concentration_positions_penalty: float
+    min_target_share: float
+    max_position_count: int | None
 
 
 @dataclass(frozen=True)
@@ -452,6 +466,26 @@ def _resolve_top_position_selector_config(symbol: str) -> TopPositionSelectorCon
             TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY,
             minimum=0.0,
         ),
+        min_target_share=min(
+            get_float(
+                "HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE",
+                TOP_POSITION_MIN_TARGET_SHARE,
+                minimum=0.0,
+            ),
+            1.0,
+        ),
+        max_position_count=(
+            max_position_count
+            if (
+                max_position_count := get_int(
+                    "HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT",
+                    TOP_POSITION_MAX_POSITION_COUNT or 0,
+                    minimum=0,
+                )
+            )
+            > 0
+            else None
+        ),
     )
 
 
@@ -570,6 +604,8 @@ def _select_top_target_users(
     live_overrides: dict[str, LiveUserOverride | None] | None = None,
     concentration_share_power: float = TOP_POSITION_CONCENTRATION_SHARE_POWER,
     concentration_positions_penalty: float = TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY,
+    min_target_share: float = TOP_POSITION_MIN_TARGET_SHARE,
+    max_position_count: int | None = TOP_POSITION_MAX_POSITION_COUNT,
 ) -> list[str]:
     if top_n <= 0:
         return []
@@ -618,6 +654,13 @@ def _select_top_target_users(
             target_coin=target_coin,
             mark_prices=state.mark_prices,
         )
+        if exposure_profile.target_share < min_target_share:
+            continue
+        if (
+            max_position_count is not None
+            and exposure_profile.position_count > max_position_count
+        ):
+            continue
         notional = exposure_profile.target_notional
         expected_side = "long" if target_pos.size > 0 else "short"
         liquidation_price: float | None = None
@@ -854,6 +897,8 @@ def _build_public_payload(
     reported_account_count: int | None = None,
     projection_selection_strategy: str | None = None,
     projection_score_mode: str | None = None,
+    projection_min_target_share: float | None = None,
+    projection_max_position_count: int | None = None,
 ) -> dict:
     """Build the public liq-map payload for a chosen user universe."""
     state = context.state
@@ -1002,6 +1047,8 @@ def _build_public_payload(
             "mode": projection_mode,
             "selection_strategy": projection_selection_strategy,
             "score_mode": projection_score_mode,
+            "min_target_share": projection_min_target_share,
+            "max_position_count": projection_max_position_count,
             "selected_users": selected_user_count,
             "included_users": included_users,
             "target_count": projection_target_count,
@@ -1515,6 +1562,8 @@ def _select_v3_target_users(
             require_side_consistency=config.require_side_consistency,
             concentration_share_power=config.concentration_share_power,
             concentration_positions_penalty=config.concentration_positions_penalty,
+            min_target_share=config.min_target_share,
+            max_position_count=config.max_position_count,
         )
         return context, selected_users
 
@@ -1525,6 +1574,8 @@ def _select_v3_target_users(
         top_n=config.candidate_pool_top_n,
         selection_mode=config.selection_mode,
         score_mode="notional",
+        min_target_share=config.min_target_share,
+        max_position_count=config.max_position_count,
     )
     if not candidate_users:
         return context, []
@@ -1544,6 +1595,8 @@ def _select_v3_target_users(
         require_side_consistency=config.require_side_consistency,
         candidate_users=set(candidate_users),
         live_overrides=context.live_overrides,
+        min_target_share=config.min_target_share,
+        max_position_count=config.max_position_count,
     )
     if len(selected_users) >= config.top_n:
         return context, selected_users[: config.top_n]
@@ -1598,6 +1651,8 @@ def generate_symbol_v3(symbol: str) -> dict | None:
         projection_target_count=config.top_n,
         projection_selection_strategy=config.selection_mode,
         projection_score_mode=config.score_mode,
+        projection_min_target_share=config.min_target_share,
+        projection_max_position_count=config.max_position_count,
     )
 
 
@@ -1651,6 +1706,8 @@ def main() -> int:
                     projection_target_count=config.top_n,
                     projection_selection_strategy=config.selection_mode,
                     projection_score_mode=config.score_mode,
+                    projection_min_target_share=config.min_target_share,
+                    projection_max_position_count=config.max_position_count,
                 )
                 dest_v3 = CACHE_DIR / f"hl_sidecar_v3_{symbol.lower()}usdt.json"
                 atomic_write_json(payload_v3, dest_v3)

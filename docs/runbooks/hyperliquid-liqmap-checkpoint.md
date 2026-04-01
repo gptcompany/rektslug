@@ -350,6 +350,8 @@ Relevant env knobs:
 - `HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY`
 - `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER`
 - `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY`
+- `HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE`
+- `HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT`
 - `HEATMAP_HL_LIVE_ENRICH_TOP_N`
 - `HEATMAP_HL_LIVE_ENRICH_RPM`
 - `HEATMAP_HL_LIVE_ENRICH_BATCH_SIZE`
@@ -727,6 +729,81 @@ Rationale:
 - ETH already benefits from `concentration-lite`, and `300` is the best
   compromise tested between shape gain and balance drift
 - these are still experimental runtime settings, not hardcoded defaults
+
+### 8. BTC-only selector filters finally produce real shape lift
+
+After the budget sweep, BTC still had the same structural issue:
+
+- larger `top_n` helped
+- but `long_pearson_r` remained negative
+- and the selector was still taking many broad multi-book accounts
+
+So I tested two explicit universe filters above the current BTC `notional`
+ranking:
+
+- `min_target_share`
+- `max_position_count`
+
+These are now implemented as per-symbol selector knobs:
+
+- `HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE`
+- `HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT`
+- and symbol-specific overrides like `..._BTC`
+
+Focused BTC experiments on the same `20260401T160752Z` capture:
+
+- baseline `top_n=350`:
+  - `pearson_r=0.0155`
+  - `KS=0.0728`
+  - `Wasserstein=9697.69`
+  - `L/S diff=0.0043`
+  - `long_pearson_r=-0.0584`
+  - `short_pearson_r=0.0812`
+
+- `max_position_count=3`:
+  - `pearson_r=0.0719`
+  - `KS=0.0656`
+  - `Wasserstein=11847.75`
+  - `L/S diff=0.0779`
+  - `long_pearson_r=-0.0023`
+  - `short_pearson_r=0.1364`
+
+- `min_target_share=0.7`:
+  - `pearson_r=0.114`
+  - `KS=0.136`
+  - `Wasserstein=17310.79`
+  - `L/S diff=0.1383`
+  - `long_pearson_r=0.047`
+  - `short_pearson_r=0.162`
+
+- `max_position_count=3` + `min_target_share=0.7`:
+  - `pearson_r=0.1468`
+  - `KS=0.132`
+  - `Wasserstein=16759.84`
+  - `L/S diff=0.0565`
+  - `long_pearson_r=0.0488`
+  - `short_pearson_r=0.2256`
+
+Interpretation:
+
+- this is the first BTC-only lever that clearly improves shape correlation
+- it also fixes the worst sign on the long-side Pearson
+- but it does so by paying a meaningful transport/balance cost
+- so the filter pair is worth keeping as an explicit experimental branch, not
+  yet as the unquestioned default BTC runtime policy
+
+Current practical BTC experiment to visualize next:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC=notional`
+- `HEATMAP_HL_TOP_POSITION_TOP_N_BTC=350`
+- `HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE_BTC=0.7`
+- `HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT_BTC=3`
+
+Current conclusion:
+
+- BTC is now clearly bottlenecked by selector tradeoffs, not missing plumbing
+- the decision is no longer “can we move the shape?”
+- it is “which metric tradeoff do we want the experimental `v3` to prefer?”
 
 ## Updated Next V3 Task
 

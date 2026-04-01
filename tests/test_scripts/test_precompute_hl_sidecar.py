@@ -428,6 +428,9 @@ def test_resolve_top_position_selector_config_supports_symbol_specific_overrides
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N", "300")
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N_ETH", "220")
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_BTC", "1.5")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE", "0.2")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE_ETH", "0.7")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT_BTC", "3")
     monkeypatch.setenv(
         "HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY_BTC",
         "0.05",
@@ -441,10 +444,14 @@ def test_resolve_top_position_selector_config_supports_symbol_specific_overrides
     assert btc.candidate_pool_top_n == 300
     assert btc.concentration_share_power == 1.5
     assert btc.concentration_positions_penalty == 0.05
+    assert btc.min_target_share == 0.2
+    assert btc.max_position_count == 3
 
     assert eth.score_mode == "notional"
     assert eth.top_n == 180
     assert eth.candidate_pool_top_n == 220
+    assert eth.min_target_share == 0.7
+    assert eth.max_position_count is None
 
 
 def test_select_top_target_users_concentration_penalizes_complex_off_target_books(
@@ -479,6 +486,41 @@ def test_select_top_target_users_concentration_penalizes_complex_off_target_book
     )
 
     assert selected == ["0xfocused", "0xmiddle", "0xcomplex"]
+
+
+def test_select_top_target_users_can_filter_by_target_share_and_position_count() -> None:
+    state = _sidecar_state_from_positions(
+        {
+            "0xfocused": [("BTC", 0, 3.0, 60000.0)],
+            "0xcomplex": [
+                ("BTC", 0, 4.0, 60000.0),
+                ("ETH", 1, 8.0, 2000.0),
+                ("SOL", 2, 150.0, 100.0),
+                ("ARB", 3, 5000.0, 1.0),
+            ],
+            "0xdiluted": [
+                ("BTC", 0, 4.5, 60000.0),
+                ("ETH", 1, 90.0, 2000.0),
+            ],
+            "0xclean2": [
+                ("BTC", 0, 2.0, 60000.0),
+                ("ETH", 1, 4.0, 2000.0),
+            ],
+        }
+    )
+
+    selected = precompute._select_top_target_users(
+        state,
+        target_coin="BTC",
+        mark_price=60000.0,
+        top_n=4,
+        selection_mode="global",
+        score_mode="notional",
+        min_target_share=0.7,
+        max_position_count=3,
+    )
+
+    assert selected == ["0xfocused", "0xclean2"]
 
 
 def test_select_top_target_users_live_liq_intensity_uses_live_overrides() -> None:
@@ -557,6 +599,10 @@ def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallb
         reconstructor=None,
         candidate_users=None,
         live_overrides=None,
+        concentration_share_power=2.0,
+        concentration_positions_penalty=0.2,
+        min_target_share=0.0,
+        max_position_count=None,
     ):
         key = tuple(sorted(candidate_users)) if candidate_users is not None else ()
         calls.append((score_mode, key))
