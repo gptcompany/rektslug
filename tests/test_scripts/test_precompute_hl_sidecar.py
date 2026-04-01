@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -64,6 +65,52 @@ def _sidecar_state_from_sizes(
                     "maintenance_deduction": 0.0,
                 }
             ]
+        },
+    )
+
+
+def _sidecar_state_from_positions(
+    user_positions: dict[str, list[tuple[str, int, float, float]]],
+    *,
+    margin_tiers: dict[int, list[dict]] | None = None,
+) -> SidecarState:
+    mark_prices: dict[int, float] = {}
+    users: dict[str, UserState] = {}
+    for user, positions in user_positions.items():
+        built_positions: list[UserPosition] = []
+        for coin, asset_idx, size, mark_price in positions:
+            mark_prices[asset_idx] = mark_price
+            built_positions.append(
+                UserPosition(
+                    coin=coin,
+                    asset_idx=asset_idx,
+                    size=size,
+                    entry_px=mark_price,
+                    leverage=10.0,
+                    cum_funding=0.0,
+                    margin=100.0,
+                )
+            )
+        users[user] = UserState(
+            user=user,
+            balance=1000.0,
+            positions=tuple(built_positions),
+        )
+
+    return SidecarState(
+        timestamp=datetime.now(timezone.utc),
+        users=users,
+        mark_prices=mark_prices,
+        asset_margin_tiers=margin_tiers
+        or {
+            asset_idx: [
+                {
+                    "lower_bound": 0.0,
+                    "mmr_rate": 0.01,
+                    "maintenance_deduction": 0.0,
+                }
+            ]
+            for asset_idx in mark_prices
         },
     )
 
@@ -168,6 +215,77 @@ def test_live_enrichment_cache_round_trip_and_expiry(tmp_path: Path) -> None:
     assert expired.get(user="0xold", target_coin="BTC") is None
 
 
+def test_extend_context_live_overrides_for_selected_users_merges_missing_users(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_override = precompute.LiveUserOverride(
+        user="0xbase",
+        liq_px=54000.0,
+        size=1.0,
+        notional=60000.0,
+        source="api",
+        account_abstraction=AccountAbstraction.DEFAULT.value,
+    )
+    extra_override = precompute.LiveUserOverride(
+        user="0xextra",
+        liq_px=52000.0,
+        size=2.0,
+        notional=120000.0,
+        source="api",
+        account_abstraction=AccountAbstraction.DEFAULT.value,
+    )
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        state=_sidecar_state(["0xbase", "0xextra"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={"0xbase": base_override},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(
+            selected_users=1,
+            cached_users=1,
+            applied_users=1,
+            api_liq_users=1,
+        ),
+    )
+
+    async def fake_build_live_overrides_for_users(state, *, target_coin, selected_users):
+        assert target_coin == "BTC"
+        assert selected_users == ["0xextra"]
+        return (
+            {"0xextra": extra_override},
+            precompute.LiveEnrichmentStats(
+                selected_users=1,
+                fetched_users=1,
+                applied_users=1,
+                api_liq_users=1,
+            ),
+        )
+
+    monkeypatch.setattr(
+        precompute,
+        "_build_live_overrides_for_users",
+        fake_build_live_overrides_for_users,
+    )
+
+    updated = precompute._extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users={"0xbase", "0xextra"},
+    )
+
+    assert updated.live_overrides["0xbase"] == base_override
+    assert updated.live_overrides["0xextra"] == extra_override
+    assert updated.live_enrichment_stats.selected_users == 2
+    assert updated.live_enrichment_stats.cached_users == 1
+    assert updated.live_enrichment_stats.fetched_users == 1
+    assert updated.live_enrichment_stats.applied_users == 2
+    assert updated.live_enrichment_stats.api_liq_users == 2
+
+
 def test_select_top_target_users_global_mode_ranks_by_notional() -> None:
     state = _sidecar_state_from_sizes(
         {
@@ -210,6 +328,277 @@ def test_select_top_target_users_per_side_mode_balances_long_and_short() -> None
     )
 
     assert selected == ["0xlong1", "0xlong2", "0xshort1", "0xshort2"]
+
+
+def test_select_top_target_users_liq_intensity_prefers_near_liquidation() -> None:
+    state = _sidecar_state_from_sizes(
+        {
+            "0xbig_far": 4.0,
+            "0xnear": 2.0,
+            "0xmid": 3.0,
+        }
+    )
+
+    class StubReconstructor:
+        @staticmethod
+        def solve_liquidation_price(*, user_state, target_coin, mark_prices, asset_margin_tiers):
+            return {
+                "0xbig_far": 30000.0,
+                "0xnear": 57000.0,
+                "0xmid": 45000.0,
+            }[user_state.user]
+
+    selected = precompute._select_top_target_users(
+        state,
+        target_coin="BTC",
+        mark_price=60000.0,
+        top_n=3,
+        selection_mode="global",
+        score_mode="liq_intensity",
+        distance_floor_bps=25,
+        reconstructor=StubReconstructor(),
+    )
+
+    assert selected == ["0xnear", "0xmid", "0xbig_far"]
+
+
+def test_select_top_target_users_liq_intensity_can_require_side_consistency() -> None:
+    state = _sidecar_state_from_sizes(
+        {
+            "0xvalid_long": 3.0,
+            "0xwrong_side": 4.0,
+            "0xvalid_short": -2.0,
+        }
+    )
+
+    class StubReconstructor:
+        @staticmethod
+        def solve_liquidation_price(*, user_state, target_coin, mark_prices, asset_margin_tiers):
+            return {
+                "0xvalid_long": 54000.0,
+                "0xwrong_side": 62000.0,
+                "0xvalid_short": 64000.0,
+            }[user_state.user]
+
+    selected = precompute._select_top_target_users(
+        state,
+        target_coin="BTC",
+        mark_price=60000.0,
+        top_n=3,
+        selection_mode="global",
+        score_mode="liq_intensity",
+        require_side_consistency=True,
+        reconstructor=StubReconstructor(),
+    )
+
+    assert selected == ["0xvalid_short", "0xvalid_long"]
+
+
+def test_build_target_exposure_profile_tracks_target_share_and_complexity() -> None:
+    state = _sidecar_state_from_positions(
+        {
+            "0xuser": [
+                ("BTC", 0, 2.0, 60000.0),
+                ("ETH", 1, 10.0, 2000.0),
+                ("SOL", 2, 100.0, 100.0),
+            ]
+        }
+    )
+
+    profile = precompute._build_target_exposure_profile(
+        state.users["0xuser"],
+        target_coin="BTC",
+        mark_prices=state.mark_prices,
+    )
+
+    assert profile.target_notional == 120000.0
+    assert profile.off_target_notional == 30000.0
+    assert profile.total_notional == 150000.0
+    assert profile.position_count == 3
+    assert profile.target_share == 0.8
+
+
+def test_resolve_top_position_selector_config_supports_symbol_specific_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_SCORE_MODE", "notional")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC", "concentration")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_TOP_N", "250")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_TOP_N_ETH", "180")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N", "300")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N_ETH", "220")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_BTC", "1.5")
+    monkeypatch.setenv(
+        "HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY_BTC",
+        "0.05",
+    )
+
+    btc = precompute._resolve_top_position_selector_config("BTC")
+    eth = precompute._resolve_top_position_selector_config("ETH")
+
+    assert btc.score_mode == "concentration"
+    assert btc.top_n == 250
+    assert btc.candidate_pool_top_n == 300
+    assert btc.concentration_share_power == 1.5
+    assert btc.concentration_positions_penalty == 0.05
+
+    assert eth.score_mode == "notional"
+    assert eth.top_n == 180
+    assert eth.candidate_pool_top_n == 220
+
+
+def test_select_top_target_users_concentration_penalizes_complex_off_target_books(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = _sidecar_state_from_positions(
+        {
+            "0xfocused": [("BTC", 0, 2.0, 60000.0)],
+            "0xcomplex": [
+                ("BTC", 0, 2.5, 60000.0),
+                ("ETH", 1, 15.0, 2000.0),
+                ("SOL", 2, 200.0, 100.0),
+                ("ARB", 3, 10000.0, 1.0),
+                ("OP", 4, 10000.0, 1.0),
+            ],
+            "0xmiddle": [
+                ("BTC", 0, 2.0, 60000.0),
+                ("ETH", 1, 6.0, 2000.0),
+            ],
+        }
+    )
+    monkeypatch.setattr(precompute, "TOP_POSITION_CONCENTRATION_SHARE_POWER", 2.0)
+    monkeypatch.setattr(precompute, "TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY", 0.2)
+
+    selected = precompute._select_top_target_users(
+        state,
+        target_coin="BTC",
+        mark_price=60000.0,
+        top_n=3,
+        selection_mode="global",
+        score_mode="concentration",
+    )
+
+    assert selected == ["0xfocused", "0xmiddle", "0xcomplex"]
+
+
+def test_select_top_target_users_live_liq_intensity_uses_live_overrides() -> None:
+    state = _sidecar_state_from_sizes(
+        {
+            "0xfar": 4.0,
+            "0xnear": 2.0,
+            "0xmissing": 3.0,
+        }
+    )
+    live_overrides = {
+        "0xfar": precompute.LiveUserOverride(
+            user="0xfar",
+            liq_px=30000.0,
+            size=4.0,
+            notional=240000.0,
+            source="api",
+            account_abstraction=AccountAbstraction.DEFAULT.value,
+        ),
+        "0xnear": precompute.LiveUserOverride(
+            user="0xnear",
+            liq_px=57000.0,
+            size=2.0,
+            notional=120000.0,
+            source="api",
+            account_abstraction=AccountAbstraction.DEFAULT.value,
+        ),
+    }
+
+    selected = precompute._select_top_target_users(
+        state,
+        target_coin="BTC",
+        mark_price=60000.0,
+        top_n=3,
+        selection_mode="global",
+        score_mode="live_liq_intensity",
+        live_overrides=live_overrides,
+    )
+
+    assert selected == ["0xnear", "0xfar"]
+
+
+def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        state=_sidecar_state(["0x1", "0x2", "0x3", "0x4"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(),
+    )
+
+    monkeypatch.setattr(precompute, "TOP_POSITION_SCORE_MODE", "live_liq_intensity")
+    monkeypatch.setattr(precompute, "TOP_POSITION_TOP_N", 3)
+    monkeypatch.setattr(precompute, "TOP_POSITION_CANDIDATE_POOL_TOP_N", 4)
+
+    calls: list[tuple[str, tuple[str, ...]]] = []
+
+    def fake_select_top_target_users(
+        state,
+        *,
+        target_coin,
+        mark_price,
+        top_n,
+        selection_mode="global",
+        score_mode="notional",
+        distance_floor_bps=25,
+        require_side_consistency=False,
+        reconstructor=None,
+        candidate_users=None,
+        live_overrides=None,
+    ):
+        key = tuple(sorted(candidate_users)) if candidate_users is not None else ()
+        calls.append((score_mode, key))
+        if score_mode == "notional":
+            return ["0x1", "0x2", "0x3", "0x4"]
+        if score_mode == "live_liq_intensity":
+            assert key == ("0x1", "0x2", "0x3", "0x4")
+            assert live_overrides == {"0x1": "ov1", "0x3": "ov3"}
+            return ["0x3", "0x1"]
+        raise AssertionError(f"unexpected score_mode: {score_mode}")
+
+    def fake_extend_context_live_overrides_for_selected_users(context, *, selected_users):
+        assert selected_users == {"0x1", "0x2", "0x3", "0x4"}
+        return precompute.SymbolBuildContext(
+            symbol=context.symbol,
+            request=context.request,
+            plan=context.plan,
+            state=context.state,
+            reconstructor=context.reconstructor,
+            bin_size=context.bin_size,
+            target_coin=context.target_coin,
+            mark_price=context.mark_price,
+            current_price=context.current_price,
+            live_overrides={"0x1": "ov1", "0x3": "ov3"},
+            live_enrichment_stats=context.live_enrichment_stats,
+        )
+
+    monkeypatch.setattr(precompute, "_select_top_target_users", fake_select_top_target_users)
+    monkeypatch.setattr(
+        precompute,
+        "_extend_context_live_overrides_for_selected_users",
+        fake_extend_context_live_overrides_for_selected_users,
+    )
+
+    updated_context, selected_users = precompute._select_v3_target_users(context)
+
+    assert updated_context.live_overrides == {"0x1": "ov1", "0x3": "ov3"}
+    assert selected_users == ["0x3", "0x1", "0x2"]
+    assert calls == [
+        ("notional", ()),
+        ("live_liq_intensity", ("0x1", "0x2", "0x3", "0x4")),
+    ]
 
 
 def test_asset_meta_tables_use_mark_price_overrides_when_contexts_missing() -> None:

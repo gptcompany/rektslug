@@ -344,6 +344,12 @@ Relevant env knobs:
 
 - `HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS`
 - `HEATMAP_HL_TOP_POSITION_SELECTION_MODE`
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE`
+- `HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N`
+- `HEATMAP_HL_TOP_POSITION_DISTANCE_FLOOR_BPS`
+- `HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY`
 - `HEATMAP_HL_LIVE_ENRICH_TOP_N`
 - `HEATMAP_HL_LIVE_ENRICH_RPM`
 - `HEATMAP_HL_LIVE_ENRICH_BATCH_SIZE`
@@ -385,6 +391,355 @@ Do next:
    - side-specific `pearson_r`
    - mass ratio
    - long-side BTC band overlap
+
+## 2026-04-01 V3 Follow-up Experiments
+
+Two more `v3` experiments were completed after the initial checkpoint.
+
+### 1. `liq_intensity` score mode is not the right next lever
+
+An experimental `v3` score mode was added to rank selected users by:
+
+- target notional
+- adjusted by distance from current mark price to estimated liquidation price
+
+This was tested with:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE=liq_intensity`
+- `HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY=true`
+
+Observed result against the fresh local `v2` replay:
+
+- BTC combined `pearson_r`: `0.018`
+- ETH combined `pearson_r`: `0.2443`
+
+Interpretation:
+
+- the selection becomes cleaner (`sign_mismatch=0`)
+- but the aggregate bucket shape gets worse
+- so `near-liq weighting` on the current sidecar universe is **not** the main
+  missing ingredient
+
+Treat this branch as a useful diagnostic knob, not the preferred `v3` default.
+
+### 1b. Two-pass `live_liq_intensity` with a larger candidate pool is only a mixed improvement
+
+`v3` now also supports a two-pass path:
+
+1. select a wider candidate pool by raw target notional
+2. fetch live overrides for that pool
+3. rerank by liquidation intensity using the live liquidation prices
+
+Relevant knob:
+
+- `HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N`
+
+Experiment run on `2026-04-01`:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE=live_liq_intensity`
+- `HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N=400`
+- `HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY=false`
+
+Observed result vs the baseline selected-user-enriched `v3`:
+
+- BTC `pearson_r`: `0.0532 -> 0.0739`
+- BTC `KS`: `0.0626 -> 0.1032`
+- BTC `Wasserstein`: `9925.37 -> 12940.18`
+- BTC `L/S ratio diff`: `0.0024 -> 0.0593`
+
+- ETH `pearson_r`: `0.232 -> 0.2348`
+- ETH `KS`: `0.1396 -> 0.1398`
+- ETH `Wasserstein`: `468.65 -> 498.97`
+- ETH `L/S ratio diff`: `0.0832 -> 0.0633`
+
+Interpretation:
+
+- BTC gains a little on Pearson correlation
+- but transport distance and balance metrics worsen
+- ETH is basically flat
+- the two-pass path is promising enough to keep in code, but not strong enough
+  yet to replace the current baseline
+
+For that reason, the local `v3` cache was restored to the selected-user-enriched
+baseline after the experiment.
+
+### 2. Extending live enrichment to the selected `v3` universe helps scale, not shape
+
+`v3` now extends live enrichment beyond the shared top-`N` subset so it can
+request live overrides for users selected into the `v3` universe itself.
+
+Observed coverage after this change with the baseline
+`selection_strategy=global` and `score_mode=notional`:
+
+- BTC: `220` live overrides across `222` included users
+- ETH: `214` live overrides across `216` included users
+
+Direct before/after compare with the same `20260401T160752Z` CoinGlass capture:
+
+- BTC `pearson_r`: `0.0583 -> 0.0532`
+- BTC `KS`: `0.0702 -> 0.0626`
+- BTC `Wasserstein`: `10508.47 -> 9925.37`
+- BTC `L/S ratio diff`: `0.0131 -> 0.0024`
+
+- ETH `pearson_r`: `0.2353 -> 0.232`
+- ETH `KS`: `0.1438 -> 0.1396`
+- ETH `Wasserstein`: `474.83 -> 468.65`
+- ETH `L/S ratio diff`: `0.0879 -> 0.0832`
+
+Interpretation:
+
+- better live liquidation prices materially improve:
+  - scale alignment
+  - long/short balance
+  - transport-style distance metrics
+- but they do **not** materially improve Pearson shape correlation
+
+This is an important deduction:
+
+- the remaining blocker is now primarily the **selected user universe**
+- not the liquidation-price solver for the users already included
+
+### 3. Duplicate CoinGlass rows are not the main issue
+
+Fresh local CoinGlass capture counts:
+
+- BTC: `278` rows, `275` unique `userId`
+- ETH: `154` rows, `154` unique `userId`
+
+So the current mismatch is not mainly explained by many duplicated
+CoinGlass rows per user.
+
+### 4. Sidecar top-notional accounts are often more complex than a naive top-position view
+
+Probe on the real sidecar state (`top 250` by raw target notional):
+
+- BTC:
+  - median positions: `2`
+  - mean positions: `8.77`
+  - median target share: `0.948`
+  - mean target share: `0.7439`
+  - single-position accounts: `118`
+  - accounts with `<=3` positions: `176`
+
+- ETH:
+  - median positions: `2`
+  - mean positions: `11.41`
+  - median target share: `0.6151`
+  - mean target share: `0.6193`
+  - single-position accounts: `78`
+  - accounts with `<=3` positions: `157`
+
+Interpretation:
+
+- BTC top-notional users are mixed: many are focused, but the tail contains
+  very complex books
+- ETH top-notional users are materially noisier on average
+- this supports an explicit concentration-aware selector in `v3`
+
+### 5. `concentration` selector is promising, but not yet a universal default
+
+`v3` now supports a `concentration` score mode:
+
+- high target notional still matters
+- target share is rewarded
+- books with many positions are penalized
+
+Score form:
+
+- `target_notional * target_share^share_power / position_penalty`
+
+Relevant knobs:
+
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY`
+
+The selector now also supports per-symbol overrides by suffixing the symbol:
+
+- `..._BTC`
+- `..._ETH`
+
+Examples:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC=concentration`
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH=notional`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_BTC=1.0`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY_ETH=0.1`
+
+Two experiments were run on `2026-04-02`.
+
+#### Aggressive concentration
+
+Settings:
+
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER=2.0`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY=0.2`
+
+Result vs the selected-user-enriched baseline:
+
+- BTC:
+  - `pearson_r`: `0.0532 -> 0.1241`
+  - `KS`: `0.0626 -> 0.0716`
+  - `Wasserstein`: `9925.37 -> 12994.17`
+  - `L/S diff`: `0.0024 -> 0.1236`
+
+- ETH:
+  - `pearson_r`: `0.232 -> 0.2427`
+  - `KS`: `0.1396 -> 0.149`
+  - `Wasserstein`: `468.65 -> 521.82`
+  - `L/S diff`: `0.0832 -> 0.0002`
+
+Interpretation:
+
+- BTC shape correlation improves a lot, but balance gets too distorted
+- ETH gets nearly perfect L/S balance, but transport distance worsens
+
+#### Lighter concentration
+
+Settings:
+
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER=1.0`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY=0.1`
+
+Result vs the selected-user-enriched baseline:
+
+- BTC:
+  - `pearson_r`: `0.0532 -> 0.0911`
+  - `KS`: `0.0626 -> 0.09`
+  - `Wasserstein`: `9925.37 -> 11628.16`
+  - `L/S diff`: `0.0024 -> 0.0436`
+
+- ETH:
+  - `pearson_r`: `0.232 -> 0.2382`
+  - `KS`: `0.1396 -> 0.1356`
+  - `Wasserstein`: `468.65 -> 479.88`
+  - `L/S diff`: `0.0832 -> 0.0133`
+
+Interpretation:
+
+- the lighter version is more balanced than the aggressive one
+- ETH is plausibly improved overall
+- BTC still trades better shape correlation for worse balance/transport metrics
+
+Conclusion:
+
+- `concentration` is worth keeping in code
+- but it is not yet strong enough as a single global default for both BTC and
+  ETH
+- the code now supports symbol-specific selector policy
+- the next step is to choose actual BTC/ETH runtime settings, not add more
+  blind global-weight tuning
+
+### 6. First practical symbol-specific policy: `BTC=notional`, `ETH=concentration-lite`
+
+A mixed runtime policy was tested on `2026-04-02`:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC=notional`
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH=concentration`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_ETH=1.0`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY_ETH=0.1`
+
+Compared against the baseline cache captured immediately before this test:
+
+- BTC:
+  - `pearson_r`: `-0.0103 -> -0.0106`
+  - `KS`: `0.0732 -> 0.074`
+  - `Wasserstein`: `10032.13 -> 9971.65`
+  - `L/S diff`: `0.0232 -> 0.007`
+
+- ETH:
+  - `pearson_r`: `0.240 -> 0.2451`
+  - `KS`: `0.1418 -> 0.1356`
+  - `Wasserstein`: `459.38 -> 475.19`
+  - `L/S diff`: `0.0688 -> 0.0109`
+
+Interpretation:
+
+- BTC is effectively unchanged, with slightly better balance
+- ETH improves materially on balance and modestly on shape correlation
+- ETH loses some transport-distance quality, but the overall trade-off is
+  better than the pure global `notional` selector
+
+This makes the mixed policy the current best practical experimental setting for
+`v3`, even though it is still not a final production default.
+
+### 7. Budget sweep: `top_n` is now a real per-symbol lever
+
+On `2026-04-02` I ran a focused `top_n` sweep against the fresh replay capture
+`data/validation/raw_provider_api/20260401T160752Z`, using the current mixed
+selector baseline:
+
+- BTC: `score_mode=notional`
+- ETH: `score_mode=concentration`
+- ETH concentration weights: `share_power=1.0`,
+  `positions_penalty=0.1`
+- Hyperliquid Info forced through mirror-first fallback:
+  `http://localhost:3001/info,http://10.0.0.1:3001/info,https://api.hyperliquid.xyz/info`
+
+BTC sweep (`notional`):
+
+- `top_n=150`: `pearson_r=-0.0278`, `KS=0.0958`, `Wasserstein=10946.7`,
+  `L/S diff=0.0547`
+- `top_n=200`: `pearson_r=-0.0192`, `KS=0.0822`, `Wasserstein=10298.21`,
+  `L/S diff=0.0237`
+- `top_n=250`: `pearson_r=-0.0106`, `KS=0.074`, `Wasserstein=9971.65`,
+  `L/S diff=0.007`
+- `top_n=300`: `pearson_r=0.0011`, `KS=0.072`, `Wasserstein=9794.13`,
+  `L/S diff=0.0011`
+- `top_n=350`: `pearson_r=0.0148`, `KS=0.0732`, `Wasserstein=9708.03`,
+  `L/S diff=0.006`
+
+ETH sweep (`concentration-lite`):
+
+- `top_n=150`: `pearson_r=0.2285`, `KS=0.138`, `Wasserstein=490.19`,
+  `L/S diff=0.0028`
+- `top_n=200`: `pearson_r=0.2382`, `KS=0.1378`, `Wasserstein=485.07`,
+  `L/S diff=0.0046`
+- `top_n=250`: `pearson_r=0.2451`, `KS=0.1356`, `Wasserstein=475.19`,
+  `L/S diff=0.0109`
+- `top_n=300`: `pearson_r=0.2501`, `KS=0.138`, `Wasserstein=472.44`,
+  `L/S diff=0.0235`
+- `top_n=350`: `pearson_r=0.2536`, `KS=0.1402`, `Wasserstein=470.77`,
+  `L/S diff=0.0269`
+
+Interpretation:
+
+- `top_n` is no longer noise; it materially changes `v3`
+- BTC benefits from a larger budget more clearly than ETH
+- BTC improves almost monotonically through `350`, but the improvement is still
+  mostly on scale/transport and only weakly on shape correlation
+- ETH improves more gently; beyond `250` the correlation keeps rising, but the
+  long/short balance starts drifting
+- this means the next practical runtime policy should be per-symbol on both
+  selector mode and target budget
+
+Current practical experimental budget policy to try on the live `v3` route:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC=notional`
+- `HEATMAP_HL_TOP_POSITION_TOP_N_BTC=350`
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH=concentration`
+- `HEATMAP_HL_TOP_POSITION_TOP_N_ETH=300`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_ETH=1.0`
+- `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY_ETH=0.1`
+
+Rationale:
+
+- BTC needs the larger budget more than it needs extra selector complexity
+- ETH already benefits from `concentration-lite`, and `300` is the best
+  compromise tested between shape gain and balance drift
+- these are still experimental runtime settings, not hardcoded defaults
+
+## Updated Next V3 Task
+
+Given the follow-up experiments above, the next useful model task is narrower:
+
+1. keep the selected-user live enrichment path
+2. stop spending time on liquidation-price heuristics as the primary lever
+3. focus on a better `v3` universe selector:
+   - symbol-specific budget
+   - symbol-specific selector weights / mode
+   - account filtering / book-complexity heuristics
+   - selection signals beyond raw target notional
+4. evaluate any new selector against the same fresh `v2` replay capture
 
 ## Commands To Resume
 

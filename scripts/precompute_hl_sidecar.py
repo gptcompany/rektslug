@@ -17,7 +17,7 @@ import logging
 import math
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -77,6 +77,30 @@ LIVE_ENRICH_CACHE_FILE = Path(
         str(CACHE_DIR / "hl_live_enrichment_cache.json"),
     )
 )
+TOP_POSITION_SCORE_MODE = os.getenv(
+    "HEATMAP_HL_TOP_POSITION_SCORE_MODE",
+    "notional",
+).strip().lower()
+TOP_POSITION_CANDIDATE_POOL_TOP_N = max(
+    TOP_POSITION_TOP_N,
+    int(os.getenv("HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N", str(TOP_POSITION_TOP_N))),
+)
+TOP_POSITION_DISTANCE_FLOOR_BPS = max(
+    1,
+    int(os.getenv("HEATMAP_HL_TOP_POSITION_DISTANCE_FLOOR_BPS", "25")),
+)
+TOP_POSITION_REQUIRE_SIDE_CONSISTENCY = os.getenv(
+    "HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY",
+    "false",
+).strip().lower() in {"1", "true", "yes", "on"}
+TOP_POSITION_CONCENTRATION_SHARE_POWER = max(
+    0.0,
+    float(os.getenv("HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER", "2.0")),
+)
+TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY = max(
+    0.0,
+    float(os.getenv("HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY", "0.2")),
+)
 
 
 @dataclass(frozen=True)
@@ -130,6 +154,38 @@ class SymbolBuildContext:
     current_price: float
     live_overrides: dict[str, LiveUserOverride | None]
     live_enrichment_stats: LiveEnrichmentStats
+
+
+@dataclass(frozen=True)
+class TargetUserCandidate:
+    user: str
+    score: float
+    notional: float
+    position_size: float
+    selection_side: str
+    liquidation_price: float | None = None
+    liquidation_side: str | None = None
+
+
+@dataclass(frozen=True)
+class TargetExposureProfile:
+    target_notional: float
+    total_notional: float
+    off_target_notional: float
+    target_share: float
+    position_count: int
+
+
+@dataclass(frozen=True)
+class TopPositionSelectorConfig:
+    top_n: int
+    selection_mode: str
+    score_mode: str
+    candidate_pool_top_n: int
+    distance_floor_bps: int
+    require_side_consistency: bool
+    concentration_share_power: float
+    concentration_positions_penalty: float
 
 
 @dataclass(frozen=True)
@@ -307,6 +363,116 @@ class LiveEnrichmentCache:
         self._dirty = False
 
 
+def _parse_bool_env_value(raw: str | None, default: bool) -> bool:
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _get_symbol_env_raw(base_name: str, symbol: str) -> str | None:
+    symbol_key = symbol.upper()
+    symbol_specific = os.getenv(f"{base_name}_{symbol_key}")
+    if symbol_specific not in (None, ""):
+        return symbol_specific
+    return os.getenv(base_name)
+
+
+def _resolve_top_position_selector_config(symbol: str) -> TopPositionSelectorConfig:
+    symbol_key = symbol.upper()
+
+    def get_str(name: str, default: str) -> str:
+        raw = _get_symbol_env_raw(name, symbol_key)
+        return raw.strip() if raw not in (None, "") else default
+
+    def get_int(name: str, default: int, *, minimum: int | None = None) -> int:
+        raw = _get_symbol_env_raw(name, symbol_key)
+        value = default
+        if raw not in (None, ""):
+            try:
+                value = int(raw)
+            except ValueError:
+                value = default
+        if minimum is not None:
+            value = max(minimum, value)
+        return value
+
+    def get_float(name: str, default: float, *, minimum: float | None = None) -> float:
+        raw = _get_symbol_env_raw(name, symbol_key)
+        value = default
+        if raw not in (None, ""):
+            try:
+                value = float(raw)
+            except ValueError:
+                value = default
+        if minimum is not None:
+            value = max(minimum, value)
+        return value
+
+    def get_bool(name: str, default: bool) -> bool:
+        return _parse_bool_env_value(_get_symbol_env_raw(name, symbol_key), default)
+
+    top_n = get_int("HEATMAP_HL_TOP_POSITION_TOP_N", TOP_POSITION_TOP_N, minimum=1)
+    candidate_pool_top_n = get_int(
+        "HEATMAP_HL_TOP_POSITION_CANDIDATE_POOL_TOP_N",
+        TOP_POSITION_CANDIDATE_POOL_TOP_N,
+        minimum=top_n,
+    )
+    return TopPositionSelectorConfig(
+        top_n=top_n,
+        selection_mode=get_str(
+            "HEATMAP_HL_TOP_POSITION_SELECTION_MODE",
+            TOP_POSITION_SELECTION_MODE,
+        ).lower(),
+        score_mode=get_str(
+            "HEATMAP_HL_TOP_POSITION_SCORE_MODE",
+            TOP_POSITION_SCORE_MODE,
+        ).lower(),
+        candidate_pool_top_n=candidate_pool_top_n,
+        distance_floor_bps=get_int(
+            "HEATMAP_HL_TOP_POSITION_DISTANCE_FLOOR_BPS",
+            TOP_POSITION_DISTANCE_FLOOR_BPS,
+            minimum=1,
+        ),
+        require_side_consistency=get_bool(
+            "HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY",
+            TOP_POSITION_REQUIRE_SIDE_CONSISTENCY,
+        ),
+        concentration_share_power=get_float(
+            "HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER",
+            TOP_POSITION_CONCENTRATION_SHARE_POWER,
+            minimum=0.0,
+        ),
+        concentration_positions_penalty=get_float(
+            "HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY",
+            TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY,
+            minimum=0.0,
+        ),
+    )
+
+
+def _merge_live_enrichment_stats(
+    base: LiveEnrichmentStats,
+    extra: LiveEnrichmentStats,
+) -> LiveEnrichmentStats:
+    return LiveEnrichmentStats(
+        selected_users=base.selected_users + extra.selected_users,
+        cached_users=base.cached_users + extra.cached_users,
+        fetched_users=base.fetched_users + extra.fetched_users,
+        applied_users=base.applied_users + extra.applied_users,
+        removed_users=base.removed_users + extra.removed_users,
+        api_liq_users=base.api_liq_users + extra.api_liq_users,
+        solver_users=base.solver_users + extra.solver_users,
+        failed_users=base.failed_users + extra.failed_users,
+        missing_target_users=base.missing_target_users + extra.missing_target_users,
+        required_spot_users=base.required_spot_users + extra.required_spot_users,
+    )
+
+
 def _compute_display_range(
     long_buckets: dict[float, float],
     short_buckets: dict[float, float],
@@ -396,6 +562,14 @@ def _select_top_target_users(
     mark_price: float,
     top_n: int,
     selection_mode: str = "global",
+    score_mode: str = "notional",
+    distance_floor_bps: int = 25,
+    require_side_consistency: bool = False,
+    reconstructor: SidecarPositionReconstructor | None = None,
+    candidate_users: set[str] | None = None,
+    live_overrides: dict[str, LiveUserOverride | None] | None = None,
+    concentration_share_power: float = TOP_POSITION_CONCENTRATION_SHARE_POWER,
+    concentration_positions_penalty: float = TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY,
 ) -> list[str]:
     if top_n <= 0:
         return []
@@ -408,10 +582,27 @@ def _select_top_target_users(
         )
         normalized_mode = "global"
 
-    ranked: list[tuple[float, str]] = []
-    long_ranked: list[tuple[float, str]] = []
-    short_ranked: list[tuple[float, str]] = []
+    normalized_score_mode = score_mode.strip().lower()
+    if normalized_score_mode not in {
+        "notional",
+        "concentration",
+        "liq_intensity",
+        "live_liq_intensity",
+    }:
+        logger.warning(
+            "Unknown top-position score mode %r; falling back to notional",
+            score_mode,
+        )
+        normalized_score_mode = "notional"
+
+    ranked: list[TargetUserCandidate] = []
+    long_ranked: list[TargetUserCandidate] = []
+    short_ranked: list[TargetUserCandidate] = []
+    distance_floor_ratio = max(distance_floor_bps, 1) / 10_000.0
+    liq_reconstructor = reconstructor or SidecarPositionReconstructor()
     for user, user_state in state.users.items():
+        if candidate_users is not None and user not in candidate_users:
+            continue
         target_pos = next(
             (
                 position
@@ -422,30 +613,144 @@ def _select_top_target_users(
         )
         if target_pos is None:
             continue
-        score = abs(target_pos.size) * mark_price
-        if normalized_mode == "per_side":
-            if target_pos.size > 0:
-                long_ranked.append((score, user))
-            elif target_pos.size < 0:
-                short_ranked.append((score, user))
+        exposure_profile = _build_target_exposure_profile(
+            user_state,
+            target_coin=target_coin,
+            mark_prices=state.mark_prices,
+        )
+        notional = exposure_profile.target_notional
+        expected_side = "long" if target_pos.size > 0 else "short"
+        liquidation_price: float | None = None
+        liquidation_side: str | None = None
+        score = notional
+
+        if normalized_score_mode == "concentration":
+            score = _score_target_concentration(
+                exposure_profile,
+                share_power=concentration_share_power,
+                positions_penalty=concentration_positions_penalty,
+            )
+            position_size = target_pos.size
+        elif normalized_score_mode == "live_liq_intensity":
+            override = None
+            if live_overrides is not None and user in live_overrides:
+                override = live_overrides[user]
+            if override is None:
+                continue
+            liquidation_price = override.liq_px
+            liquidation_side = _classify_liquidation_side(liquidation_price, mark_price)
+            notional = override.notional
+            score = notional
+            position_size = override.size
+        elif normalized_score_mode == "liq_intensity":
+            liquidation_price = liq_reconstructor.solve_liquidation_price(
+                user_state=user_state,
+                target_coin=target_coin,
+                mark_prices=state.mark_prices,
+                asset_margin_tiers=state.asset_margin_tiers,
+            )
+            if liquidation_price is None or liquidation_price <= 0:
+                continue
+            liquidation_side = _classify_liquidation_side(liquidation_price, mark_price)
+            if liquidation_side is None:
+                continue
+            position_size = target_pos.size
+            if require_side_consistency and liquidation_side != expected_side:
+                continue
+            distance_ratio = abs(mark_price - liquidation_price) / mark_price
+            score = notional / max(distance_ratio, distance_floor_ratio)
         else:
-            ranked.append((score, user))
+            position_size = target_pos.size
+
+        if normalized_score_mode == "live_liq_intensity":
+            if liquidation_price is None or liquidation_price <= 0:
+                continue
+            if liquidation_side is None:
+                continue
+            if require_side_consistency and liquidation_side != expected_side:
+                continue
+            distance_ratio = abs(mark_price - liquidation_price) / mark_price
+            score = notional / max(distance_ratio, distance_floor_ratio)
+
+        candidate = TargetUserCandidate(
+            user=user,
+            score=score,
+            notional=notional,
+            position_size=position_size,
+            selection_side=liquidation_side or expected_side,
+            liquidation_price=liquidation_price,
+            liquidation_side=liquidation_side,
+        )
+        if normalized_mode == "per_side":
+            if candidate.selection_side == "long":
+                long_ranked.append(candidate)
+            elif candidate.selection_side == "short":
+                short_ranked.append(candidate)
+        else:
+            ranked.append(candidate)
 
     if normalized_mode == "global":
-        ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
-        return [user for _, user in ranked[:top_n]]
+        ranked.sort(key=lambda item: (item.score, item.user), reverse=True)
+        return [candidate.user for candidate in ranked[:top_n]]
 
-    long_ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    short_ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    long_ranked.sort(key=lambda item: (item.score, item.user), reverse=True)
+    short_ranked.sort(key=lambda item: (item.score, item.user), reverse=True)
     side_quota = top_n // 2
-    selected = [user for _, user in long_ranked[:side_quota]]
-    selected.extend(user for _, user in short_ranked[:side_quota])
+    selected = [candidate.user for candidate in long_ranked[:side_quota]]
+    selected.extend(candidate.user for candidate in short_ranked[:side_quota])
 
     remaining_slots = max(0, top_n - len(selected))
     leftovers = long_ranked[side_quota:] + short_ranked[side_quota:]
-    leftovers.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    selected.extend(user for _, user in leftovers[:remaining_slots])
+    leftovers.sort(key=lambda item: (item.score, item.user), reverse=True)
+    selected.extend(candidate.user for candidate in leftovers[:remaining_slots])
     return selected
+
+
+def _build_target_exposure_profile(
+    user_state: UserState,
+    *,
+    target_coin: str,
+    mark_prices: dict[int, float],
+) -> TargetExposureProfile:
+    target_notional = 0.0
+    total_notional = 0.0
+    off_target_notional = 0.0
+    position_count = 0
+
+    for position in user_state.positions:
+        if position.size == 0:
+            continue
+        position_count += 1
+        mark = mark_prices.get(position.asset_idx, position.entry_px)
+        notional = abs(position.size) * mark
+        total_notional += notional
+        if position.coin == target_coin:
+            target_notional += notional
+        else:
+            off_target_notional += notional
+
+    target_share = target_notional / total_notional if total_notional > 0 else 0.0
+    return TargetExposureProfile(
+        target_notional=target_notional,
+        total_notional=total_notional,
+        off_target_notional=off_target_notional,
+        target_share=target_share,
+        position_count=position_count,
+    )
+
+
+def _score_target_concentration(
+    profile: TargetExposureProfile,
+    *,
+    share_power: float,
+    positions_penalty: float,
+) -> float:
+    position_penalty = 1.0 + positions_penalty * max(
+        profile.position_count - 1,
+        0,
+    )
+    share_component = profile.target_share ** share_power
+    return profile.target_notional * share_component / position_penalty
 
 
 def _prepare_symbol_context(symbol: str) -> SymbolBuildContext | None:
@@ -548,6 +853,7 @@ def _build_public_payload(
     projection_target_count: int | None = None,
     reported_account_count: int | None = None,
     projection_selection_strategy: str | None = None,
+    projection_score_mode: str | None = None,
 ) -> dict:
     """Build the public liq-map payload for a chosen user universe."""
     state = context.state
@@ -695,6 +1001,7 @@ def _build_public_payload(
         "projection": {
             "mode": projection_mode,
             "selection_strategy": projection_selection_strategy,
+            "score_mode": projection_score_mode,
             "selected_users": selected_user_count,
             "included_users": included_users,
             "target_count": projection_target_count,
@@ -943,18 +1250,12 @@ def _build_live_override(
     )
 
 
-async def _build_live_overrides(
+async def _build_live_overrides_for_users(
     state: SidecarState,
     *,
     target_coin: str,
-    mark_price: float,
+    selected_users: list[str],
 ) -> tuple[dict[str, LiveUserOverride | None], LiveEnrichmentStats]:
-    selected_users = _select_top_target_users(
-        state,
-        target_coin=target_coin,
-        mark_price=mark_price,
-        top_n=LIVE_ENRICH_TOP_N,
-    )
     if not selected_users:
         return {}, LiveEnrichmentStats()
 
@@ -1132,6 +1433,132 @@ async def _build_live_overrides(
     return overrides, LiveEnrichmentStats(**stats)
 
 
+async def _build_live_overrides(
+    state: SidecarState,
+    *,
+    target_coin: str,
+    mark_price: float,
+) -> tuple[dict[str, LiveUserOverride | None], LiveEnrichmentStats]:
+    selected_users = _select_top_target_users(
+        state,
+        target_coin=target_coin,
+        mark_price=mark_price,
+        top_n=LIVE_ENRICH_TOP_N,
+    )
+    return await _build_live_overrides_for_users(
+        state,
+        target_coin=target_coin,
+        selected_users=selected_users,
+    )
+
+
+def _extend_context_live_overrides_for_selected_users(
+    context: SymbolBuildContext,
+    *,
+    selected_users: set[str],
+) -> SymbolBuildContext:
+    additional_users = sorted(
+        user for user in selected_users if user not in context.live_overrides
+    )
+    if not additional_users:
+        return context
+
+    try:
+        extra_overrides, extra_stats = asyncio.run(
+            _build_live_overrides_for_users(
+                context.state,
+                target_coin=context.target_coin,
+                selected_users=additional_users,
+            )
+        )
+    except Exception:
+        logger.exception(
+            "%s: v3 selected-user live enrichment failed; continuing with existing overrides",
+            context.symbol,
+        )
+        return context
+
+    logger.info(
+        "%s: v3 selected-user enrichment targeted=%d applied=%d removed=%d api=%d solver=%d failed=%d",
+        context.symbol,
+        extra_stats.selected_users,
+        extra_stats.applied_users,
+        extra_stats.removed_users,
+        extra_stats.api_liq_users,
+        extra_stats.solver_users,
+        extra_stats.failed_users,
+    )
+    return replace(
+        context,
+        live_overrides={**context.live_overrides, **extra_overrides},
+        live_enrichment_stats=_merge_live_enrichment_stats(
+            context.live_enrichment_stats,
+            extra_stats,
+        ),
+    )
+
+
+def _select_v3_target_users(
+    context: SymbolBuildContext,
+) -> tuple[SymbolBuildContext, list[str]]:
+    config = _resolve_top_position_selector_config(context.symbol)
+
+    if config.score_mode != "live_liq_intensity":
+        selected_users = _select_top_target_users(
+            context.state,
+            target_coin=context.target_coin,
+            mark_price=context.mark_price,
+            top_n=config.top_n,
+            selection_mode=config.selection_mode,
+            score_mode=config.score_mode,
+            distance_floor_bps=config.distance_floor_bps,
+            require_side_consistency=config.require_side_consistency,
+            concentration_share_power=config.concentration_share_power,
+            concentration_positions_penalty=config.concentration_positions_penalty,
+        )
+        return context, selected_users
+
+    candidate_users = _select_top_target_users(
+        context.state,
+        target_coin=context.target_coin,
+        mark_price=context.mark_price,
+        top_n=config.candidate_pool_top_n,
+        selection_mode=config.selection_mode,
+        score_mode="notional",
+    )
+    if not candidate_users:
+        return context, []
+
+    context = _extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users=set(candidate_users),
+    )
+    selected_users = _select_top_target_users(
+        context.state,
+        target_coin=context.target_coin,
+        mark_price=context.mark_price,
+        top_n=config.top_n,
+        selection_mode=config.selection_mode,
+        score_mode="live_liq_intensity",
+        distance_floor_bps=config.distance_floor_bps,
+        require_side_consistency=config.require_side_consistency,
+        candidate_users=set(candidate_users),
+        live_overrides=context.live_overrides,
+    )
+    if len(selected_users) >= config.top_n:
+        return context, selected_users[: config.top_n]
+
+    selected_user_set = set(selected_users)
+    for user in candidate_users:
+        if user in selected_user_set:
+            continue
+        selected_users.append(user)
+        selected_user_set.add(user)
+        if len(selected_users) >= config.top_n:
+            break
+    return context, selected_users
+
+
 def generate_symbol(symbol: str) -> dict | None:
     """Generate the liq-map payload for one symbol. Returns None on failure."""
     context = _prepare_symbol_context(symbol)
@@ -1150,27 +1577,27 @@ def generate_symbol_v3(symbol: str) -> dict | None:
     context = _prepare_symbol_context(symbol)
     if context is None:
         return None
+    config = _resolve_top_position_selector_config(context.symbol)
 
-    selected_users = set(
-        _select_top_target_users(
-            context.state,
-            target_coin=context.target_coin,
-            mark_price=context.mark_price,
-            top_n=TOP_POSITION_TOP_N,
-            selection_mode=TOP_POSITION_SELECTION_MODE,
-        )
-    )
+    context, ordered_selected_users = _select_v3_target_users(context)
+    selected_users = set(ordered_selected_users)
     if not selected_users:
         logger.warning("%s: no top-position-like users selected, skipping v3", symbol)
         return None
+
+    context = _extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users=selected_users,
+    )
 
     return _build_public_payload(
         context=context,
         source="hyperliquid-sidecar-top-positions",
         selected_users=selected_users,
         projection_mode="top_positions_local",
-        projection_target_count=TOP_POSITION_TOP_N,
-        projection_selection_strategy=TOP_POSITION_SELECTION_MODE,
+        projection_target_count=config.top_n,
+        projection_selection_strategy=config.selection_mode,
+        projection_score_mode=config.score_mode,
     )
 
 
@@ -1208,23 +1635,22 @@ def main() -> int:
             atomic_write_json(payload, dest_v1)
             logger.info("Written %s", dest_v1)
 
-            selected_users = set(
-                _select_top_target_users(
-                    context.state,
-                    target_coin=context.target_coin,
-                    mark_price=context.mark_price,
-                    top_n=TOP_POSITION_TOP_N,
-                    selection_mode=TOP_POSITION_SELECTION_MODE,
-                )
-            )
+            config = _resolve_top_position_selector_config(context.symbol)
+            context_for_v3, ordered_selected_users = _select_v3_target_users(context)
+            selected_users = set(ordered_selected_users)
             if selected_users:
+                context_for_v3 = _extend_context_live_overrides_for_selected_users(
+                    context_for_v3,
+                    selected_users=selected_users,
+                )
                 payload_v3 = _build_public_payload(
-                    context=context,
+                    context=context_for_v3,
                     source="hyperliquid-sidecar-top-positions",
                     selected_users=selected_users,
                     projection_mode="top_positions_local",
-                    projection_target_count=TOP_POSITION_TOP_N,
-                    projection_selection_strategy=TOP_POSITION_SELECTION_MODE,
+                    projection_target_count=config.top_n,
+                    projection_selection_strategy=config.selection_mode,
+                    projection_score_mode=config.score_mode,
                 )
                 dest_v3 = CACHE_DIR / f"hl_sidecar_v3_{symbol.lower()}usdt.json"
                 atomic_write_json(payload_v3, dest_v3)
