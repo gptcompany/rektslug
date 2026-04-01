@@ -233,6 +233,8 @@ class TestFrontendStaticFiles:
         response = client.get("/chart/derivatives/liq-map/binance/btcusdt/1d")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
+        assert 'src="https://cdn.plot.ly/plotly-2.26.0.min.js"' in response.text
+        assert "/node_modules/plotly.js-dist-min/plotly.min.js" not in response.text
         assert "ensureValidPublicMapPayload" in response.text
         assert "SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(getSymbol())" in response.text
         assert "return 'rektslug-ank-public';" in response.text

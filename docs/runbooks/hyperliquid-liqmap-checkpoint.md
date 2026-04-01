@@ -48,7 +48,11 @@ Current API endpoint used by the UI:
 - `/liquidations/hl-public-map?symbol=BTCUSDT&timeframe=1w`
 - `/liquidations/hl-public-map?symbol=ETHUSDT&timeframe=1w`
 
-CoinGlass comparison capture used in this checkpoint:
+Latest CoinGlass comparison capture used in this checkpoint:
+
+- `data/validation/raw_provider_api/20260401T160752Z`
+
+Older reference capture kept for drift comparison:
 
 - `data/validation/raw_provider_api/20260320T183129Z`
 
@@ -61,7 +65,7 @@ Decoded CoinGlass Hyperliquid payload source:
 
 The following changes were already applied to the shared liq-map page:
 
-- local Plotly asset instead of external CDN dependency
+- shared Plotly CDN dependency instead of `/node_modules` runtime coupling
 - visible in-page load error instead of silent blank chart
 - restored Plotly modebar with navigation controls
 - magnetic hover prototype using bucket-side snapping and cumulative anchor traces
@@ -232,6 +236,47 @@ not:
 
 `our independent Hyperliquid model that happens to resemble CoinGlass`
 
+## 2026-04-01 Runtime And Deploy Hardening
+
+Two operational issues were confirmed and fixed on `2026-04-01`.
+
+### Hyperliquid mirror compatibility
+
+Local/VPS Hyperliquid info mirrors support:
+
+- `meta`
+- `userAbstraction`
+- `clearinghouseState`
+
+They do not support:
+
+- `metaAndAssetCtxs`
+- `allMids`
+
+The `v3` precompute path now requests `meta` instead of
+`metaAndAssetCtxs`, and fills mark prices from the existing sidecar state.
+This keeps metadata lookup on the mirror-supported path instead of falling
+back to `https://api.hyperliquid.xyz/info`.
+
+### Container startup safety
+
+The production image does not include `node_modules`.
+
+The API previously mounted `/node_modules` unconditionally, which made the
+container fail during FastAPI startup with:
+
+- `RuntimeError: Directory 'node_modules' does not exist`
+
+This is now hardened as follows:
+
+1. `frontend/liq_map_1w.html` uses the same Plotly CDN as the other frontend
+   pages
+2. `src/liquidationheatmap/api/main.py` mounts `/node_modules` only when the
+   directory actually exists
+
+This removes the deploy-time startup dependency on `node_modules` while keeping
+local development compatible when the directory is present.
+
 ## What This Means For V3
 
 `v3` should not depend on CoinGlass captures.
@@ -317,20 +362,29 @@ Operational checklist before resuming `v3` tuning:
 
 ## Immediate Next V3 Task
 
-With the enrichment path stabilized, the next model task is still the BTC
-selection problem, not more infrastructure work.
+The global-vs-per-side selection comparison is now complete.
+
+Observed result on `2026-04-01`:
+
+- BTC combined `pearson_r`: `0.25` (`global`) vs `0.2506` (`per_side`)
+- ETH combined `pearson_r`: `0.3061` (`global`) vs `0.3048` (`per_side`)
+
+Conclusion:
+
+- `per_side` helps long/short balance on ETH
+- `per_side` does not materially improve the BTC shape mismatch
+- the next `v3` gain will not come from ranking mode alone
 
 Do next:
 
-1. compare global top-N vs per-side top-N selection on `v3`
-2. keep the same bucketizer/public payload contract
-3. measure against `v2` with:
+1. extend live enrichment coverage beyond the current small top subset
+2. move from a `top users` heuristic toward a true `top positions` projector
+3. keep the same bucketizer/public payload contract
+4. measure again against `v2` with:
    - `pearson_r`
    - side-specific `pearson_r`
    - mass ratio
    - long-side BTC band overlap
-4. only if selection still underperforms, expand live enrichment coverage beyond
-   the current top subset
 
 ## Commands To Resume
 
@@ -372,6 +426,7 @@ Main files:
 - `scripts/precompute_hl_sidecar.py`
 - `src/liquidationheatmap/hyperliquid/api_client.py`
 - `.env.example`
+- `docs/runbooks/hyperliquid-liqmap-checkpoint.md`
 
 Supporting artifacts:
 
@@ -380,6 +435,7 @@ Supporting artifacts:
 - `data/validation/hl_coinglass_mass_redistribution_report.md`
 - `tests/test_scripts/test_precompute_hl_sidecar.py`
 - `tests/test_api_client.py`
+- `tests/test_api/test_main.py`
 
 ## Important Caveat
 

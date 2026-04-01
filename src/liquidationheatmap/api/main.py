@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -65,7 +66,11 @@ app = FastAPI(
 )
 
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-app.mount("/node_modules", StaticFiles(directory="node_modules"), name="node_modules")
+node_modules_dir = Path("node_modules")
+if node_modules_dir.is_dir():
+    app.mount("/node_modules", StaticFiles(directory=str(node_modules_dir)), name="node_modules")
+else:
+    logger.info("Skipping /node_modules static mount because node_modules is not present")
 
 # CORS
 app.add_middleware(
