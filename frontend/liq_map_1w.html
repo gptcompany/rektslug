@@ -62,16 +62,38 @@
         // Path: /chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}
         const _pathParts = window.location.pathname.split('/');
         const _liqMapRouteName = _pathParts[3] || '';
-        const _isCoinankPath = _pathParts[1] === 'chart' && (_liqMapRouteName === 'liq-map' || _liqMapRouteName === 'liq-map-v2');
+        const _isCoinankPath = _pathParts[1] === 'chart' && (
+            _liqMapRouteName === 'liq-map'
+            || _liqMapRouteName === 'liq-map-v2'
+            || _liqMapRouteName === 'liq-map-v3'
+        );
         const _TIMEFRAME_DAYS = { '1d': 1, '1w': 7 };
 
         function getLiqMapVariant() {
             const urlParams = new URLSearchParams(window.location.search);
             const explicit = (urlParams.get('variant') || '').toLowerCase();
-            if (explicit) {
+            if (explicit === 'v1' || explicit === 'v2' || explicit === 'v3') {
                 return explicit;
             }
-            return _liqMapRouteName === 'liq-map-v2' ? 'v2' : 'v1';
+            if (_liqMapRouteName === 'liq-map-v2') return 'v2';
+            if (_liqMapRouteName === 'liq-map-v3') return 'v3';
+            return 'v1';
+        }
+
+        function getHyperliquidBackendVariant() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicit = (urlParams.get('variant') || '').toLowerCase();
+            if (
+                explicit === 'default'
+                || explicit === 'coinglass-top-position'
+                || explicit === 'internal-top-positions'
+            ) {
+                return explicit;
+            }
+            const liqMapVariant = getLiqMapVariant();
+            if (liqMapVariant === 'v2') return 'coinglass-top-position';
+            if (liqMapVariant === 'v3') return 'internal-top-positions';
+            return 'default';
         }
 
         function getSymbol() {
@@ -145,12 +167,16 @@
 
         function updateVariantBadge() {
             const badge = document.getElementById('variantBadge');
-            const variant = getLiqMapVariant();
-            if (variant !== 'v2') {
+            const backendVariant = getHyperliquidBackendVariant();
+            if (backendVariant === 'default') {
                 badge.style.display = 'none';
                 return;
             }
-            badge.textContent = 'Experimental liq-map v2: audit/testing variant. The primary liq-map remains unchanged.';
+            if (backendVariant === 'coinglass-top-position') {
+                badge.textContent = 'Experimental liq-map v2: CoinGlass replay/audit variant. The primary liq-map remains unchanged.';
+            } else {
+                badge.textContent = 'Experimental liq-map v3: internal top-position-like model. The primary liq-map remains unchanged.';
+            }
             badge.style.display = 'block';
         }
 
@@ -428,6 +454,10 @@
                 if (isHyperliquid) {
                     endpointPath = '/liquidations/hl-public-map';
                     requestParams = new URLSearchParams({ symbol, timeframe });
+                    const backendVariant = getHyperliquidBackendVariant();
+                    if (backendVariant !== 'default') {
+                        requestParams.set('variant', backendVariant);
+                    }
                 } else if (usePublicBuilder) {
                     endpointPath = '/liquidations/coinank-public-map';
                     requestParams = new URLSearchParams({ symbol, timeframe });

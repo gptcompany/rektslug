@@ -245,8 +245,8 @@ class TestFrontendStaticFiles:
         assert "const explicitProfile = getExplicitProfile();" in response.text
         assert "explicitProfile === null" in response.text
         assert "explicitProfile === 'rektslug-ank-public'" in response.text
-        assert "? '/liquidations/coinank-public-map'" in response.text
-        assert ": '/liquidations/levels';" in response.text
+        assert "endpointPath = '/liquidations/coinank-public-map';" in response.text
+        assert "endpointPath = '/liquidations/levels';" in response.text
         assert "SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)" in response.text
         assert "data.cumulative_long" in response.text
         assert "data.cumulative_short" in response.text
@@ -254,7 +254,24 @@ class TestFrontendStaticFiles:
         assert "data.grid.max_price" in response.text
         assert "window.__liqMapLoadError = null" in response.text
         assert "if (!response.ok)" in response.text
-        assert "Current Price: ${Math.round(currentPrice)}" in response.text
+        assert "formatCurrentPriceLabel(currentPrice, symbol)" in response.text
+
+    def test_hyperliquid_liqmap_v2_route_exposes_experimental_backend_variant(self, client):
+        """Test Hyperliquid v2 route keeps the shared page but selects the experimental backend."""
+        response = client.get("/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "if (liqMapVariant === 'v2') return 'coinglass-top-position';" in response.text
+        assert "requestParams.set('variant', backendVariant);" in response.text
+
+    def test_hyperliquid_liqmap_v3_route_exposes_internal_top_positions_variant(self, client):
+        """Test Hyperliquid v3 route selects the internal top-position-like backend."""
+        response = client.get("/chart/derivatives/liq-map-v3/hyperliquid/btcusdt/1w")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "if (_liqMapRouteName === 'liq-map-v3') return 'v3';" in response.text
+        assert "if (liqMapVariant === 'v3') return 'internal-top-positions';" in response.text
+        assert "Experimental liq-map v3: internal top-position-like model." in response.text
 
     def test_coinank_heatmap_route_redirects_to_canonical_page(self, client):
         """Test canonical heatmap route redirects to the canonical frontend page."""

@@ -480,6 +480,32 @@ async def test_batch_query_returns_partial_on_failure():
         assert mock_get.call_count == 3
 
 
+@pytest.mark.asyncio
+async def test_borrow_lend_batch_query_returns_partial_on_failure():
+    client = HyperliquidInfoClient()
+    users = ["0x1", "0x2", "0x3"]
+    borrow_lend_state = BorrowLendUserState(
+        tokenToState={},
+        health="healthy",
+        healthFactor=1.5,
+    )
+
+    with patch.object(client, "get_borrow_lend_user_state", new_callable=AsyncMock) as mock_get:
+        mock_get.side_effect = [
+            borrow_lend_state,
+            Exception("Failed!"),
+            borrow_lend_state,
+        ]
+
+        results = await client.get_borrow_lend_user_states_batch(users)
+
+        assert len(results) == 2
+        assert "0x1" in results
+        assert "0x3" in results
+        assert "0x2" not in results
+        assert mock_get.call_count == 3
+
+
 def mock_margin_summary():
     from src.liquidationheatmap.hyperliquid.models import MarginSummary
 

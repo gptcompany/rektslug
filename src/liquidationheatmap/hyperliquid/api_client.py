@@ -5,7 +5,8 @@ import json
 import logging
 import os
 import time
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 import aiohttp
 
@@ -19,6 +20,8 @@ from src.liquidationheatmap.hyperliquid.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 class _EndpointUnavailableError(RuntimeError):
@@ -253,54 +256,61 @@ class HyperliquidInfoClient:
         payload = await self._post({"type": "metaAndAssetCtxs"})
         return AssetMetaSnapshot.from_api(payload)
 
+    async def _fetch_batch(
+        self,
+        users: list[str],
+        fetcher: Callable[[str], Awaitable[T]],
+        *,
+        label: str,
+    ) -> dict[str, T]:
+        """Fetch a per-user resource concurrently and keep partial successes."""
+        results: dict[str, T] = {}
+
+        async def fetch_user(user: str) -> None:
+            try:
+                results[user] = await fetcher(user)
+            except Exception as exc:
+                logger.error("Failed to fetch %s for %s: %s", label, user, exc)
+
+        await asyncio.gather(*(fetch_user(user) for user in users))
+        return results
+
     async def get_clearinghouse_states_batch(
         self, users: list[str]
     ) -> dict[str, ClearinghouseUserState]:
         """Get clearinghouse state for multiple users concurrently."""
-        results: dict[str, ClearinghouseUserState] = {}
-        
-        async def fetch_user(user: str):
-            try:
-                state = await self.get_clearinghouse_state(user)
-                results[user] = state
-            except Exception as e:
-                logger.error(f"Failed to fetch clearinghouse state for {user}: {e}")
-                
-        # Gather all requests
-        await asyncio.gather(*(fetch_user(u) for u in users))
-        
-        return results
+        return await self._fetch_batch(
+            users,
+            self.get_clearinghouse_state,
+            label="clearinghouse state",
+        )
 
     async def get_spot_clearinghouse_states_batch(
         self, users: list[str]
     ) -> dict[str, SpotClearinghouseState]:
         """Get spot clearinghouse state for multiple users concurrently."""
-        results: dict[str, SpotClearinghouseState] = {}
-
-        async def fetch_user(user: str):
-            try:
-                state = await self.get_spot_clearinghouse_state(user)
-                results[user] = state
-            except Exception as e:
-                logger.error(f"Failed to fetch spot clearinghouse state for {user}: {e}")
-
-        await asyncio.gather(*(fetch_user(u) for u in users))
-
-        return results
+        return await self._fetch_batch(
+            users,
+            self.get_spot_clearinghouse_state,
+            label="spot clearinghouse state",
+        )
 
     async def get_user_abstractions_batch(
         self, users: list[str]
     ) -> dict[str, AccountAbstraction]:
         """Get account abstraction state for multiple users concurrently."""
-        results: dict[str, AccountAbstraction] = {}
+        return await self._fetch_batch(
+            users,
+            self.get_user_abstraction,
+            label="user abstraction",
+        )
 
-        async def fetch_user(user: str):
-            try:
-                abstraction = await self.get_user_abstraction(user)
-                results[user] = abstraction
-            except Exception as e:
-                logger.error(f"Failed to fetch user abstraction for {user}: {e}")
-
-        await asyncio.gather(*(fetch_user(u) for u in users))
-
-        return results
+    async def get_borrow_lend_user_states_batch(
+        self, users: list[str]
+    ) -> dict[str, BorrowLendUserState]:
+        """Get borrow/lend state for multiple users concurrently."""
+        return await self._fetch_batch(
+            users,
+            self.get_borrow_lend_user_state,
+            label="borrow/lend user state",
+        )

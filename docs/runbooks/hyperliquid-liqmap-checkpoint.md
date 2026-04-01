@@ -27,6 +27,11 @@ Experimental `v2` routes:
 - `http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w`
 - `http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/ethusdt/1w`
 
+Experimental `v3` routes:
+
+- `http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/btcusdt/1w`
+- `http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/ethusdt/1w`
+
 The `v2` route was added so future experiments do not overwrite the current `v1`
 experience. The current `v2` page still shares the same frontend file and is
 only route-isolated plus visibly badged as experimental.
@@ -166,6 +171,167 @@ If the gap collapses on `same universe`, the primary cause is universe coverage.
 If the gap remains large, the primary cause is our binning / liquidation
 allocation / aggregation logic.
 
+## New Required Task Before Live CoinGlass Comparison
+
+Before comparing `v2` against the live CoinGlass page on `2026-04-01`, refresh
+the local Hyperliquid `topPosition/liqMap` capture.
+
+Why this is required:
+
+- current `v2` does **not** fetch live CoinGlass data
+- `v2` resolves the latest matching local capture under
+  `data/validation/raw_provider_api`
+- at this checkpoint, the latest local Hyperliquid `topPosition/liqMap` capture
+  is still `20260320T183129Z` (`2026-03-20 18:31:29Z`)
+
+This means any visual comparison between `v2` and the live CoinGlass site mixes:
+
+- universe/bucketing differences
+- plus a `12`-day snapshot drift
+
+Treat this as a blocking task for the next session:
+
+1. capture a fresh CoinGlass Hyperliquid `topPosition/liqMap` snapshot
+2. confirm `v2` resolves that newer local capture
+3. only then compare `v2` vs live CoinGlass on bucket shape, cumulative curves,
+   and display range
+
+## 2026-04-01 Follow-up Verification
+
+Fresh local captures were created on `2026-04-01`:
+
+- BTC: `data/validation/raw_provider_api/20260401T160149Z`
+- BTC + ETH: `data/validation/raw_provider_api/20260401T160752Z`
+
+After the refresh, `v2` resolves:
+
+- BTC -> `data/validation/raw_provider_api/20260401T160752Z`
+- ETH -> `data/validation/raw_provider_api/20260401T160752Z`
+
+Verified correspondence against the decoded local CoinGlass payload:
+
+- `current_price`: exact match
+- long buckets: exact match
+- short buckets: exact match
+- `cumulative_long`: exact match
+- `cumulative_short`: exact match
+
+Important nuance:
+
+- the visible display range in `v2` is still inherited from the local sidecar
+  grid, not from a CoinGlass-provided page viewport/range contract
+
+So `v2` is now exact for the captured liquidation payload itself, but a
+remaining live-page visual difference can still come from range/window choices.
+
+This means the current `v2` path is confirmed as:
+
+`CoinGlass topPosition replay inside our app`
+
+not:
+
+`our independent Hyperliquid model that happens to resemble CoinGlass`
+
+## What This Means For V3
+
+`v3` should not depend on CoinGlass captures.
+
+To build a real internal replacement that can converge toward the same visual
+shape, the likely requirements are:
+
+1. Build a local `top-position-like` universe directly from Hyperliquid data
+   rather than using the full sidecar universe.
+2. Rank/select positions with a deterministic rule close to the CoinGlass
+   population shape:
+   `top N positions by notional / risk`, not all accounts.
+3. Stop treating the comparison path as a diffuse risk-surface first.
+   CoinGlass `topPosition` behaves like a list of positions with one main
+   liquidation price per position, then bucketization.
+4. Use live per-position liquidation prices where available.
+   Existing BTC enrichment artifacts already showed that direct user/API
+   enrichment materially improved correspondence versus older local estimates.
+5. Keep `v1` intact as the full-universe internal truth.
+   `v3` should be a separate model/product path, not a rewrite of `v1`.
+6. Compare `v3` against the current `v2` replay path as the local acceptance
+   test until CoinGlass dependency can be removed from evaluation.
+
+## Concrete V3 Task List
+
+1. Define a local `top-position` projector from Hyperliquid direct data
+   (`hyperliquid-node` / direct snapshots), outputting one record per selected
+   position with:
+   - user
+   - symbol
+   - side
+   - size
+   - position USD
+   - liquidation price
+2. Decide and freeze the selection rule:
+   - top positions by absolute notional
+   - whether selection is global or per side
+   - maximum population size
+3. Reuse the existing public map contract and bucketizer on top of that local
+   projected universe.
+4. Validate local projected universe vs `v2` replay on BTC and ETH:
+   - bucket counts
+   - mass ratios
+   - top band overlaps
+   - cumulative curve error
+5. Only after universe parity is acceptable, revisit residual differences in
+   display range or bucket rounding.
+
+## Live Enrichment Hardening
+
+The `v3` precompute path no longer fires one unbounded `gather` over every
+selected user.
+
+As of `2026-04-01`, the live enrichment path now:
+
+1. processes selected users in configurable chunks
+2. caches per-user per-coin live overrides in
+   `data/cache/hl_live_enrichment_cache.json`
+3. reuses cached overrides for the configured TTL before calling Hyperliquid
+   again
+4. logs the configured Hyperliquid info endpoints and warns when only the
+   public endpoint is active
+
+Relevant env knobs:
+
+- `HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS`
+- `HEATMAP_HL_TOP_POSITION_SELECTION_MODE`
+- `HEATMAP_HL_LIVE_ENRICH_TOP_N`
+- `HEATMAP_HL_LIVE_ENRICH_RPM`
+- `HEATMAP_HL_LIVE_ENRICH_BATCH_SIZE`
+- `HEATMAP_HL_LIVE_ENRICH_CACHE_TTL_SECONDS`
+
+Operational checklist before resuming `v3` tuning:
+
+1. confirm the process actually loads `HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS`
+   so local/VPS mirrors are preferred over `https://api.hyperliquid.xyz/info`
+2. watch the live enrichment logs for:
+   - configured endpoints
+   - chunk counts
+   - cached vs fetched users
+3. only then raise `HEATMAP_HL_LIVE_ENRICH_TOP_N` or tune selection logic for
+   BTC shape matching
+
+## Immediate Next V3 Task
+
+With the enrichment path stabilized, the next model task is still the BTC
+selection problem, not more infrastructure work.
+
+Do next:
+
+1. compare global top-N vs per-side top-N selection on `v3`
+2. keep the same bucketizer/public payload contract
+3. measure against `v2` with:
+   - `pearson_r`
+   - side-specific `pearson_r`
+   - mass ratio
+   - long-side BTC band overlap
+4. only if selection still underperforms, expand live enrichment coverage beyond
+   the current top subset
+
 ## Commands To Resume
 
 Start the local server:
@@ -186,6 +352,8 @@ Open the experimental route:
 ```bash
 http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/ethusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/ethusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/btcusdt/1w
 ```
 
 Read the latest summary report:
@@ -201,12 +369,17 @@ Main files:
 - `frontend/liq_map_1w.html`
 - `src/liquidationheatmap/api/main.py`
 - `src/liquidationheatmap/api/routers/liquidations.py`
+- `scripts/precompute_hl_sidecar.py`
+- `src/liquidationheatmap/hyperliquid/api_client.py`
+- `.env.example`
 
 Supporting artifacts:
 
 - `data/validation/hl_coinglass_360_audit.json`
 - `data/validation/hl_coinglass_mass_redistribution_report.json`
 - `data/validation/hl_coinglass_mass_redistribution_report.md`
+- `tests/test_scripts/test_precompute_hl_sidecar.py`
+- `tests/test_api_client.py`
 
 ## Important Caveat
 

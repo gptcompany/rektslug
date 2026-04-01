@@ -196,6 +196,31 @@ async def liq_map_coinank_style_v2(exchange: str, symbol: str, timeframe: str):
     return FileResponse("frontend/liq_map_1w.html")
 
 
+@app.get("/chart/derivatives/liq-map-v3/{exchange}/{symbol}/{timeframe}", tags=["UI"])
+async def liq_map_coinank_style_v3(exchange: str, symbol: str, timeframe: str):
+    """Serve an internal top-position-like liq-map v3 route."""
+    normalized_exchange = exchange.lower()
+    if normalized_exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid exchange '{exchange}'. Supported exchanges: {sorted(SUPPORTED_EXCHANGES)}"
+            ),
+        )
+
+    normalized_timeframe = timeframe.lower()
+    if normalized_timeframe not in LIQ_MAP_TIMEFRAME_TO_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid timeframe '{timeframe}'. "
+                f"Supported liq-map timeframes: {sorted(LIQ_MAP_TIMEFRAME_TO_DAYS)}"
+            ),
+        )
+
+    return FileResponse("frontend/liq_map_1w.html")
+
+
 @app.get("/chart/derivatives/liq-heat-map/{symbol}/{timeframe}", tags=["UI"])
 async def heatmap_coinank_style(symbol: str, timeframe: str):
     """Canonical Coinank-style heatmap route used by docs and validation."""

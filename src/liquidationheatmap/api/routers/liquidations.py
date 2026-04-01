@@ -724,7 +724,53 @@ _HL_CACHE_DIR = Path("data/cache")
 _HL_SUPPORTED_SYMBOLS = {"BTCUSDT", "ETHUSDT"}
 _HL_STALE_MINUTES = 30
 _CG_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
-_HL_EXPERIMENTAL_VARIANTS = {"default", "coinglass-top-position"}
+_HL_EXPERIMENTAL_VARIANTS = {
+    "default",
+    "coinglass-top-position",
+    "internal-top-positions",
+}
+
+
+def _load_hl_cache_payload(cache_file: Path) -> dict[str, Any]:
+    if not cache_file.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Hyperliquid sidecar data not yet available. Pre-computation pending.",
+            headers={"Retry-After": "60"},
+        )
+
+    try:
+        raw = cache_file.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        logger.error("Corrupted HL sidecar cache %s: %s", cache_file, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Hyperliquid sidecar cache is temporarily corrupted. Retry shortly.",
+            headers={"Retry-After": "60"},
+        )
+
+    generated_at_str = data.get("generated_at", "")
+    try:
+        if generated_at_str.endswith("Z"):
+            generated_at_str_parse = generated_at_str[:-1] + "+00:00"
+        else:
+            generated_at_str_parse = generated_at_str
+        generated_at = datetime.fromisoformat(generated_at_str_parse)
+        if generated_at.tzinfo is None:
+            generated_at = generated_at.replace(tzinfo=timezone.utc)
+    except (ValueError, AttributeError):
+        generated_at = datetime.min.replace(tzinfo=timezone.utc)
+
+    age = datetime.now(timezone.utc) - generated_at
+    if age > timedelta(minutes=_HL_STALE_MINUTES):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Hyperliquid sidecar data is stale (last update: {generated_at_str}).",
+            headers={"Retry-After": "60"},
+        )
+
+    return data
 
 
 def _hl_round_bin(price: float, step: float) -> float:
@@ -912,6 +958,7 @@ def _build_coinglass_top_position_response(
 async def get_hl_public_map(
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
     timeframe: str = Query("1w"),
+    variant: str = Query("default"),
 ):
     normalized_symbol = symbol.upper()
     if normalized_symbol not in _HL_SUPPORTED_SYMBOLS:
@@ -927,45 +974,31 @@ async def get_hl_public_map(
             status_code=400,
             detail=f"Unsupported timeframe '{timeframe}'. Supported: ['1w']",
         )
-
-    cache_file = _HL_CACHE_DIR / f"hl_sidecar_{normalized_symbol.lower()}.json"
-    if not cache_file.exists():
+    normalized_variant = variant.lower()
+    if normalized_variant not in _HL_EXPERIMENTAL_VARIANTS:
         raise HTTPException(
-            status_code=503,
-            detail="Hyperliquid sidecar data not yet available. Pre-computation pending.",
-            headers={"Retry-After": "60"},
+            status_code=400,
+            detail=(
+                f"Unsupported Hyperliquid liq-map variant '{variant}'. "
+                f"Supported: {sorted(_HL_EXPERIMENTAL_VARIANTS)}"
+            ),
         )
 
-    try:
-        raw = cache_file.read_text(encoding="utf-8")
-        data = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        logger.error("Corrupted HL sidecar cache %s: %s", cache_file, exc)
-        raise HTTPException(
-            status_code=503,
-            detail="Hyperliquid sidecar cache is temporarily corrupted. Retry shortly.",
-            headers={"Retry-After": "60"},
+    base_cache_file = _HL_CACHE_DIR / f"hl_sidecar_{normalized_symbol.lower()}.json"
+    data = _load_hl_cache_payload(base_cache_file)
+
+    if normalized_variant == "coinglass-top-position":
+        return HyperliquidPublicMapResponse(
+            **_build_coinglass_top_position_response(
+                symbol=normalized_symbol,
+                timeframe=timeframe.lower(),
+                base_cache=data,
+            )
         )
 
-    generated_at_str = data.get("generated_at", "")
-    try:
-        if generated_at_str.endswith("Z"):
-            generated_at_str_parse = generated_at_str[:-1] + "+00:00"
-        else:
-            generated_at_str_parse = generated_at_str
-        generated_at = datetime.fromisoformat(generated_at_str_parse)
-        if generated_at.tzinfo is None:
-            generated_at = generated_at.replace(tzinfo=timezone.utc)
-    except (ValueError, AttributeError):
-        generated_at = datetime.min.replace(tzinfo=timezone.utc)
-
-    age = datetime.now(timezone.utc) - generated_at
-    if age > timedelta(minutes=_HL_STALE_MINUTES):
-        raise HTTPException(
-            status_code=503,
-            detail=f"Hyperliquid sidecar data is stale (last update: {generated_at_str}).",
-            headers={"Retry-After": "60"},
-        )
+    if normalized_variant == "internal-top-positions":
+        variant_cache_file = _HL_CACHE_DIR / f"hl_sidecar_v3_{normalized_symbol.lower()}.json"
+        return HyperliquidPublicMapResponse(**_load_hl_cache_payload(variant_cache_file))
 
     return HyperliquidPublicMapResponse(**data)
 
