@@ -1,0 +1,30 @@
+{
+  "name": "rektslug",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"logo.png\" alt=\"rektslug logo\" width=\"800\"> </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gptcompany/rektslug.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gptcompany/rektslug/issues"
+  },
+  "homepage": "https://github.com/gptcompany/rektslug#readme",
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "pako": "^2.1.0",
+    "plotly.js-dist-min": "^3.4.0"
+  }
+}

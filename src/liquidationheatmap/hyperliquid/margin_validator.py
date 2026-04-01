@@ -239,7 +239,7 @@ class MarginValidator:
 
         api_total_margin_used = state.marginSummary.totalMarginUsed
         api_cross_maintenance_margin_used = state.crossMaintenanceMarginUsed
-        account_value = state.marginSummary.accountValue
+        raw_balance = state.crossMarginSummary.totalRawUsd
 
         asset_meta_lookup = {
             asset.name: {
@@ -291,11 +291,11 @@ class MarginValidator:
             api_margin_used = pos_data.marginUsed
             api_liq_px = pos_data.liquidationPx
             leverage_type = pos_data.leverage.type
-            
+
             if coin not in asset_meta_lookup:
                 logger.warning("Coin %s not found in asset meta", coin)
                 continue
-                
+
             info = asset_meta_lookup[coin]
             idx = info["idx"]
             mark = mark_prices[idx]
@@ -328,7 +328,8 @@ class MarginValidator:
                 "asset_margin_tiers": asset_margin_tiers,
             })
 
-        user_state = UserState(user=user, balance=account_value, positions=tuple(sidecar_positions))
+        # The liquidation solver consumes raw USD balance (`totalRawUsd`), not account value.
+        user_state = UserState(user=user, balance=raw_balance, positions=tuple(sidecar_positions))
         reserved_margin = self._estimate_reserved_margin(
             user,
             mark_prices,

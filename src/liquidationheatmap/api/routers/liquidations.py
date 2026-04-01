@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import math
+import subprocess
+import tempfile
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -721,6 +723,185 @@ async def get_coinank_public_map(
 _HL_CACHE_DIR = Path("data/cache")
 _HL_SUPPORTED_SYMBOLS = {"BTCUSDT", "ETHUSDT"}
 _HL_STALE_MINUTES = 30
+_CG_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
+_HL_EXPERIMENTAL_VARIANTS = {"default", "coinglass-top-position"}
+
+
+def _hl_round_bin(price: float, step: float) -> float:
+    return round(math.floor(price / step + 1e-9) * step, 10)
+
+
+def _hl_build_cumulative_series(
+    buckets: list[dict[str, float | str]],
+    current_price: float,
+    is_long: bool,
+) -> list[dict[str, float]]:
+    volume_map: dict[float, float] = {}
+    for bucket in buckets:
+        price_level = float(bucket["price_level"])
+        volume_map[price_level] = volume_map.get(price_level, 0.0) + float(bucket["volume"])
+
+    prices = sorted(volume_map)
+    points: list[dict[str, float]] = []
+    if is_long:
+        cumulative = 0.0
+        for price in reversed(prices):
+            if price >= current_price:
+                continue
+            cumulative += volume_map[price]
+            points.append({"price_level": price, "value": cumulative})
+        points.reverse()
+        return points
+
+    cumulative = 0.0
+    for price in prices:
+        if price <= current_price:
+            continue
+        cumulative += volume_map[price]
+        points.append({"price_level": price, "value": cumulative})
+    return points
+
+
+def _find_latest_coinglass_capture_dir(symbol: str) -> Path | None:
+    if not _CG_CAPTURE_ROOT.exists():
+        return None
+    target_url = f"hyperliquid/topPosition/liqMap?symbol={symbol}"
+    for candidate in sorted(_CG_CAPTURE_ROOT.iterdir(), reverse=True):
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        for provider in manifest.get("providers", []):
+            for capture in provider.get("captures", []):
+                if target_url in capture.get("source_url", ""):
+                    return candidate
+    return None
+
+
+def _decode_coinglass_top_position_capture(capture_dir: Path, symbol: str) -> dict[str, Any]:
+    manifest_path = capture_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    target_url = f"hyperliquid/topPosition/liqMap?symbol={symbol}"
+    capture = None
+    for provider in manifest.get("providers", []):
+        for candidate in provider.get("captures", []):
+            if target_url in candidate.get("source_url", ""):
+                capture = candidate
+                break
+        if capture is not None:
+            break
+    if capture is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"No local CoinGlass Hyperliquid capture found for {symbol}.",
+        )
+
+    summary = {"captures": [capture]}
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        json.dump(summary, tmp)
+        tmp_path = tmp.name
+
+    decode_script = Path("scripts/coinglass_decode_standalone.js")
+    try:
+        result = subprocess.run(
+            ["node", str(decode_script), "--summary", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=503,
+            detail=f"CoinGlass decode failed: {result.stderr[:200]}",
+        )
+
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Decoded CoinGlass payload is invalid JSON: {exc}",
+        ) from exc
+
+
+def _build_coinglass_top_position_response(
+    symbol: str,
+    timeframe: str,
+    base_cache: dict[str, Any],
+) -> dict[str, Any]:
+    capture_dir = _find_latest_coinglass_capture_dir(symbol.replace("USDT", ""))
+    if capture_dir is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"No local CoinGlass capture directory found for {symbol}.",
+        )
+
+    decoded = _decode_coinglass_top_position_capture(capture_dir, symbol.replace("USDT", ""))
+    step = float(base_cache["grid"]["step"])
+    current_price = float(decoded["price"])
+    long_bins: dict[float, float] = {}
+    short_bins: dict[float, float] = {}
+    user_ids: set[str] = set()
+
+    for position in decoded.get("list", []):
+        liquidation_price = float(position.get("liquidationPrice", 0) or 0)
+        position_usd = abs(float(position.get("positionUsd", 0) or 0))
+        size = float(position.get("size", 0) or 0)
+        if liquidation_price <= 0 or position_usd <= 0 or size == 0:
+            continue
+        rounded_bin = _hl_round_bin(liquidation_price, step)
+        user_id = position.get("userId")
+        if user_id:
+            user_ids.add(str(user_id))
+        if size > 0:
+            long_bins[rounded_bin] = long_bins.get(rounded_bin, 0.0) + position_usd
+        else:
+            short_bins[rounded_bin] = short_bins.get(rounded_bin, 0.0) + position_usd
+
+    long_buckets = [
+        {"price_level": price, "leverage": "cross", "volume": volume}
+        for price, volume in sorted(long_bins.items())
+    ]
+    short_buckets = [
+        {"price_level": price, "leverage": "cross", "volume": volume}
+        for price, volume in sorted(short_bins.items())
+    ]
+
+    grid = dict(base_cache["grid"])
+    grid["anchor_price"] = current_price
+    display_min = float(grid["min_price"])
+    display_max = float(grid["max_price"])
+    out_of_range_long = sum(volume for price, volume in long_bins.items() if price < display_min)
+    out_of_range_short = sum(volume for price, volume in short_bins.items() if price > display_max)
+
+    return {
+        "source": "coinglass-top-position-local",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "current_price": current_price,
+        "mark_price": current_price,
+        "account_count": len(user_ids),
+        "generated_at": base_cache["generated_at"],
+        "grid": grid,
+        "leverage_ladder": ["cross"],
+        "long_buckets": long_buckets,
+        "short_buckets": short_buckets,
+        "cumulative_long": _hl_build_cumulative_series(long_buckets, current_price, is_long=True),
+        "cumulative_short": _hl_build_cumulative_series(short_buckets, current_price, is_long=False),
+        "out_of_range_volume": {
+            "long": out_of_range_long,
+            "short": out_of_range_short,
+        },
+        "source_anchor": str(capture_dir),
+        "bin_size": step,
+    }
 
 
 @router.get(

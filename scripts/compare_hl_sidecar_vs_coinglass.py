@@ -58,26 +58,134 @@ class BucketedDistribution:
     short_buckets: dict[float, float] = field(default_factory=dict)
     account_count: int = 0
     position_count: int = 0
+    display_min_price: float | None = None
+    display_max_price: float | None = None
+
+
+def _combined_volume(distribution: BucketedDistribution) -> dict[float, float]:
+    combined: dict[float, float] = {}
+    for price, volume in distribution.long_buckets.items():
+        combined[price] = combined.get(price, 0.0) + volume
+    for price, volume in distribution.short_buckets.items():
+        combined[price] = combined.get(price, 0.0) + volume
+    return combined
+
+
+def _normalized_pearson(values_a: np.ndarray, values_b: np.ndarray) -> float | None:
+    if len(values_a) < 10 or len(values_b) < 10:
+        return None
+    max_a = values_a.max()
+    max_b = values_b.max()
+    if max_a <= 0 or max_b <= 0:
+        return None
+    return float(pearsonr(values_a / max_a, values_b / max_b).statistic)
+
+
+def _rebin_buckets(buckets: dict[float, float], step: float) -> dict[float, float]:
+    rebinned: dict[float, float] = {}
+    if step <= 0:
+        return rebinned
+    for price, volume in buckets.items():
+        rebinned_price = round(math.floor(price / step + 1e-9) * step, 10)
+        rebinned[rebinned_price] = rebinned.get(rebinned_price, 0.0) + volume
+    return rebinned
+
+
+def _coarse_shape_metrics(
+    distribution_a: BucketedDistribution,
+    distribution_b: BucketedDistribution,
+) -> dict[str, dict[str, float | int]]:
+    metrics: dict[str, dict[str, float | int]] = {}
+    combined_a = _combined_volume(distribution_a)
+    combined_b = _combined_volume(distribution_b)
+    for multiplier in (5, 10, 25, 50, 100):
+        step = distribution_a.bin_size * multiplier
+        rebinned_a = _rebin_buckets(combined_a, step)
+        rebinned_b = _rebin_buckets(combined_b, step)
+        prices = sorted(set(rebinned_a) | set(rebinned_b))
+        if len(prices) < 10:
+            continue
+        values_a = np.array([rebinned_a.get(price, 0.0) for price in prices], dtype=float)
+        values_b = np.array([rebinned_b.get(price, 0.0) for price in prices], dtype=float)
+        mask = (values_a > 0) | (values_b > 0)
+        pearson_value = _normalized_pearson(values_a[mask], values_b[mask])
+        if pearson_value is None:
+            continue
+        metrics[str(multiplier)] = {
+            "step": round(step, 10),
+            "bins": int(mask.sum()),
+            "pearson_r": round(pearson_value, 4),
+        }
+    return metrics
+
+
+def _cumulative_shape_metrics(
+    distribution_a: BucketedDistribution,
+    distribution_b: BucketedDistribution,
+) -> dict[str, dict[str, float | int]]:
+    metrics: dict[str, dict[str, float | int]] = {}
+    combined_a = _combined_volume(distribution_a)
+    combined_b = _combined_volume(distribution_b)
+    for multiplier in (10, 50, 100):
+        step = distribution_a.bin_size * multiplier
+        rebinned_a = _rebin_buckets(combined_a, step)
+        rebinned_b = _rebin_buckets(combined_b, step)
+        prices = sorted(set(rebinned_a) | set(rebinned_b))
+        if len(prices) < 10:
+            continue
+        cumulative_a = np.cumsum(np.array([rebinned_a.get(price, 0.0) for price in prices], dtype=float))
+        cumulative_b = np.cumsum(np.array([rebinned_b.get(price, 0.0) for price in prices], dtype=float))
+        pearson_value = _normalized_pearson(cumulative_a, cumulative_b)
+        if pearson_value is None:
+            continue
+        metrics[str(multiplier)] = {
+            "step": round(step, 10),
+            "points": len(prices),
+            "pearson_r": round(pearson_value, 4),
+        }
+    return metrics
 
 
 def load_sidecar_artifact(path: Path) -> BucketedDistribution:
-    """Load a Rektslug sidecar JSON artifact."""
+    """Load either the legacy validation artifact or the modern cache JSON."""
     with open(path) as f:
         data = json.load(f)
 
-    meta = data["metadata"]
-    dist = BucketedDistribution(
-        source="rektslug-sidecar",
-        symbol=meta["target_coin"],
-        bin_size=meta["bin_size"],
-        current_price=0.0,
-        account_count=meta["account_count"],
-    )
+    if "metadata" in data:
+        meta = data["metadata"]
+        dist = BucketedDistribution(
+            source="rektslug-sidecar",
+            symbol=meta["target_coin"],
+            bin_size=meta["bin_size"],
+            current_price=0.0,
+            account_count=meta["account_count"],
+        )
+        for entry in data["long_liquidations"]:
+            dist.long_buckets[float(entry["price"])] = float(entry["volume"])
+        for entry in data["short_liquidations"]:
+            dist.short_buckets[float(entry["price"])] = float(entry["volume"])
+        dist.position_count = len(dist.long_buckets) + len(dist.short_buckets)
+        return dist
 
-    for entry in data["long_liquidations"]:
-        dist.long_buckets[entry["price"]] = entry["volume"]
-    for entry in data["short_liquidations"]:
-        dist.short_buckets[entry["price"]] = entry["volume"]
+    symbol = str(data.get("symbol", "")).removesuffix("USDT")
+    grid = data.get("grid", {})
+    dist = BucketedDistribution(
+        source=str(data.get("source", "hyperliquid-sidecar")),
+        symbol=symbol,
+        bin_size=float(data.get("bin_size") or grid.get("step") or 0.0),
+        current_price=float(data.get("current_price", 0.0)),
+        account_count=int(data.get("account_count", 0)),
+        display_min_price=(
+            float(grid["min_price"]) if grid.get("min_price") is not None else None
+        ),
+        display_max_price=(
+            float(grid["max_price"]) if grid.get("max_price") is not None else None
+        ),
+    )
+    for entry in data.get("long_buckets", []):
+        dist.long_buckets[float(entry["price_level"])] = float(entry["volume"])
+    for entry in data.get("short_buckets", []):
+        dist.short_buckets[float(entry["price_level"])] = float(entry["volume"])
 
     dist.position_count = len(dist.long_buckets) + len(dist.short_buckets)
     return dist
@@ -182,19 +290,9 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         "bin_size": a.bin_size,
     }
 
-    # Combine long+short into total per-bucket volume
-    def total_volume(d: BucketedDistribution) -> dict[float, float]:
-        combined: dict[float, float] = {}
-        for p, v in d.long_buckets.items():
-            combined[p] = combined.get(p, 0) + v
-        for p, v in d.short_buckets.items():
-            combined[p] = combined.get(p, 0) + v
-        return combined
+    a_total = _combined_volume(a)
+    b_total = _combined_volume(b)
 
-    a_total = total_volume(a)
-    b_total = total_volume(b)
-
-    # Summary stats
     a_long_vol = sum(a.long_buckets.values())
     a_short_vol = sum(a.short_buckets.values())
     b_long_vol = sum(b.long_buckets.values())
@@ -221,43 +319,35 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         "account_count": b.account_count,
     }
 
-    # Volume scale ratio
     a_vol = a_long_vol + a_short_vol
     b_vol = b_long_vol + b_short_vol
     results["volume_scale_ratio"] = round(b_vol / a_vol, 4) if a_vol > 0 else None
 
-    # Compute shape metrics on combined volume (long+short merged)
-    # Find overlapping price range
     all_prices = sorted(set(a_total.keys()) | set(b_total.keys()))
     if len(all_prices) < 5:
         results["error"] = "Too few price buckets for shape comparison"
         return results
 
-    # Build aligned arrays
-    a_arr = np.array([a_total.get(p, 0) for p in all_prices])
-    b_arr = np.array([b_total.get(p, 0) for p in all_prices])
-    prices = np.array(all_prices)
+    a_arr = np.array([a_total.get(price, 0.0) for price in all_prices], dtype=float)
+    b_arr = np.array([b_total.get(price, 0.0) for price in all_prices], dtype=float)
+    prices = np.array(all_prices, dtype=float)
 
-    # Normalize to peak = 1
     a_max = a_arr.max()
     b_max = b_arr.max()
     a_norm = a_arr / a_max if a_max > 0 else a_arr
     b_norm = b_arr / b_max if b_max > 0 else b_arr
 
-    # Filter to meaningful range (where either has volume)
     mask = (a_norm > 0) | (b_norm > 0)
     if mask.sum() < 5:
         results["error"] = "Too few nonzero bins for comparison"
         return results
 
-    # 1. Pearson correlation
     a_m, b_m = a_norm[mask], b_norm[mask]
     if len(a_m) >= 10:
         r, p_val = pearsonr(a_m, b_m)
         results["pearson_r"] = round(float(r), 4)
         results["pearson_p"] = float(f"{p_val:.2e}")
 
-    # 2. KS test (weighted sampling)
     rng = np.random.default_rng(42)
     n_samples = 5000
 
@@ -276,7 +366,6 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         results["ks_statistic"] = round(float(ks_stat), 4)
         results["ks_p"] = float(f"{ks_p:.2e}")
 
-    # 3. Wasserstein distance on normalized distributions
     a_weights = a_m / a_m.sum() if a_m.sum() > 0 else a_m
     b_weights = b_m / b_m.sum() if b_m.sum() > 0 else b_m
     prices_m = prices[mask]
@@ -284,21 +373,19 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         wd = wasserstein_distance(prices_m, prices_m, a_weights, b_weights)
         results["wasserstein_distance"] = round(float(wd), 2)
 
-    # 4. Peak bucket comparison (top 5)
     a_peak_idx = np.argsort(a_arr)[-5:][::-1]
     b_peak_idx = np.argsort(b_arr)[-5:][::-1]
     results["a_peak_prices"] = [float(prices[i]) for i in a_peak_idx]
     results["b_peak_prices"] = [float(prices[i]) for i in b_peak_idx]
 
-    # Mean peak distance (greedy matching)
     a_peaks = [float(prices[i]) for i in a_peak_idx]
     b_peaks = list(float(prices[i]) for i in b_peak_idx)
     peak_dists = []
     remaining = list(b_peaks)
-    for ap in a_peaks:
+    for peak in a_peaks:
         if not remaining:
             break
-        dists = [abs(ap - bp) for bp in remaining]
+        dists = [abs(peak - candidate) for candidate in remaining]
         best = int(np.argmin(dists))
         peak_dists.append(dists[best])
         remaining.pop(best)
@@ -306,13 +393,11 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         results["peak_mean_distance"] = round(float(np.mean(peak_dists)), 2)
         results["peak_max_distance"] = round(float(np.max(peak_dists)), 2)
 
-    # 5. L/S ratio comparison
     a_ls = a_long_vol / a_short_vol if a_short_vol > 0 else None
     b_ls = b_long_vol / b_short_vol if b_short_vol > 0 else None
     if a_ls is not None and b_ls is not None:
         results["ls_ratio_diff"] = round(abs(a_ls - b_ls), 4)
 
-    # 6. Separate long/short shape metrics
     for side, a_side, b_side in [
         ("long", a.long_buckets, b.long_buckets),
         ("short", a.short_buckets, b.short_buckets),
@@ -320,16 +405,45 @@ def compute_metrics(a: BucketedDistribution, b: BucketedDistribution) -> dict:
         side_prices = sorted(set(a_side.keys()) | set(b_side.keys()))
         if len(side_prices) < 5:
             continue
-        sa = np.array([a_side.get(p, 0) for p in side_prices])
-        sb = np.array([b_side.get(p, 0) for p in side_prices])
-        sa_max, sb_max = sa.max(), sb.max()
-        if sa_max > 0 and sb_max > 0:
-            sa_n = sa / sa_max
-            sb_n = sb / sb_max
-            side_mask = (sa_n > 0) | (sb_n > 0)
-            if side_mask.sum() >= 10:
-                r, _ = pearsonr(sa_n[side_mask], sb_n[side_mask])
-                results[f"{side}_pearson_r"] = round(float(r), 4)
+        sa = np.array([a_side.get(price, 0.0) for price in side_prices], dtype=float)
+        sb = np.array([b_side.get(price, 0.0) for price in side_prices], dtype=float)
+        side_mask = (sa > 0) | (sb > 0)
+        pearson_value = _normalized_pearson(sa[side_mask], sb[side_mask])
+        if pearson_value is not None:
+            results[f"{side}_pearson_r"] = round(pearson_value, 4)
+
+    results["coarse_shape"] = _coarse_shape_metrics(a, b)
+    results["cumulative_shape"] = _cumulative_shape_metrics(a, b)
+
+    if a.display_min_price is not None and a.display_max_price is not None:
+        def display_coverage(buckets: dict[float, float]) -> dict[str, float | int]:
+            total = sum(buckets.values())
+            inside = sum(
+                volume
+                for price, volume in buckets.items()
+                if a.display_min_price <= price <= a.display_max_price
+            )
+            outside = total - inside
+            return {
+                "inside_volume": round(inside, 2),
+                "outside_volume": round(outside, 2),
+                "inside_ratio": round(inside / total, 4) if total > 0 else None,
+                "outside_ratio": round(outside / total, 4) if total > 0 else None,
+                "outside_bins": sum(
+                    1
+                    for price in buckets
+                    if price < a.display_min_price or price > a.display_max_price
+                ),
+            }
+
+        results["display_grid"] = {
+            "min_price": a.display_min_price,
+            "max_price": a.display_max_price,
+            "a_long": display_coverage(a.long_buckets),
+            "a_short": display_coverage(a.short_buckets),
+            "b_long": display_coverage(b.long_buckets),
+            "b_short": display_coverage(b.short_buckets),
+        }
 
     return results
 

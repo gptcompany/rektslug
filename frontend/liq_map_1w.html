@@ -4,13 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Liquidation Map - 1 Week (Binance)</title>
-    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <script src="/node_modules/plotly.js-dist-min/plotly.min.js"></script>
     <link rel="stylesheet" href="/frontend/styles.css">
 </head>
 <body style="background: #fff; margin: 0; padding: 0;">
     <h1 id="pageTitle" style="display: none;"></h1>
     <p id="lastDataPoint" style="display: none;"></p>
     <span id="currentPrice" style="display: none;"></span>
+    <div
+        id="unitControls"
+        style="display:none; justify-content:flex-end; gap:8px; margin: 12px 16px 0;"
+    >
+        <button
+            id="unitCoinBtn"
+            type="button"
+            style="padding:8px 14px; border-radius:8px; border:1px solid #d9d9d9; background:#ffffff; color:#333333;"
+        >Coin</button>
+        <button
+            id="unitUsdBtn"
+            type="button"
+            style="padding:8px 14px; border-radius:8px; border:1px solid #d9d9d9; background:#ffffff; color:#333333;"
+        >USD</button>
+    </div>
+    <div
+        id="loadError"
+        style="display:none; margin: 16px; padding: 12px 16px; background:#fff1f0; color:#a8071a; border:1px solid #ffa39e; border-radius:8px; font: 14px/1.4 Arial, sans-serif;"
+    ></div>
+    <div
+        id="variantBadge"
+        style="display:none; margin: 12px 16px 0; font: 12px/1.3 Arial, sans-serif; color:#7a4d00; background:#fff7e6; border:1px solid #ffd591; padding:8px 10px; border-radius:8px;"
+    ></div>
     <div id="liquidation-map" style="width: 100%; height: 600px;"></div>
 
     <script>
@@ -38,8 +61,18 @@
         // Parse params from Coinank-style path OR query string (backward compat)
         // Path: /chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}
         const _pathParts = window.location.pathname.split('/');
-        const _isCoinankPath = _pathParts[1] === 'chart' && _pathParts[3] === 'liq-map';
+        const _liqMapRouteName = _pathParts[3] || '';
+        const _isCoinankPath = _pathParts[1] === 'chart' && (_liqMapRouteName === 'liq-map' || _liqMapRouteName === 'liq-map-v2');
         const _TIMEFRAME_DAYS = { '1d': 1, '1w': 7 };
+
+        function getLiqMapVariant() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicit = (urlParams.get('variant') || '').toLowerCase();
+            if (explicit) {
+                return explicit;
+            }
+            return _liqMapRouteName === 'liq-map-v2' ? 'v2' : 'v1';
+        }
 
         function getSymbol() {
             if (_isCoinankPath && _pathParts[5]) return _pathParts[5].toUpperCase();
@@ -74,6 +107,14 @@
             return days === 1 ? '1D' : '1W';
         }
 
+        function getBaseAssetSymbol(symbol) {
+            return symbol.replace(/USDT$/i, '');
+        }
+
+        function getUnitMode() {
+            return getExchange() === 'hyperliquid' ? 'coin' : 'usd';
+        }
+
         function getExplicitProfile() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('profile');
@@ -92,6 +133,48 @@
                 return 'rektslug-ank-public';
             }
             return null;
+        }
+
+        function showFatalError(message) {
+            const errorBox = document.getElementById('loadError');
+            const chart = document.getElementById('liquidation-map');
+            errorBox.textContent = message;
+            errorBox.style.display = 'block';
+            chart.innerHTML = '';
+        }
+
+        function updateVariantBadge() {
+            const badge = document.getElementById('variantBadge');
+            const variant = getLiqMapVariant();
+            if (variant !== 'v2') {
+                badge.style.display = 'none';
+                return;
+            }
+            badge.textContent = 'Experimental liq-map v2: audit/testing variant. The primary liq-map remains unchanged.';
+            badge.style.display = 'block';
+        }
+
+        function updateUnitButtons(unitMode) {
+            const controls = document.getElementById('unitControls');
+            if (getExchange() === 'hyperliquid') {
+                controls.style.display = 'none';
+                return;
+            }
+            controls.style.display = 'flex';
+            const activeStyle = {
+                background: '#111111',
+                color: '#ffffff',
+                borderColor: '#111111'
+            };
+            const inactiveStyle = {
+                background: '#ffffff',
+                color: '#333333',
+                borderColor: '#d9d9d9'
+            };
+            const coinBtn = document.getElementById('unitCoinBtn');
+            const usdBtn = document.getElementById('unitUsdBtn');
+            Object.assign(coinBtn.style, unitMode === 'coin' ? activeStyle : inactiveStyle);
+            Object.assign(usdBtn.style, unitMode === 'usd' ? activeStyle : inactiveStyle);
         }
 
         function getLeverageGroups(profileName, liquidations) {
@@ -186,6 +269,82 @@
             return { prices, values };
         }
 
+        function enrichBuckets(liquidations) {
+            return liquidations.map(liq => {
+                const price = Number(liq.price_level);
+                const usdVolume = Number(liq.volume);
+                const coinVolume = price > 0 ? usdVolume / price : 0;
+                return {
+                    price_level: price,
+                    leverage: liq.leverage,
+                    volume: usdVolume,
+                    volume_usd: usdVolume,
+                    volume_coin: coinVolume,
+                };
+            });
+        }
+
+        function getBucketValue(liq, unitMode) {
+            return unitMode === 'coin' ? liq.volume_coin : liq.volume_usd;
+        }
+
+        function buildCumulativeSeries(liquidations, currentPrice, unitMode, isLong = false) {
+            const volumeMap = new Map();
+            const usdMap = new Map();
+            const coinMap = new Map();
+            liquidations.forEach(liq => {
+                const price = Number(liq.price_level);
+                volumeMap.set(price, (volumeMap.get(price) || 0) + getBucketValue(liq, unitMode));
+                usdMap.set(price, (usdMap.get(price) || 0) + liq.volume_usd);
+                coinMap.set(price, (coinMap.get(price) || 0) + liq.volume_coin);
+            });
+
+            const sortedPrices = [...volumeMap.keys()].sort((a, b) => a - b);
+            if (isLong) {
+                const relevantPrices = sortedPrices.filter(price => price < currentPrice);
+                const cumulativeByPrice = new Map();
+                const cumulativeUsdByPrice = new Map();
+                const cumulativeCoinByPrice = new Map();
+                let cumulativeSum = 0;
+                let cumulativeUsd = 0;
+                let cumulativeCoin = 0;
+                for (let i = relevantPrices.length - 1; i >= 0; i--) {
+                    const price = relevantPrices[i];
+                    cumulativeSum += volumeMap.get(price) || 0;
+                    cumulativeUsd += usdMap.get(price) || 0;
+                    cumulativeCoin += coinMap.get(price) || 0;
+                    cumulativeByPrice.set(price, cumulativeSum);
+                    cumulativeUsdByPrice.set(price, cumulativeUsd);
+                    cumulativeCoinByPrice.set(price, cumulativeCoin);
+                }
+                return {
+                    prices: [...relevantPrices, currentPrice],
+                    values: [...relevantPrices.map(price => cumulativeByPrice.get(price) || 0), 0],
+                    usdValues: [...relevantPrices.map(price => cumulativeUsdByPrice.get(price) || 0), 0],
+                    coinValues: [...relevantPrices.map(price => cumulativeCoinByPrice.get(price) || 0), 0],
+                };
+            }
+
+            const relevantPrices = sortedPrices.filter(price => price > currentPrice);
+            const prices = [currentPrice];
+            const values = [0];
+            const usdValues = [0];
+            const coinValues = [0];
+            let cumulativeSum = 0;
+            let cumulativeUsd = 0;
+            let cumulativeCoin = 0;
+            for (const price of relevantPrices) {
+                cumulativeSum += volumeMap.get(price) || 0;
+                cumulativeUsd += usdMap.get(price) || 0;
+                cumulativeCoin += coinMap.get(price) || 0;
+                prices.push(price);
+                values.push(cumulativeSum);
+                usdValues.push(cumulativeUsd);
+                coinValues.push(cumulativeCoin);
+            }
+            return { prices, values, usdValues, coinValues };
+        }
+
         function normalizeLegacyLevelsPayload(data, timeframeDays) {
             const currentPrice = Number(data.current_price);
             const longBuckets = data.long_liquidations.map(liq => ({
@@ -246,6 +405,15 @@
                 `${displaySymbol} Liquidation Map - ${timeframeLabel} (${exchangeLabel})`;
             document.title = `${displaySymbol} Liquidation Map - ${timeframeTitle} (${exchangeLabel})`;
             window.__liqMapLoadError = null;
+            document.getElementById('loadError').style.display = 'none';
+            updateVariantBadge();
+
+            if (typeof window.Plotly === 'undefined') {
+                const message = 'Plotly failed to load from local assets. The chart cannot render.';
+                window.__liqMapLoadError = message;
+                showFatalError(message);
+                return;
+            }
 
             try {
                 const isHyperliquid = exchange === 'hyperliquid';
@@ -312,16 +480,19 @@
                 const normalizedData = (isHyperliquid || usePublicBuilder)
                     ? ensureValidPublicMapPayload(data)
                     : normalizeLegacyLevelsPayload(ensureValidLegacyLevelsPayload(data), timeframeDays);
+                window.__liqMapNormalizedData = normalizedData;
+                window.__liqMapSymbol = symbol;
                 renderLiquidationMap(normalizedData, symbol);
             } catch (error) {
                 window.__liqMapLoadError = error.message;
                 document.getElementById('lastDataPoint').textContent = `Error: ${error.message}`;
+                showFatalError(`Liq map load failed: ${error.message}`);
                 console.error('Error loading public liqmap payload:', error);
             }
         }
 
         // Group raw liquidations by the 3 leverage groups, aggregating volumes per price level
-        function groupByLeverageGroups(liquidations, leverageGroups) {
+        function groupByLeverageGroups(liquidations, leverageGroups, unitMode) {
             const grouped = {};
             for (const [groupName, groupDef] of Object.entries(leverageGroups)) {
                 const priceMap = {};
@@ -329,9 +500,16 @@
                     if (groupDef.tiers.includes(liq.leverage)) {
                         const price = liq.price_level;
                         if (!priceMap[price]) {
-                            priceMap[price] = { price_level: price, volume: 0 };
+                            priceMap[price] = {
+                                price_level: price,
+                                volume: 0,
+                                volume_usd: 0,
+                                volume_coin: 0
+                            };
                         }
-                        priceMap[price].volume += parseFloat(liq.volume);
+                        priceMap[price].volume += getBucketValue(liq, unitMode);
+                        priceMap[price].volume_usd += liq.volume_usd;
+                        priceMap[price].volume_coin += liq.volume_coin;
                     }
                 });
                 grouped[groupName] = Object.values(priceMap);
@@ -339,7 +517,15 @@
             return grouped;
         }
 
-        function buildBarTraces(longsGrouped, shortsGrouped, leverageGroups) {
+        function buildBarTraces(
+            longsGrouped,
+            shortsGrouped,
+            leverageGroups,
+            unitMode,
+            baseAsset,
+            longCumulativeMap,
+            shortCumulativeMap
+        ) {
             const traces = [];
 
             // Longs: show in legend (first occurrence of each group)
@@ -349,9 +535,16 @@
                     x: longLevels.map(l => parseFloat(l.price_level)),
                     y: longLevels.map(l => l.volume),
                     type: 'bar',
+                    width: longLevels.map(() => 9.2),
                     name: groupName,
                     marker: { color: groupDef.color, opacity: 0.6 },
-                    hovertemplate: `Price: %{x}<br>Volume: %{y:.2f}<br>${groupName}<extra></extra>`,
+                    customdata: longLevels.map(l => [
+                        l.volume_usd,
+                        l.volume_coin,
+                        longCumulativeMap.usd.get(l.price_level) || 0,
+                        longCumulativeMap.coin.get(l.price_level) || 0,
+                    ]),
+                    hoverinfo: 'skip',
                     legendgroup: groupName,
                     showlegend: true,
                     yaxis: 'y'
@@ -365,9 +558,16 @@
                     x: shortLevels.map(l => parseFloat(l.price_level)),
                     y: shortLevels.map(l => l.volume),
                     type: 'bar',
+                    width: shortLevels.map(() => 9.2),
                     name: groupName,
                     marker: { color: groupDef.color, opacity: 0.6 },
-                    hovertemplate: `Price: %{x}<br>Volume: %{y:.2f}<br>${groupName}<extra></extra>`,
+                    customdata: shortLevels.map(l => [
+                        l.volume_usd,
+                        l.volume_coin,
+                        shortCumulativeMap.usd.get(l.price_level) || 0,
+                        shortCumulativeMap.coin.get(l.price_level) || 0,
+                    ]),
+                    hoverinfo: 'skip',
                     legendgroup: groupName,
                     showlegend: false,
                     yaxis: 'y'
@@ -436,11 +636,200 @@
             return val.toFixed(2);
         }
 
+        function formatAssetValue(val) {
+            const abs = Math.abs(val);
+            if (abs >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+            if (abs >= 1e3) return (val / 1e3).toFixed(2) + 'K';
+            if (abs >= 1) return val.toFixed(2);
+            if (abs >= 0.01) return val.toFixed(3);
+            return val.toFixed(4);
+        }
+
+        function formatCurrentPriceLabel(price, symbol) {
+            return symbol === 'BTCUSDT' ? Math.round(price).toLocaleString() : price.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function buildBarHoverTemplate(unitMode, baseAsset, groupName) {
+            if (unitMode === 'coin') {
+                return `Price: %{x:,.0f}<br>${baseAsset} at level: %{y:,.4f}`
+                    + `<br>Cumulative ${baseAsset}: %{customdata[3]:,.4f}`
+                    + `<br>Nominal: $%{customdata[0]:,.0f}`
+                    + `<br>Cumulative nominal: $%{customdata[2]:,.0f}`
+                    + `<br>${groupName}<extra></extra>`;
+            }
+            return `Price: %{x:,.0f}<br>USD at level: %{y:,.0f}`
+                + `<br>Cumulative USD: %{customdata[2]:,.0f}`
+                + `<br>${baseAsset}: %{customdata[1]:,.4f}`
+                + `<br>Cumulative ${baseAsset}: %{customdata[3]:,.4f}`
+                + `<br>${groupName}<extra></extra>`;
+        }
+
+        function buildCumulativeHoverTemplate(unitMode, baseAsset) {
+            if (unitMode === 'coin') {
+                return `Price: %{x:,.0f}<br>Cumulative ${baseAsset}: %{y:,.4f}`
+                    + `<br>Cumulative nominal: $%{customdata[0]:,.0f}<extra></extra>`;
+            }
+            return `Price: %{x:,.0f}<br>Cumulative USD: %{y:,.0f}`
+                + `<br>Cumulative ${baseAsset}: %{customdata[1]:,.4f}<extra></extra>`;
+        }
+
+        function buildHoverAnchorTrace(buckets, cumulativeMap, unitMode, baseAsset, label, color) {
+            const selectedCumulativeMap = unitMode === 'coin' ? cumulativeMap.coin : cumulativeMap.usd;
+            return {
+                x: buckets.map(bucket => bucket.price_level),
+                y: buckets.map(bucket => selectedCumulativeMap.get(bucket.price_level) || 0),
+                customdata: buckets.map(bucket => [
+                    bucket.volume_usd,
+                    bucket.volume_coin,
+                    cumulativeMap.usd
+                        ? cumulativeMap.usd.get(bucket.price_level) || 0
+                        : 0,
+                    cumulativeMap.coin
+                        ? cumulativeMap.coin.get(bucket.price_level) || 0
+                        : 0,
+                ]),
+                type: 'scatter',
+                mode: 'markers',
+                name: label,
+                marker: {
+                    size: 18,
+                    color,
+                    opacity: 0.001,
+                    symbol: 'circle'
+                },
+                hovertemplate: buildBarHoverTemplate(unitMode, baseAsset, label),
+                showlegend: false,
+                yaxis: 'y2'
+            };
+        }
+
+        function buildSnapUpperBounds(sortedPrices) {
+            if (!Array.isArray(sortedPrices) || sortedPrices.length === 0) {
+                return [];
+            }
+            const upperBounds = [];
+            for (let i = 0; i < sortedPrices.length - 1; i++) {
+                upperBounds.push((sortedPrices[i] + sortedPrices[i + 1]) / 2);
+            }
+            upperBounds.push(Number.POSITIVE_INFINITY);
+            return upperBounds;
+        }
+
+        function findSnappedIndex(sortedPrices, upperBounds, targetPrice) {
+            if (!Array.isArray(sortedPrices) || sortedPrices.length === 0) {
+                return -1;
+            }
+            let low = 0;
+            let high = upperBounds.length - 1;
+            while (low < high) {
+                const mid = Math.floor((low + high) / 2);
+                if (targetPrice <= upperBounds[mid]) {
+                    high = mid;
+                } else {
+                    low = mid + 1;
+                }
+            }
+            return low;
+        }
+
+        function bindMagneticHover(
+            gd,
+            currentPrice,
+            longHoverBuckets,
+            shortHoverBuckets,
+            longAnchorCurveNumber,
+            shortAnchorCurveNumber
+        ) {
+            if (gd.__liqMapMouseMoveHandler) {
+                gd.removeEventListener('mousemove', gd.__liqMapMouseMoveHandler);
+            }
+            if (gd.__liqMapMouseLeaveHandler) {
+                gd.removeEventListener('mouseleave', gd.__liqMapMouseLeaveHandler);
+            }
+
+            let rafPending = false;
+            let lastClientX = null;
+            let lastHoverKey = null;
+            const longPrices = longHoverBuckets.map(bucket => bucket.price_level);
+            const shortPrices = shortHoverBuckets.map(bucket => bucket.price_level);
+            const longUpperBounds = buildSnapUpperBounds(longPrices);
+            const shortUpperBounds = buildSnapUpperBounds(shortPrices);
+
+            const moveHandler = (event) => {
+                lastClientX = event.clientX;
+                if (rafPending) {
+                    return;
+                }
+                rafPending = true;
+                window.requestAnimationFrame(() => {
+                    rafPending = false;
+                    const xAxis = gd._fullLayout.xaxis;
+                    if (!xAxis) {
+                        return;
+                    }
+                    const rect = gd.getBoundingClientRect();
+                    const xPx = lastClientX - rect.left;
+                    const plotLeft = xAxis._offset;
+                    const plotRight = xAxis._offset + xAxis._length;
+                    if (xPx < plotLeft || xPx > plotRight) {
+                        Plotly.Fx.unhover(gd);
+                        lastHoverKey = null;
+                        return;
+                    }
+
+                    const xMin = Number(xAxis.range[0]);
+                    const xMax = Number(xAxis.range[1]);
+                    const mousePrice = xMin + ((xPx - plotLeft) / xAxis._length) * (xMax - xMin);
+                    const useShortSide = mousePrice >= currentPrice;
+                    const targetBuckets = useShortSide ? shortHoverBuckets : longHoverBuckets;
+                    const targetPrices = useShortSide ? shortPrices : longPrices;
+                    const targetUpperBounds = useShortSide ? shortUpperBounds : longUpperBounds;
+                    if (!targetBuckets.length) {
+                        Plotly.Fx.unhover(gd);
+                        lastHoverKey = null;
+                        return;
+                    }
+
+                    const snappedIndex = findSnappedIndex(targetPrices, targetUpperBounds, mousePrice);
+                    if (snappedIndex < 0) {
+                        Plotly.Fx.unhover(gd);
+                        lastHoverKey = null;
+                        return;
+                    }
+
+                    const curveNumber = useShortSide ? shortAnchorCurveNumber : longAnchorCurveNumber;
+                    const hoverKey = `${curveNumber}:${snappedIndex}`;
+                    if (hoverKey === lastHoverKey) {
+                        return;
+                    }
+                    lastHoverKey = hoverKey;
+                    Plotly.Fx.hover(gd, [{ curveNumber, pointNumber: snappedIndex }], ['xy']);
+                });
+            };
+
+            const leaveHandler = () => {
+                lastHoverKey = null;
+                Plotly.Fx.unhover(gd);
+            };
+
+            gd.__liqMapMouseMoveHandler = moveHandler;
+            gd.__liqMapMouseLeaveHandler = leaveHandler;
+            gd.addEventListener('mousemove', moveHandler);
+            gd.addEventListener('mouseleave', leaveHandler);
+        }
+
         function renderLiquidationMap(data, symbol) {
             const currentPrice = Number(data.current_price);
             const profileName = getProfile();
+            const unitMode = getUnitMode();
+            const baseAsset = getBaseAssetSymbol(symbol);
+            const isHyperliquid = getExchange() === 'hyperliquid';
             document.getElementById('currentPrice').textContent = String(currentPrice);
             window.__liqMapLoadError = null;
+            updateUnitButtons(unitMode);
 
             // Show last data point timestamp (hidden DOM element, kept for compatibility)
             const lastTs = data.last_data_timestamp || new Date().toISOString();
@@ -449,28 +838,68 @@
                 `Last data: ${lastDate.toISOString().replace('T', ' ').substring(0, 19)} UTC`;
 
             // Group by 3 leverage groups
+            const longBuckets = enrichBuckets(data.long_buckets);
+            const shortBuckets = enrichBuckets(data.short_buckets);
             const leverageGroups = getLeverageGroups(
                 profileName,
-                [...data.long_buckets, ...data.short_buckets],
+                [...longBuckets, ...shortBuckets],
             );
-            const longsGrouped = groupByLeverageGroups(data.long_buckets, leverageGroups);
-            const shortsGrouped = groupByLeverageGroups(data.short_buckets, leverageGroups);
-
-            let traces = buildBarTraces(longsGrouped, shortsGrouped, leverageGroups);
-
-            const cumulativeLong = {
-                prices: data.cumulative_long.map(point => Number(point.price_level)),
-                values: data.cumulative_long.map(point => Number(point.value)),
+            const longHoverBuckets = [...longBuckets].sort((a, b) => a.price_level - b.price_level);
+            const shortHoverBuckets = [...shortBuckets].sort((a, b) => a.price_level - b.price_level);
+            const longsGrouped = groupByLeverageGroups(longBuckets, leverageGroups, unitMode);
+            const shortsGrouped = groupByLeverageGroups(shortBuckets, leverageGroups, unitMode);
+            const cumulativeLong = buildCumulativeSeries(longBuckets, currentPrice, unitMode, true);
+            const cumulativeShort = buildCumulativeSeries(shortBuckets, currentPrice, unitMode, false);
+            const longCumulativeMap = {
+                usd: new Map(cumulativeLong.prices.map((price, index) => [price, cumulativeLong.usdValues[index]])),
+                coin: new Map(cumulativeLong.prices.map((price, index) => [price, cumulativeLong.coinValues[index]])),
             };
-            const cumulativeShort = {
-                prices: data.cumulative_short.map(point => Number(point.price_level)),
-                values: data.cumulative_short.map(point => Number(point.value)),
+            const shortCumulativeMap = {
+                usd: new Map(cumulativeShort.prices.map((price, index) => [price, cumulativeShort.usdValues[index]])),
+                coin: new Map(cumulativeShort.prices.map((price, index) => [price, cumulativeShort.coinValues[index]])),
             };
+
+            let traces = buildBarTraces(
+                longsGrouped,
+                shortsGrouped,
+                leverageGroups,
+                unitMode,
+                baseAsset,
+                longCumulativeMap,
+                shortCumulativeMap
+            );
+
+            const longAnchorCurveNumber = traces.length;
+            traces.push(
+                buildHoverAnchorTrace(
+                    longHoverBuckets,
+                    longCumulativeMap,
+                    unitMode,
+                    baseAsset,
+                    'Long cluster',
+                    '#E8684A'
+                )
+            );
+            const shortAnchorCurveNumber = traces.length;
+            traces.push(
+                buildHoverAnchorTrace(
+                    shortHoverBuckets,
+                    shortCumulativeMap,
+                    unitMode,
+                    baseAsset,
+                    'Short cluster',
+                    '#5AD8A6'
+                )
+            );
 
             // Cumulative Long line with fill (red, descending from right)
             traces.push({
                 x: cumulativeLong.prices,
                 y: cumulativeLong.values,
+                customdata: cumulativeLong.prices.map((_, index) => [
+                    cumulativeLong.usdValues[index],
+                    cumulativeLong.coinValues[index]
+                ]),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'Cumulative Long',
@@ -478,6 +907,7 @@
                 fillcolor: 'rgba(232, 104, 74, 0.12)',
                 line: { color: '#E8684A', width: 2 },
                 showlegend: false,
+                hoverinfo: 'skip',
                 yaxis: 'y2'
             });
 
@@ -485,6 +915,10 @@
             traces.push({
                 x: cumulativeShort.prices,
                 y: cumulativeShort.values,
+                customdata: cumulativeShort.prices.map((_, index) => [
+                    cumulativeShort.usdValues[index],
+                    cumulativeShort.coinValues[index]
+                ]),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'Cumulative Short',
@@ -492,6 +926,7 @@
                 fillcolor: 'rgba(90, 216, 166, 0.12)',
                 line: { color: '#5AD8A6', width: 2 },
                 showlegend: false,
+                hoverinfo: 'skip',
                 yaxis: 'y2'
             });
 
@@ -515,13 +950,21 @@
                     showgrid: false,
                     tickformat: '.0f',
                     range: [xMin, xMax],
-                    rangeslider: { visible: true, thickness: 0.05 }
+                    rangeslider: { visible: true, thickness: 0.05 },
+                    showspikes: true,
+                    spikemode: 'across',
+                    spikesnap: 'cursor',
+                    spikecolor: '#9ca3af',
+                    spikethickness: 1
                 },
                 yaxis: {
                     showgrid: true,
                     gridcolor: '#f0f0f0',
                     side: 'left',
                     rangemode: 'tozero',
+                    title: {
+                        text: unitMode === 'coin' ? `${baseAsset} per level` : 'USD nominal per level'
+                    },
                     tickvals: [],
                     ticktext: []
                 },
@@ -530,6 +973,9 @@
                     side: 'right',
                     showgrid: false,
                     rangemode: 'tozero',
+                    title: {
+                        text: unitMode === 'coin' ? `Cumulative ${baseAsset}` : 'Cumulative USD'
+                    },
                     tickvals: [],
                     ticktext: []
                 },
@@ -547,7 +993,15 @@
                     font: { size: 13 },
                     bgcolor: 'rgba(255,255,255,0)'
                 },
+                uirevision: `${symbol}-${unitMode}`,
+                hoverlabel: {
+                    bgcolor: '#ffffff',
+                    bordercolor: '#d9d9d9',
+                    font: { color: '#222222', size: 12 }
+                },
                 hovermode: 'closest',
+                hoverdistance: 80,
+                spikedistance: -1,
                 margin: { t: 60, b: 40 },
                 // Current price: dashed vertical line (full height)
                 shapes: [{
@@ -578,14 +1032,29 @@
                         y: 1.08,
                         xref: 'x',
                         yref: 'paper',
-                        text: `Current Price: ${Math.round(currentPrice)}`,
+                        text: `Current Price: ${formatCurrentPriceLabel(currentPrice, symbol)}`,
                         showarrow: false,
                         font: { color: '#333', size: 13 }
                     }
                 ]
             };
 
-            Plotly.newPlot('liquidation-map', traces, layout, {responsive: true}).then(gd => {
+            Plotly.react('liquidation-map', traces, layout, {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                scrollZoom: false,
+                modeBarButtonsToRemove: [
+                    'lasso2d',
+                    'select2d',
+                    'zoomIn2d',
+                    'zoomOut2d',
+                    'toggleSpikelines',
+                    'hoverClosestCartesian',
+                    'hoverCompareCartesian',
+                    'toImage'
+                ]
+            }).then(gd => {
                 // Generate custom Y-axis ticks with B/M format after plot renders
                 const yRange = gd._fullLayout.yaxis.range;
                 const y2Range = gd._fullLayout.yaxis2.range;
@@ -597,7 +1066,7 @@
                     for (let i = 0; i <= count; i++) {
                         const v = min + step * i;
                         vals.push(v);
-                        texts.push(formatFinancialValue(v));
+                        texts.push(unitMode === 'coin' ? formatAssetValue(v) : formatFinancialValue(v));
                     }
                     return { tickvals: vals, ticktext: texts };
                 }
@@ -611,6 +1080,15 @@
                     'yaxis2.tickvals': y2Ticks.tickvals,
                     'yaxis2.ticktext': y2Ticks.ticktext
                 });
+
+                bindMagneticHover(
+                    gd,
+                    currentPrice,
+                    longHoverBuckets,
+                    shortHoverBuckets,
+                    longAnchorCurveNumber,
+                    shortAnchorCurveNumber
+                );
             });
         }
 

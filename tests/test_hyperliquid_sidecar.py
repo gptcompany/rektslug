@@ -288,7 +288,7 @@ def test_load_abci_anchor_extracts_user_state(tmp_path):
     expected_user = "0x" + ("01" * 20)
     assert expected_user in state.users
     user1 = state.users[expected_user]
-    assert user1.balance == 5444.084712
+    assert user1.balance == 16444.084712
     assert user1.balance_state_s == 5444.084712
     assert user1.balance_state_r == 5444.084712
     assert user1.extra_fields["D"][0][0] == "2026-03-20"
@@ -505,7 +505,7 @@ def test_load_abci_anchor_skips_malformed_positions_and_defaults_cross_leverage(
     state = reconstructor.load_abci_anchor(anchor_file, target_coin="ETH")
 
     user = state.users["0xmalformed"]
-    assert user.balance == 100.0
+    assert user.balance == 300.0
     assert len(user.positions) == 1
     assert user.positions[0].leverage == 1.0
     assert user.positions[0].entry_px == 200.0
@@ -1179,7 +1179,7 @@ def test_solve_liquidation_price_positive_size():
 
     user_state = UserState(
         user="0xuser",
-        balance=1000.0,
+        balance=-1000.0,
         positions=(UserPosition("ETH", 1, 1.0, 2000.0, 10.0, 0.0, 0.0),),
     )
 
@@ -1191,8 +1191,9 @@ def test_solve_liquidation_price_positive_size():
             1: [{"lower_bound": 0.0, "mmr_rate": 0.025, "maintenance_deduction": 0.0}]
         },
     )
+    # Raw-balance solver:
     # denom = 1.0 * (1 - 0.025) = 0.975
-    # num = 0 - 0 + 2000.0 - 1000.0 = 1000.0
+    # num = 0 - 0 - (-1000.0) = 1000.0
     # liq_px = 1000.0 / 0.975
     assert abs(liq_px - 1025.64) < 1.0
 
@@ -1215,10 +1216,11 @@ def test_solve_liquidation_price_negative_size():
             1: [{"lower_bound": 0.0, "mmr_rate": 0.025, "maintenance_deduction": 0.0}]
         },
     )
+    # Raw-balance solver:
     # denom = -1.0 * (1 + 0.025) = -1.025
-    # num = 0 - 0 + (-1.0 * 2000.0) - 1000.0 = -3000.0
-    # liq_px = -3000.0 / -1.025
-    assert abs(liq_px - 2926.82) < 1.0
+    # num = 0 - 0 - 1000.0 = -1000.0
+    # liq_px = -1000.0 / -1.025
+    assert abs(liq_px - 975.61) < 1.0
 
 
 def test_has_active_positions():
@@ -1600,7 +1602,7 @@ def test_solve_liquidation_price_subtracts_reserved_margin():
     from src.liquidationheatmap.hyperliquid.sidecar import UserState, UserPosition, SidecarPositionReconstructor
     
     pos = UserPosition(coin="ETH", asset_idx=0, size=1.0, entry_px=2000.0, leverage=20.0, cum_funding=0.0, margin=100.0)
-    state = UserState(user="0x123", balance=2000.0, positions=(pos,))
+    state = UserState(user="0x123", balance=-2000.0, positions=(pos,))
     reconstructor = SidecarPositionReconstructor()
     
     marks = {0: 2000.0}

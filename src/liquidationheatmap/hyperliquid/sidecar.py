@@ -644,7 +644,6 @@ class SidecarPositionReconstructor:
                 continue
 
             positions: list[UserPosition] = []
-            position_entries: list[tuple[int, dict]] = []
             has_target = False
 
             for p_item in positions_raw:
@@ -655,7 +654,6 @@ class SidecarPositionReconstructor:
                 if not isinstance(p, dict):
                     continue
 
-                position_entries.append((asset_idx, p))
                 m = asset_meta.get(asset_idx)
                 if not m or not m["name"]:
                     continue
@@ -674,6 +672,12 @@ class SidecarPositionReconstructor:
                 funding_raw = funding_value if isinstance(funding_value, dict) else {}
                 leverage_value = p.get("l", {})
                 leverage_raw = leverage_value if isinstance(leverage_value, dict) else {}
+                isolated_raw = leverage_raw.get("I")
+                leverage = 1.0
+                if "C" in leverage_raw:
+                    leverage = float(leverage_raw["C"])
+                elif isinstance(isolated_raw, dict) and "l" in isolated_raw:
+                    leverage = float(isolated_raw["l"])
                 position_extras = {
                     key: value for key, value in p.items() if key not in {"s", "e", "M", "l", "f"}
                 }
@@ -684,7 +688,7 @@ class SidecarPositionReconstructor:
                     size=size_scaled,
                     entry_px=entry_px,
                     margin=float(p.get("M", 0)),
-                    leverage=float(leverage_raw.get("C", 1.0)),
+                    leverage=leverage,
                     cum_funding=float(funding_raw.get("a", 0)) / USDC_SCALE,
                     cum_funding_open=(
                         float(funding_raw.get("o", 0)) / USDC_SCALE if "o" in funding_raw else None
@@ -701,9 +705,9 @@ class SidecarPositionReconstructor:
             if not positions:
                 continue
 
-            u_raw = float(state.get("u", 0))
-            sum_e_raw = sum(float(position.get("e", 0)) for _, position in position_entries)
-            balance_raw = u_raw - sum_e_raw
+            # ABCI `u` already matches the API `crossMarginSummary.totalRawUsd` field.
+            # It is a raw USD balance, so subtracting position costs again double-counts them.
+            balance_raw = float(state.get("u", 0))
             s_value = state.get("S", {})
             s_state = s_value if isinstance(s_value, dict) else {}
             state_extras = {
@@ -1637,12 +1641,16 @@ class SidecarPositionReconstructor:
         asset_margin_tiers: dict[int, list[dict]],
         reserved_margin: float = 0.0,
     ) -> float | None:
-        """Solve the cross-margin liquidation price for a target coin."""
+        """Solve the cross-margin liquidation price for a target coin.
+
+        `user_state.balance` is the raw USD balance component (`u` / `totalRawUsd`), so
+        account equity varies with signed position notionals, not with `(P - entry)` PnL.
+        """
         target_pos = next((p for p in user_state.positions if p.coin == target_coin), None)
         if not target_pos or target_pos.size == 0:
             return None
 
-        other_pnl = 0.0
+        other_signed_notional = 0.0
         other_mmr = 0.0
 
         for p in user_state.positions:
@@ -1650,14 +1658,13 @@ class SidecarPositionReconstructor:
                 continue
 
             mark = mark_prices.get(p.asset_idx, p.entry_px)
-            other_pnl += p.size * (mark - p.entry_px)
+            other_signed_notional += p.size * mark
             other_mmr += self.compute_position_maintenance_margin(
                 p,
                 mark_prices,
                 asset_margin_tiers,
             )
 
-        # balance already reflects all past funding (stored as (u - sum(e)) / scale)
         balance = user_state.balance
         target_mark = mark_prices.get(target_pos.asset_idx, target_pos.entry_px)
         target_notional = abs(target_pos.size) * target_mark
@@ -1667,19 +1674,16 @@ class SidecarPositionReconstructor:
         mmr_rate = target_tier["mmr_rate"]
         m_deduct = target_tier["maintenance_deduction"]
 
-        # Cross-margin: equity = balance + other_pnl + target_size*(P - entry) = total_mmr
-        account_base = balance + other_pnl - reserved_margin
+        # Cross-margin with raw USD balance:
+        # equity(P) = balance + other_signed_notional + target_size * P
+        #          = other_mmr + target_mmr(P)
+        account_base = balance + other_signed_notional - reserved_margin
 
         if target_pos.size > 0:
             denom = target_pos.size * (1.0 - mmr_rate)
-            numerator = (
-                other_mmr - m_deduct + (target_pos.size * target_pos.entry_px) - account_base
-            )
         else:
             denom = target_pos.size * (1.0 + mmr_rate)
-            numerator = (
-                other_mmr - m_deduct + (target_pos.size * target_pos.entry_px) - account_base
-            )
+        numerator = other_mmr - m_deduct - account_base
 
         if abs(denom) < 1e-9:
             return 0.0

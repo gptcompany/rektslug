@@ -65,6 +65,7 @@ app = FastAPI(
 )
 
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+app.mount("/node_modules", StaticFiles(directory="node_modules"), name="node_modules")
 
 # CORS
 app.add_middleware(
@@ -148,6 +149,31 @@ async def liq_map_1w_symbol(symbol: str):
 @app.get("/chart/derivatives/liq-map/{exchange}/{symbol}/{timeframe}", tags=["UI"])
 async def liq_map_coinank_style(exchange: str, symbol: str, timeframe: str):
     """Serve the liq-map page directly at the Coinank-style route."""
+    normalized_exchange = exchange.lower()
+    if normalized_exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid exchange '{exchange}'. Supported exchanges: {sorted(SUPPORTED_EXCHANGES)}"
+            ),
+        )
+
+    normalized_timeframe = timeframe.lower()
+    if normalized_timeframe not in LIQ_MAP_TIMEFRAME_TO_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid timeframe '{timeframe}'. "
+                f"Supported liq-map timeframes: {sorted(LIQ_MAP_TIMEFRAME_TO_DAYS)}"
+            ),
+        )
+
+    return FileResponse("frontend/liq_map_1w.html")
+
+
+@app.get("/chart/derivatives/liq-map-v2/{exchange}/{symbol}/{timeframe}", tags=["UI"])
+async def liq_map_coinank_style_v2(exchange: str, symbol: str, timeframe: str):
+    """Serve an experimental liq-map v2 route without replacing the current UI."""
     normalized_exchange = exchange.lower()
     if normalized_exchange not in SUPPORTED_EXCHANGES:
         raise HTTPException(
