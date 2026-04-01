@@ -10,6 +10,7 @@ import scripts.precompute_hl_sidecar as precompute
 from src.liquidationheatmap.hyperliquid.models import (
     AccountAbstraction,
     ApiPosition,
+    AssetMetaSnapshot,
     ClearinghouseUserState,
     CrossMarginSummary,
     Leverage,
@@ -211,6 +212,44 @@ def test_select_top_target_users_per_side_mode_balances_long_and_short() -> None
     assert selected == ["0xlong1", "0xlong2", "0xshort1", "0xshort2"]
 
 
+def test_asset_meta_tables_use_mark_price_overrides_when_contexts_missing() -> None:
+    meta = AssetMetaSnapshot.from_api(
+        {
+            "universe": [
+                {
+                    "name": "BTC",
+                    "szDecimals": 5,
+                    "maxLeverage": 40,
+                    "onlyIsolated": False,
+                    "marginTableId": 56,
+                }
+            ],
+            "marginTables": [
+                [
+                    56,
+                    {
+                        "description": "tiered 40x",
+                        "marginTiers": [
+                            {"lowerBound": "0.0", "maxLeverage": 40},
+                            {"lowerBound": "150000000.0", "maxLeverage": 20},
+                        ],
+                    },
+                ]
+            ],
+        }
+    )
+
+    coin_to_asset_idx, mark_prices, margin_tiers = precompute._asset_meta_tables(
+        meta,
+        mark_price_overrides={0: 69000.0},
+    )
+
+    assert coin_to_asset_idx == {"BTC": 0}
+    assert mark_prices == {0: 69000.0}
+    assert 0 in margin_tiers
+    assert margin_tiers[0][0]["lower_bound"] == 150000000.0
+
+
 @pytest.mark.asyncio
 async def test_build_live_overrides_uses_cache_without_network(
     monkeypatch: pytest.MonkeyPatch,
@@ -272,7 +311,7 @@ async def test_build_live_overrides_fetches_in_configured_batches_and_saves_cach
         def __init__(self, *args, **kwargs):
             self.base_urls = ["http://localhost:3001/info"]
 
-        async def get_asset_meta(self):
+        async def get_asset_meta(self, *, include_asset_contexts: bool = True):
             class _Meta:
                 universe = [
                     type(

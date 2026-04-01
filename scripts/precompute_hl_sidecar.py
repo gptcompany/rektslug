@@ -727,6 +727,8 @@ def _build_public_payload(
 
 def _asset_meta_tables(
     meta: AssetMetaSnapshot,
+    *,
+    mark_price_overrides: dict[int, float] | None = None,
 ) -> tuple[dict[str, int], dict[int, float], dict[int, list[dict]]]:
     coin_to_asset_idx: dict[str, int] = {}
     mark_prices: dict[int, float] = {}
@@ -736,6 +738,8 @@ def _asset_meta_tables(
         coin_to_asset_idx[asset.name] = idx
         if idx < len(meta.assetContexts):
             mark_prices[idx] = meta.assetContexts[idx].markPx
+        elif mark_price_overrides and idx in mark_price_overrides:
+            mark_prices[idx] = mark_price_overrides[idx]
         if asset.marginTableId in meta.margin_tables:
             asset_margin_tiers[idx] = [
                 {
@@ -1009,10 +1013,13 @@ async def _build_live_overrides(
         )
 
     meta, reserve_states = await asyncio.gather(
-        client.get_asset_meta(),
+        client.get_asset_meta(include_asset_contexts=False),
         client.get_all_borrow_lend_reserve_states(),
     )
-    coin_to_asset_idx, live_mark_prices, live_asset_margin_tiers = _asset_meta_tables(meta)
+    coin_to_asset_idx, live_mark_prices, live_asset_margin_tiers = _asset_meta_tables(
+        meta,
+        mark_price_overrides=state.mark_prices,
+    )
     total_batches = math.ceil(len(users_to_fetch) / LIVE_ENRICH_BATCH_SIZE)
 
     for batch_index, batch in enumerate(_chunked(users_to_fetch, LIVE_ENRICH_BATCH_SIZE), start=1):

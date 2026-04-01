@@ -356,10 +356,17 @@ class AssetMetaSnapshot:
     margin_tables: dict[int, list[MarginTier]] = field(default_factory=dict)
 
     @classmethod
-    def from_api(cls, payload: list) -> "AssetMetaSnapshot":
-        meta = payload[0] if payload else {}
+    def from_api(cls, payload: list | dict) -> "AssetMetaSnapshot":
+        if isinstance(payload, dict):
+            meta = payload
+            asset_contexts = []
+        else:
+            meta = payload[0] if payload else {}
+            asset_contexts = payload[1] if len(payload) > 1 else []
+
+        if not isinstance(meta, dict):
+            meta = {}
         universe_raw = meta.get("universe", [])
-        asset_contexts = payload[1] if len(payload) > 1 else []
 
         margin_tables_raw = meta.get("marginTableIdToMarginTable")
         if margin_tables_raw is None:

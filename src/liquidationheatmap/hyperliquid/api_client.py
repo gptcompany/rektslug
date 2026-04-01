@@ -251,9 +251,10 @@ class HyperliquidInfoClient:
             reserve_states[int(item[0])] = BorrowLendReserveState.from_api(item[1])
         return reserve_states
 
-    async def get_asset_meta(self) -> AssetMetaSnapshot:
-        """Get asset metadata and context."""
-        payload = await self._post({"type": "metaAndAssetCtxs"})
+    async def get_asset_meta(self, *, include_asset_contexts: bool = True) -> AssetMetaSnapshot:
+        """Get asset metadata, optionally including live asset contexts."""
+        payload_type = "metaAndAssetCtxs" if include_asset_contexts else "meta"
+        payload = await self._post({"type": payload_type})
         return AssetMetaSnapshot.from_api(payload)
 
     async def _fetch_batch(

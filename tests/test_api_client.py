@@ -367,6 +367,28 @@ async def test_get_asset_meta_returns_tiers():
 
 
 @pytest.mark.asyncio
+async def test_get_asset_meta_without_contexts_uses_meta_payload():
+    client = HyperliquidInfoClient()
+    mock_response = {
+        "universe": [
+            {"name": "BTC", "szDecimals": 5, "maxLeverage": 50, "onlyIsolated": False}
+        ],
+        "marginTables": [],
+    }
+
+    with patch("aiohttp.ClientSession.post") as mock_post:
+        configure_json_response(mock_post, mock_response)
+
+        result = await client.get_asset_meta(include_asset_contexts=False)
+
+        assert isinstance(result, AssetMetaSnapshot)
+        assert result.universe[0].name == "BTC"
+        assert result.assetContexts == []
+        _, kwargs = mock_post.call_args
+        assert kwargs["json"] == {"type": "meta"}
+
+
+@pytest.mark.asyncio
 async def test_get_asset_meta_parses_live_margin_tables_format():
     client = HyperliquidInfoClient()
     mock_response = [
