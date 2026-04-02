@@ -44,6 +44,11 @@ RAW_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
 DEFAULT_OUTPUT_DIR = Path("data/validation/provider_comparisons")
 DEFAULT_COMPARISON_DB_PATH = Path(VALIDATION_DB_PATH)
 COINGLASS_DECODER_SCRIPT = REPO_ROOT / "scripts" / "coinglass_decode_payload.js"
+COINGLASS_STATIC_SEED_SOURCES = {
+    "55": "170b070da9654622",
+    "66": "d6537d845a964081",
+    "77": "863f08689c97435b",
+}
 
 LONG_VALUE_KEYS = (
     "long_value",
@@ -462,13 +467,15 @@ def derive_coinglass_seed_key(capture: CaptureFile) -> tuple[str | None, str]:
         seed_source = capture.response_headers.get("time")
         if not seed_source:
             return None, "Coinglass `v=2` requires response header `time`, but it was not captured."
+    elif version in COINGLASS_STATIC_SEED_SOURCES:
+        seed_source = COINGLASS_STATIC_SEED_SOURCES[version]
     else:
         seed_source = urlparse(capture.source_url).path
         if not seed_source:
             return None, "Coinglass path-based seed derivation failed."
 
     derived = base64.b64encode(seed_source.encode("utf-8")).decode("ascii")[:16]
-    return derived, f"Derived seed key from Coinglass header/path flow (v={version})."
+    return derived, f"Derived seed key from Coinglass version-aware flow (v={version})."
 
 
 def decode_coinglass_json_payload(

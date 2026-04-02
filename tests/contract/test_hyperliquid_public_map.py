@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
@@ -141,6 +142,71 @@ def test_hl_public_map_internal_top_positions_variant_returns_v3_cache(
     data = response.json()
     assert data["source"] == "hyperliquid-sidecar-top-positions"
     assert data["account_count"] == 17
+
+
+def test_coinglass_builder_falls_back_to_last_decodable_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    target_url = "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+    latest_capture_dir = tmp_path / "20260402T082851Z"
+    older_capture_dir = tmp_path / "20260401T160752Z"
+
+    for capture_dir in (latest_capture_dir, older_capture_dir):
+        capture_dir.mkdir(parents=True)
+        (capture_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "providers": [
+                        {
+                            "captures": [
+                                {
+                                    "source_url": target_url,
+                                    "saved_file": "coinglass/12_liqmap.json",
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    calls: list[str] = []
+
+    def fake_decode(capture_dir: Path, symbol: str) -> dict:
+        calls.append(capture_dir.name)
+        if capture_dir == latest_capture_dir:
+            raise HTTPException(status_code=503, detail="CoinGlass decode failed: empty result")
+        assert symbol == "BTC"
+        return {
+            "price": 70123.0,
+            "list": [
+                {
+                    "liquidationPrice": 69000.0,
+                    "positionUsd": 250000.0,
+                    "size": 1.0,
+                    "userId": "abc",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(liquidations, "_CG_CAPTURE_ROOT", tmp_path)
+    monkeypatch.setattr(liquidations, "_decode_coinglass_top_position_capture", fake_decode)
+
+    response = liquidations._build_coinglass_top_position_response(
+        symbol="BTCUSDT",
+        timeframe="1w",
+        base_cache=_base_cache_payload(),
+    )
+
+    assert calls == ["20260402T082851Z", "20260401T160752Z"]
+    assert response["source_anchor"] == str(older_capture_dir)
+    assert response["current_price"] == 70123.0
+    assert response["account_count"] == 1
+    assert response["long_buckets"] == [
+        {"price_level": 69000.0, "leverage": "cross", "volume": 250000.0}
+    ]
 
 
 def test_hl_public_map_rejects_unknown_variant(client: TestClient) -> None:

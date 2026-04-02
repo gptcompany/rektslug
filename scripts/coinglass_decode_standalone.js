@@ -15,6 +15,12 @@ const path = require("path");
 const CryptoJS = require("crypto-js");
 const pako = require("pako");
 
+const STATIC_SEED_SOURCES = {
+  "55": "170b070da9654622",
+  "66": "d6537d845a964081",
+  "77": "863f08689c97435b",
+};
+
 function parseArgs(argv) {
   const parsed = { summary: "", ciphertextFile: "", user: "", time: "" };
   for (let i = 0; i < argv.length; i++) {
@@ -75,13 +81,40 @@ function selectSummaryCapture(summary) {
   return liqMapCaptures[0] || encrypted[0] || captures[0];
 }
 
+function resolveCaptureSeedSource(capture) {
+  const version = String(capture?.response_headers?.v || capture?.request_headers?.v || "");
+  if (!version) {
+    return (
+      capture?.response_headers?.time ||
+      capture?.request_headers?.time ||
+      capture?.request_headers?.["cache-ts-v2"] ||
+      ""
+    );
+  }
+  if (version === "0") {
+    return capture?.request_headers?.["cache-ts-v2"] || "";
+  }
+  if (version === "2") {
+    return capture?.response_headers?.time || capture?.request_headers?.time || "";
+  }
+  if (STATIC_SEED_SOURCES[version]) {
+    return STATIC_SEED_SOURCES[version];
+  }
+
+  try {
+    const sourceUrl = String(capture?.source_url || "");
+    if (sourceUrl) {
+      return new URL(sourceUrl).pathname || "";
+    }
+  } catch (_error) {
+    // Fall back to empty string below.
+  }
+
+  return "";
+}
+
 function resolveCaptureTime(capture) {
-  return (
-    capture?.response_headers?.time ||
-    capture?.request_headers?.time ||
-    capture?.request_headers?.["cache-ts-v2"] ||
-    ""
-  );
+  return resolveCaptureSeedSource(capture);
 }
 
 function resolveSavedFile(summaryPath, savedFile) {
@@ -104,7 +137,7 @@ function main() {
     }
 
     userHeader = capture.response_headers?.user;
-    timeHeader = resolveCaptureTime(capture);
+    timeHeader = resolveCaptureSeedSource(capture);
     const dataFile = resolveSavedFile(args.summary, capture.saved_file);
     const payload = JSON.parse(fs.readFileSync(dataFile, "utf8"));
     ciphertext = payload.data;
@@ -147,6 +180,7 @@ module.exports = {
   decrypt,
   deriveKey,
   parseArgs,
+  resolveCaptureSeedSource,
   resolveCaptureTime,
   resolveSavedFile,
   selectSummaryCapture,

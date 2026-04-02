@@ -809,9 +809,16 @@ def _hl_build_cumulative_series(
 
 
 def _find_latest_coinglass_capture_dir(symbol: str) -> Path | None:
+    candidates = _iter_coinglass_capture_dirs(symbol)
+    return candidates[0] if candidates else None
+
+
+def _iter_coinglass_capture_dirs(symbol: str) -> list[Path]:
     if not _CG_CAPTURE_ROOT.exists():
-        return None
+        return []
+
     target_url = f"hyperliquid/topPosition/liqMap?symbol={symbol}"
+    matches: list[Path] = []
     for candidate in sorted(_CG_CAPTURE_ROOT.iterdir(), reverse=True):
         manifest_path = candidate / "manifest.json"
         if not manifest_path.exists():
@@ -823,8 +830,12 @@ def _find_latest_coinglass_capture_dir(symbol: str) -> Path | None:
         for provider in manifest.get("providers", []):
             for capture in provider.get("captures", []):
                 if target_url in capture.get("source_url", ""):
-                    return candidate
-    return None
+                    matches.append(candidate)
+                    break
+            else:
+                continue
+            break
+    return matches
 
 
 def _decode_coinglass_top_position_capture(capture_dir: Path, symbol: str) -> dict[str, Any]:
@@ -852,20 +863,27 @@ def _decode_coinglass_top_position_capture(capture_dir: Path, symbol: str) -> di
 
     decode_script = Path("scripts/coinglass_decode_standalone.js")
     try:
-        result = subprocess.run(
-            ["node", str(decode_script), "--summary", tmp_path],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                ["node", str(decode_script), "--summary", tmp_path],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="CoinGlass decoder requires a local 'node' binary in PATH.",
+            ) from exc
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
     if result.returncode != 0:
+        error_hint = (result.stderr or result.stdout or "").strip()[:200]
         raise HTTPException(
             status_code=503,
-            detail=f"CoinGlass decode failed: {result.stderr[:200]}",
+            detail=f"CoinGlass decode failed: {error_hint or 'decoder exited non-zero'}",
         )
 
     try:
@@ -877,19 +895,45 @@ def _decode_coinglass_top_position_capture(capture_dir: Path, symbol: str) -> di
         ) from exc
 
 
-def _build_coinglass_top_position_response(
+def _load_latest_decodable_coinglass_top_position_capture(
     symbol: str,
-    timeframe: str,
-    base_cache: dict[str, Any],
-) -> dict[str, Any]:
-    capture_dir = _find_latest_coinglass_capture_dir(symbol.replace("USDT", ""))
-    if capture_dir is None:
+) -> tuple[Path, dict[str, Any]]:
+    candidate_dirs = _iter_coinglass_capture_dirs(symbol)
+    if not candidate_dirs:
         raise HTTPException(
             status_code=503,
             detail=f"No local CoinGlass capture directory found for {symbol}.",
         )
 
-    decoded = _decode_coinglass_top_position_capture(capture_dir, symbol.replace("USDT", ""))
+    last_error: str | None = None
+    for capture_dir in candidate_dirs:
+        try:
+            decoded = _decode_coinglass_top_position_capture(capture_dir, symbol)
+        except HTTPException as exc:
+            last_error = f"{capture_dir.name}: {exc.detail}"
+            logger.warning(
+                "Skipping CoinGlass capture %s for %s after decode failure: %s",
+                capture_dir,
+                symbol,
+                exc.detail,
+            )
+            continue
+        return capture_dir, decoded
+
+    detail = f"No decodable local CoinGlass capture found for {symbol}."
+    if last_error:
+        detail = f"{detail} Latest error: {last_error}"
+    raise HTTPException(status_code=503, detail=detail)
+
+
+def _build_coinglass_top_position_response(
+    symbol: str,
+    timeframe: str,
+    base_cache: dict[str, Any],
+) -> dict[str, Any]:
+    capture_dir, decoded = _load_latest_decodable_coinglass_top_position_capture(
+        symbol.replace("USDT", "")
+    )
     step = float(base_cache["grid"]["step"])
     current_price = float(decoded["price"])
     long_bins: dict[float, float] = {}

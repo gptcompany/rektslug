@@ -310,6 +310,74 @@ Operational implication:
 - future `v3` comparisons are only meaningful after confirming the active cron
   uses the wrapper entrypoint instead of calling Python directly
 
+## 2026-04-02 CoinGlass Fresh-Capture Decoder Follow-up
+
+Fresh CoinGlass Hyperliquid captures were created on `2026-04-02`:
+
+- BTC: `data/validation/raw_provider_api/20260402T082851Z`
+- ETH: `data/validation/raw_provider_api/20260402T082937Z`
+
+These captures initially exposed a decoder regression in the local CoinGlass
+toolchain, but the local decoder path has now been updated.
+
+Observed facts:
+
+- fresh response headers now carry versions like `v=55`, `v=66`, and `v=77`
+- the existing local decoder still assumes the older seed-derivation path for
+  non-`v=0` / non-`v=2` payloads
+- the current live CoinGlass app bundle shows those newer versions use bundled
+  constants, not the old URL-path-derived seed
+
+Current consequence:
+
+- fresh `2026-04-02` captures are now decodable again
+- `v2` resolves the latest decodable local capture instead of falling back to
+  `20260401T160752Z`
+- the active local reference for BTC/ETH has moved forward to
+  `data/validation/raw_provider_api/20260402T082937Z`
+
+Runtime hardening already applied:
+
+1. `v2` no longer blindly trusts the newest matching capture
+2. the route now skips undecodable CoinGlass captures and falls back to the
+   latest decodable local capture
+3. `scripts/compare_hl_sidecar_vs_coinglass.py` now reports an undecodable
+   capture cleanly instead of crashing on missing metrics fields
+
+Applied decoder update:
+
+1. `scripts/coinglass_decode_standalone.js` now derives seed sources for:
+   - `v=55 -> 170b070da9654622`
+   - `v=66 -> d6537d845a964081`
+   - `v=77 -> 863f08689c97435b`
+2. `scripts/compare_provider_liquidations.py` uses the same version-aware seed
+   derivation
+3. legacy captures without `v` still preserve the older `time` /
+   `cache-ts-v2` fallback path
+
+Immediate implication:
+
+1. `v2` comparisons can again use the fresh `2026-04-02` captures
+2. `v3` tuning should now be judged against those fresh captures, not the
+   stale `2026-04-01` decode fallback
+
+Fresh comparison snapshot against `20260402T082937Z`:
+
+- BTC `v1`: `pearson_r=0.5182`, `KS=0.044`, `Wasserstein=7928.86`,
+  `L/S diff=0.027`
+- BTC `v3`: `pearson_r=0.405`, `KS=0.0802`, `Wasserstein=11065.36`,
+  `L/S diff=0.1113`
+- ETH `v1`: `pearson_r=0.8773`, `KS=0.0474`, `Wasserstein=369.2`,
+  `L/S diff=0.066`
+- ETH `v3`: `pearson_r=0.8711`, `KS=0.0348`, `Wasserstein=418.32`,
+  `L/S diff=0.0066`
+
+Interpretation:
+
+- on the fresh reference, BTC `v1` currently beats BTC `v3`
+- ETH `v3` improves balance and KS, but ETH `v1` still keeps a small edge on
+  Pearson correlation and transport distance
+
 ## What This Means For V3
 
 `v3` should not depend on CoinGlass captures.

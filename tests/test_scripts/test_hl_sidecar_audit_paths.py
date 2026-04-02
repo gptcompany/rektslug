@@ -7,6 +7,8 @@ from scripts.compare_hl_sidecar_vs_coinglass import (
     BucketedDistribution,
     compute_metrics,
     load_sidecar_artifact,
+    print_report,
+    run_comparison,
 )
 from scripts.precompute_hl_sidecar import _compute_display_range
 
@@ -90,3 +92,54 @@ def test_compute_display_range_preserves_most_side_volume() -> None:
     assert min_price < 100.0 < max_price
     assert min_price <= 82.0
     assert max_price >= 128.0
+
+
+def test_run_comparison_returns_structured_error_when_coinglass_unavailable(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    sidecar = BucketedDistribution(
+        source="hyperliquid-sidecar",
+        symbol="BTC",
+        bin_size=500.0,
+        current_price=0.0,
+    )
+    sidecar_path = tmp_path / "sidecar.json"
+    capture_dir = tmp_path / "20260402T082851Z"
+    sidecar_path.write_text("{}", encoding="utf-8")
+    capture_dir.mkdir()
+
+    monkeypatch.setattr(
+        "scripts.compare_hl_sidecar_vs_coinglass.load_sidecar_artifact",
+        lambda path: sidecar,
+    )
+    monkeypatch.setattr(
+        "scripts.compare_hl_sidecar_vs_coinglass.load_coinglass_hyperliquid",
+        lambda *args, **kwargs: None,
+    )
+
+    metrics = run_comparison("BTC", sidecar_path, capture_dir, None)
+
+    assert metrics["symbol"] == "BTC"
+    assert metrics["bin_size"] == 500.0
+    assert metrics["a_source"] == "hyperliquid-sidecar"
+    assert metrics["b_source"] == "coinglass-hyperliquid"
+    assert metrics["capture_dir"] == str(capture_dir)
+    assert "undecodable" in metrics["error"]
+
+
+def test_print_report_handles_error_metrics(capsys) -> None:
+    print_report(
+        [
+            {
+                "symbol": "BTC",
+                "error": "CoinGlass data unavailable or undecodable for this capture.",
+                "capture_dir": "data/validation/raw_provider_api/20260402T082851Z",
+            }
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert "--- BTC (bin_size=n/a) ---" in output
+    assert "ERROR: CoinGlass data unavailable or undecodable for this capture." in output
+    assert "Capture dir: data/validation/raw_provider_api/20260402T082851Z" in output

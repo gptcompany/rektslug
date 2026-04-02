@@ -89,3 +89,26 @@ def test_resolve_capture_time_falls_back_to_cache_ts_v2() -> None:
         "saved_file": "03_liqmap.json",
         "time": "1772541217178",
     }
+
+
+def test_resolve_capture_time_uses_static_seed_source_for_v66() -> None:
+    summary = {
+        "captures": [
+            {
+                "source_url": "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC",
+                "response_headers": {
+                    "encryption": "true",
+                    "user": "encrypted-user-header",
+                    "v": "66",
+                },
+                "saved_file": "12_liqmap.json",
+            }
+        ]
+    }
+
+    result = _run_decoder_helper(summary)
+
+    assert result == {
+        "saved_file": "12_liqmap.json",
+        "time": "d6537d845a964081",
+    }

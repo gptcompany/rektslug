@@ -691,6 +691,20 @@ class TestRunnerGapAnalysisFailureHandling:
         assert runner.main() == 0
 
 
+def test_derive_coinglass_seed_key_supports_static_v66_seed_source():
+    from scripts.compare_provider_liquidations import derive_coinglass_seed_key
+
+    capture = _build_coinglass_encoded_capture(
+        "https://capi.coinglass.com/api/hyperliquid/topPosition/liqMap?symbol=BTC"
+    )
+    capture.response_headers["v"] = "66"
+
+    seed_key, note = derive_coinglass_seed_key(capture)
+
+    assert seed_key == "ZDY1MzdkODQ1YTk2"
+    assert note == "Derived seed key from Coinglass version-aware flow (v=66)."
+
+
 # ============================================================================
 # Helpers
 # ============================================================================

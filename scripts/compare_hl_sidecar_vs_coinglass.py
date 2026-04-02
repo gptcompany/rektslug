@@ -480,11 +480,17 @@ def print_report(all_metrics: list[dict]) -> None:
     print("=" * 90)
 
     for m in all_metrics:
-        print(f"\n--- {m['symbol']} (bin_size={m['bin_size']}) ---")
-        print(f"  Sources: {m['a_source']} vs {m['b_source']}")
+        print(f"\n--- {m.get('symbol', '?')} (bin_size={m.get('bin_size', 'n/a')}) ---")
+        print(
+            "  Sources: "
+            f"{m.get('a_source', 'rektslug-sidecar')} vs "
+            f"{m.get('b_source', 'coinglass-hyperliquid')}"
+        )
 
         if "error" in m:
             print(f"  ERROR: {m['error']}")
+            if m.get("capture_dir"):
+                print(f"  Capture dir: {m['capture_dir']}")
             continue
 
         a_s = m.get("a_stats", {})
@@ -546,7 +552,14 @@ def run_comparison(
     print(f"  Loading CoinGlass capture: {capture_dir}")
     coinglass = load_coinglass_hyperliquid(capture_dir, symbol, sidecar.bin_size)
     if coinglass is None:
-        return {"symbol": symbol, "error": "CoinGlass data unavailable"}
+        return {
+            "symbol": symbol,
+            "bin_size": sidecar.bin_size,
+            "a_source": sidecar.source,
+            "b_source": "coinglass-hyperliquid",
+            "capture_dir": str(capture_dir),
+            "error": "CoinGlass data unavailable or undecodable for this capture.",
+        }
 
     # Set sidecar current_price from CoinGlass
     sidecar.current_price = coinglass.current_price
