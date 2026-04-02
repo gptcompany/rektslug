@@ -1193,18 +1193,52 @@ HEATMAP_SYMBOLS_SHELL=BTCUSDT ./scripts/run-precompute-hl-sidecar.sh
 HEATMAP_SYMBOLS=BTC,ETH uv run python scripts/precompute_hl_sidecar.py
 ```
 
-## Updated Next V3 Task
+## Current Decision For The Next Session
 
-Given the follow-up experiments above, the next useful model task is narrower:
+As of `2026-04-02`, it is **not** worth continuing to tune the current
+user-first `v3` line (`top users -> live enrich -> rebucket`) with more small
+selector tweaks.
 
-1. keep the selected-user live enrichment path
-2. stop spending time on liquidation-price heuristics as the primary lever
-3. focus on a better `v3` universe selector:
-   - symbol-specific budget
-   - symbol-specific selector weights / mode
-   - account filtering / book-complexity heuristics
-   - selection signals beyond raw target notional
-4. evaluate any new selector against the same fresh `v2` replay capture
+Why:
+
+- BTC `v1` still beats BTC `v3` on the fresh reference
+- the cheap `band_synthesis` falsifier did not validate the simple
+  `CoinGlass ~= heaviest full-map clusters` thesis
+- live enrichment and selector-weight tuning have already shown diminishing
+  returns
+
+So the current recommendation is:
+
+1. freeze the current `v3` branch as an experimental baseline
+2. keep `v1` as the truthful/internal production baseline
+3. do **not** spend another session on more user-first selector tuning
+4. if work continues, start a conceptually different branch:
+   - `v3b` / `position-first`
+   - `risk-first`
+   - or another non-user-first projector
+
+## Recommended Next Experiment
+
+If a new session continues this track, the next experiment should be treated as
+a fresh hypothesis test, not an extension of the current selector family.
+
+Recommended direction:
+
+1. build a `position-first` or `risk-first` projector prototype
+2. compare it against the same fresh `v2` replay capture
+3. use a hard kill criterion on BTC:
+   - it should beat `v1` on at least `2/3` of:
+     - `pearson_r`
+     - `KS`
+     - `Wasserstein`
+4. if it does not, stop pursuing CoinGlass-style imitation as a primary track
+
+What should **not** be the default next direction:
+
+- more tuning of `min_target_share`
+- more tuning of `max_position_count`
+- more tuning of `concentration` weights
+- promoting `risk_clusters` or `band_synthesis` to runtime defaults
 
 ## Commands To Resume
 
