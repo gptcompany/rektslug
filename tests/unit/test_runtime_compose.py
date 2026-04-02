@@ -95,7 +95,7 @@ def test_precompute_wrapper_uses_runtime_env_and_v3_defaults():
 
     assert '. "$SCRIPT_DIR/lib/runtime_env.sh"' in text
     assert "lh_load_runtime_env host" in text
-    assert "HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=balanced" in text
-    assert "HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=350" in text
+    assert "HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=none" in text
+    assert "HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=500" in text
     assert "HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH:=concentration" in text
     assert 'exec "${PROJECT_DIR}/.venv/bin/python" "${PROJECT_DIR}/scripts/precompute_hl_sidecar.py"' in text

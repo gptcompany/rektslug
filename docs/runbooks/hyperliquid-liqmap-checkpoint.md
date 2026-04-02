@@ -301,7 +301,7 @@ The fix is now:
 2. `scripts/run-precompute-hl-sidecar.sh` is the canonical runtime entrypoint
    for the cron writer
 3. the wrapper applies stable `v3` defaults when env overrides are absent:
-   - BTC: `objective=balanced`, `top_n=350`, `score_mode=notional`
+   - BTC: `objective=none`, `top_n=500`, `score_mode=notional`
    - ETH: `score_mode=concentration`, `top_n=300`,
      `share_power=1.0`, `positions_penalty=0.1`
 
@@ -377,6 +377,30 @@ Interpretation:
 - on the fresh reference, BTC `v1` currently beats BTC `v3`
 - ETH `v3` improves balance and KS, but ETH `v1` still keeps a small edge on
   Pearson correlation and transport distance
+
+Fresh BTC selector mini-sweep against the same `20260402T082937Z` reference:
+
+- current BTC wrapper default (`balanced`, `top_n=350`):
+  `pearson_r=0.2715`, `KS=0.0824`, `Wasserstein=11205.57`,
+  `L/S diff=0.1223`
+- `shape_first`, `top_n=350`:
+  `pearson_r=0.331`, `KS=0.1612`, `Wasserstein=14056.3`,
+  `L/S diff=0.2013`
+- `notional`, `top_n=500`, no extra filters:
+  `pearson_r=0.235`, `KS=0.0486`, `Wasserstein=8202.62`,
+  `L/S diff=0.0291`
+- `notional`, `top_n=400`, `min_target_share=0.4`, `max_position_count=3`:
+  `pearson_r=0.3089`, `KS=0.1312`, `Wasserstein=13067.57`,
+  `L/S diff=0.2036`
+
+Current conclusion for BTC:
+
+- no tested `v3` selector beats BTC `v1` on the fresh reference
+- but the old BTC wrapper default (`balanced`, `350`) is no longer the best
+  experimental baseline
+- the least-wrong BTC `v3` branch right now is `notional`, `top_n=500`,
+  because it keeps `KS`, `Wasserstein`, and `L/S diff` close to BTC `v1`
+  even though Pearson correlation remains lower
 
 ## What This Means For V3
 

@@ -12,8 +12,8 @@ lh_load_runtime_env host
 # Stable defaults for the experimental v3 branch. Any injected env value still
 # wins, so ops can override these without editing the wrapper.
 : "${HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC:=notional}"
-: "${HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=350}"
-: "${HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=balanced}"
+: "${HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=500}"
+: "${HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=none}"
 : "${HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH:=concentration}"
 : "${HEATMAP_HL_TOP_POSITION_TOP_N_ETH:=300}"
 : "${HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER_ETH:=1.0}"
