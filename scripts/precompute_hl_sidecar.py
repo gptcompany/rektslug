@@ -803,6 +803,114 @@ def _select_top_target_users(
     return selected
 
 
+def _rank_bucket_entries(
+    bucket_entries: list[tuple[str, dict]],
+) -> list[tuple[str, dict]]:
+    return sorted(
+        bucket_entries,
+        key=lambda item: (
+            float(item[1].get("volume", 0.0)),
+            float(item[1].get("price_level", 0.0)),
+            item[0],
+        ),
+        reverse=True,
+    )
+
+
+def _synthesize_top_buckets_payload(
+    payload: dict,
+    *,
+    target_bucket_count: int,
+    selection_mode: str,
+) -> dict:
+    """Build a top-bucket probe payload directly from the full-universe map."""
+    if target_bucket_count <= 0:
+        target_bucket_count = 0
+
+    normalized_mode = selection_mode.strip().lower()
+    if normalized_mode not in {"global", "per_side"}:
+        normalized_mode = "global"
+
+    long_entries = [
+        ("long", dict(entry))
+        for entry in payload.get("long_buckets", [])
+    ]
+    short_entries = [
+        ("short", dict(entry))
+        for entry in payload.get("short_buckets", [])
+    ]
+    ranked_long = _rank_bucket_entries(long_entries)
+    ranked_short = _rank_bucket_entries(short_entries)
+
+    if normalized_mode == "per_side":
+        side_quota = target_bucket_count // 2
+        retained = ranked_long[:side_quota] + ranked_short[:side_quota]
+        remaining_slots = max(target_bucket_count - len(retained), 0)
+        leftovers = ranked_long[side_quota:] + ranked_short[side_quota:]
+        retained.extend(_rank_bucket_entries(leftovers)[:remaining_slots])
+    else:
+        retained = _rank_bucket_entries(ranked_long + ranked_short)[:target_bucket_count]
+
+    retained_long = sorted(
+        (entry for side, entry in retained if side == "long"),
+        key=lambda entry: float(entry["price_level"]),
+    )
+    retained_short = sorted(
+        (entry for side, entry in retained if side == "short"),
+        key=lambda entry: float(entry["price_level"]),
+    )
+
+    long_buckets = {
+        float(entry["price_level"]): float(entry["volume"])
+        for entry in retained_long
+    }
+    short_buckets = {
+        float(entry["price_level"]): float(entry["volume"])
+        for entry in retained_short
+    }
+    current_price = float(payload.get("current_price", 0.0))
+    grid_min, grid_max = _compute_display_range(long_buckets, short_buckets, current_price)
+
+    total_original_volume = sum(
+        float(entry.get("volume", 0.0))
+        for entry in payload.get("long_buckets", []) + payload.get("short_buckets", [])
+    )
+    retained_volume = sum(long_buckets.values()) + sum(short_buckets.values())
+    pruned_bucket_count = (
+        len(payload.get("long_buckets", []))
+        + len(payload.get("short_buckets", []))
+        - len(retained)
+    )
+
+    synthesized = {
+        **payload,
+        "long_buckets": retained_long,
+        "short_buckets": retained_short,
+        "cumulative_long": _build_cumulative(long_buckets, current_price, "long"),
+        "cumulative_short": _build_cumulative(short_buckets, current_price, "short"),
+        "grid": {
+            **payload.get("grid", {}),
+            "step": float(payload.get("bin_size", payload.get("grid", {}).get("step", 0.0))),
+            "anchor_price": current_price,
+            "min_price": grid_min,
+            "max_price": grid_max,
+        },
+        "projection": {
+            **payload.get("projection", {}),
+            "mode": "top_buckets_probe",
+            "selection_strategy": normalized_mode,
+            "selected_users": None,
+            "included_users": len(retained),
+            "target_count": target_bucket_count,
+            "retained_bucket_count": len(retained),
+            "pruned_bucket_count": pruned_bucket_count,
+            "retained_volume": round(retained_volume, 2),
+            "pruned_volume": round(total_original_volume - retained_volume, 2),
+        },
+    }
+    return synthesized
+
+
 def _build_target_exposure_profile(
     user_state: UserState,
     *,
@@ -1668,30 +1776,34 @@ def _select_v3_target_users(
     return context, selected_users
 
 
-def generate_symbol(symbol: str) -> dict | None:
-    """Generate the liq-map payload for one symbol. Returns None on failure."""
-    context = _prepare_symbol_context(symbol)
-    if context is None:
-        return None
-    return _build_public_payload(
-        context=context,
-        source="hyperliquid-sidecar",
-        projection_mode="full_universe",
-        reported_account_count=len(context.state.users),
-    )
-
-
-def generate_symbol_v3(symbol: str) -> dict | None:
-    """Generate the internal top-position-like liq-map payload."""
-    context = _prepare_symbol_context(symbol)
-    if context is None:
-        return None
+def _build_v3_payload(
+    context: SymbolBuildContext,
+) -> dict | None:
     config = _resolve_top_position_selector_config(context.symbol)
+
+    if config.score_mode == "band_synthesis":
+        full_payload = _build_public_payload(
+            context=context,
+            source="hyperliquid-sidecar-band-synthesis",
+            projection_mode="full_universe_seed",
+            projection_target_count=config.top_n,
+            reported_account_count=len(context.state.users),
+            projection_selection_strategy=config.selection_mode,
+            projection_score_mode=config.score_mode,
+            projection_objective=config.objective,
+            projection_min_target_share=config.min_target_share,
+            projection_max_position_count=config.max_position_count,
+        )
+        return _synthesize_top_buckets_payload(
+            full_payload,
+            target_bucket_count=config.top_n,
+            selection_mode=config.selection_mode,
+        )
 
     context, ordered_selected_users = _select_v3_target_users(context)
     selected_users = set(ordered_selected_users)
     if not selected_users:
-        logger.warning("%s: no top-position-like users selected, skipping v3", symbol)
+        logger.warning("%s: no top-position-like users selected, skipping v3", context.symbol)
         return None
 
     context = _extend_context_live_overrides_for_selected_users(
@@ -1711,6 +1823,27 @@ def generate_symbol_v3(symbol: str) -> dict | None:
         projection_min_target_share=config.min_target_share,
         projection_max_position_count=config.max_position_count,
     )
+
+
+def generate_symbol(symbol: str) -> dict | None:
+    """Generate the liq-map payload for one symbol. Returns None on failure."""
+    context = _prepare_symbol_context(symbol)
+    if context is None:
+        return None
+    return _build_public_payload(
+        context=context,
+        source="hyperliquid-sidecar",
+        projection_mode="full_universe",
+        reported_account_count=len(context.state.users),
+    )
+
+
+def generate_symbol_v3(symbol: str) -> dict | None:
+    """Generate the internal top-position-like liq-map payload."""
+    context = _prepare_symbol_context(symbol)
+    if context is None:
+        return None
+    return _build_v3_payload(context)
 
 
 def atomic_write_json(payload: dict, dest: Path) -> None:
@@ -1749,26 +1882,8 @@ def main() -> int:
             atomic_write_json(payload, dest_v1)
             logger.info("Written %s", dest_v1)
 
-            config = _resolve_top_position_selector_config(context.symbol)
-            context_for_v3, ordered_selected_users = _select_v3_target_users(context)
-            selected_users = set(ordered_selected_users)
-            if selected_users:
-                context_for_v3 = _extend_context_live_overrides_for_selected_users(
-                    context_for_v3,
-                    selected_users=selected_users,
-                )
-                payload_v3 = _build_public_payload(
-                    context=context_for_v3,
-                    source="hyperliquid-sidecar-top-positions",
-                    selected_users=selected_users,
-                    projection_mode="top_positions_local",
-                    projection_target_count=config.top_n,
-                    projection_selection_strategy=config.selection_mode,
-                    projection_score_mode=config.score_mode,
-                    projection_objective=config.objective,
-                    projection_min_target_share=config.min_target_share,
-                    projection_max_position_count=config.max_position_count,
-                )
+            payload_v3 = _build_v3_payload(context)
+            if payload_v3 is not None:
                 dest_v3 = CACHE_DIR / f"hl_sidecar_v3_{symbol.lower()}usdt.json"
                 atomic_write_json(payload_v3, dest_v3)
                 logger.info("Written %s", dest_v3)

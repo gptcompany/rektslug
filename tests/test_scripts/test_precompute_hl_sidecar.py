@@ -609,6 +609,152 @@ def test_select_top_target_users_live_liq_intensity_uses_live_overrides() -> Non
     assert selected == ["0xnear", "0xfar"]
 
 
+def test_synthesize_top_buckets_payload_keeps_heaviest_global_buckets() -> None:
+    payload = {
+        "source": "hyperliquid-sidecar",
+        "symbol": "BTCUSDT",
+        "timeframe": "1w",
+        "current_price": 100.0,
+        "mark_price": 100.0,
+        "account_count": 10,
+        "generated_at": "2026-04-02T00:00:00Z",
+        "grid": {
+            "step": 5.0,
+            "anchor_price": 100.0,
+            "min_price": 70.0,
+            "max_price": 130.0,
+        },
+        "leverage_ladder": ["cross"],
+        "long_buckets": [
+            {"price_level": 80.0, "leverage": "cross", "volume": 300.0},
+            {"price_level": 90.0, "leverage": "cross", "volume": 100.0},
+        ],
+        "short_buckets": [
+            {"price_level": 110.0, "leverage": "cross", "volume": 200.0},
+            {"price_level": 120.0, "leverage": "cross", "volume": 50.0},
+        ],
+        "cumulative_long": [],
+        "cumulative_short": [],
+        "out_of_range_volume": {"long": 0.0, "short": 0.0},
+        "source_anchor": "anchor",
+        "bin_size": 5.0,
+        "live_enrichment": {},
+        "projection": {
+            "mode": "full_universe_seed",
+            "selected_users": 10,
+            "included_users": 10,
+            "target_count": 2,
+        },
+    }
+
+    synthesized = precompute._synthesize_top_buckets_payload(
+        payload,
+        target_bucket_count=2,
+        selection_mode="global",
+    )
+
+    assert synthesized["long_buckets"] == [
+        {"price_level": 80.0, "leverage": "cross", "volume": 300.0},
+    ]
+    assert synthesized["short_buckets"] == [
+        {"price_level": 110.0, "leverage": "cross", "volume": 200.0},
+    ]
+    assert synthesized["projection"]["mode"] == "top_buckets_probe"
+    assert synthesized["projection"]["retained_bucket_count"] == 2
+    assert synthesized["projection"]["pruned_bucket_count"] == 2
+    assert synthesized["projection"]["retained_volume"] == 500.0
+    assert synthesized["projection"]["pruned_volume"] == 150.0
+
+
+def test_build_v3_payload_band_synthesis_uses_full_universe_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(target_coin="BTC"),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        state=_sidecar_state(["0x1"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(),
+    )
+
+    monkeypatch.setattr(
+        precompute,
+        "_resolve_top_position_selector_config",
+        lambda symbol: precompute.TopPositionSelectorConfig(
+            objective=None,
+            top_n=2,
+            selection_mode="global",
+            score_mode="band_synthesis",
+            candidate_pool_top_n=2,
+            distance_floor_bps=25,
+            require_side_consistency=False,
+            concentration_share_power=2.0,
+            concentration_positions_penalty=0.2,
+            min_target_share=0.0,
+            max_position_count=None,
+        ),
+    )
+
+    def fail_select_v3_target_users(unused_context):
+        raise AssertionError("user selection should be bypassed for band_synthesis")
+
+    monkeypatch.setattr(precompute, "_select_v3_target_users", fail_select_v3_target_users)
+
+    monkeypatch.setattr(
+        precompute,
+        "_build_public_payload",
+        lambda **kwargs: {
+            "source": kwargs["source"],
+            "symbol": "BTCUSDT",
+            "timeframe": "1w",
+            "current_price": 100.0,
+            "mark_price": 100.0,
+            "account_count": 10,
+            "generated_at": "2026-04-02T00:00:00Z",
+            "grid": {
+                "step": 5.0,
+                "anchor_price": 100.0,
+                "min_price": 70.0,
+                "max_price": 130.0,
+            },
+            "leverage_ladder": ["cross"],
+            "long_buckets": [
+                {"price_level": 80.0, "leverage": "cross", "volume": 300.0},
+                {"price_level": 90.0, "leverage": "cross", "volume": 100.0},
+            ],
+            "short_buckets": [
+                {"price_level": 110.0, "leverage": "cross", "volume": 200.0},
+            ],
+            "cumulative_long": [],
+            "cumulative_short": [],
+            "out_of_range_volume": {"long": 0.0, "short": 0.0},
+            "source_anchor": "anchor",
+            "bin_size": 5.0,
+            "live_enrichment": {},
+            "projection": {
+                "mode": kwargs["projection_mode"],
+                "selected_users": 1,
+                "included_users": 1,
+                "target_count": kwargs["projection_target_count"],
+            },
+        },
+    )
+
+    payload = precompute._build_v3_payload(context)
+
+    assert payload is not None
+    assert payload["source"] == "hyperliquid-sidecar-band-synthesis"
+    assert payload["projection"]["mode"] == "top_buckets_probe"
+    assert payload["projection"]["target_count"] == 2
+    assert payload["projection"]["retained_bucket_count"] == 2
+
+
 def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

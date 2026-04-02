@@ -1122,6 +1122,57 @@ Interpretation:
   transport
 - the current `v3` selector family is still not the path to a BTC improvement
 
+## 2026-04-02 `band_synthesis` falsifier
+
+To test the Gemini hypothesis cheaply before adding a user-level
+`risk_clusters` selector, I added a probe mode:
+
+- `HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC=band_synthesis`
+
+This mode does **not** select users. It starts from the already-built `v1`
+bucket map and keeps only the heaviest liquidation buckets.
+
+This is intentionally a falsifier:
+
+- if BTC improves materially, then a cluster-first projector is worth building
+- if BTC does not improve, then `risk_clusters` is much less likely to be the
+  missing core abstraction
+
+Measured against fresh CoinGlass capture
+`data/validation/raw_provider_api/20260402T082937Z` using the active BTC `v1`
+cache as the seed:
+
+- global `top_buckets=250`:
+  - `pearson_r=0.1218`
+  - `KS=0.043`
+  - `Wasserstein=8680.32`
+  - `L/S diff=0.0118`
+- global `top_buckets=500`:
+  - `pearson_r=0.1800`
+  - `KS=0.0424`
+  - `Wasserstein=8348.52`
+  - `L/S diff=0.0117`
+- global `top_buckets=1000`:
+  - `pearson_r=0.2226`
+  - `KS=0.0436`
+  - `Wasserstein=8024.96`
+  - `L/S diff=0.0192`
+
+Reference points:
+
+- BTC `v1`: `pearson_r=0.3293`, `KS=0.043`, `Wasserstein=8052.42`,
+  `L/S diff=0.023`
+- BTC current `v3`: `pearson_r=0.2294`, `KS=0.0486`, `Wasserstein=8167.14`,
+  `L/S diff=0.027`
+
+Conclusion:
+
+- the cheap cluster falsifier did **not** beat `v1`
+- it also did not materially beat the current BTC `v3`
+- so the simple thesis `CoinGlass ~= heaviest full-map clusters` is now weaker
+- if a future `risk_clusters` selector is attempted, it should be treated as a
+  narrower follow-up experiment, not as the new default direction
+
 ### Symbol-scoped rerun fix
 
 During the verification I confirmed a separate bug:
