@@ -277,6 +277,39 @@ This is now hardened as follows:
 This removes the deploy-time startup dependency on `node_modules` while keeping
 local development compatible when the directory is present.
 
+### Precompute runtime alignment
+
+On `2026-04-02`, the active host writer for `data/cache/hl_sidecar_v3_*.json`
+was confirmed to be the user cron:
+
+- `*/15 * * * * cd /media/sam/1TB/rektslug && .venv/bin/python scripts/precompute_hl_sidecar.py >> /tmp/hl_sidecar_cron.log 2>&1`
+
+That command did **not** load repo runtime env, so every 15 minutes it rewrote
+`v3` caches with selector defaults like:
+
+- `objective: null`
+- `selected_users: 250`
+- `score_mode: notional`
+
+even after the BTC/ETH selector experiments had produced better per-symbol
+branches.
+
+The fix is now:
+
+1. `scripts/lib/runtime_env.sh` exports `HEATMAP_HYPERLIQUID_*` and
+   `HEATMAP_HL_*` knobs loaded from `.env`
+2. `scripts/run-precompute-hl-sidecar.sh` is the canonical runtime entrypoint
+   for the cron writer
+3. the wrapper applies stable `v3` defaults when env overrides are absent:
+   - BTC: `objective=balanced`, `top_n=350`, `score_mode=notional`
+   - ETH: `score_mode=concentration`, `top_n=300`,
+     `share_power=1.0`, `positions_penalty=0.1`
+
+Operational implication:
+
+- future `v3` comparisons are only meaningful after confirming the active cron
+  uses the wrapper entrypoint instead of calling Python directly
+
 ## What This Means For V3
 
 `v3` should not depend on CoinGlass captures.
@@ -871,6 +904,74 @@ Current recommendation:
 - keep `shape_first` as the deliberate comparison branch when visually
   validating against CoinGlass
 
+### 10. 2026-04-02 runtime closure: the active writer now matches the intended `v3` branch
+
+The runtime loop was closed on `2026-04-02`.
+
+What was wrong:
+
+- the active host cron rewrote `data/cache/hl_sidecar_v3_*.json` every `15`
+  minutes by calling Python directly
+- that path did not load the Hyperliquid selector env
+- so the active caches silently fell back to the generic runtime defaults
+
+Confirmed active writer now:
+
+- `*/15 * * * * cd /media/sam/1TB/rektslug && ./scripts/run-precompute-hl-sidecar.sh >> /tmp/hl_sidecar_cron.log 2>&1`
+
+Confirmed active `v3` cache state after the wrapper rerun:
+
+- BTC:
+  - `objective=balanced`
+  - `score_mode=notional`
+  - `selected_users=350`
+  - `included_users=332`
+  - `live_override_users=327`
+- ETH:
+  - `score_mode=concentration`
+  - `selected_users=300`
+  - `included_users=289`
+  - `live_override_users=288`
+
+Measured against the fresh CoinGlass capture `20260401T160752Z`:
+
+- BTC `v1`:
+  - `pearson_r=-0.0085`
+  - `KS=0.0626`
+  - `Wasserstein=9829.55`
+  - `L/S diff=0.0085`
+- BTC `v3 balanced`:
+  - `pearson_r=-0.137`
+  - `KS=0.0758`
+  - `Wasserstein=12981.63`
+  - `L/S diff=0.131`
+
+- ETH `v1`:
+  - `pearson_r=0.2905`
+  - `KS=0.1336`
+  - `Wasserstein=486.85`
+  - `L/S diff=0.049`
+- ETH `v3 current`:
+  - `pearson_r=0.2493`
+  - `KS=0.1288`
+  - `Wasserstein=502.1`
+  - `L/S diff=0.0216`
+
+Interpretation:
+
+- the runtime plumbing issue is resolved
+- the current active `v3` branch is now the intended one
+- but the model gap remains:
+  - BTC `v3 balanced` is still worse than `v1`
+  - ETH `v3` improves long/short balance, but does not beat `v1` on shape
+    or transport
+
+This is the cleanest current conclusion:
+
+- stop treating runtime drift as the blocker
+- resume from selector-model work again
+- BTC especially still needs a better universe projector, not more plumbing
+
 ## Updated Next V3 Task
 
 Given the follow-up experiments above, the next useful model task is narrower:
@@ -890,6 +991,13 @@ Start the local server:
 
 ```bash
 uv run uvicorn src.liquidationheatmap.api.main:app --host 0.0.0.0 --port 8016
+```
+
+Regenerate the active Hyperliquid sidecar caches with the canonical runtime
+entrypoint:
+
+```bash
+./scripts/run-precompute-hl-sidecar.sh
 ```
 
 Open the current UI:
@@ -922,6 +1030,8 @@ Main files:
 - `src/liquidationheatmap/api/main.py`
 - `src/liquidationheatmap/api/routers/liquidations.py`
 - `scripts/precompute_hl_sidecar.py`
+- `scripts/run-precompute-hl-sidecar.sh`
+- `scripts/lib/runtime_env.sh`
 - `src/liquidationheatmap/hyperliquid/api_client.py`
 - `.env.example`
 - `docs/runbooks/hyperliquid-liqmap-checkpoint.md`
@@ -932,6 +1042,7 @@ Supporting artifacts:
 - `data/validation/hl_coinglass_mass_redistribution_report.json`
 - `data/validation/hl_coinglass_mass_redistribution_report.md`
 - `tests/test_scripts/test_precompute_hl_sidecar.py`
+- `tests/unit/test_runtime_compose.py`
 - `tests/test_api_client.py`
 - `tests/test_api/test_main.py`
 

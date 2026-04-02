@@ -5,6 +5,7 @@ Designed to run every 15 minutes via cron. Writes atomic JSON files to
 `data/cache/` that the API serves directly.
 
 Usage:
+    ./scripts/run-precompute-hl-sidecar.sh
     uv run python scripts/precompute_hl_sidecar.py
 """
 

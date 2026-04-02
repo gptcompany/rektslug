@@ -76,3 +76,26 @@ def test_deploy_core_uses_shared_env_fallback():
     assert 'ln -sf "${SHARED_ENV_FILE}" .env' in text
     assert 'ln -sf "${PROJECT_DIR}/.env.example" .env' in text
     assert 'rm -f "${PROJECT_DIR}/.env"' in text
+
+
+def test_runtime_env_loader_supports_hyperliquid_knobs():
+    """runtime_env.sh should export Hyperliquid runtime knobs loaded from .env."""
+    script_path = REPO_ROOT / "scripts" / "lib" / "runtime_env.sh"
+    text = script_path.read_text(encoding="utf-8")
+
+    assert "HEATMAP_HYPERLIQUID_*" in text
+    assert "HEATMAP_HL_*" in text
+    assert 'export "$key"' in text
+
+
+def test_precompute_wrapper_uses_runtime_env_and_v3_defaults():
+    """The cron wrapper should load runtime env and apply stable v3 defaults."""
+    script_path = REPO_ROOT / "scripts" / "run-precompute-hl-sidecar.sh"
+    text = script_path.read_text(encoding="utf-8")
+
+    assert '. "$SCRIPT_DIR/lib/runtime_env.sh"' in text
+    assert "lh_load_runtime_env host" in text
+    assert "HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=balanced" in text
+    assert "HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=350" in text
+    assert "HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH:=concentration" in text
+    assert 'exec "${PROJECT_DIR}/.venv/bin/python" "${PROJECT_DIR}/scripts/precompute_hl_sidecar.py"' in text
