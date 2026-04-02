@@ -483,6 +483,23 @@ def test_resolve_top_position_selector_config_explicit_filters_override_objectiv
     assert btc.max_position_count == 5
 
 
+def test_resolve_symbols_honors_runtime_symbol_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HEATMAP_SYMBOLS_SHELL", "BTCUSDT")
+
+    assert precompute._resolve_symbols() == ["BTC"]
+
+
+def test_resolve_symbols_dedupes_and_filters_unsupported_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("HEATMAP_SYMBOLS_SHELL", raising=False)
+    monkeypatch.setenv("HEATMAP_SYMBOLS", "ethusdt, BTC, SOLUSDT,ETH")
+
+    assert precompute._resolve_symbols() == ["ETH", "BTC"]
+
+
 def test_select_top_target_users_concentration_penalizes_complex_off_target_books(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

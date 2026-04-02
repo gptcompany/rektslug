@@ -50,7 +50,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path("data/cache")
-SYMBOLS = ["BTC", "ETH"]
+DEFAULT_SYMBOLS = ("BTC", "ETH")
 TIMEFRAME_DAYS = 7
 # Outlier threshold: bins beyond 5x or below 0.1x mark price are segregated.
 OUTLIER_HIGH_MULT = 5.0
@@ -78,6 +78,36 @@ LIVE_ENRICH_CACHE_FILE = Path(
         str(CACHE_DIR / "hl_live_enrichment_cache.json"),
     )
 )
+
+
+def _resolve_symbols() -> list[str]:
+    """Resolve the symbol subset to precompute from runtime environment."""
+    raw_symbols = os.getenv("HEATMAP_SYMBOLS_SHELL") or os.getenv("HEATMAP_SYMBOLS")
+    if not raw_symbols:
+        return list(DEFAULT_SYMBOLS)
+
+    supported_symbols = {symbol.upper() for symbol in DEFAULT_SYMBOLS}
+    resolved: list[str] = []
+    for token in raw_symbols.replace(",", " ").split():
+        symbol = token.strip().upper()
+        if symbol.endswith("USDT"):
+            symbol = symbol.removesuffix("USDT")
+        if not symbol:
+            continue
+        if symbol not in supported_symbols:
+            logger.warning("Ignoring unsupported precompute symbol %s", token)
+            continue
+        if symbol not in resolved:
+            resolved.append(symbol)
+
+    if resolved:
+        return resolved
+
+    logger.warning(
+        "No supported precompute symbols found in runtime env; falling back to %s",
+        ",".join(DEFAULT_SYMBOLS),
+    )
+    return list(DEFAULT_SYMBOLS)
 TOP_POSITION_SCORE_MODE = os.getenv(
     "HEATMAP_HL_TOP_POSITION_SCORE_MODE",
     "notional",
@@ -1702,7 +1732,9 @@ def atomic_write_json(payload: dict, dest: Path) -> None:
 
 
 def main() -> int:
-    for symbol in SYMBOLS:
+    symbols = _resolve_symbols()
+    logger.info("Resolved precompute symbols: %s", ",".join(symbols))
+    for symbol in symbols:
         try:
             context = _prepare_symbol_context(symbol)
             if context is None:

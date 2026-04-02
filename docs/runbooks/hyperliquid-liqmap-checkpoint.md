@@ -1064,6 +1064,84 @@ This is the cleanest current conclusion:
 - resume from selector-model work again
 - BTC especially still needs a better universe projector, not more plumbing
 
+## 2026-04-02 Runtime Verification Follow-up
+
+I reran the canonical wrapper on `2026-04-02` and confirmed the bootstrap path
+is healthy on the Hyperliquid mirrors:
+
+- `meta` succeeds on `http://localhost:3001/info`
+- `allBorrowLendReserveStates` succeeds on `http://localhost:3001/info`
+- the same two payloads also succeed on `http://10.0.0.1:3001/info`
+
+The actual issue was not mirror support. The live precompute simply takes long
+enough that earlier manual checks stopped too early.
+
+Observed wrapper run:
+
+- BTC `v1` written successfully
+- BTC `v3` written successfully after a wider selected-user enrichment pass:
+  - `targeted=393`
+  - `applied=334`
+  - `failed=59`
+- ETH `v1` written successfully
+- ETH `v3` written successfully:
+  - `targeted=192`
+  - `applied=180`
+  - `failed=12`
+
+Fresh measured distances against CoinGlass capture
+`data/validation/raw_provider_api/20260402T082937Z` after the rerun:
+
+- BTC `v1`:
+  - `pearson_r=0.3293`
+  - `KS=0.043`
+  - `Wasserstein=8052.42`
+  - `L/S diff=0.023`
+- BTC `v3`:
+  - `pearson_r=0.2294`
+  - `KS=0.0486`
+  - `Wasserstein=8167.14`
+  - `L/S diff=0.027`
+
+- ETH `v1`:
+  - `pearson_r=0.3583`
+  - `KS=0.1578`
+  - `Wasserstein=373.54`
+  - `L/S diff=0.0666`
+- ETH `v3`:
+  - `pearson_r=0.3196`
+  - `KS=0.153`
+  - `Wasserstein=422.0`
+  - `L/S diff=0.0059`
+
+Interpretation:
+
+- the runtime loop is now confirmed end-to-end
+- BTC `v1` still clearly beats BTC `v3`
+- ETH `v3` still wins on long/short balance, but not on overall shape or
+  transport
+- the current `v3` selector family is still not the path to a BTC improvement
+
+### Symbol-scoped rerun fix
+
+During the verification I confirmed a separate bug:
+
+- `scripts/run-precompute-hl-sidecar.sh` loaded `HEATMAP_SYMBOLS_SHELL`
+- but `scripts/precompute_hl_sidecar.py` ignored it and always ran both `BTC`
+  and `ETH`
+
+That is now fixed. The Python precompute resolves symbols from:
+
+- `HEATMAP_SYMBOLS_SHELL`
+- or `HEATMAP_SYMBOLS`
+
+Supported examples:
+
+```bash
+HEATMAP_SYMBOLS_SHELL=BTCUSDT ./scripts/run-precompute-hl-sidecar.sh
+HEATMAP_SYMBOLS=BTC,ETH uv run python scripts/precompute_hl_sidecar.py
+```
+
 ## Updated Next V3 Task
 
 Given the follow-up experiments above, the next useful model task is narrower:
@@ -1090,6 +1168,12 @@ entrypoint:
 
 ```bash
 ./scripts/run-precompute-hl-sidecar.sh
+```
+
+Regenerate only BTC:
+
+```bash
+HEATMAP_SYMBOLS_SHELL=BTCUSDT ./scripts/run-precompute-hl-sidecar.sh
 ```
 
 Open the current UI:
