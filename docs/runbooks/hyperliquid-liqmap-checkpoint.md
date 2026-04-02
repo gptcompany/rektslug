@@ -350,6 +350,7 @@ Relevant env knobs:
 - `HEATMAP_HL_TOP_POSITION_REQUIRE_SIDE_CONSISTENCY`
 - `HEATMAP_HL_TOP_POSITION_CONCENTRATION_SHARE_POWER`
 - `HEATMAP_HL_TOP_POSITION_CONCENTRATION_POSITIONS_PENALTY`
+- `HEATMAP_HL_TOP_POSITION_OBJECTIVE`
 - `HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE`
 - `HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT`
 - `HEATMAP_HL_LIVE_ENRICH_TOP_N`
@@ -804,6 +805,71 @@ Current conclusion:
 - BTC is now clearly bottlenecked by selector tradeoffs, not missing plumbing
 - the decision is no longer “can we move the shape?”
 - it is “which metric tradeoff do we want the experimental `v3` to prefer?”
+
+### 9. BTC frontier: there is a real `balanced` branch and a real `shape-first` branch
+
+I ran a softer BTC frontier sweep around the hard `0.7 / 3` filter.
+
+Representative points against the same fresh capture:
+
+- baseline `350`, no extra filters:
+  - `pearson_r=0.0166`
+  - `KS=0.0716`
+  - `Wasserstein=9643.87`
+  - `L/S diff=0.01`
+  - `long_pearson_r=-0.057`
+
+- `max_position_count=3` only:
+  - `pearson_r=0.0721`
+  - `KS=0.0654`
+  - `Wasserstein=11822.96`
+  - `L/S diff=0.0666`
+  - `long_pearson_r=-0.0011`
+
+- `max_position_count=3` + `min_target_share=0.6`:
+  - `pearson_r=0.1384`
+  - `KS=0.1326`
+  - `Wasserstein=16450.15`
+  - `L/S diff=0.0889`
+  - `long_pearson_r=0.0494`
+
+- `max_position_count=3` + `min_target_share=0.65`:
+  - `pearson_r=0.1405`
+  - `KS=0.1328`
+  - `Wasserstein=16539.93`
+  - `L/S diff=0.0758`
+  - `long_pearson_r=0.0499`
+
+Interpretation:
+
+- there is no free lunch on BTC
+- but there are now two defensible branches:
+  - `balanced`: keep transport/balance degradation limited and lift shape a bit
+  - `shape_first`: explicitly accept worse transport/balance in exchange for a
+    strong shape lift
+
+The cleanest practical presets are:
+
+- `balanced`
+  - `score_mode=notional`
+  - `max_position_count=3`
+  - no extra `target_share` floor
+
+- `shape_first`
+  - `score_mode=notional`
+  - `max_position_count=3`
+  - `min_target_share=0.6`
+
+These presets are now codified through:
+
+- `HEATMAP_HL_TOP_POSITION_OBJECTIVE=default|balanced|shape_first`
+- plus the existing explicit knobs which still override the preset when set
+
+Current recommendation:
+
+- use `balanced` for the default BTC experimental branch
+- keep `shape_first` as the deliberate comparison branch when visually
+  validating against CoinGlass
 
 ## Updated Next V3 Task
 

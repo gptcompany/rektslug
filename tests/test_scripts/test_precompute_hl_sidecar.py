@@ -421,6 +421,7 @@ def test_build_target_exposure_profile_tracks_target_share_and_complexity() -> N
 def test_resolve_top_position_selector_config_supports_symbol_specific_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_OBJECTIVE", "balanced")
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_SCORE_MODE", "notional")
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_SCORE_MODE_BTC", "concentration")
     monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_TOP_N", "250")
@@ -440,6 +441,7 @@ def test_resolve_top_position_selector_config_supports_symbol_specific_overrides
     eth = precompute._resolve_top_position_selector_config("ETH")
 
     assert btc.score_mode == "concentration"
+    assert btc.objective == "balanced"
     assert btc.top_n == 250
     assert btc.candidate_pool_top_n == 300
     assert btc.concentration_share_power == 1.5
@@ -448,10 +450,37 @@ def test_resolve_top_position_selector_config_supports_symbol_specific_overrides
     assert btc.max_position_count == 3
 
     assert eth.score_mode == "notional"
+    assert eth.objective == "balanced"
     assert eth.top_n == 180
     assert eth.candidate_pool_top_n == 220
     assert eth.min_target_share == 0.7
-    assert eth.max_position_count is None
+    assert eth.max_position_count == 3
+
+
+def test_resolve_top_position_selector_config_shape_first_objective_sets_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC", "shape_first")
+
+    btc = precompute._resolve_top_position_selector_config("BTC")
+
+    assert btc.objective == "shape_first"
+    assert btc.min_target_share == 0.6
+    assert btc.max_position_count == 3
+
+
+def test_resolve_top_position_selector_config_explicit_filters_override_objective(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC", "shape_first")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_MIN_TARGET_SHARE_BTC", "0.45")
+    monkeypatch.setenv("HEATMAP_HL_TOP_POSITION_MAX_POSITION_COUNT_BTC", "5")
+
+    btc = precompute._resolve_top_position_selector_config("BTC")
+
+    assert btc.objective == "shape_first"
+    assert btc.min_target_share == 0.45
+    assert btc.max_position_count == 5
 
 
 def test_select_top_target_users_concentration_penalizes_complex_off_target_books(
