@@ -1240,6 +1240,56 @@ What should **not** be the default next direction:
 - more tuning of `concentration` weights
 - promoting `risk_clusters` or `band_synthesis` to runtime defaults
 
+## 2026-04-02 `risk-first` Prototype Verdict
+
+A first account-level `risk-first` projector prototype was implemented as `v5`
+(`internal-risk-first` / `hl_sidecar_v5_*`), using:
+
+- a target-position candidate pool by raw target notional
+- live Hyperliquid account state over that pool
+- account-level fragility signals
+  - cross: `crossMaintenanceMarginUsed / accountValue`
+  - PM / unified: `portfolio_margin_ratio`
+- liquidation-distance weighting
+- extra stress terms from off-target notional and borrowed notional
+
+Runtime used for the first real BTC experiment:
+
+```bash
+HEATMAP_HL_RISK_FIRST_TOP_N_BTC=500 \
+HEATMAP_HL_RISK_FIRST_CANDIDATE_POOL_TOP_N_BTC=1000 \
+./scripts/run-precompute-hl-sidecar.sh
+```
+
+Fresh comparison capture:
+
+- `data/validation/raw_provider_api/20260402T082937Z`
+
+Saved comparison outputs:
+
+- `data/validation/comparison_hl_btc_cache_v1_20260402T082937Z.json`
+- `data/validation/comparison_hl_btc_cache_v5_risk_first_20260402T082937Z.json`
+
+BTC result against the same fresh reference:
+
+- BTC `v1`:
+  - `pearson_r=0.1634`
+  - `KS=0.0486`
+  - `Wasserstein=8491.24`
+- BTC `v5 risk-first`:
+  - `pearson_r=0.0626`
+  - `KS=0.0608`
+  - `Wasserstein=10007.13`
+
+Decision:
+
+- BTC `v5 risk-first` does **not** beat BTC `v1` on any of the required `3`
+  metrics
+- therefore the stop criterion is triggered for this track
+- do **not** continue CoinGlass-shape imitation as the primary Hyperliquid
+  direction after this experiment
+- keep `v5` as a documented experimental branch, not a promoted default
+
 ## Commands To Resume
 
 Start the local server:
@@ -1275,6 +1325,10 @@ http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/ethusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/ethusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v4/hyperliquid/ethusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v4/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/ethusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/btcusdt/1w
 ```
 
 Read the latest summary report:
@@ -1314,3 +1368,164 @@ The working tree is dirty beyond this track. Do not assume every modified file i
 
 Resume from this checkpoint by treating `v1` as preserved and `v2` as the safe
 place for future experiments.
+
+## 2026-04-02 Late Handoff For A Clean Next Session
+
+This section supersedes the informal tail of the current chat and should be the
+starting point for the next clean session.
+
+### State Of The Track
+
+- `v1` remains the truthful/internal Hyperliquid baseline.
+- `v2` remains the local CoinGlass top-position replay baseline.
+- `v3` remains frozen as the user-first experimental baseline; do not tune it
+  further.
+- `v4` (`position-first`) is kept only as a documented exploratory branch.
+- `v5` (`risk-first`) is the first conceptually different branch that was
+  actually tested; it failed the global BTC stop criterion against `v1`.
+
+So:
+
+- do **not** resume CoinGlass-shape imitation as the primary Hyperliquid track
+- do **not** spend time on more selector-family tweaks
+- keep the experimental branches for analysis, not promotion
+
+### Important Clarification About `v2`
+
+An important UI/contract mismatch was found and fixed after the first `v5`
+verdict:
+
+- the shared Hyperliquid renderer was forcing `coin` display mode for all
+  Hyperliquid variants, including `v2`
+- `v2` was also inheriting the display `grid` frame from the `v1` cache instead
+  of deriving it from the decoded CoinGlass top-position payload
+
+Fixes shipped:
+
+- `v2` now exposes `display_unit="usd"` from the backend
+- the shared frontend now honors `display_unit` when present
+- the `v2` grid is now computed from the decoded CoinGlass buckets instead of
+  reusing the `v1` frame
+
+Implication:
+
+- prior **visual** comparisons of `v2` vs CoinGlass were not trustworthy on
+  axis/unit fidelity
+- the **data** comparisons and saved BTC verdicts remain valid, because they
+  already operated on raw bucket `volume` in nominal `USD`, not on frontend
+  `coin` conversions
+
+### What To Do Next
+
+The next clean session should **not** continue from visuals.
+
+The next task is:
+
+1. build a clean `raw-USD` comparison report for BTC using:
+   - `v1`
+   - `v2`
+   - `v5`
+2. compare only data payloads:
+   - `long_buckets`
+   - `short_buckets`
+   - `volume`
+3. report both:
+   - full-range metrics
+   - local windows around the mark: `±3%`, `±5%`, `±10%`, `±15%`, `±20%`
+4. treat `v3` and `v4` only as appendix/control variants, not as decision
+   candidates
+
+The question for the next session is no longer:
+
+- "which UI looks more like CoinGlass?"
+
+It is:
+
+- "does the `raw-USD` bucket distribution of `v5` add useful local alignment
+  versus `v1`, despite the failed global stop criterion?"
+
+### External Incident: `hyperliquid-node` Vendor Dataset Contract
+
+The upstream incident report to keep in scope lives outside this repo:
+
+- `/media/sam/1TB/hyperliquid-node/docs/INCIDENT-REPORT-2026-04-02-VENDOR-DATASET-MARCH-2026.md`
+
+Producer-side references mentioned there:
+
+- `/media/sam/1TB/hyperliquid-node/README.md`
+- `/media/sam/1TB/hyperliquid-node/ARCHITECTURE.md`
+- `/media/sam/1TB/hyperliquid-node/docs/RUNBOOK.md`
+- `/media/sam/1TB/hyperliquid-node/scripts/audit_vendor_dataset.py`
+
+Current impact assessment for Rektslug:
+
+- low direct impact on the current Hyperliquid liq-map branches (`v1`/`v3`/`v4`/`v5`)
+- high potential impact on future replay-exact or order-aware work
+
+Reason:
+
+- current liq-map branches are still primarily `ABCI anchor + live /info`
+  driven
+- they are **not** primarily using the March 2026 filtered historical
+  `order_statuses` / `raw_book_diffs` contract that was called out in the
+  incident
+- but future work on resting-order / reserved-margin / historical replay will
+  depend on that producer contract much more heavily
+
+What Rektslug should assume going forward:
+
+- do not treat the filtered hot root alone as a historical contract
+- require explicit producer health / audit signals before depending on those
+  datasets
+- keep consumer-owned retention/checkpointing for anything beyond the rolling
+  producer window
+
+### Transferability To Binance / Bybit
+
+The knowledge from this Hyperliquid investigation is transferable mostly as
+method, not as a direct projector transplant.
+
+Reusable:
+
+- compare payloads in raw `USD`, not by UI appearance
+- separate near-price/core behavior from tails
+- use explicit stop criteria
+- distinguish `display artifact` from `data artifact`
+
+Not directly reusable:
+
+- Hyperliquid `risk-first` depends on account-level state and PM/cross account
+  fragility
+- equivalent public account-level observables do not exist in the same way for
+  Binance / Bybit
+
+Current practical reading:
+
+- Binance can reuse the evaluation method and should be approached as a
+  `public-flow-first` problem
+- Bybit cannot yet reuse much operationally until a reliable public/historical
+  liquidation source is in place
+
+### Resume Checklist
+
+For the next clean session, do only this:
+
+```bash
+sed -n '1196,9999p' docs/runbooks/hyperliquid-liqmap-checkpoint.md
+uv run uvicorn src.liquidationheatmap.api.main:app --host 0.0.0.0 --port 8016
+```
+
+Then immediately work on:
+
+- a `raw-USD` BTC comparison report for `v1` vs `v2` vs `v5`
+
+Useful URLs once the server is up:
+
+```bash
+http://10.0.0.2:8016/chart/derivatives/liq-map/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/btcusdt/1w
+```
+
+But again: those URLs are for sanity checks only. The next decision should be
+made from payload-level `USD` comparisons, not from the browser rendering.
