@@ -1529,3 +1529,80 @@ http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/btcusdt/1w
 
 But again: those URLs are for sanity checks only. The next decision should be
 made from payload-level `USD` comparisons, not from the browser rendering.
+
+## 2026-04-03 BTC `raw-USD` Variant Report Result
+
+The BTC `raw-USD` comparison report requested in the late handoff is now
+materialized at:
+
+- `data/validation/comparison_hl_btc_variants_raw_usd.json`
+
+Important implementation note:
+
+- the report builder was corrected to use the real `v2` replay path
+  (`coinglass-top-position-local` from the latest decodable local capture)
+  rather than the unrelated `v4` cache
+
+Resolved `v2` source for this run:
+
+- `data/validation/raw_provider_api/20260402T082937Z`
+
+Global result summary:
+
+- `v1` vs `v2`:
+  - `pearson_r=0.179`
+  - `KS=0.0674`
+  - `Wasserstein=8705.52`
+- `v1` vs `v5`:
+  - `pearson_r=0.379`
+  - `KS=0.0678`
+  - `Wasserstein=3474.83`
+- `v2` vs `v5`:
+  - `pearson_r=-0.1629`
+  - `KS=0.1096`
+  - `Wasserstein=11703.72`
+
+Near-mark local-window result summary:
+
+- `v1` vs `v5` remains strongly aligned in every tested local window:
+  - `±3%: pearson_r=0.9388`
+  - `±5%: pearson_r=0.9213`
+  - `±10%: pearson_r=0.9127`
+  - `±15%: pearson_r=0.8753`
+  - `±20%: pearson_r=0.8766`
+- `v1` vs `v2` stays near zero or slightly negative in the same windows:
+  - `±3%: pearson_r=-0.0298`
+  - `±5%: pearson_r=-0.0226`
+  - `±10%: pearson_r=-0.0155`
+  - `±15%: pearson_r=-0.0153`
+  - `±20%: pearson_r=-0.009`
+- `v2` vs `v5` also stays negative in the same windows:
+  - `±3%: pearson_r=-0.3827`
+  - `±5%: pearson_r=-0.1775`
+  - `±10%: pearson_r=-0.1308`
+  - `±15%: pearson_r=-0.1638`
+  - `±20%: pearson_r=-0.1602`
+
+Interpretation:
+
+- `v5` is materially closer to `v1` than to the `v2` CoinGlass replay
+- the new local-window report does **not** show `v5` collapsing the near-mark
+  raw-`USD` gap toward `v2`
+- so the answer to the handoff question is currently:
+  - no, `v5` does not show useful local alignment toward `v2` that would justify
+    resuming it as the primary Hyperliquid direction
+
+Decision after this report:
+
+- keep `v1` as the truthful/internal Hyperliquid baseline
+- keep `v2` as the replay/control baseline
+- keep `v5` as a documented experimental branch only
+- do **not** reopen `risk-first` tuning as the main next task on the strength
+  of this report alone
+
+If future work continues, it should be limited to:
+
+- documenting this result cleanly
+- using `v3`/`v4` only as appendix/control references if needed
+- moving attention to other exchange tracks or to a different Hyperliquid
+  method, not more selector-family tuning

@@ -35,7 +35,7 @@ def test_slice_distribution_filters_buckets_and_updates_totals() -> None:
     sliced = slice_distribution(base, 850.0, 1_150.0)
 
     assert sliced.long_buckets == {900.0: 100.0, 1_100.0: 200.0}
-    assert sliced.short_buckets == {900.0: 20.0, 1_200.0: 80.0}
+    assert sliced.short_buckets == {900.0: 20.0}
     assert sliced.display_min_price == 850.0
     assert sliced.display_max_price == 1_150.0
     assert sliced.account_count == base.account_count
@@ -72,6 +72,49 @@ def test_generate_report_creates_global_and_window_sections(monkeypatch, tmp_pat
     window = report["windows"]["pct_5"]
     assert set(window["variants"].keys()) == {"v1", "v2", "v5"}
     assert "v1_vs_v2" in window["pairwise"]
+
+
+def test_generate_report_builds_v2_from_coinglass_replay_when_path_is_omitted(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    variant_map = {
+        "v1": _build_distribution("v1", {900.0: 100.0}, {1_100.0: 80.0}),
+        "v5": _build_distribution("v5", {900.0: 110.0}, {1_100.0: 60.0}),
+    }
+    v2_distribution = _build_distribution(
+        "coinglass-top-position-local",
+        {900.0: 120.0},
+        {1_100.0: 70.0},
+    )
+
+    def fake_loader(path: Path) -> BucketedDistribution:
+        return variant_map[path.stem]
+
+    def fake_load_v2(*, symbol: str, base_cache_path: Path) -> tuple[BucketedDistribution, str]:
+        assert symbol == "BTC"
+        assert base_cache_path == Path("v1.json")
+        return v2_distribution, "data/validation/raw_provider_api/mock-capture"
+
+    monkeypatch.setattr(
+        "scripts.compare_hl_sidecar_variants.load_sidecar_artifact",
+        fake_loader,
+    )
+    monkeypatch.setattr(
+        "scripts.compare_hl_sidecar_variants._load_coinglass_v2_distribution",
+        fake_load_v2,
+    )
+
+    report = generate_report(
+        symbol="BTC",
+        variant_paths={"v1": Path("v1.json"), "v2": None, "v5": Path("v5.json")},
+        output_path=tmp_path / "report.json",
+        mark_price=1_000.0,
+        window_percents=(5,),
+    )
+
+    assert report["metadata"]["variants"]["v2"] == "data/validation/raw_provider_api/mock-capture"
+    assert report["global"]["v1_vs_v2"]["b_source"] == "coinglass-top-position-local"
 
 
 def test_cli_integration_generates_json_output(tmp_path: Path) -> None:

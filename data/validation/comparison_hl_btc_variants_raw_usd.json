@@ -1,0 +1,2368 @@
+{
+  "metadata": {
+    "symbol": "BTC",
+    "current_price": 66590.0,
+    "bin_size": 10.0,
+    "generated_at": "2026-04-03T14:00:37.852463+00:00",
+    "variants": {
+      "v1": "/media/sam/1TB/rektslug/data/cache/hl_sidecar_btcusdt.json",
+      "v2": "data/validation/raw_provider_api/20260402T082937Z",
+      "v5": "/media/sam/1TB/rektslug/data/cache/hl_sidecar_v5_btcusdt.json"
+    }
+  },
+  "global": {
+    "v1_vs_v2": {
+      "a_source": "hyperliquid-sidecar",
+      "b_source": "coinglass-top-position-local",
+      "symbol": "BTC",
+      "bin_size": 10.0,
+      "a_stats": {
+        "long_volume": 755816810.01,
+        "short_volume": 866637870.18,
+        "total_volume": 1622454680.2,
+        "ls_ratio": 0.8721,
+        "long_buckets": 3553,
+        "short_buckets": 3741,
+        "position_count": 7294,
+        "account_count": 44355
+      },
+      "b_stats": {
+        "long_volume": 573983012.91,
+        "short_volume": 689839332.43,
+        "total_volume": 1263822345.34,
+        "ls_ratio": 0.8321,
+        "long_buckets": 92,
+        "short_buckets": 137,
+        "position_count": 229,
+        "account_count": 230
+      },
+      "volume_scale_ratio": 0.779,
+      "pearson_r": 0.179,
+      "pearson_p": 3.43e-54,
+      "ks_statistic": 0.0674,
+      "ks_p": 2.69e-10,
+      "wasserstein_distance": 8705.52,
+      "a_peak_prices": [
+        105850.0,
+        31120.0,
+        48720.0,
+        80580.0,
+        79780.0
+      ],
+      "b_peak_prices": [
+        105850.0,
+        31080.0,
+        49080.0,
+        79800.0,
+        71280.0
+      ],
+      "peak_mean_distance": 1936.0,
+      "peak_max_distance": 8500.0,
+      "ls_ratio_diff": 0.0401,
+      "long_pearson_r": -0.0049,
+      "short_pearson_r": 0.3317,
+      "coarse_shape": {
+        "5": {
+          "step": 50.0,
+          "bins": 3231,
+          "pearson_r": 0.447
+        },
+        "10": {
+          "step": 100.0,
+          "bins": 2035,
+          "pearson_r": 0.5171
+        },
+        "25": {
+          "step": 250.0,
+          "bins": 1054,
+          "pearson_r": 0.6707
+        },
+        "50": {
+          "step": 500.0,
+          "bins": 605,
+          "pearson_r": 0.7311
+        },
+        "100": {
+          "step": 1000.0,
+          "bins": 322,
+          "pearson_r": 0.7928
+        }
+      },
+      "cumulative_shape": {
+        "10": {
+          "step": 100.0,
+          "points": 2035,
+          "pearson_r": 0.9992
+        },
+        "50": {
+          "step": 500.0,
+          "points": 605,
+          "pearson_r": 0.9994
+        },
+        "100": {
+          "step": 1000.0,
+          "points": 322,
+          "pearson_r": 0.9994
+        }
+      },
+      "display_grid": {
+        "min_price": 28130.8,
+        "max_price": 108839.2,
+        "a_long": {
+          "inside_volume": 693745038.19,
+          "outside_volume": 62071771.82,
+          "inside_ratio": 0.9179,
+          "outside_ratio": 0.0821,
+          "outside_bins": 894
+        },
+        "a_short": {
+          "inside_volume": 756666431.74,
+          "outside_volume": 109971438.44,
+          "inside_ratio": 0.8731,
+          "outside_ratio": 0.1269,
+          "outside_bins": 1584
+        },
+        "b_long": {
+          "inside_volume": 526266692.34,
+          "outside_volume": 47716320.56,
+          "inside_ratio": 0.9169,
+          "outside_ratio": 0.0831,
+          "outside_bins": 12
+        },
+        "b_short": {
+          "inside_volume": 603301919.55,
+          "outside_volume": 86537412.88,
+          "inside_ratio": 0.8746,
+          "outside_ratio": 0.1254,
+          "outside_bins": 27
+        }
+      }
+    },
+    "v1_vs_v5": {
+      "a_source": "hyperliquid-sidecar",
+      "b_source": "hyperliquid-sidecar-risk-first",
+      "symbol": "BTC",
+      "bin_size": 10.0,
+      "a_stats": {
+        "long_volume": 755816810.01,
+        "short_volume": 866637870.18,
+        "total_volume": 1622454680.2,
+        "ls_ratio": 0.8721,
+        "long_buckets": 3553,
+        "short_buckets": 3741,
+        "position_count": 7294,
+        "account_count": 44355
+      },
+      "b_stats": {
+        "long_volume": 589512200.19,
+        "short_volume": 657262476.0,
+        "total_volume": 1246774676.19,
+        "ls_ratio": 0.8969,
+        "long_buckets": 121,
+        "short_buckets": 122,
+        "position_count": 243,
+        "account_count": 250
+      },
+      "volume_scale_ratio": 0.7684,
+      "pearson_r": 0.379,
+      "pearson_p": 3.4e-249,
+      "ks_statistic": 0.0678,
+      "ks_p": 2.05e-10,
+      "wasserstein_distance": 3474.83,
+      "a_peak_prices": [
+        105850.0,
+        31120.0,
+        48720.0,
+        80580.0,
+        79780.0
+      ],
+      "b_peak_prices": [
+        105870.0,
+        31240.0,
+        48620.0,
+        80510.0,
+        79780.0
+      ],
+      "peak_mean_distance": 62.0,
+      "peak_max_distance": 120.0,
+      "ls_ratio_diff": 0.0248,
+      "long_pearson_r": 0.3114,
+      "short_pearson_r": 0.4324,
+      "coarse_shape": {
+        "5": {
+          "step": 50.0,
+          "bins": 3220,
+          "pearson_r": 0.6175
+        },
+        "10": {
+          "step": 100.0,
+          "bins": 2027,
+          "pearson_r": 0.7215
+        },
+        "25": {
+          "step": 250.0,
+          "bins": 1048,
+          "pearson_r": 0.928
+        },
+        "50": {
+          "step": 500.0,
+          "bins": 600,
+          "pearson_r": 0.9701
+        },
+        "100": {
+          "step": 1000.0,
+          "bins": 318,
+          "pearson_r": 0.9757
+        }
+      },
+      "cumulative_shape": {
+        "10": {
+          "step": 100.0,
+          "points": 2027,
+          "pearson_r": 0.9993
+        },
+        "50": {
+          "step": 500.0,
+          "points": 600,
+          "pearson_r": 0.9993
+        },
+        "100": {
+          "step": 1000.0,
+          "points": 318,
+          "pearson_r": 0.9993
+        }
+      },
+      "display_grid": {
+        "min_price": 28130.8,
+        "max_price": 108839.2,
+        "a_long": {
+          "inside_volume": 693745038.19,
+          "outside_volume": 62071771.82,
+          "inside_ratio": 0.9179,
+          "outside_ratio": 0.0821,
+          "outside_bins": 894
+        },
+        "a_short": {
+          "inside_volume": 756666431.74,
+          "outside_volume": 109971438.44,
+          "inside_ratio": 0.8731,
+          "outside_ratio": 0.1269,
+          "outside_bins": 1584
+        },
+        "b_long": {
+          "inside_volume": 565923706.94,
+          "outside_volume": 23588493.25,
+          "inside_ratio": 0.96,
+          "outside_ratio": 0.04,
+          "outside_bins": 4
+        },
+        "b_short": {
+          "inside_volume": 617767195.42,
+          "outside_volume": 39495280.58,
+          "inside_ratio": 0.9399,
+          "outside_ratio": 0.0601,
+          "outside_bins": 5
+        }
+      }
+    },
+    "v2_vs_v5": {
+      "a_source": "coinglass-top-position-local",
+      "b_source": "hyperliquid-sidecar-risk-first",
+      "symbol": "BTC",
+      "bin_size": 10.0,
+      "a_stats": {
+        "long_volume": 573983012.91,
+        "short_volume": 689839332.43,
+        "total_volume": 1263822345.34,
+        "ls_ratio": 0.8321,
+        "long_buckets": 92,
+        "short_buckets": 137,
+        "position_count": 229,
+        "account_count": 230
+      },
+      "b_stats": {
+        "long_volume": 589512200.19,
+        "short_volume": 657262476.0,
+        "total_volume": 1246774676.19,
+        "ls_ratio": 0.8969,
+        "long_buckets": 121,
+        "short_buckets": 122,
+        "position_count": 243,
+        "account_count": 250
+      },
+      "volume_scale_ratio": 0.9865,
+      "pearson_r": -0.1629,
+      "pearson_p": 0.000439,
+      "ks_statistic": 0.1096,
+      "ks_p": 1.47e-26,
+      "wasserstein_distance": 11703.72,
+      "a_peak_prices": [
+        105850.0,
+        31080.0,
+        49080.0,
+        79800.0,
+        71280.0
+      ],
+      "b_peak_prices": [
+        105870.0,
+        31240.0,
+        48620.0,
+        80510.0,
+        79780.0
+      ],
+      "peak_mean_distance": 1978.0,
+      "peak_max_distance": 9230.0,
+      "ls_ratio_diff": 0.0649,
+      "long_pearson_r": -0.1758,
+      "short_pearson_r": -0.1527,
+      "coarse_shape": {
+        "5": {
+          "step": 50.0,
+          "bins": 376,
+          "pearson_r": 0.3032
+        },
+        "10": {
+          "step": 100.0,
+          "bins": 310,
+          "pearson_r": 0.3933
+        },
+        "25": {
+          "step": 250.0,
+          "bins": 223,
+          "pearson_r": 0.5611
+        },
+        "50": {
+          "step": 500.0,
+          "bins": 168,
+          "pearson_r": 0.6298
+        },
+        "100": {
+          "step": 1000.0,
+          "bins": 113,
+          "pearson_r": 0.6992
+        }
+      },
+      "cumulative_shape": {
+        "10": {
+          "step": 100.0,
+          "points": 310,
+          "pearson_r": 0.9962
+        },
+        "50": {
+          "step": 500.0,
+          "points": 168,
+          "pearson_r": 0.9967
+        },
+        "100": {
+          "step": 1000.0,
+          "points": 113,
+          "pearson_r": 0.9972
+        }
+      },
+      "display_grid": {
+        "min_price": 28089.2,
+        "max_price": 108840.8,
+        "a_long": {
+          "inside_volume": 526266692.34,
+          "outside_volume": 47716320.56,
+          "inside_ratio": 0.9169,
+          "outside_ratio": 0.0831,
+          "outside_bins": 12
+        },
+        "a_short": {
+          "inside_volume": 604949923.05,
+          "outside_volume": 84889409.38,
+          "inside_ratio": 0.8769,
+          "outside_ratio": 0.1231,
+          "outside_bins": 26
+        },
+        "b_long": {
+          "inside_volume": 565923706.94,
+          "outside_volume": 23588493.25,
+          "inside_ratio": 0.96,
+          "outside_ratio": 0.04,
+          "outside_bins": 4
+        },
+        "b_short": {
+          "inside_volume": 617767195.42,
+          "outside_volume": 39495280.58,
+          "inside_ratio": 0.9399,
+          "outside_ratio": 0.0601,
+          "outside_bins": 5
+        }
+      }
+    }
+  },
+  "windows": {
+    "pct_3": {
+      "bounds": {
+        "min_price": 64592.3,
+        "max_price": 68587.7
+      },
+      "variants": {
+        "v1": {
+          "long_volume": 29959387.15128001,
+          "short_volume": 19469499.165299993,
+          "total_volume": 49428886.31658,
+          "share_of_total": 0.030465495843978892,
+          "ls_ratio": 1.5387857128177125
+        },
+        "v2": {
+          "long_volume": 22630004.893300004,
+          "short_volume": 31662622.066299997,
+          "total_volume": 54292626.9596,
+          "share_of_total": 0.04295906553636253,
+          "ls_ratio": 0.7147230209144988
+        },
+        "v5": {
+          "long_volume": 25515311.257010005,
+          "short_volume": 19653501.0588,
+          "total_volume": 45168812.31581001,
+          "share_of_total": 0.03622852884189501,
+          "ls_ratio": 1.2982578106909526
+        }
+      },
+      "pairwise": {
+        "v1_vs_v2": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "coinglass-top-position-local",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 29959387.15,
+            "short_volume": 19469499.17,
+            "total_volume": 49428886.32,
+            "ls_ratio": 1.5388,
+            "long_buckets": 160,
+            "short_buckets": 102,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 22630004.89,
+            "short_volume": 31662622.07,
+            "total_volume": 54292626.96,
+            "ls_ratio": 0.7147,
+            "long_buckets": 7,
+            "short_buckets": 8,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "volume_scale_ratio": 1.0984,
+          "pearson_r": -0.0298,
+          "pearson_p": 0.629,
+          "ks_statistic": 0.243,
+          "ks_p": 6.28e-130,
+          "wasserstein_distance": 484.67,
+          "a_peak_prices": [
+            66040.0,
+            67650.0,
+            67600.0,
+            65390.0,
+            65910.0
+          ],
+          "b_peak_prices": [
+            68370.0,
+            67910.0,
+            65290.0,
+            67380.0,
+            65400.0
+          ],
+          "peak_mean_distance": 736.0,
+          "peak_max_distance": 2460.0,
+          "ls_ratio_diff": 0.8241,
+          "long_pearson_r": -0.0317,
+          "short_pearson_r": -0.0301,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 69,
+              "pearson_r": -0.0226
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 38,
+              "pearson_r": -0.1062
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 17,
+              "pearson_r": 0.2598
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 38,
+              "pearson_r": 0.9649
+            }
+          },
+          "display_grid": {
+            "min_price": 64592.3,
+            "max_price": 68587.7,
+            "a_long": {
+              "inside_volume": 29959387.15,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 19469499.17,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 22630004.89,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 31662622.07,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v1_vs_v5": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 29959387.15,
+            "short_volume": 19469499.17,
+            "total_volume": 49428886.32,
+            "ls_ratio": 1.5388,
+            "long_buckets": 160,
+            "short_buckets": 102,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 25515311.26,
+            "short_volume": 19653501.06,
+            "total_volume": 45168812.32,
+            "ls_ratio": 1.2983,
+            "long_buckets": 16,
+            "short_buckets": 10,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.9138,
+          "pearson_r": 0.9388,
+          "pearson_p": 8.35e-123,
+          "ks_statistic": 0.0814,
+          "ks_p": 7.92e-15,
+          "wasserstein_distance": 116.4,
+          "a_peak_prices": [
+            66040.0,
+            67650.0,
+            67600.0,
+            65390.0,
+            65910.0
+          ],
+          "b_peak_prices": [
+            66040.0,
+            67650.0,
+            67600.0,
+            65390.0,
+            65910.0
+          ],
+          "peak_mean_distance": 0.0,
+          "peak_max_distance": 0.0,
+          "ls_ratio_diff": 0.2405,
+          "long_pearson_r": 0.9662,
+          "short_pearson_r": 0.9051,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 69,
+              "pearson_r": 0.9506
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 38,
+              "pearson_r": 0.9614
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 17,
+              "pearson_r": 0.9585
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 38,
+              "pearson_r": 0.9978
+            }
+          },
+          "display_grid": {
+            "min_price": 64592.3,
+            "max_price": 68587.7,
+            "a_long": {
+              "inside_volume": 29959387.15,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 19469499.17,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 25515311.26,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 19653501.06,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v2_vs_v5": {
+          "a_source": "coinglass-top-position-local",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 22630004.89,
+            "short_volume": 31662622.07,
+            "total_volume": 54292626.96,
+            "ls_ratio": 0.7147,
+            "long_buckets": 7,
+            "short_buckets": 8,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "b_stats": {
+            "long_volume": 25515311.26,
+            "short_volume": 19653501.06,
+            "total_volume": 45168812.32,
+            "ls_ratio": 1.2983,
+            "long_buckets": 16,
+            "short_buckets": 10,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.832,
+          "pearson_r": -0.3827,
+          "pearson_p": 0.0135,
+          "ks_statistic": 0.1992,
+          "ks_p": 3.68e-87,
+          "wasserstein_distance": 376.76,
+          "a_peak_prices": [
+            68370.0,
+            67910.0,
+            65290.0,
+            67380.0,
+            65400.0
+          ],
+          "b_peak_prices": [
+            66040.0,
+            67650.0,
+            67600.0,
+            65390.0,
+            65910.0
+          ],
+          "peak_mean_distance": 596.0,
+          "peak_max_distance": 1340.0,
+          "ls_ratio_diff": 0.5835,
+          "long_pearson_r": -0.3821,
+          "short_pearson_r": -0.4055,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 32,
+              "pearson_r": -0.378
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 23,
+              "pearson_r": -0.4464
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 13,
+              "pearson_r": 0.1001
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 23,
+              "pearson_r": 0.9692
+            }
+          },
+          "display_grid": {
+            "min_price": 64592.3,
+            "max_price": 68587.7,
+            "a_long": {
+              "inside_volume": 22630004.89,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 31662622.07,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 25515311.26,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 19653501.06,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        }
+      }
+    },
+    "pct_5": {
+      "bounds": {
+        "min_price": 63260.5,
+        "max_price": 69919.5
+      },
+      "variants": {
+        "v1": {
+          "long_volume": 74672639.21588996,
+          "short_volume": 55948535.857279986,
+          "total_volume": 130621175.07316995,
+          "share_of_total": 0.08050836591461843,
+          "ls_ratio": 1.334666547957101
+        },
+        "v2": {
+          "long_volume": 63130546.8607,
+          "short_volume": 40316593.69499999,
+          "total_volume": 103447140.55569999,
+          "share_of_total": 0.08185259655953775,
+          "ls_ratio": 1.565870056837896
+        },
+        "v5": {
+          "long_volume": 63099658.185619995,
+          "short_volume": 54951113.271180004,
+          "total_volume": 118050771.4568,
+          "share_of_total": 0.09468492880946672,
+          "ls_ratio": 1.1482871670720751
+        }
+      },
+      "pairwise": {
+        "v1_vs_v2": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "coinglass-top-position-local",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 74672639.22,
+            "short_volume": 55948535.86,
+            "total_volume": 130621175.07,
+            "ls_ratio": 1.3347,
+            "long_buckets": 282,
+            "short_buckets": 186,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 63130546.86,
+            "short_volume": 40316593.69,
+            "total_volume": 103447140.56,
+            "ls_ratio": 1.5659,
+            "long_buckets": 13,
+            "short_buckets": 13,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "volume_scale_ratio": 0.792,
+          "pearson_r": -0.0226,
+          "pearson_p": 0.624,
+          "ks_statistic": 0.2216,
+          "ks_p": 6.14e-108,
+          "wasserstein_distance": 485.06,
+          "a_peak_prices": [
+            64270.0,
+            69090.0,
+            66040.0,
+            69300.0,
+            69850.0
+          ],
+          "b_peak_prices": [
+            64280.0,
+            68370.0,
+            67910.0,
+            65290.0,
+            67380.0
+          ],
+          "peak_mean_distance": 1068.0,
+          "peak_max_distance": 2470.0,
+          "ls_ratio_diff": 0.2312,
+          "long_pearson_r": -0.0173,
+          "short_pearson_r": -0.042,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 123,
+              "pearson_r": 0.6798
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 66,
+              "pearson_r": 0.6538
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 27,
+              "pearson_r": 0.6897
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 14,
+              "pearson_r": 0.6495
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 66,
+              "pearson_r": 0.9844
+            },
+            "50": {
+              "step": 500.0,
+              "points": 14,
+              "pearson_r": 0.979
+            }
+          },
+          "display_grid": {
+            "min_price": 63260.5,
+            "max_price": 69919.5,
+            "a_long": {
+              "inside_volume": 74672639.22,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 55948535.86,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 63130546.86,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 40316593.69,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v1_vs_v5": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 74672639.22,
+            "short_volume": 55948535.86,
+            "total_volume": 130621175.07,
+            "ls_ratio": 1.3347,
+            "long_buckets": 282,
+            "short_buckets": 186,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 63099658.19,
+            "short_volume": 54951113.27,
+            "total_volume": 118050771.46,
+            "ls_ratio": 1.1483,
+            "long_buckets": 26,
+            "short_buckets": 25,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.9038,
+          "pearson_r": 0.9213,
+          "pearson_p": 5.54e-195,
+          "ks_statistic": 0.056,
+          "ks_p": 3.08e-07,
+          "wasserstein_distance": 162.31,
+          "a_peak_prices": [
+            64270.0,
+            69090.0,
+            66040.0,
+            69300.0,
+            69850.0
+          ],
+          "b_peak_prices": [
+            64270.0,
+            69090.0,
+            69300.0,
+            66040.0,
+            69860.0
+          ],
+          "peak_mean_distance": 2.0,
+          "peak_max_distance": 10.0,
+          "ls_ratio_diff": 0.1864,
+          "long_pearson_r": 0.9581,
+          "short_pearson_r": 0.7942,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 123,
+              "pearson_r": 0.9889
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 66,
+              "pearson_r": 0.9904
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 27,
+              "pearson_r": 0.9906
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 14,
+              "pearson_r": 0.9874
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 66,
+              "pearson_r": 0.999
+            },
+            "50": {
+              "step": 500.0,
+              "points": 14,
+              "pearson_r": 0.9987
+            }
+          },
+          "display_grid": {
+            "min_price": 63260.5,
+            "max_price": 69919.5,
+            "a_long": {
+              "inside_volume": 74672639.22,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 55948535.86,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 63099658.19,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 54951113.27,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v2_vs_v5": {
+          "a_source": "coinglass-top-position-local",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 63130546.86,
+            "short_volume": 40316593.69,
+            "total_volume": 103447140.56,
+            "ls_ratio": 1.5659,
+            "long_buckets": 13,
+            "short_buckets": 13,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "b_stats": {
+            "long_volume": 63099658.19,
+            "short_volume": 54951113.27,
+            "total_volume": 118050771.46,
+            "ls_ratio": 1.1483,
+            "long_buckets": 26,
+            "short_buckets": 25,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 1.1412,
+          "pearson_r": -0.1775,
+          "pearson_p": 0.125,
+          "ks_statistic": 0.2456,
+          "ks_p": 9.62e-133,
+          "wasserstein_distance": 641.64,
+          "a_peak_prices": [
+            64280.0,
+            68370.0,
+            67910.0,
+            65290.0,
+            67380.0
+          ],
+          "b_peak_prices": [
+            64270.0,
+            69090.0,
+            69300.0,
+            66040.0,
+            69860.0
+          ],
+          "peak_mean_distance": 1070.0,
+          "peak_max_distance": 2480.0,
+          "ls_ratio_diff": 0.4176,
+          "long_pearson_r": -0.1438,
+          "short_pearson_r": -0.3365,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 60,
+              "pearson_r": 0.6213
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 43,
+              "pearson_r": 0.5854
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 23,
+              "pearson_r": 0.6464
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 12,
+              "pearson_r": 0.5568
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 43,
+              "pearson_r": 0.982
+            },
+            "50": {
+              "step": 500.0,
+              "points": 12,
+              "pearson_r": 0.9686
+            }
+          },
+          "display_grid": {
+            "min_price": 63260.5,
+            "max_price": 69919.5,
+            "a_long": {
+              "inside_volume": 63130546.86,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 40316593.69,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 63099658.19,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 54951113.27,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        }
+      }
+    },
+    "pct_10": {
+      "bounds": {
+        "min_price": 59931.0,
+        "max_price": 73249.0
+      },
+      "variants": {
+        "v1": {
+          "long_volume": 157911874.87007025,
+          "short_volume": 195561460.52712986,
+          "total_volume": 353473335.3972001,
+          "share_of_total": 0.21786330287778674,
+          "ls_ratio": 0.8074795230329314
+        },
+        "v2": {
+          "long_volume": 100607274.5789,
+          "short_volume": 143732297.6335,
+          "total_volume": 244339572.21240002,
+          "share_of_total": 0.1933337965689146,
+          "ls_ratio": 0.6999628909810959
+        },
+        "v5": {
+          "long_volume": 123880397.80170001,
+          "short_volume": 177870367.30628002,
+          "total_volume": 301750765.10798,
+          "share_of_total": 0.2420250995386903,
+          "ls_ratio": 0.6964645077073848
+        }
+      },
+      "pairwise": {
+        "v1_vs_v2": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "coinglass-top-position-local",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 157911874.87,
+            "short_volume": 195561460.53,
+            "total_volume": 353473335.4,
+            "ls_ratio": 0.8075,
+            "long_buckets": 594,
+            "short_buckets": 442,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 100607274.58,
+            "short_volume": 143732297.63,
+            "total_volume": 244339572.21,
+            "ls_ratio": 0.7,
+            "long_buckets": 25,
+            "short_buckets": 30,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "volume_scale_ratio": 0.6913,
+          "pearson_r": -0.0155,
+          "pearson_p": 0.616,
+          "ks_statistic": 0.1522,
+          "ks_p": 6.43e-51,
+          "wasserstein_distance": 554.26,
+          "a_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            60660.0
+          ],
+          "b_peak_prices": [
+            71280.0,
+            64280.0,
+            70170.0,
+            70380.0,
+            73140.0
+          ],
+          "peak_mean_distance": 2592.0,
+          "peak_max_distance": 12480.0,
+          "ls_ratio_diff": 0.1075,
+          "long_pearson_r": -0.0158,
+          "short_pearson_r": -0.0181,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 256,
+              "pearson_r": 0.6151
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 132,
+              "pearson_r": 0.7279
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 54,
+              "pearson_r": 0.6536
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 28,
+              "pearson_r": 0.6684
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 15,
+              "pearson_r": 0.4622
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 132,
+              "pearson_r": 0.9945
+            },
+            "50": {
+              "step": 500.0,
+              "points": 28,
+              "pearson_r": 0.9939
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 15,
+              "pearson_r": 0.9932
+            }
+          },
+          "display_grid": {
+            "min_price": 59931.0,
+            "max_price": 73249.0,
+            "a_long": {
+              "inside_volume": 157911874.87,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 195561460.53,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 100607274.58,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 143732297.63,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v1_vs_v5": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 157911874.87,
+            "short_volume": 195561460.53,
+            "total_volume": 353473335.4,
+            "ls_ratio": 0.8075,
+            "long_buckets": 594,
+            "short_buckets": 442,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 123880397.8,
+            "short_volume": 177870367.31,
+            "total_volume": 301750765.11,
+            "ls_ratio": 0.6965,
+            "long_buckets": 56,
+            "short_buckets": 56,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.8537,
+          "pearson_r": 0.9127,
+          "pearson_p": 0.0,
+          "ks_statistic": 0.06,
+          "ks_p": 3.02e-08,
+          "wasserstein_distance": 328.0,
+          "a_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            60660.0
+          ],
+          "b_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            60660.0
+          ],
+          "peak_mean_distance": 0.0,
+          "peak_max_distance": 0.0,
+          "ls_ratio_diff": 0.111,
+          "long_pearson_r": 0.8821,
+          "short_pearson_r": 0.9266,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 256,
+              "pearson_r": 0.987
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 132,
+              "pearson_r": 0.9873
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 54,
+              "pearson_r": 0.9817
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 28,
+              "pearson_r": 0.9741
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 15,
+              "pearson_r": 0.9717
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 132,
+              "pearson_r": 0.9984
+            },
+            "50": {
+              "step": 500.0,
+              "points": 28,
+              "pearson_r": 0.9985
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 15,
+              "pearson_r": 0.9987
+            }
+          },
+          "display_grid": {
+            "min_price": 59931.0,
+            "max_price": 73249.0,
+            "a_long": {
+              "inside_volume": 157911874.87,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 195561460.53,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 123880397.8,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 177870367.31,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v2_vs_v5": {
+          "a_source": "coinglass-top-position-local",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 100607274.58,
+            "short_volume": 143732297.63,
+            "total_volume": 244339572.21,
+            "ls_ratio": 0.7,
+            "long_buckets": 25,
+            "short_buckets": 30,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "b_stats": {
+            "long_volume": 123880397.8,
+            "short_volume": 177870367.31,
+            "total_volume": 301750765.11,
+            "ls_ratio": 0.6965,
+            "long_buckets": 56,
+            "short_buckets": 56,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 1.235,
+          "pearson_r": -0.1308,
+          "pearson_p": 0.1,
+          "ks_statistic": 0.1522,
+          "ks_p": 6.43e-51,
+          "wasserstein_distance": 376.42,
+          "a_peak_prices": [
+            71280.0,
+            64280.0,
+            70170.0,
+            70380.0,
+            73140.0
+          ],
+          "b_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            60660.0
+          ],
+          "peak_mean_distance": 2592.0,
+          "peak_max_distance": 12480.0,
+          "ls_ratio_diff": 0.0035,
+          "long_pearson_r": -0.1682,
+          "short_pearson_r": -0.1198,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 123,
+              "pearson_r": 0.5807
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 89,
+              "pearson_r": 0.712
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 48,
+              "pearson_r": 0.6731
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 26,
+              "pearson_r": 0.717
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 14,
+              "pearson_r": 0.4789
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 89,
+              "pearson_r": 0.9928
+            },
+            "50": {
+              "step": 500.0,
+              "points": 26,
+              "pearson_r": 0.9935
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 14,
+              "pearson_r": 0.9924
+            }
+          },
+          "display_grid": {
+            "min_price": 59931.0,
+            "max_price": 73249.0,
+            "a_long": {
+              "inside_volume": 100607274.58,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 143732297.63,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 123880397.8,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 177870367.31,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        }
+      }
+    },
+    "pct_15": {
+      "bounds": {
+        "min_price": 56601.5,
+        "max_price": 76578.5
+      },
+      "variants": {
+        "v1": {
+          "long_volume": 226136357.59865022,
+          "short_volume": 269672314.70523983,
+          "total_volume": 495808672.30389005,
+          "share_of_total": 0.3055916928562509,
+          "ls_ratio": 0.8385597826229372
+        },
+        "v2": {
+          "long_volume": 149321923.35920003,
+          "short_volume": 200069161.34039998,
+          "total_volume": 349391084.6996,
+          "share_of_total": 0.2764558531418957,
+          "ls_ratio": 0.7463515234371477
+        },
+        "v5": {
+          "long_volume": 178624522.37304,
+          "short_volume": 235107739.91924,
+          "total_volume": 413732262.29227996,
+          "share_of_total": 0.3318420482805546,
+          "ls_ratio": 0.7597560268938738
+        }
+      },
+      "pairwise": {
+        "v1_vs_v2": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "coinglass-top-position-local",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 226136357.6,
+            "short_volume": 269672314.71,
+            "total_volume": 495808672.3,
+            "ls_ratio": 0.8386,
+            "long_buckets": 891,
+            "short_buckets": 683,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 149321923.36,
+            "short_volume": 200069161.34,
+            "total_volume": 349391084.7,
+            "ls_ratio": 0.7464,
+            "long_buckets": 35,
+            "short_buckets": 43,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "volume_scale_ratio": 0.7047,
+          "pearson_r": -0.0153,
+          "pearson_p": 0.542,
+          "ks_statistic": 0.1168,
+          "ks_p": 4.1e-30,
+          "wasserstein_distance": 475.48,
+          "a_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            59070.0,
+            69990.0
+          ],
+          "b_peak_prices": [
+            71280.0,
+            64280.0,
+            59090.0,
+            70170.0,
+            70380.0
+          ],
+          "peak_mean_distance": 100.0,
+          "peak_max_distance": 390.0,
+          "ls_ratio_diff": 0.0922,
+          "long_pearson_r": -0.0098,
+          "short_pearson_r": -0.0209,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 389,
+              "pearson_r": 0.6019
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 198,
+              "pearson_r": 0.6952
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 81,
+              "pearson_r": 0.6409
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 41,
+              "pearson_r": 0.637
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 21,
+              "pearson_r": 0.3877
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 198,
+              "pearson_r": 0.9969
+            },
+            "50": {
+              "step": 500.0,
+              "points": 41,
+              "pearson_r": 0.9968
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 21,
+              "pearson_r": 0.9963
+            }
+          },
+          "display_grid": {
+            "min_price": 56601.5,
+            "max_price": 76578.5,
+            "a_long": {
+              "inside_volume": 226136357.6,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 269672314.71,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 149321923.36,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 200069161.34,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v1_vs_v5": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 226136357.6,
+            "short_volume": 269672314.71,
+            "total_volume": 495808672.3,
+            "ls_ratio": 0.8386,
+            "long_buckets": 891,
+            "short_buckets": 683,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 178624522.37,
+            "short_volume": 235107739.92,
+            "total_volume": 413732262.29,
+            "ls_ratio": 0.7598,
+            "long_buckets": 76,
+            "short_buckets": 71,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.8345,
+          "pearson_r": 0.8753,
+          "pearson_p": 0.0,
+          "ks_statistic": 0.0494,
+          "ks_p": 1e-05,
+          "wasserstein_distance": 308.23,
+          "a_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            59070.0,
+            69990.0
+          ],
+          "b_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            59070.0
+          ],
+          "peak_mean_distance": 0.0,
+          "peak_max_distance": 0.0,
+          "ls_ratio_diff": 0.0788,
+          "long_pearson_r": 0.9053,
+          "short_pearson_r": 0.8584,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 389,
+              "pearson_r": 0.9551
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 198,
+              "pearson_r": 0.9695
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 81,
+              "pearson_r": 0.9625
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 41,
+              "pearson_r": 0.9665
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 21,
+              "pearson_r": 0.9644
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 198,
+              "pearson_r": 0.9987
+            },
+            "50": {
+              "step": 500.0,
+              "points": 41,
+              "pearson_r": 0.9988
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 21,
+              "pearson_r": 0.9988
+            }
+          },
+          "display_grid": {
+            "min_price": 56601.5,
+            "max_price": 76578.5,
+            "a_long": {
+              "inside_volume": 226136357.6,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 269672314.71,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 178624522.37,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 235107739.92,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v2_vs_v5": {
+          "a_source": "coinglass-top-position-local",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 149321923.36,
+            "short_volume": 200069161.34,
+            "total_volume": 349391084.7,
+            "ls_ratio": 0.7464,
+            "long_buckets": 35,
+            "short_buckets": 43,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "b_stats": {
+            "long_volume": 178624522.37,
+            "short_volume": 235107739.92,
+            "total_volume": 413732262.29,
+            "ls_ratio": 0.7598,
+            "long_buckets": 76,
+            "short_buckets": 71,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 1.1842,
+          "pearson_r": -0.1638,
+          "pearson_p": 0.0162,
+          "ks_statistic": 0.124,
+          "ks_p": 6.76e-34,
+          "wasserstein_distance": 375.36,
+          "a_peak_prices": [
+            71280.0,
+            64280.0,
+            59090.0,
+            70170.0,
+            70380.0
+          ],
+          "b_peak_prices": [
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0,
+            59070.0
+          ],
+          "peak_mean_distance": 100.0,
+          "peak_max_distance": 390.0,
+          "ls_ratio_diff": 0.0134,
+          "long_pearson_r": -0.1842,
+          "short_pearson_r": -0.158,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 162,
+              "pearson_r": 0.549
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 122,
+              "pearson_r": 0.6636
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 70,
+              "pearson_r": 0.6252
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 39,
+              "pearson_r": 0.6666
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 21,
+              "pearson_r": 0.4287
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 122,
+              "pearson_r": 0.997
+            },
+            "50": {
+              "step": 500.0,
+              "points": 39,
+              "pearson_r": 0.9974
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 21,
+              "pearson_r": 0.997
+            }
+          },
+          "display_grid": {
+            "min_price": 56601.5,
+            "max_price": 76578.5,
+            "a_long": {
+              "inside_volume": 149321923.36,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 200069161.34,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 178624522.37,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 235107739.92,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        }
+      }
+    },
+    "pct_20": {
+      "bounds": {
+        "min_price": 53272.0,
+        "max_price": 79908.0
+      },
+      "variants": {
+        "v1": {
+          "long_volume": 262040283.49659014,
+          "short_volume": 358402924.93331003,
+          "total_volume": 620443208.4299002,
+          "share_of_total": 0.3824101936422892,
+          "ls_ratio": 0.7311332170220134
+        },
+        "v2": {
+          "long_volume": 171572892.3061,
+          "short_volume": 273036495.66779995,
+          "total_volume": 444609387.97389996,
+          "share_of_total": 0.35179737849607856,
+          "ls_ratio": 0.628388127698689
+        },
+        "v5": {
+          "long_volume": 206412505.1406,
+          "short_volume": 306584204.96717,
+          "total_volume": 512996710.10776997,
+          "share_of_total": 0.4114590389934035,
+          "ls_ratio": 0.6732652948076803
+        }
+      },
+      "pairwise": {
+        "v1_vs_v2": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "coinglass-top-position-local",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 262040283.5,
+            "short_volume": 358402924.93,
+            "total_volume": 620443208.43,
+            "ls_ratio": 0.7311,
+            "long_buckets": 1164,
+            "short_buckets": 913,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 171572892.31,
+            "short_volume": 273036495.67,
+            "total_volume": 444609387.97,
+            "ls_ratio": 0.6284,
+            "long_buckets": 45,
+            "short_buckets": 49,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "volume_scale_ratio": 0.7166,
+          "pearson_r": -0.009,
+          "pearson_p": 0.679,
+          "ks_statistic": 0.1124,
+          "ks_p": 6.48e-28,
+          "wasserstein_distance": 695.65,
+          "a_peak_prices": [
+            79780.0,
+            71260.0,
+            64270.0,
+            70110.0,
+            59070.0
+          ],
+          "b_peak_prices": [
+            79800.0,
+            71280.0,
+            64280.0,
+            59090.0,
+            70170.0
+          ],
+          "peak_mean_distance": 26.0,
+          "peak_max_distance": 60.0,
+          "ls_ratio_diff": 0.1027,
+          "long_pearson_r": 0.0067,
+          "short_pearson_r": -0.0177,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 522,
+              "pearson_r": 0.4194
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 265,
+              "pearson_r": 0.4788
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 107,
+              "pearson_r": 0.692
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 54,
+              "pearson_r": 0.6918
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 27,
+              "pearson_r": 0.5971
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 265,
+              "pearson_r": 0.998
+            },
+            "50": {
+              "step": 500.0,
+              "points": 54,
+              "pearson_r": 0.998
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 27,
+              "pearson_r": 0.9977
+            }
+          },
+          "display_grid": {
+            "min_price": 53272.0,
+            "max_price": 79908.0,
+            "a_long": {
+              "inside_volume": 262040283.5,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 358402924.93,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 171572892.31,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 273036495.67,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v1_vs_v5": {
+          "a_source": "hyperliquid-sidecar",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 262040283.5,
+            "short_volume": 358402924.93,
+            "total_volume": 620443208.43,
+            "ls_ratio": 0.7311,
+            "long_buckets": 1164,
+            "short_buckets": 913,
+            "position_count": 7294,
+            "account_count": 44355
+          },
+          "b_stats": {
+            "long_volume": 206412505.14,
+            "short_volume": 306584204.97,
+            "total_volume": 512996710.11,
+            "ls_ratio": 0.6733,
+            "long_buckets": 87,
+            "short_buckets": 78,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 0.8268,
+          "pearson_r": 0.8766,
+          "pearson_p": 0.0,
+          "ks_statistic": 0.0408,
+          "ks_p": 0.000485,
+          "wasserstein_distance": 292.05,
+          "a_peak_prices": [
+            79780.0,
+            71260.0,
+            64270.0,
+            70110.0,
+            59070.0
+          ],
+          "b_peak_prices": [
+            79780.0,
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0
+          ],
+          "peak_mean_distance": 2184.0,
+          "peak_max_distance": 10920.0,
+          "ls_ratio_diff": 0.0579,
+          "long_pearson_r": 0.8715,
+          "short_pearson_r": 0.8782,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 522,
+              "pearson_r": 0.9597
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 265,
+              "pearson_r": 0.97
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 107,
+              "pearson_r": 0.9641
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 54,
+              "pearson_r": 0.9723
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 27,
+              "pearson_r": 0.972
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 265,
+              "pearson_r": 0.9992
+            },
+            "50": {
+              "step": 500.0,
+              "points": 54,
+              "pearson_r": 0.9992
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 27,
+              "pearson_r": 0.9992
+            }
+          },
+          "display_grid": {
+            "min_price": 53272.0,
+            "max_price": 79908.0,
+            "a_long": {
+              "inside_volume": 262040283.5,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 358402924.93,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 206412505.14,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 306584204.97,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        },
+        "v2_vs_v5": {
+          "a_source": "coinglass-top-position-local",
+          "b_source": "hyperliquid-sidecar-risk-first",
+          "symbol": "BTC",
+          "bin_size": 10.0,
+          "a_stats": {
+            "long_volume": 171572892.31,
+            "short_volume": 273036495.67,
+            "total_volume": 444609387.97,
+            "ls_ratio": 0.6284,
+            "long_buckets": 45,
+            "short_buckets": 49,
+            "position_count": 229,
+            "account_count": 230
+          },
+          "b_stats": {
+            "long_volume": 206412505.14,
+            "short_volume": 306584204.97,
+            "total_volume": 512996710.11,
+            "ls_ratio": 0.6733,
+            "long_buckets": 87,
+            "short_buckets": 78,
+            "position_count": 243,
+            "account_count": 250
+          },
+          "volume_scale_ratio": 1.1538,
+          "pearson_r": -0.1602,
+          "pearson_p": 0.0114,
+          "ks_statistic": 0.1142,
+          "ks_p": 8.36e-29,
+          "wasserstein_distance": 616.64,
+          "a_peak_prices": [
+            79800.0,
+            71280.0,
+            64280.0,
+            59090.0,
+            70170.0
+          ],
+          "b_peak_prices": [
+            79780.0,
+            71260.0,
+            64270.0,
+            70110.0,
+            69990.0
+          ],
+          "peak_mean_distance": 2202.0,
+          "peak_max_distance": 10900.0,
+          "ls_ratio_diff": 0.0449,
+          "long_pearson_r": -0.1967,
+          "short_pearson_r": -0.1623,
+          "coarse_shape": {
+            "5": {
+              "step": 50.0,
+              "bins": 191,
+              "pearson_r": 0.3368
+            },
+            "10": {
+              "step": 100.0,
+              "bins": 145,
+              "pearson_r": 0.4262
+            },
+            "25": {
+              "step": 250.0,
+              "bins": 85,
+              "pearson_r": 0.685
+            },
+            "50": {
+              "step": 500.0,
+              "bins": 51,
+              "pearson_r": 0.7116
+            },
+            "100": {
+              "step": 1000.0,
+              "bins": 27,
+              "pearson_r": 0.6238
+            }
+          },
+          "cumulative_shape": {
+            "10": {
+              "step": 100.0,
+              "points": 145,
+              "pearson_r": 0.9979
+            },
+            "50": {
+              "step": 500.0,
+              "points": 51,
+              "pearson_r": 0.9984
+            },
+            "100": {
+              "step": 1000.0,
+              "points": 27,
+              "pearson_r": 0.998
+            }
+          },
+          "display_grid": {
+            "min_price": 53272.0,
+            "max_price": 79908.0,
+            "a_long": {
+              "inside_volume": 171572892.31,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "a_short": {
+              "inside_volume": 273036495.67,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_long": {
+              "inside_volume": 206412505.14,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            },
+            "b_short": {
+              "inside_volume": 306584204.97,
+              "outside_volume": 0.0,
+              "inside_ratio": 1.0,
+              "outside_ratio": 0.0,
+              "outside_bins": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

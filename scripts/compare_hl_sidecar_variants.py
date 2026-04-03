@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.compare_hl_sidecar_vs_coinglass import (
     BucketedDistribution,
@@ -20,14 +25,12 @@ from scripts.compare_hl_sidecar_vs_coinglass import (
     load_sidecar_artifact,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CACHE_ROOT = PROJECT_ROOT / "data" / "cache"
 DEFAULT_OUTPUT = (
     PROJECT_ROOT / "data" / "validation" / "comparison_hl_btc_variants_raw_usd.json"
 )
 DEFAULT_VARIANTS = {
     "v1": DEFAULT_CACHE_ROOT / "hl_sidecar_btcusdt.json",
-    "v2": DEFAULT_CACHE_ROOT / "hl_sidecar_v4_btcusdt.json",
     "v5": DEFAULT_CACHE_ROOT / "hl_sidecar_v5_btcusdt.json",
 }
 DEFAULT_WINDOWS = (3, 5, 10, 15, 20)
@@ -40,6 +43,53 @@ class VariantStats:
     total_volume: float
     share_of_total: float | None
     ls_ratio: float | None
+
+
+def _distribution_from_payload(data: dict) -> BucketedDistribution:
+    grid = data.get("grid", {})
+    symbol = str(data.get("symbol", "")).removesuffix("USDT")
+    distribution = BucketedDistribution(
+        source=str(data.get("source", "hyperliquid-sidecar")),
+        symbol=symbol,
+        bin_size=float(data.get("bin_size") or grid.get("step") or 0.0),
+        current_price=float(data.get("current_price", 0.0)),
+        account_count=int(data.get("account_count", 0)),
+        display_min_price=(
+            float(grid["min_price"]) if grid.get("min_price") is not None else None
+        ),
+        display_max_price=(
+            float(grid["max_price"]) if grid.get("max_price") is not None else None
+        ),
+    )
+    for entry in data.get("long_buckets", []):
+        distribution.long_buckets[float(entry["price_level"])] = float(entry["volume"])
+    for entry in data.get("short_buckets", []):
+        distribution.short_buckets[float(entry["price_level"])] = float(entry["volume"])
+    distribution.position_count = len(distribution.long_buckets) + len(distribution.short_buckets)
+    return distribution
+
+
+def _load_coinglass_v2_distribution(
+    *,
+    symbol: str,
+    base_cache_path: Path,
+) -> tuple[BucketedDistribution, str]:
+    from src.liquidationheatmap.api.routers.liquidations import (
+        _build_coinglass_top_position_response,
+        _load_hl_cache_payload,
+    )
+
+    normalized_symbol = symbol.upper()
+    if not normalized_symbol.endswith("USDT"):
+        normalized_symbol = f"{normalized_symbol}USDT"
+
+    base_cache = _load_hl_cache_payload(base_cache_path)
+    payload = _build_coinglass_top_position_response(
+        symbol=normalized_symbol,
+        timeframe="1w",
+        base_cache=base_cache,
+    )
+    return _distribution_from_payload(payload), str(payload["source_anchor"])
 
 
 def _validate_bin_alignment(distributions: list[BucketedDistribution]) -> None:
@@ -139,14 +189,24 @@ def _print_summary(report: dict, windows: Iterable[float]) -> None:
 def generate_report(
     *,
     symbol: str,
-    variant_paths: dict[str, Path],
+    variant_paths: dict[str, Path | None],
     output_path: Path,
     mark_price: float | None,
     window_percents: Iterable[int],
 ) -> dict:
     variants: dict[str, BucketedDistribution] = {}
+    variant_sources: dict[str, str] = {}
     for name, path in variant_paths.items():
+        if name == "v2" and path is None:
+            variants[name], variant_sources[name] = _load_coinglass_v2_distribution(
+                symbol=symbol,
+                base_cache_path=variant_paths["v1"],
+            )
+            continue
+        if path is None:
+            raise ValueError(f"Missing path for variant {name}")
         variants[name] = load_sidecar_artifact(path)
+        variant_sources[name] = str(path)
     distributions = list(variants.values())
     _validate_bin_alignment(distributions)
 
@@ -157,7 +217,7 @@ def generate_report(
             "current_price": current_price,
             "bin_size": distributions[0].bin_size,
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "variants": {name: str(path) for name, path in variant_paths.items()},
+            "variants": variant_sources,
         },
         "global": _pairwise_metrics(variants),
         "windows": {},
@@ -203,8 +263,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--cache-v2",
         type=Path,
-        default=DEFAULT_VARIANTS["v2"],
-        help="Percorso cache v2",
+        default=None,
+        help=(
+            "Percorso payload v2 gia' materializzato. Se omesso, il report "
+            "costruisce v2 dal replay coinglass-top-position locale."
+        ),
     )
     parser.add_argument(
         "--cache-v5",
