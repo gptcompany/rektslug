@@ -1606,3 +1606,83 @@ If future work continues, it should be limited to:
 - using `v3`/`v4` only as appendix/control references if needed
 - moving attention to other exchange tracks or to a different Hyperliquid
   method, not more selector-family tuning
+
+## Ensemble / Ex-Post Voting Note
+
+It does make conceptual sense to ask whether these branches could later be
+combined, but only under a stricter framing than "blend the heatmaps".
+
+Important distinction:
+
+- `v1` is the current internal/truthful full-universe map
+- `v2` is a replay/control built from local CoinGlass top-position payloads
+- `v5` is an internal experimental projector
+
+So a naive ensemble of `v1` + `v2` + `v5` would mix:
+
+- different universes
+- different product meanings
+- different dependency contracts
+
+For that reason, do **not** define a blended ensemble as the new canonical
+Hyperliquid map by default.
+
+What would make sense instead is a separate predictive layer:
+
+- keep `v1` as the canonical/internal map
+- treat `v2`/`v5`/future variants as candidate signals
+- evaluate them against **future realized liquidation outcomes**
+- only then learn a weighted combination for prediction/alerting
+
+In other words:
+
+- ensemble as a research/prediction overlay: yes, potentially sensible
+- ensemble as the default semantic replacement for `v1`: not justified now
+
+### Why Hard Voting Is The Wrong Shape
+
+These variants output bucketed distributions, not simple labels.
+
+So "voting" should not mean:
+
+- majority vote by branch
+
+It should mean something closer to:
+
+- weighted combination of normalized bucket mass
+- or weighted ranking of near-price buckets
+- or a meta-model that consumes per-variant features and outputs predicted
+  future liquidation density
+
+### What Would Be Required
+
+To make an ensemble defensible, first build an ex-post evaluation dataset:
+
+- timestamped model outputs for `v1` / `v5` / future candidates
+- subsequent realized liquidation observations over a fixed horizon
+  (`15m`, `1h`, `4h`, etc.)
+- a stable bucket alignment so predictions and outcomes share the same grid
+
+Then score each branch on forward outcomes, for example with:
+
+- top-band hit rate near realized liquidation clusters
+- recall / precision for top-`k` predicted bands
+- Wasserstein or other transport distance to realized event distribution
+- calibration of predicted mass vs realized event concentration
+
+### Recommended Future Rule
+
+If this line is ever resumed, use this rule:
+
+1. never use future realized liquidations to alter the current displayed map
+2. only use them to update weights for **future** predictions
+3. require the ensemble to beat each standalone branch on a rolling
+   out-of-sample window before promoting it
+4. ship it, if ever, as a separate predictive overlay or alerting model, not as
+   a silent rewrite of `v1`
+
+Current verdict:
+
+- the idea is reasonable as an online/offline forecasting experiment
+- it is **not** a reason to merge `v1` / `v2` / `v5` into one default
+  liquidation map today
