@@ -6,21 +6,21 @@
 
 ## Phase 1: Contract Lock-In
 
-- [ ] T001 Re-read `spec-029`, the `spec-061` consumer boundary, and the current Hyperliquid runbook decisions
-- [ ] T002 Confirm and record the canonical policy tags:
+- [x] T001 Re-read `spec-029`, the `spec-061` consumer boundary, and the current Hyperliquid runbook decisions
+- [x] T002 Confirm and record the canonical policy tags:
   - `v1` = canonical
   - `v2` = `shadow/control`
   - `v3` / `v4` / `v5` = experimental
-- [ ] T003 Confirm the current producer touchpoints are:
+- [x] T003 Confirm the current producer touchpoints are:
   - `scripts/precompute_hl_sidecar.py`
   - `scripts/compare_hl_sidecar_variants.py`
   - `docs/runbooks/hyperliquid-liqmap-checkpoint.md`
-- [ ] T004 Freeze the minimum `ExpertSnapshotArtifact` field set and the minimum `ExpertSnapshotManifest` field set in the spec folder or implementation docs
-- [ ] T004A Freeze canonical timestamp semantics:
+- [x] T004 Freeze the minimum `ExpertSnapshotArtifact` field set and the minimum `ExpertSnapshotManifest` field set in the spec folder or implementation docs
+- [x] T004A Freeze canonical timestamp semantics:
   - `snapshot_ts` = exported evaluation-point identity
   - `run_ts` = actual producer execution timestamp
   - UTC RFC 3339 / ISO8601 with `Z` suffix
-- [ ] T004B Freeze the manifest rule that all five expert channels (`v1`..`v5`) are always present with explicit availability status
+- [x] T004B Freeze the manifest rule that all five expert channels (`v1`..`v5`) are always present with explicit availability status
 
 ## Phase 2: Schema And Export Primitives (TDD)
 
