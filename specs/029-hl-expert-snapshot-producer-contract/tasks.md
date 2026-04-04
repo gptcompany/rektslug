@@ -120,8 +120,8 @@
 
 ## Phase 7: Integration Validation And Consumer Handoff
 
-- [ ] T032 Produce one sample export batch that can be inspected by `nautilus_dev` without path heuristics
-- [ ] T033 Document the producer/consumer handoff contract in the `029` spec folder and/or runbook
+- [x] T032 Produce one sample export batch that can be inspected by `nautilus_dev` without path heuristics
+- [x] T033 Document the producer/consumer handoff contract in the `029` spec folder and/or runbook
 
 ## Completion Notes
 
