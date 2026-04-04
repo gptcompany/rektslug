@@ -68,21 +68,21 @@
 
 ## Phase 4: Producer Run Metadata And Scheduling Semantics (TDD)
 
-- [ ] T016R RED: Write failing tests for run metadata and scheduling:
+- [x] T016R RED: Write failing tests for run metadata and scheduling:
   - test that run metadata contains `run_id`, `run_reason`, `run_ts`, `last_actual_run_ts`
   - test that `baseline`, `extra`, `manual`, `backfill` are the accepted run kinds
   - test that an extra run re-anchors `last_actual_run_ts` for the next baseline
   - test that `run_ts` and `snapshot_ts` remain distinct during backfill
-- [ ] T016 Define the producer-side run kinds:
+- [x] T016 Define the producer-side run kinds:
   - `baseline`
   - `extra`
   - `manual`
   - `backfill`
-- [ ] T017 Define metadata rules that preserve the agreed baseline semantics:
+- [x] T017 Define metadata rules that preserve the agreed baseline semantics:
   - cadence measured from `last_actual_run_ts`
   - extra runs re-anchor the next baseline
-- [ ] T018 Implement recording of run identity and prior-run linkage in exported metadata
-- [ ] T019 Document how current `15m` producer cadence relates to the future evaluator-side `5m` sampling cadence so the consumer boundary stays explicit and the producer contract does not over-promise `5m` support
+- [x] T018 Implement recording of run identity and prior-run linkage in exported metadata
+- [x] T019 Document how current 15m producer cadence relates to future evaluator-side 5m sampling cadence so consumer boundary stays explicit
 
 ## Phase 5: Current Builder Integration (TDD)
 

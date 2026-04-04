@@ -46,3 +46,8 @@ Every exported batch manifest MUST contain at least:
 
 *   ALL five expert channels (`v1`, `v2`, `v3`, `v4`, `v5`) are ALWAYS present in the manifest.
 *   Missing experts MUST be represented with explicit `availability_status` rather than being silently omitted.
+
+## 6. Producer Cadence vs Consumer Sampling (T019)
+
+*   **Producer Cadence:** The producer contract guarantees a 15-minute generation cadence. It does NOT silently promise or attempt to operate at a 5-minute interval.
+*   **Consumer Sampling:** Any future evaluator-side functionality requiring 5-minute sampling MUST handle interpolation or sampling explicitly on the consumer side. The boundary remains explicitly 15-minute aligned.
