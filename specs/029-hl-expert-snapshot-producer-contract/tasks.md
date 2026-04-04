@@ -24,31 +24,31 @@
 
 ## Phase 2: Schema And Export Primitives (TDD)
 
-- [ ] T005R RED: Write failing tests for expert snapshot schema validation:
+- [x] T005R RED: Write failing tests for expert snapshot schema validation:
   - test that a well-formed artifact passes validation
   - test that an artifact missing a required field is rejected
   - test that a malformed or missing bucket grid is rejected (FR-004)
   - test that numeric fields use float64 precision (NFR-001)
-- [ ] T005 Create a producer-side schema module or helper for expert snapshot normalization
-- [ ] T005P Define and enforce float64 precision for `reference_price`, `bucket_grid`, and distribution values in the schema module
-- [ ] T006 Define the machine-readable bucket-grid representation for exported artifacts
-- [ ] T006A Define whether the artifact uses explicit `price_levels` or canonical `min/max/step` reconstruction, and document it as the only accepted MVP grid form
-- [ ] T007 Define the `generation_metadata` contract with at least:
+- [x] T005 Create a producer-side schema module or helper for expert snapshot normalization
+- [x] T005P Define and enforce float64 precision for `reference_price`, `bucket_grid`, and distribution values in the schema module
+- [x] T006 Define the machine-readable bucket-grid representation for exported artifacts
+- [x] T006A Define whether the artifact uses explicit `price_levels` or canonical `min/max/step` reconstruction, and document it as the only accepted MVP grid form
+- [x] T007 Define the `generation_metadata` contract with at least:
   - `run_id`
   - `run_reason`
   - `run_ts`
   - `last_actual_run_ts`
   - `producer_version`
-- [ ] T008 Define the `source_metadata` contract with at least:
+- [x] T008 Define the `source_metadata` contract with at least:
   - source path or capture root
   - source timestamp/anchor when available
   - builder family / logic family
   - reconstruction notes where relevant
-- [ ] T008A Define immutable `input_identity` fields for deterministic rerun claims:
+- [x] T008A Define immutable `input_identity` fields for deterministic rerun claims:
   - source manifest id
   - capture id or retained snapshot id
   - content digest/checksum where applicable
-- [ ] T009 Create validation helpers that reject malformed or contract-incomplete expert artifacts
+- [x] T009 Create validation helpers that reject malformed or contract-incomplete expert artifacts
 
 ## Phase 3: Manifest-First Export Layout (TDD)
 
