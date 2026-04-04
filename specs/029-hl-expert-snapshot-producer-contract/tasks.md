@@ -86,17 +86,17 @@
 
 ## Phase 5: Current Builder Integration (TDD)
 
-- [ ] T020R RED: Write failing tests for builder integration and v2 shadow semantics:
+- [x] T020R RED: Write failing tests for builder integration and v2 shadow semantics:
   - test that `v1` artifact carries `research_policy_tag: "canonical"`
   - test that `v2` artifact carries `research_policy_tag: "shadow/control"`
   - test that exported artifacts do not contain `data/cache/` path references
   - test that all exported distributions are normalized onto the declared common grid (FR-024, T024A)
-- [ ] T020 Extract or wrap current distribution-normalization logic from `scripts/compare_hl_sidecar_variants.py` into a reusable producer export path
-- [ ] T021 Integrate current `v1` export into the new artifact/manifest layout
-- [ ] T022 Integrate current `v2` replay/control export into the new artifact/manifest layout while preserving explicit shadow semantics
-- [ ] T023 Integrate current experimental variant exports (`v3`, `v4`, `v5`) into the same layout or explicitly report them as unavailable where builder coverage is missing
-- [ ] T024 Ensure exported artifacts do not require consumer-side knowledge of cache naming conventions in `data/cache/`
-- [ ] T024A Ensure exported artifacts are already normalized onto the declared common grid and do not require consumer-side rebucketing for MVP
+- [x] T020 Extract or wrap current distribution-normalization logic from `scripts/compare_hl_sidecar_variants.py` into a reusable producer export path
+- [x] T021 Integrate current `v1` export into the new artifact/manifest layout
+- [x] T022 Integrate current `v2` replay/control export into the new artifact/manifest layout while preserving explicit shadow semantics
+- [x] T023 Integrate current experimental variant exports (`v3`, `v4`, `v5`) into the same layout or explicitly report them as unavailable where builder coverage is missing
+- [x] T024 Ensure exported artifacts do not require consumer-side knowledge of cache naming conventions in `data/cache/`
+- [x] T024A Ensure exported artifacts are already normalized onto the declared common grid and do not require consumer-side rebucketing for MVP
 
 ## Phase 6: Historical Backfill Contract (TDD)
 
