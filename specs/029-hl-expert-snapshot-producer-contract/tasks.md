@@ -52,19 +52,19 @@
 
 ## Phase 3: Manifest-First Export Layout (TDD)
 
-- [ ] T010R RED: Write failing tests for manifest and export layout:
+- [x] T010R RED: Write failing tests for manifest and export layout:
   - test that a manifest always lists all five expert channels (FR-021)
   - test that missing experts have explicit `availability_status` (FR-022)
   - test that source/decode failures are machine-readable in manifest (FR-015)
   - test that a consumer can parse the manifest using only `json.load` without importing any `src/liquidationheatmap/` module (FR-016)
   - test that timestamp-derived paths use canonical `snapshot_ts` format
-- [ ] T010 Create the export root `data/validation/expert_snapshots/hyperliquid/`
-- [ ] T011 Define and implement timestamp-addressable artifact layout under `artifacts/{symbol}/{timestamp}/`
-- [ ] T012 Define and implement manifest layout under `manifests/{symbol}/`
-- [ ] T013 Define and implement batch/backfill record layout under `batches/`
-- [ ] T014 Ensure manifests always list all five expert channels and report missing experts explicitly rather than relying on missing files
-- [ ] T015 Ensure manifests report source/decode failures explicitly and machine-readably
-- [ ] T015A Ensure all timestamp-derived paths and manifest filenames are generated from canonical `snapshot_ts`
+- [x] T010 Create the export root `data/validation/expert_snapshots/hyperliquid/`
+- [x] T011 Define and implement timestamp-addressable artifact layout under `artifacts/{symbol}/{timestamp}/`
+- [x] T012 Define and implement manifest layout under `manifests/{symbol}/`
+- [x] T013 Define and implement batch/backfill record layout under `batches/`
+- [x] T014 Ensure manifests always list all five expert channels and report missing experts explicitly rather than relying on missing files
+- [x] T015 Ensure manifests report source/decode failures explicitly and machine-readably
+- [x] T015A Ensure all timestamp-derived paths and manifest filenames are generated from canonical `snapshot_ts`
 
 ## Phase 4: Producer Run Metadata And Scheduling Semantics (TDD)
 
