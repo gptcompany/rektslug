@@ -100,15 +100,15 @@
 
 ## Phase 6: Historical Backfill Contract (TDD)
 
-- [ ] T025R RED: Write failing tests for backfill coverage and gap reporting:
+- [x] T025R RED: Write failing tests for backfill coverage and gap reporting:
   - test that a backfill batch record contains interval, symbol set, expert set, coverage, and timeline policy
   - test that missing timestamps are reported as `gap` (no source data) vs `failure` (data present, not processable)
   - test that rerunning the same backfill with identical inputs produces deterministic manifests (apart from generation metadata)
   - test that `input_identity` fields match across deterministic reruns
-- [ ] T025 Define the first accepted backfill timeline policy:
+- [x] T025 Define the first accepted backfill timeline policy:
   - fixed cadence aligned to producer baseline cadence
-- [ ] T026 Implement a bounded historical batch export path using that timeline policy
-- [ ] T027 Ensure each backfill batch records:
+- [x] T026 Implement a bounded historical batch export path using that timeline policy
+- [x] T027 Ensure each backfill batch records:
   - interval
   - symbol set
   - expert set
@@ -116,7 +116,7 @@
   - missing timestamps
   - missing experts
   - source/decode failures
-- [ ] T028 Ensure rerunning the same bounded backfill with the same inputs is deterministic apart from declared generation metadata, and prove input sameness via immutable `input_identity` fields
+- [x] T028 Ensure rerunning the same bounded backfill with the same inputs is deterministic apart from declared generation metadata, and prove input sameness via immutable `input_identity` fields
 
 ## Phase 7: Integration Validation And Consumer Handoff
 
