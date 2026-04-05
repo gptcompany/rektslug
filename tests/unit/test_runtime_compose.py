@@ -94,8 +94,22 @@ def test_precompute_wrapper_uses_runtime_env_and_v3_defaults():
     text = script_path.read_text(encoding="utf-8")
 
     assert '. "$SCRIPT_DIR/lib/runtime_env.sh"' in text
+    assert 'CALLER_HEATMAP_SYMBOLS_SHELL="${HEATMAP_SYMBOLS_SHELL-}"' in text
+    assert 'CALLER_HEATMAP_SYMBOLS="${HEATMAP_SYMBOLS-}"' in text
     assert "lh_load_runtime_env host" in text
+    assert 'export HEATMAP_SYMBOLS_SHELL="$CALLER_HEATMAP_SYMBOLS_SHELL"' in text
+    assert 'export HEATMAP_SYMBOLS="$CALLER_HEATMAP_SYMBOLS"' in text
     assert "HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=none" in text
     assert "HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=500" in text
     assert "HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH:=concentration" in text
     assert 'exec "${PROJECT_DIR}/.venv/bin/python" "${PROJECT_DIR}/scripts/precompute_hl_sidecar.py"' in text
+
+
+def test_run_ingestion_releases_api_lock_before_precompute_without_warmup():
+    """run-ingestion.sh should not reopen DuckDB before heatmap precompute write-path."""
+    script_path = REPO_ROOT / "scripts" / "run-ingestion.sh"
+    text = script_path.read_text(encoding="utf-8")
+
+    assert 'refresh_api_connections false' in text
+    assert 'refresh_api_connections true' in text
+    assert '${API_URL}/api/v1/refresh-connections?warmup=${warmup}' in text

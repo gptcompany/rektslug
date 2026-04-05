@@ -59,6 +59,20 @@ class TestCriticalFlows:
             assert data["status"] == "success"
             assert not DuckDBService.is_ingestion_locked()
 
+    def test_refresh_connections_can_skip_warmup(self, client):
+        """POST /api/v1/refresh-connections?warmup=false should not reopen DuckDB."""
+        DuckDBService.set_ingestion_lock()
+        assert DuckDBService.is_ingestion_locked()
+
+        with patch("src.liquidationheatmap.ingestion.db_service.duckdb.connect") as mock_connect:
+            response = client.post("/api/v1/refresh-connections?warmup=false")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "success"
+            assert data["warmup"] is False
+            mock_connect.assert_not_called()
+            assert not DuckDBService.is_ingestion_locked()
+
     def test_gap_fill_http_status_handling(self, client):
         """Test how the API handles different internal scenarios for gap-fill."""
         # Scenario: Already in progress (409)
@@ -74,8 +88,11 @@ class TestCriticalFlows:
         # Scenario: Database locked by another ingestion (503)
         DuckDBService.set_ingestion_lock()
         try:
-            # Any database-touching route should return 503
-            response = client.get("/data/date-range?symbol=BTCUSDT")
+            with patch(
+                "src.liquidationheatmap.api.routers.market.QuestDBService.get_recent_klines",
+                return_value=[],
+            ):
+                response = client.get("/prices/klines?symbol=BTCUSDT&interval=15m&limit=10")
             assert response.status_code == 503
             assert "Retry-After" in response.headers
         finally:
