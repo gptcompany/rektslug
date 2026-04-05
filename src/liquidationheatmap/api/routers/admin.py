@@ -29,9 +29,15 @@ async def prepare_for_ingestion(token_valid: None = Depends(_require_internal_to
 
 
 @router.post("/refresh-connections")
-async def refresh_connections(token_valid: None = Depends(_require_internal_token)):
-    """Release ingestion lock and warm up read connection."""
+async def refresh_connections(
+    warmup: bool = Query(True, description="Warm up a read-only DuckDB connection after releasing lock"),
+    token_valid: None = Depends(_require_internal_token),
+):
+    """Release ingestion lock and optionally warm up a read connection."""
     DuckDBService.release_ingestion_lock()
+    if not warmup:
+        logger.info("Admin: ingestion lock released without DuckDB warmup")
+        return {"status": "success", "warmup": False}
     try:
         db = DuckDBService(read_only=True)
         db.conn.execute("SELECT 1").fetchone()
@@ -39,7 +45,7 @@ async def refresh_connections(token_valid: None = Depends(_require_internal_toke
     except Exception as e:
         logger.error(f"Failed to refresh connections: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-    return {"status": "success"}
+    return {"status": "success", "warmup": True}
 
 
 @router.post("/gap-fill")

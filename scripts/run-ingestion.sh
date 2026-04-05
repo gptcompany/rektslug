@@ -252,13 +252,14 @@ prepare_database() {
 }
 
 refresh_api_connections() {
+    local warmup="${1:-true}"
     log "Refreshing API connections..."
     local token_header=""
     if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
         token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
     fi
     local result
-    result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/refresh-connections" 2>/dev/null || echo '{"status":"api_unavailable"}')
+    result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/refresh-connections?warmup=${warmup}" 2>/dev/null || echo '{"status":"api_unavailable"}')
     log "API refresh: ${result}"
 }
 
@@ -615,8 +616,8 @@ else
 fi
 set -e
 
-# Refresh API connections (releases ingestion lock)
-refresh_api_connections
+# Release API ingestion lock without reopening DuckDB yet.
+refresh_api_connections false
 
 # Phase 7: Pre-compute heatmap timeseries cache (spec-024)
 # MUST run after refresh_api_connections so the ingestion lock is released.
@@ -632,13 +633,16 @@ if [ "$MODE" != "dry-run" ]; then
         log "Heatmap timeseries pre-computation complete"
     else
         RESULTS="${RESULTS}Heatmap Precompute: FAILED\n"
-        log "WARNING: Heatmap timeseries pre-computation failed (non-fatal)"
-        # Non-fatal: don't increment TOTAL_FAILED, cache miss falls back to live
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+        log "ERROR: Heatmap timeseries pre-computation failed"
     fi
 else
     log "Skipping pre-computation (dry-run mode)"
     RESULTS="${RESULTS}Heatmap Precompute: skipped (dry-run)\n"
 fi
+
+# Restore API read connections only after the precompute write-path is done.
+refresh_api_connections true
 
 # Restart sync container
 if ! start_sync_container; then

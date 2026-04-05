@@ -1,0 +1,148 @@
+{
+  "snapshot_ts": "2026-04-05T14:30:00Z",
+  "distribution_normalization": "normalized",
+  "experts": {
+    "v1": {
+      "expert_id": "v1",
+      "availability_status": "available",
+      "research_policy_tag": "canonical",
+      "source_metadata": {
+        "builder_family": "hyperliquid-sidecar",
+        "source_timestamp": "2026-04-05T14:45:46.727501Z",
+        "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260405/947240000.rmp",
+        "projection": {
+          "mode": "full_universe",
+          "selection_strategy": null,
+          "score_mode": null,
+          "objective": null,
+          "min_target_share": null,
+          "max_position_count": null,
+          "selected_users": 45303,
+          "included_users": 18288,
+          "target_count": null,
+          "live_override_users": 111,
+          "users_removed_by_live_override": 0
+        },
+        "distribution_normalization": "normalized",
+        "input_identity": {
+          "source_kind": "sidecar_cache",
+          "cache_variant": "v1",
+          "content_sha256": "00be3c8c3d763e960c703e74fe7cc0bdd666855538424c08789e824a49897c87",
+          "source_timestamp": "2026-04-05T14:45:46.727501Z"
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-05T14:30:00Z/v1.json"
+    },
+    "v2": {
+      "expert_id": "v2",
+      "availability_status": "available",
+      "research_policy_tag": "shadow/control",
+      "source_metadata": {
+        "builder_family": "coinglass-top-position-local",
+        "source_timestamp": "2026-04-05T14:45:46.727501Z",
+        "source_anchor": "data/validation/raw_provider_api/20260402T082937Z",
+        "projection": null,
+        "distribution_normalization": "normalized",
+        "input_identity": {
+          "source_kind": "coinglass_capture",
+          "capture_root": "data/validation/raw_provider_api/20260402T082937Z",
+          "source_timestamp": "2026-04-05T14:45:46.727501Z"
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-05T14:30:00Z/v2.json"
+    },
+    "v3": {
+      "expert_id": "v3",
+      "availability_status": "available",
+      "research_policy_tag": "experimental",
+      "source_metadata": {
+        "builder_family": "hyperliquid-sidecar-top-positions",
+        "source_timestamp": "2026-04-05T14:45:56.798925Z",
+        "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260405/947240000.rmp",
+        "projection": {
+          "mode": "top_positions_local",
+          "selection_strategy": "global",
+          "score_mode": "notional",
+          "objective": null,
+          "min_target_share": 0.0,
+          "max_position_count": null,
+          "selected_users": 500,
+          "included_users": 459,
+          "target_count": 500,
+          "live_override_users": 449,
+          "users_removed_by_live_override": 0
+        },
+        "distribution_normalization": "normalized",
+        "input_identity": {
+          "source_kind": "sidecar_cache",
+          "cache_variant": "v3",
+          "content_sha256": "916e3943d5c0f6d3fb1fdb8b7a0ca6a97a475e13b7debea5f13e2b1f527c7dda",
+          "source_timestamp": "2026-04-05T14:45:56.798925Z"
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-05T14:30:00Z/v3.json"
+    },
+    "v4": {
+      "expert_id": "v4",
+      "availability_status": "available",
+      "research_policy_tag": "experimental",
+      "source_metadata": {
+        "builder_family": "hyperliquid-sidecar-position-first",
+        "source_timestamp": "2026-04-05T14:46:01.981999Z",
+        "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260405/947240000.rmp",
+        "projection": {
+          "mode": "position_first_local",
+          "selection_strategy": "global",
+          "score_mode": "target_notional",
+          "objective": "position_first",
+          "min_target_share": null,
+          "max_position_count": null,
+          "selected_users": 250,
+          "included_users": 227,
+          "target_count": 250,
+          "live_override_users": 224,
+          "users_removed_by_live_override": 0
+        },
+        "distribution_normalization": "normalized",
+        "input_identity": {
+          "source_kind": "sidecar_cache",
+          "cache_variant": "v4",
+          "content_sha256": "9c373f3fd245156e98c3a5f0d7443a3b9d71693764311dbdba4a3e08b9f4548b",
+          "source_timestamp": "2026-04-05T14:46:01.981999Z"
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-05T14:30:00Z/v4.json"
+    },
+    "v5": {
+      "expert_id": "v5",
+      "availability_status": "available",
+      "research_policy_tag": "experimental",
+      "source_metadata": {
+        "builder_family": "hyperliquid-sidecar-risk-first",
+        "source_timestamp": "2026-04-05T14:47:36.727847Z",
+        "source_anchor": "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states/20260405/947240000.rmp",
+        "projection": {
+          "mode": "risk_first_local",
+          "selection_strategy": "global",
+          "score_mode": "risk_score",
+          "objective": "risk_first",
+          "min_target_share": null,
+          "max_position_count": null,
+          "selected_users": 250,
+          "included_users": 250,
+          "target_count": 250,
+          "live_override_users": 250,
+          "users_removed_by_live_override": 0
+        },
+        "distribution_normalization": "normalized",
+        "input_identity": {
+          "source_kind": "sidecar_cache",
+          "cache_variant": "v5",
+          "content_sha256": "ea001ef32c73213424336f9a975e73e5745775b67e76c7799f0be845c34ac1ca",
+          "source_timestamp": "2026-04-05T14:47:36.727847Z"
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-05T14:30:00Z/v5.json"
+    }
+  }
+}

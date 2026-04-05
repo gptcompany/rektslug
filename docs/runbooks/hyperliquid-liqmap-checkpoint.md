@@ -1240,6 +1240,56 @@ What should **not** be the default next direction:
 - more tuning of `concentration` weights
 - promoting `risk_clusters` or `band_synthesis` to runtime defaults
 
+## 2026-04-02 `risk-first` Prototype Verdict
+
+A first account-level `risk-first` projector prototype was implemented as `v5`
+(`internal-risk-first` / `hl_sidecar_v5_*`), using:
+
+- a target-position candidate pool by raw target notional
+- live Hyperliquid account state over that pool
+- account-level fragility signals
+  - cross: `crossMaintenanceMarginUsed / accountValue`
+  - PM / unified: `portfolio_margin_ratio`
+- liquidation-distance weighting
+- extra stress terms from off-target notional and borrowed notional
+
+Runtime used for the first real BTC experiment:
+
+```bash
+HEATMAP_HL_RISK_FIRST_TOP_N_BTC=500 \
+HEATMAP_HL_RISK_FIRST_CANDIDATE_POOL_TOP_N_BTC=1000 \
+./scripts/run-precompute-hl-sidecar.sh
+```
+
+Fresh comparison capture:
+
+- `data/validation/raw_provider_api/20260402T082937Z`
+
+Saved comparison outputs:
+
+- `data/validation/comparison_hl_btc_cache_v1_20260402T082937Z.json`
+- `data/validation/comparison_hl_btc_cache_v5_risk_first_20260402T082937Z.json`
+
+BTC result against the same fresh reference:
+
+- BTC `v1`:
+  - `pearson_r=0.1634`
+  - `KS=0.0486`
+  - `Wasserstein=8491.24`
+- BTC `v5 risk-first`:
+  - `pearson_r=0.0626`
+  - `KS=0.0608`
+  - `Wasserstein=10007.13`
+
+Decision:
+
+- BTC `v5 risk-first` does **not** beat BTC `v1` on any of the required `3`
+  metrics
+- therefore the stop criterion is triggered for this track
+- do **not** continue CoinGlass-shape imitation as the primary Hyperliquid
+  direction after this experiment
+- keep `v5` as a documented experimental branch, not a promoted default
+
 ## Commands To Resume
 
 Start the local server:
@@ -1275,6 +1325,10 @@ http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/ethusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/ethusdt/1w
 http://10.0.0.2:8016/chart/derivatives/liq-map-v3/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v4/hyperliquid/ethusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v4/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/ethusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/btcusdt/1w
 ```
 
 Read the latest summary report:
@@ -1314,3 +1368,321 @@ The working tree is dirty beyond this track. Do not assume every modified file i
 
 Resume from this checkpoint by treating `v1` as preserved and `v2` as the safe
 place for future experiments.
+
+## 2026-04-02 Late Handoff For A Clean Next Session
+
+This section supersedes the informal tail of the current chat and should be the
+starting point for the next clean session.
+
+### State Of The Track
+
+- `v1` remains the truthful/internal Hyperliquid baseline.
+- `v2` remains the local CoinGlass top-position replay baseline.
+- `v3` remains frozen as the user-first experimental baseline; do not tune it
+  further.
+- `v4` (`position-first`) is kept only as a documented exploratory branch.
+- `v5` (`risk-first`) is the first conceptually different branch that was
+  actually tested; it failed the global BTC stop criterion against `v1`.
+
+So:
+
+- do **not** resume CoinGlass-shape imitation as the primary Hyperliquid track
+- do **not** spend time on more selector-family tweaks
+- keep the experimental branches for analysis, not promotion
+
+### Important Clarification About `v2`
+
+An important UI/contract mismatch was found and fixed after the first `v5`
+verdict:
+
+- the shared Hyperliquid renderer was forcing `coin` display mode for all
+  Hyperliquid variants, including `v2`
+- `v2` was also inheriting the display `grid` frame from the `v1` cache instead
+  of deriving it from the decoded CoinGlass top-position payload
+
+Fixes shipped:
+
+- `v2` now exposes `display_unit="usd"` from the backend
+- the shared frontend now honors `display_unit` when present
+- the `v2` grid is now computed from the decoded CoinGlass buckets instead of
+  reusing the `v1` frame
+
+Implication:
+
+- prior **visual** comparisons of `v2` vs CoinGlass were not trustworthy on
+  axis/unit fidelity
+- the **data** comparisons and saved BTC verdicts remain valid, because they
+  already operated on raw bucket `volume` in nominal `USD`, not on frontend
+  `coin` conversions
+
+### What To Do Next
+
+The next clean session should **not** continue from visuals.
+
+The next task is:
+
+1. build a clean `raw-USD` comparison report for BTC using:
+   - `v1`
+   - `v2`
+   - `v5`
+2. compare only data payloads:
+   - `long_buckets`
+   - `short_buckets`
+   - `volume`
+3. report both:
+   - full-range metrics
+   - local windows around the mark: `±3%`, `±5%`, `±10%`, `±15%`, `±20%`
+4. treat `v3` and `v4` only as appendix/control variants, not as decision
+   candidates
+
+The question for the next session is no longer:
+
+- "which UI looks more like CoinGlass?"
+
+It is:
+
+- "does the `raw-USD` bucket distribution of `v5` add useful local alignment
+  versus `v1`, despite the failed global stop criterion?"
+
+### External Incident: `hyperliquid-node` Vendor Dataset Contract
+
+The upstream incident report to keep in scope lives outside this repo:
+
+- `/media/sam/1TB/hyperliquid-node/docs/INCIDENT-REPORT-2026-04-02-VENDOR-DATASET-MARCH-2026.md`
+
+Producer-side references mentioned there:
+
+- `/media/sam/1TB/hyperliquid-node/README.md`
+- `/media/sam/1TB/hyperliquid-node/ARCHITECTURE.md`
+- `/media/sam/1TB/hyperliquid-node/docs/RUNBOOK.md`
+- `/media/sam/1TB/hyperliquid-node/scripts/audit_vendor_dataset.py`
+
+Current impact assessment for Rektslug:
+
+- low direct impact on the current Hyperliquid liq-map branches (`v1`/`v3`/`v4`/`v5`)
+- high potential impact on future replay-exact or order-aware work
+
+Reason:
+
+- current liq-map branches are still primarily `ABCI anchor + live /info`
+  driven
+- they are **not** primarily using the March 2026 filtered historical
+  `order_statuses` / `raw_book_diffs` contract that was called out in the
+  incident
+- but future work on resting-order / reserved-margin / historical replay will
+  depend on that producer contract much more heavily
+
+What Rektslug should assume going forward:
+
+- do not treat the filtered hot root alone as a historical contract
+- require explicit producer health / audit signals before depending on those
+  datasets
+- keep consumer-owned retention/checkpointing for anything beyond the rolling
+  producer window
+
+### Transferability To Binance / Bybit
+
+The knowledge from this Hyperliquid investigation is transferable mostly as
+method, not as a direct projector transplant.
+
+Reusable:
+
+- compare payloads in raw `USD`, not by UI appearance
+- separate near-price/core behavior from tails
+- use explicit stop criteria
+- distinguish `display artifact` from `data artifact`
+
+Not directly reusable:
+
+- Hyperliquid `risk-first` depends on account-level state and PM/cross account
+  fragility
+- equivalent public account-level observables do not exist in the same way for
+  Binance / Bybit
+
+Current practical reading:
+
+- Binance can reuse the evaluation method and should be approached as a
+  `public-flow-first` problem
+- Bybit cannot yet reuse much operationally until a reliable public/historical
+  liquidation source is in place
+
+### Resume Checklist
+
+For the next clean session, do only this:
+
+```bash
+sed -n '1196,9999p' docs/runbooks/hyperliquid-liqmap-checkpoint.md
+uv run uvicorn src.liquidationheatmap.api.main:app --host 0.0.0.0 --port 8016
+```
+
+Then immediately work on:
+
+- a `raw-USD` BTC comparison report for `v1` vs `v2` vs `v5`
+
+Useful URLs once the server is up:
+
+```bash
+http://10.0.0.2:8016/chart/derivatives/liq-map/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v2/hyperliquid/btcusdt/1w
+http://10.0.0.2:8016/chart/derivatives/liq-map-v5/hyperliquid/btcusdt/1w
+```
+
+But again: those URLs are for sanity checks only. The next decision should be
+made from payload-level `USD` comparisons, not from the browser rendering.
+
+## 2026-04-03 BTC `raw-USD` Variant Report Result
+
+The BTC `raw-USD` comparison report requested in the late handoff is now
+materialized at:
+
+- `data/validation/comparison_hl_btc_variants_raw_usd.json`
+
+Important implementation note:
+
+- the report builder was corrected to use the real `v2` replay path
+  (`coinglass-top-position-local` from the latest decodable local capture)
+  rather than the unrelated `v4` cache
+
+Resolved `v2` source for this run:
+
+- `data/validation/raw_provider_api/20260402T082937Z`
+
+Global result summary:
+
+- `v1` vs `v2`:
+  - `pearson_r=0.179`
+  - `KS=0.0674`
+  - `Wasserstein=8705.52`
+- `v1` vs `v5`:
+  - `pearson_r=0.379`
+  - `KS=0.0678`
+  - `Wasserstein=3474.83`
+- `v2` vs `v5`:
+  - `pearson_r=-0.1629`
+  - `KS=0.1096`
+  - `Wasserstein=11703.72`
+
+Near-mark local-window result summary:
+
+- `v1` vs `v5` remains strongly aligned in every tested local window:
+  - `±3%: pearson_r=0.9388`
+  - `±5%: pearson_r=0.9213`
+  - `±10%: pearson_r=0.9127`
+  - `±15%: pearson_r=0.8753`
+  - `±20%: pearson_r=0.8766`
+- `v1` vs `v2` stays near zero or slightly negative in the same windows:
+  - `±3%: pearson_r=-0.0298`
+  - `±5%: pearson_r=-0.0226`
+  - `±10%: pearson_r=-0.0155`
+  - `±15%: pearson_r=-0.0153`
+  - `±20%: pearson_r=-0.009`
+- `v2` vs `v5` also stays negative in the same windows:
+  - `±3%: pearson_r=-0.3827`
+  - `±5%: pearson_r=-0.1775`
+  - `±10%: pearson_r=-0.1308`
+  - `±15%: pearson_r=-0.1638`
+  - `±20%: pearson_r=-0.1602`
+
+Interpretation:
+
+- `v5` is materially closer to `v1` than to the `v2` CoinGlass replay
+- the new local-window report does **not** show `v5` collapsing the near-mark
+  raw-`USD` gap toward `v2`
+- so the answer to the handoff question is currently:
+  - no, `v5` does not show useful local alignment toward `v2` that would justify
+    resuming it as the primary Hyperliquid direction
+
+Decision after this report:
+
+- keep `v1` as the truthful/internal Hyperliquid baseline
+- keep `v2` as the replay/control baseline
+- keep `v5` as a documented experimental branch only
+- do **not** reopen `risk-first` tuning as the main next task on the strength
+  of this report alone
+
+If future work continues, it should be limited to:
+
+- documenting this result cleanly
+- using `v3`/`v4` only as appendix/control references if needed
+- moving attention to other exchange tracks or to a different Hyperliquid
+  method, not more selector-family tuning
+
+## Ensemble / Ex-Post Voting Note
+
+It does make conceptual sense to ask whether these branches could later be
+combined, but only under a stricter framing than "blend the heatmaps".
+
+Important distinction:
+
+- `v1` is the current internal/truthful full-universe map
+- `v2` is a replay/control built from local CoinGlass top-position payloads
+- `v5` is an internal experimental projector
+
+So a naive ensemble of `v1` + `v2` + `v5` would mix:
+
+- different universes
+- different product meanings
+- different dependency contracts
+
+For that reason, do **not** define a blended ensemble as the new canonical
+Hyperliquid map by default.
+
+What would make sense instead is a separate predictive layer:
+
+- keep `v1` as the canonical/internal map
+- treat `v2`/`v5`/future variants as candidate signals
+- evaluate them against **future realized liquidation outcomes**
+- only then learn a weighted combination for prediction/alerting
+
+In other words:
+
+- ensemble as a research/prediction overlay: yes, potentially sensible
+- ensemble as the default semantic replacement for `v1`: not justified now
+
+### Why Hard Voting Is The Wrong Shape
+
+These variants output bucketed distributions, not simple labels.
+
+So "voting" should not mean:
+
+- majority vote by branch
+
+It should mean something closer to:
+
+- weighted combination of normalized bucket mass
+- or weighted ranking of near-price buckets
+- or a meta-model that consumes per-variant features and outputs predicted
+  future liquidation density
+
+### What Would Be Required
+
+To make an ensemble defensible, first build an ex-post evaluation dataset:
+
+- timestamped model outputs for `v1` / `v5` / future candidates
+- subsequent realized liquidation observations over a fixed horizon
+  (`15m`, `1h`, `4h`, etc.)
+- a stable bucket alignment so predictions and outcomes share the same grid
+
+Then score each branch on forward outcomes, for example with:
+
+- top-band hit rate near realized liquidation clusters
+- recall / precision for top-`k` predicted bands
+- Wasserstein or other transport distance to realized event distribution
+- calibration of predicted mass vs realized event concentration
+
+### Recommended Future Rule
+
+If this line is ever resumed, use this rule:
+
+1. never use future realized liquidations to alter the current displayed map
+2. only use them to update weights for **future** predictions
+3. require the ensemble to beat each standalone branch on a rolling
+   out-of-sample window before promoting it
+4. ship it, if ever, as a separate predictive overlay or alerting model, not as
+   a silent rewrite of `v1`
+
+Current verdict:
+
+- the idea is reasonable as an online/offline forecasting experiment
+- it is **not** a reason to merge `v1` / `v2` / `v5` into one default
+  liquidation map today
