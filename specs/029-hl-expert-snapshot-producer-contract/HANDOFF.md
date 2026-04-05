@@ -11,6 +11,7 @@ The export directory root is `data/validation/expert_snapshots/hyperliquid/`.
 Consumers MUST start by reading the manifest. The manifest acts as the source of truth for a given evaluation point.
 *   **Format**: JSON. Use `json.load()` without importing any internal `rektslug` modules.
 *   **Key Guarantee**: All five expert channels (`v1`, `v2`, `v3`, `v4`, `v5`) are ALWAYS explicitly listed in the manifest.
+*   **Normalization**: `distribution_normalization` is `normalized` for MVP exports, meaning artifacts are already aligned onto the declared common grid.
 *   **Availability**: Check `availability_status`. Valid values are `available`, `missing`, `failed_decode`, `not_built`.
 *   **Paths**: If an artifact is available, its relative path is provided in `artifact_path` (e.g., `artifacts/BTCUSDT/2026-04-03T12:00:00Z/v1.json`).
 

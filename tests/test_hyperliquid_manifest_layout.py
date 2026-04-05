@@ -58,6 +58,7 @@ def test_manifest_can_be_parsed_with_json_load(temp_export_dir):
         data = json.load(f)
 
     assert "snapshot_ts" in data
+    assert data["distribution_normalization"] == "normalized"
     assert "experts" in data
     assert "v1" in data["experts"]
 
@@ -82,3 +83,8 @@ def test_timestamp_derived_paths_use_canonical_format(temp_export_dir):
     expected_batch_path = temp_export_dir / "batches" / "batch_1.json"
     assert batch_path == expected_batch_path
     assert expected_batch_path.exists()
+
+
+def test_manifest_rejects_malformed_snapshot_ts():
+    with pytest.raises(ValueError, match="snapshot_ts must be UTC ISO8601"):
+        build_manifest(snapshot_ts="2026-04-03 12:00:00", experts=[])

@@ -5,7 +5,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from src.liquidationheatmap.hyperliquid.snapshot_schema import ExpertSnapshotArtifact
+from src.liquidationheatmap.hyperliquid.snapshot_schema import (
+    ALL_EXPERT_IDS,
+    EXPERT_POLICY_TAGS,
+    ExpertSnapshotArtifact,
+    validate_iso8601_z_timestamp,
+)
 
 
 @dataclass
@@ -20,6 +25,7 @@ class ManifestExpertEntry:
 @dataclass
 class ExpertSnapshotManifest:
     snapshot_ts: str
+    distribution_normalization: str
     experts: dict[str, ManifestExpertEntry]
 
 
@@ -27,7 +33,9 @@ def build_manifest(
     snapshot_ts: str,
     experts: list[ExpertSnapshotArtifact] | None = None,
     failures: dict[str, dict[str, Any]] | None = None,
+    distribution_normalization: str = "normalized",
 ) -> ExpertSnapshotManifest:
+    snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", snapshot_ts)
     experts = experts or []
     failures = failures or {}
 
@@ -35,17 +43,7 @@ def build_manifest(
 
     manifest_entries = {}
 
-    # All 5 expert channels MUST be present
-    all_expert_ids = ["v1", "v2", "v3", "v4", "v5"]
-    policy_tags = {
-        "v1": "canonical",
-        "v2": "shadow/control",
-        "v3": "experimental",
-        "v4": "experimental",
-        "v5": "experimental",
-    }
-
-    for eid in all_expert_ids:
+    for eid in ALL_EXPERT_IDS:
         if eid in expert_dict:
             # We have the expert artifact
             artifact = expert_dict[eid]
@@ -60,18 +58,22 @@ def build_manifest(
             manifest_entries[eid] = ManifestExpertEntry(
                 expert_id=eid,
                 availability_status="failed_decode",
-                research_policy_tag=policy_tags[eid],
+                research_policy_tag=EXPERT_POLICY_TAGS[eid],
                 source_metadata=failures[eid],
             )
         else:
             manifest_entries[eid] = ManifestExpertEntry(
                 expert_id=eid,
                 availability_status="missing",
-                research_policy_tag=policy_tags[eid],
+                research_policy_tag=EXPERT_POLICY_TAGS[eid],
                 source_metadata={"reason": "not_built"},
             )
 
-    return ExpertSnapshotManifest(snapshot_ts=snapshot_ts, experts=manifest_entries)
+    return ExpertSnapshotManifest(
+        snapshot_ts=snapshot_ts,
+        distribution_normalization=distribution_normalization,
+        experts=manifest_entries,
+    )
 
 
 def write_manifest(base_dir: Path | str, symbol: str, manifest: ExpertSnapshotManifest) -> Path:
@@ -79,12 +81,14 @@ def write_manifest(base_dir: Path | str, symbol: str, manifest: ExpertSnapshotMa
     manifest_dir = base_dir / "manifests" / symbol
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
-    manifest_path = manifest_dir / f"{manifest.snapshot_ts}.json"
+    snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", manifest.snapshot_ts)
+    manifest_path = manifest_dir / f"{snapshot_ts}.json"
 
     # Convert manifest to dictionary that does not require internal schema types to load
     # (Consumer uses json.load)
     payload = {
-        "snapshot_ts": manifest.snapshot_ts,
+        "snapshot_ts": snapshot_ts,
+        "distribution_normalization": manifest.distribution_normalization,
         "experts": {eid: asdict(entry) for eid, entry in manifest.experts.items()},
     }
 
@@ -99,6 +103,7 @@ def write_expert_artifact(
 ) -> Path:
     """Write an expert artifact to the stable timestamp-derived layout."""
     base_dir = Path(base_dir)
+    snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", snapshot_ts)
     artifact_dir = base_dir / "artifacts" / symbol / snapshot_ts
     artifact_dir.mkdir(parents=True, exist_ok=True)
 

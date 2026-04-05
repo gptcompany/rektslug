@@ -7,6 +7,27 @@ from typing import Any
 # ISO 8601 UTC regex matching YYYY-MM-DDTHH:MM:SSZ (or with fractional seconds)
 ISO8601_Z_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
+# Single source of truth for expert policy tags
+EXPERT_POLICY_TAGS: dict[str, str] = {
+    "v1": "canonical",
+    "v2": "shadow/control",
+    "v3": "experimental",
+    "v4": "experimental",
+    "v5": "experimental",
+}
+
+ALL_EXPERT_IDS: list[str] = list(EXPERT_POLICY_TAGS.keys())
+
+DEFAULT_POLICY_TAG = "experimental"
+
+
+def validate_iso8601_z_timestamp(label: str, value: Any) -> str:
+    """Validate and normalize a canonical UTC ISO8601 timestamp string."""
+    timestamp = str(value)
+    if not ISO8601_Z_REGEX.match(timestamp):
+        raise ValueError(f"{label} must be UTC ISO8601 with 'Z' suffix: {timestamp}")
+    return timestamp
+
 
 @dataclass
 class BucketGrid:
@@ -65,9 +86,7 @@ def validate_artifact(payload: dict[str, Any]) -> ExpertSnapshotArtifact:
             raise ValueError(f"Missing required field: {field}")
 
     # Validate timestamp format
-    snapshot_ts = str(payload["snapshot_ts"])
-    if not ISO8601_Z_REGEX.match(snapshot_ts):
-        raise ValueError(f"snapshot_ts must be UTC ISO8601 with 'Z' suffix: {snapshot_ts}")
+    snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", payload["snapshot_ts"])
 
     # Validate generation metadata required fields
     gen_meta = payload["generation_metadata"]
@@ -78,11 +97,8 @@ def validate_artifact(payload: dict[str, Any]) -> ExpertSnapshotArtifact:
         if gm_field not in gen_meta:
             raise ValueError(f"Missing required generation_metadata field: {gm_field}")
 
-    if not ISO8601_Z_REGEX.match(str(gen_meta["run_ts"])):
-        raise ValueError("run_ts must be UTC ISO8601 with 'Z' suffix")
-
-    if not ISO8601_Z_REGEX.match(str(gen_meta["last_actual_run_ts"])):
-        raise ValueError("last_actual_run_ts must be UTC ISO8601 with 'Z' suffix")
+    validate_iso8601_z_timestamp("run_ts", gen_meta["run_ts"])
+    validate_iso8601_z_timestamp("last_actual_run_ts", gen_meta["last_actual_run_ts"])
 
     # Validate source metadata
     src_meta = payload["source_metadata"]

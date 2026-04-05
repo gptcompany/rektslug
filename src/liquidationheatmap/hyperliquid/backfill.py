@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+from src.liquidationheatmap.hyperliquid.snapshot_schema import validate_iso8601_z_timestamp
+
 
 @dataclass
 class BackfillBatchRecord:
@@ -29,6 +31,8 @@ def build_backfill_batch(
     input_identity: dict[str, Any],
 ) -> BackfillBatchRecord:
     """Build a deterministic backfill batch record."""
+    for label, ts in [("start_ts", start_ts), ("end_ts", end_ts)]:
+        validate_iso8601_z_timestamp(label, ts)
     return BackfillBatchRecord(
         batch_id=batch_id,
         interval=interval,

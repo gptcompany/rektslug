@@ -28,6 +28,7 @@ Every exported expert artifact MUST contain at least the following fields:
 Every exported batch manifest MUST contain at least:
 
 *   `snapshot_ts` (or batch equivalent)
+*   `distribution_normalization`: string (`normalized` for MVP export batches)
 *   `experts`: object containing entries for ALL five expert channels (`v1`, `v2`, `v3`, `v4`, `v5`).
     *   Each entry MUST have at least:
         *   `expert_id`: string
