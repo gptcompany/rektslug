@@ -1,0 +1,145 @@
+# Tasks: Binance/Bybit Modeled Snapshot Contract
+
+**Input**: `specs/030-binance-bybit-modeled-snapshot-contract/spec.md`
+**Dependencies**: `spec-028`, `spec-029`, current Binance model/runtime, and external Bybit source persistence audit
+**Feature Type**: Producer contract + readiness gate + deterministic export
+
+## Phase 1: Contract Lock-In
+
+- [ ] T001 Re-read `spec-028`, `spec-029`, `spec-012`, and the current Binance/Bybit exchange code
+- [ ] T002 Freeze the minimum `ModeledSnapshotArtifact` field set and manifest shape
+- [ ] T002B Define the shared availability status taxonomy required by FR-009 across all exchanges:
+  - `available`
+  - `partial` (some required inputs missing; artifact produced with degraded coverage)
+  - `blocked_source_unverified`
+  - `blocked_source_missing`
+  - `failed_processing`
+  - `unsupported`
+  - This vocabulary applies to Binance and Bybit manifests uniformly
+- [ ] T003 Freeze canonical timestamp semantics:
+  - `snapshot_ts` = exported identity time
+  - `run_ts` = actual producer execution time
+  - UTC RFC 3339 / ISO8601 with `Z` suffix
+- [ ] T004 Freeze the architecture boundary:
+  - this spec defines artifacts/manifests
+  - WebSocket remains `spec-025`
+  - Redis remains optional infrastructure, not a prerequisite
+
+## Phase 2: Binance Source Inventory And Provenance Design
+
+- [ ] T005 Audit the exact Binance inputs already available in-repo for modeled export:
+  - trades / aggTrades
+  - open interest
+  - funding
+  - klines
+  - any precomputed heatmap cache inputs used by the selected model path
+- [ ] T006 Define the Binance model channels to export under this contract:
+  - `binance_standard` (canonical): aggregate statistical — OI + aggTrades + MMR tiers — `BinanceStandardModel`
+  - `depth_weighted` (LOB-aware): orderbook depth weights liquidation probability
+  - The existing `binance_standard_bias`, `funding_adjusted`, `ensemble` are parameter tweaks
+    of `binance_standard` (same inputs, same formula family) — not worth separate channels
+  - Two genuinely different paradigms > four similar variations
+  - Binance LOB data: ccxt-pipeline orderbook, 20 levels, 720k snapshots/day, Mar 2026+
+- [ ] T007 Define the immutable `input_identity` fields required for Binance deterministic reruns.
+  Note: `DuckDBService.calculate_liquidations_oi_based()` is NOT snapshot_ts-addressable (uses MAX(open_time)).
+  The producer must add explicit `snapshot_ts` time-window pinning so identical inputs produce identical outputs.
+- [ ] T007A Ensure each authoritative Binance source input set has at least one immutable digest, retained manifest id, or equivalent non-mutable identity reference
+- [ ] T008 Document which current Binance paths are authoritative inputs versus derived caches
+
+## Phase 3: Binance Export Implementation (TDD)
+
+- [ ] T009R RED: Write failing tests for Binance artifact schema validation
+- [ ] T009B RED: Write failing test that verifies Decimal128 internal precision is preserved through the export path and serialized as float64 in JSON artifacts (NFR-001 boundary validation)
+- [ ] T010R RED: Write failing tests for Binance manifest layout and timestamp-derived paths
+- [ ] T010A RED: Write failing tests for canonical export subpaths:
+  - `artifacts/{symbol}/{snapshot_ts}/`
+  - `manifests/{symbol}/`
+  - `batches/`
+- [ ] T011 Create a generic modeled-snapshot schema/helper module, reusing `spec-029` patterns with explicit rename mapping:
+  - `ExpertSnapshotArtifact` -> `ModeledSnapshotArtifact`
+  - `expert_id` -> `model_id`
+  - `research_policy_tag` -> dropped (not applicable to exchange-level contracts)
+  - `exchange` -> new required field (not present in spec-029)
+  - Reuse `BucketGrid`, `validate_iso8601_z_timestamp`, `validate_artifact` pattern as-is
+- [ ] T012 Create export root and layout under `data/validation/modeled_snapshots/binance/`
+- [ ] T012A Extract aggregation bridge from `liquidations.py:_aggregate_legacy_levels` into `src/liquidationheatmap/contracts/aggregation.py`:
+  - input: `List[LiquidationLevel]` + `bin_size`
+  - output: `(BucketGrid, long_distribution: dict[str, float], short_distribution: dict[str, float])`
+  - Must work for all model channels without API router dependencies
+- [ ] T013 Implement Binance artifact export for two model channels:
+  - `binance_standard` (canonical) — aggregate statistical, validates the full pipeline first
+  - `depth_weighted` (LOB-aware) — reads orderbook Parquet from ccxt-pipeline,
+    computes depth at each liquidation level, weights cluster probability accordingly
+  - Both share: aggregation bridge, export layout, manifest writing
+  - Each gets its own `model_id` in the artifact and manifest
+- [ ] T014 Implement Binance manifest writing with explicit availability status
+- [ ] T015 Implement Binance backfill batch records with interval, coverage, gaps, and provenance
+- [ ] T015A RED: Write failing test for Binance export when one required source input is missing (edge case spec.md:L159); manifest MUST report `partial` status instead of failing silently
+- [ ] T016 Prove deterministic rerun behavior for identical Binance inputs apart from declared generation metadata
+- [ ] T016A Benchmark: verify single Binance export completes in <10s (NFR-002) and 1-week backfill in <10min (NFR-003) for an already-ingested input set
+
+## Phase 4: Bybit Source Readiness Gate
+
+- [ ] T017 Define the mandatory input set required before Bybit can be considered export-ready.
+  Known data sources (as of 2026-04-06):
+  - ccxt-data-pipeline (live daemon, default exchanges include bybit):
+    - OHLCV: ✅ from 2026-01-28 (Parquet, daily)
+    - Open Interest: ✅ from 2026-02-24 (Parquet, daily)
+    - Funding Rate: ✅ from 2026-02-24 (Parquet, daily)
+    - Liquidations: ❌ streamed via WS but NOT persisted to catalog
+    - Orderbook: ❌ not collected yet — being added (see ccxt-pipeline GAP-ANALYSIS-REKTSLUG.md)
+    - Trades: ❌ not collected by ccxt-pipeline (historical on 3TB-WDC)
+  - bybit_data_downloader (3TB-WDC, external repo):
+    - Trades: ✅ 133GB, 2020-05-01 → 2026-04-04 (csv.gz, daily)
+    - Orderbook: ⚠️ 319GB, 2024-01-01 → 2025-09-24 (zip, daily) — gap being fixed
+    - Funding rates: ✅ 328 files
+    - Open Interest: ✅ 332 files
+- [ ] T018 Define the readiness statuses for Bybit using the shared taxonomy from T002B:
+  - `blocked_source_unverified` (spec.md FR-012 minimum)
+  - `blocked_source_missing`
+  - `failed_processing`
+  - `unsupported`
+  - `available`
+- [ ] T019R RED: Write failing test for Bybit readiness report shape validation (schema, required fields, machine-readable output)
+- [ ] T019 Produce a machine-readable readiness report shape for Bybit source audit results
+- [ ] T020 Audit the actual Bybit data availability across both sources:
+  - ccxt-data-pipeline Parquet files for OI/funding/klines (verified present)
+  - 3TB-WDC historical trades and orderbook (trades current, orderbook gap being fixed)
+  - Determine per-channel input requirements: `bybit_standard` (OI+trades+funding+klines) vs `depth_weighted` (+orderbook)
+- [ ] T021 Record the canonical path contract for Bybit source files:
+  - ccxt-pipeline: `/media/sam/1TB/ccxt-data-pipeline/data/catalog/{type}/BTCUSDT-PERP.BYBIT/`
+  - 3TB-WDC historical: `/media/sam/3TB-WDC/bybit_data_downloader/data/historical/{type}/contract/BTCUSDT/`
+  - Market metrics: `/media/sam/3TB-WDC/bybit_data_downloader/data/market_metrics/{type}/`
+- [ ] T022 Define Bybit model channels — same two-paradigm approach as Binance:
+  - `bybit_standard` (canonical): aggregate statistical — OI + trades + funding + klines + Bybit MMR tiers
+    - Requires: `BybitStandardModel` with Bybit-specific MMR tiers (different from Binance)
+    - OR: parameterize `BinanceStandardModel` to accept per-exchange tier tables
+  - `depth_weighted` (LOB-aware): orderbook depth weights liquidation probability
+    - Bybit orderbook: 319GB historical on 3TB-WDC (2024-01 to 2025-09); gap being fixed
+    - Readiness gate for this channel checks orderbook availability separately from `bybit_standard`
+  - Ingestion bridge needed: ccxt-pipeline Parquet + 3TB-WDC CSV.gz → direct Parquet read
+
+## Phase 5: Bybit Export Implementation (Gated, TDD)
+
+- [ ] T023R RED: Write failing tests for blocked Bybit export states
+- [ ] T024 Implement manifest-only blocked output when Bybit readiness has not passed
+- [ ] T025R RED: Write failing tests for real Bybit artifact export after readiness passes
+- [ ] T026 Implement Bybit artifact export only after source-readiness gate is green
+- [ ] T027 Implement Bybit backfill batch records and input-identity metadata
+
+## Phase 6: Consumer Handoff
+
+- [ ] T028 Produce one sample Binance export batch for consumer inspection
+- [ ] T029 Produce one blocked or available Bybit sample manifest reflecting the true readiness state
+- [ ] T030 Document how NT or any other consumer should read the artifacts:
+  - file pickup / manifest parsing first
+  - REST / WebSocket / Redis are optional integration layers outside this spec
+
+## Completion Notes
+
+- Binance should land first because it already has working model/runtime code.
+- Bybit is not complete merely because an adapter name exists in the repo.
+- A blocked Bybit manifest is a valid and desirable interim outcome if it
+  truthfully reflects current readiness.
+- The goal is to expose deterministic modeled outputs, not to choose the final
+  transport mechanism.
