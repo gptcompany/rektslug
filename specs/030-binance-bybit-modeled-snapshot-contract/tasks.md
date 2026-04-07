@@ -62,7 +62,7 @@
   - `exchange` -> new required field (not present in spec-029)
   - Reuse `BucketGrid`, `validate_iso8601_z_timestamp`, `validate_artifact` pattern as-is
 - [x] T012 Create export root and layout under `data/validation/modeled_snapshots/binance/`
-- [ ] T012A Extract aggregation bridge from `liquidations.py:_aggregate_legacy_levels` into `src/liquidationheatmap/contracts/aggregation.py`:
+- [x] T012A Extract aggregation bridge from `liquidations.py:_aggregate_legacy_levels` into `src/liquidationheatmap/contracts/aggregation.py`:
   - input: `List[LiquidationLevel]` + `bin_size`
   - output: `(BucketGrid, long_distribution: dict[str, float], short_distribution: dict[str, float])`
   - Must work for all model channels without API router dependencies
