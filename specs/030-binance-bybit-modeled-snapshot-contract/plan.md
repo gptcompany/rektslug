@@ -50,7 +50,7 @@ stable modeled-snapshot producer contract that:
     - Open Interest: 336 files total, 169 BTCUSDT
 - Readiness is per-channel:
   - `bybit_standard` (OI + trades + funding + klines): data exists, readiness gate can pass
-  - `depth_weighted` (requires orderbook): can pass for windows covered by 3TB-WDC historical orderbook or ccxt-data-pipeline live Parquet; uncovered historical gaps must remain blocked or partial
+  - `depth_weighted` (requires orderbook): can pass for windows covered by producer-readable ccxt-data-pipeline live Parquet; 3TB-WDC historical orderbook is audited but remains `blocked_source_unverified` until a historical reader/normalizer exists; uncovered historical gaps must remain blocked or partial
 
 ### Source Documents
 
@@ -174,7 +174,10 @@ Both Binance and Bybit implement `depth_weighted`:
 - **Bybit**: historical BTCUSDT orderbook on 3TB-WDC (2024-01-01 to
   2025-08-20) and live ccxt-data-pipeline Parquet from 2026-04-06 onward.
   The readiness gate for `depth_weighted` checks orderbook availability
-  separately from `bybit_standard` and per requested timestamp/window.
+  separately from `bybit_standard` and per requested timestamp/window. Current
+  producer availability is limited to ccxt-data-pipeline Parquet; historical
+  3TB-WDC coverage is source-audited but blocked until normalized into a
+  producer-readable path.
 
 Future evolution (out of scope): `cascade_sim` — simulate liquidation cascades
 through the orderbook to estimate second-order price impact. Requires

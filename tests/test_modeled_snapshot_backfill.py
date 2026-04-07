@@ -48,18 +48,18 @@ def test_backfill_determinism(tmp_path, mock_db_backfill, monkeypatch):
     
     # Run 1
     record1 = coordinator.run_backfill("binance", "BTCUSDT", start_ts, end_ts, step_minutes=60, batch_id="batch1")
-    
-    # Run 2
-    record2 = coordinator.run_backfill("binance", "BTCUSDT", start_ts, end_ts, step_minutes=60, batch_id="batch2")
-    
+
     # Check that artifact contents are identical (except generation metadata)
     snapshot_ts = "2026-04-07T12:00:00Z"
-    path1 = tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
-    path2 = tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
+    artifact_path = tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
     
-    with open(path1, "r") as f:
+    with open(artifact_path, "r") as f:
         data1 = json.load(f)
-    with open(path2, "r") as f:
+
+    # Run 2
+    record2 = coordinator.run_backfill("binance", "BTCUSDT", start_ts, end_ts, step_minutes=60, batch_id="batch2")
+
+    with open(artifact_path, "r") as f:
         data2 = json.load(f)
         
     # Remove generation metadata which is allowed to differ

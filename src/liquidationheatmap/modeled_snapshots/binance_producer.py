@@ -127,10 +127,13 @@ class BinanceProducer:
                     write_modeled_artifact(
                         self.base_dir, "binance", symbol, snapshot_ts, channel, artifact_payload
                     )
-                    
+
                     if channel_status == "partial":
-                        # If we produced an artifact but status was partial
-                        pass
+                        failures[channel] = {
+                            "status": "partial",
+                            "reason": "Input collection was partial",
+                            "details": current_input_identity,
+                        }
 
                 except Exception as e:
                     logger.exception(f"Failed to produce Binance {channel} snapshot")

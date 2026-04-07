@@ -10,11 +10,17 @@
         "input_identity": {
           "current_price": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-            "timestamp": "2026-04-07T13:00:00Z"
+            "timestamp": "2026-04-07T12:00:00Z"
           },
           "open_interest": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-            "timestamp": "2026-04-07T13:00:00Z"
+            "timestamp": "2026-04-07T12:00:00Z"
+          },
+          "funding": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/funding_rate/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T11:44:53Z",
+            "value": 2.58e-05,
+            "next_funding_time": "2026-04-07T16:00:00Z"
           },
           "large_trades": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
@@ -31,11 +37,17 @@
         "input_identity": {
           "current_price": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-            "timestamp": "2026-04-07T13:00:00Z"
+            "timestamp": "2026-04-07T12:00:00Z"
           },
           "open_interest": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-            "timestamp": "2026-04-07T13:00:00Z"
+            "timestamp": "2026-04-07T12:00:00Z"
+          },
+          "funding": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/funding_rate/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T11:44:53Z",
+            "value": 2.58e-05,
+            "next_funding_time": "2026-04-07T16:00:00Z"
           },
           "large_trades": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
@@ -43,7 +55,7 @@
           },
           "orderbook": {
             "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/orderbook/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-            "timestamp": "2026-04-07T12:59:59Z"
+            "timestamp": "2026-04-07T11:59:59Z"
           }
         }
       },

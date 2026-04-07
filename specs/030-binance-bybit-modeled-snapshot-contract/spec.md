@@ -84,8 +84,11 @@ Current state:
 - historical Bybit orderbook exists on 3TB-WDC for BTCUSDT from 2024-01-01 to
   2025-08-20, but there is still an uncovered historical gap before the live
   ccxt-data-pipeline catalog begins
-- readiness gate validates source availability per channel and requested
-  timestamp/window before export
+- readiness gate validates producer-readable source availability per channel and
+  requested timestamp/window before export. Current producer-readable Bybit
+  artifacts use ccxt-data-pipeline Parquet; 3TB-WDC historical files are audited
+  but remain `blocked_source_unverified` until a dedicated historical reader or
+  normalization bridge is implemented.
 
 ## Producer / Consumer Boundary
 
@@ -182,11 +185,11 @@ As a downstream consumer, I need Binance and Bybit to use the same modeled snaps
 - **FR-007**: Binance MUST be the first implemented exchange under this contract and MUST reuse the current Binance model/runtime rather than re-implementing it from scratch.
 - **FR-008**: Binance artifacts MUST record immutable input-identity metadata sufficient to audit deterministic reruns, including source paths, time anchors, and at least one immutable digest, retained source-manifest id, or equivalent non-mutable identity reference for each authoritative source input set used by the export.
 - **FR-009**: The system MUST distinguish between `available`, `partial` (degraded coverage), source availability failures, processing failures, and intentionally unsupported states.
-- **FR-010**: Bybit availability status MUST be determined by the readiness gate at export time. Source data exists in ccxt-data-pipeline (OI/funding/klines from Feb 2026+, live trades/liquidations/orderbook from 2026-04-06+) and on 3TB-WDC (trades from 2020, historical orderbook from 2024). The readiness gate verifies per-channel input availability for the requested timestamp/window, not a blanket block.
+- **FR-010**: Bybit availability status MUST be determined by the readiness gate at export time. Source data exists in ccxt-data-pipeline (OI/funding/klines from Feb 2026+, live trades/liquidations/orderbook from 2026-04-06+) and on 3TB-WDC (trades from 2020, historical orderbook from 2024). The readiness gate verifies per-channel, producer-readable input availability for the requested timestamp/window, not a blanket block. Current producer-readable Bybit inputs are ccxt-data-pipeline Parquet files; 3TB-WDC historical files are audited source candidates but MUST remain `blocked_source_unverified` until a reader/normalizer exists.
 - **FR-011**: Bybit readiness MUST include explicit verification that required source inputs persist to the expected storage paths. Required inputs per model channel:
   - `bybit_standard`: Open Interest, trades, funding rate, klines
   - `depth_weighted`: all of the above PLUS orderbook snapshots
-  - The readiness gate verifies these against ccxt-data-pipeline catalog and 3TB-WDC historical paths. Bybit orderbook is present in 3TB-WDC historical files for BTCUSDT 2024-01-01 to 2025-08-20 and in ccxt-data-pipeline Parquet from 2026-04-06 onward; any requested window in the uncovered gap MUST remain blocked or partial.
+  - The readiness gate verifies these against ccxt-data-pipeline catalog and records 3TB-WDC historical paths as audited-but-not-yet-producer-readable sources. Bybit orderbook is present in 3TB-WDC historical files for BTCUSDT 2024-01-01 to 2025-08-20 and in ccxt-data-pipeline Parquet from 2026-04-06 onward; current `available` status is limited to producer-readable Parquet windows. Historical-only windows MUST remain `blocked_source_unverified`, and any requested window in the uncovered gap MUST remain `blocked_source_missing` or `partial`.
 - **FR-012**: If Bybit source persistence is not verified, its manifest MUST use a blocked status such as `blocked_source_unverified` rather than returning an empty or fake artifact.
 - **FR-013**: Backfill runs MUST emit batch records that declare interval, timeline policy, coverage, gaps, failures, and input identities.
 - **FR-014**: Rerunning the same bounded backfill with identical inputs MUST be deterministic apart from declared generation metadata.
@@ -195,7 +198,7 @@ As a downstream consumer, I need Binance and Bybit to use the same modeled snaps
 - **FR-017**: The contract MUST support multiple model channels per exchange. Each exchange MUST export at least two channels with genuinely different paradigms:
   - `{exchange}_standard` (canonical): aggregate statistical model — OI + trades + funding + exchange-specific MMR tiers
   - `depth_weighted` (LOB-aware): uses orderbook depth to weight liquidation cluster probability (thin book = cascade more likely)
-  - Both Binance and Bybit MUST implement both channels. The `depth_weighted` channel requires orderbook data: Binance orderbook is available via ccxt-pipeline (20 levels, Mar 2026+); Bybit orderbook is available on 3TB-WDC (BTCUSDT historical, 2024-01-01 to 2025-08-20) and in ccxt-data-pipeline live Parquet from 2026-04-06 onward, with availability decided per requested window.
+  - Both Binance and Bybit MUST implement both channels. The `depth_weighted` channel requires orderbook data: Binance orderbook is available via ccxt-pipeline (20 levels, Mar 2026+); Bybit orderbook is audited on 3TB-WDC (BTCUSDT historical, 2024-01-01 to 2025-08-20) and available to the current producer via ccxt-data-pipeline live Parquet from 2026-04-06 onward, with availability decided per requested window.
   - The existing `binance_standard_bias`, `funding_adjusted`, and `ensemble` models are parameter variations of `binance_standard` and MAY be added as additional channels post-MVP, but do not justify separate channels on their own.
 - **FR-018**: The Binance producer MUST use DuckDB (read-only) as the data source for export. QuestDB hot data MUST NOT be used for artifact production because it is volatile and not reproducible for a given `snapshot_ts`.
 - **FR-019**: The system MUST provide a reusable aggregation bridge that converts `List[LiquidationLevel]` into `(bucket_grid, long_distribution, short_distribution)`. This bridge MUST be independent of the API router and usable by all model channels.
@@ -304,7 +307,7 @@ Each exchange exports two genuinely different model paradigms:
 
 LOB data sources:
 - **Binance**: ccxt-data-pipeline orderbook collector, 20 levels, 720k snapshots/day (Mar 2026+)
-- **Bybit**: historical BTCUSDT orderbook on 3TB-WDC (2024-01-01 to 2025-08-20) plus ccxt-data-pipeline live Parquet from 2026-04-06 onward; the readiness gate must block or mark partial any requested window not covered by either source
+- **Bybit**: historical BTCUSDT orderbook on 3TB-WDC (2024-01-01 to 2025-08-20) plus ccxt-data-pipeline live Parquet from 2026-04-06 onward. Current producer availability is limited to ccxt-data-pipeline Parquet; historical-only 3TB-WDC windows remain `blocked_source_unverified` until a reader/normalizer is implemented, and uncovered gaps remain blocked or partial.
 
 Future evolution (out of scope for this spec):
 - **`cascade_sim`**: simulate how a liquidation event propagates through the orderbook,
@@ -317,6 +320,6 @@ Future evolution (out of scope for this spec):
 - The Hyperliquid producer/export work in `spec-029` is mature enough to reuse its contract patterns directly
 - HL experts (v1-v5) are NOT transferable to CEX: they depend on per-user ABCI state unique to HL L1
 - Bybit baseline model channels (OI + trades + funding + klines) have sufficient source data available now
-- Bybit `depth_weighted` can be available for windows covered by 3TB-WDC historical orderbook or ccxt-data-pipeline live Parquet, but MUST NOT be marked available for uncovered historical gaps
+- Bybit `depth_weighted` can be `available` for windows covered by ccxt-data-pipeline live Parquet. 3TB-WDC historical orderbook is audited but remains `blocked_source_unverified` until a producer-readable historical bridge exists, and uncovered historical gaps MUST NOT be marked available.
 - Bybit will need exchange-specific MMR tiers (different from Binance) for a `BybitStandardModel`
 - If the canonical storage root changes from the current 3TB WDC expectation, the readiness contract will be updated explicitly rather than implied silently

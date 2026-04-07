@@ -100,3 +100,37 @@ def test_binance_depth_weighted_impact(tmp_path, mock_db, monkeypatch):
     
     assert low_sum != high_sum
     assert low_sum > high_sum # Low depth should increase impact multiplier
+
+
+def test_binance_partial_manifest_keeps_artifact_path_when_open_interest_missing(tmp_path):
+    db_file = tmp_path / "partial.db"
+    conn = duckdb.connect(str(db_file))
+    conn.execute("CREATE TABLE klines_1m_history (symbol VARCHAR, open_time TIMESTAMP, close DOUBLE)")
+    conn.execute("CREATE TABLE open_interest_history (symbol VARCHAR, timestamp TIMESTAMP, open_interest_value DOUBLE)")
+    conn.execute("""
+        CREATE TABLE aggtrades_history (
+            agg_trade_id BIGINT,
+            timestamp TIMESTAMP,
+            symbol VARCHAR,
+            exchange VARCHAR,
+            price DOUBLE,
+            quantity DOUBLE,
+            side VARCHAR,
+            gross_value DOUBLE
+        )
+    """)
+    conn.execute("INSERT INTO klines_1m_history VALUES ('BTCUSDT', '2026-04-07 12:00:00', 50000.0)")
+    conn.close()
+
+    producer = BinanceProducer(base_dir=tmp_path, db_path=str(db_file))
+    snapshot_ts = "2026-04-07T12:00:00Z"
+
+    manifest = producer.export_snapshot(
+        symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_standard"]
+    )
+
+    entry = manifest.models["binance_standard"]
+    assert entry.availability_status == "partial"
+    assert entry.artifact_path == f"artifacts/BTCUSDT/{snapshot_ts}/binance_standard.json"
+    assert entry.source_metadata["availability_metadata"]["reason"] == "Input collection was partial"
+    assert (tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json").exists()

@@ -3,7 +3,7 @@
   "model_id": "bybit_standard",
   "symbol": "BTCUSDT",
   "snapshot_ts": "2026-04-07T12:00:00Z",
-  "reference_price": 68356.2,
+  "reference_price": 68320.2,
   "bucket_grid": {
     "min_price": 55100.0,
     "max_price": 82500.0,
@@ -62,6 +62,7 @@
     "74500.0": 3731146.51914,
     "70400.0": 4254076.03914,
     "69000.0": 5510819.526179999,
+    "68300.0": 2710504.5493799997,
     "81200.0": 1016527.0789399999,
     "74400.0": 1652793.5470399999,
     "70300.0": 1129864.0270399998,
@@ -104,17 +105,23 @@
     "68700.0": 1395480.33632,
     "82000.0": 457120.19288,
     "71000.0": 801291.19288,
-    "74900.0": 1058425.8272
+    "74900.0": 1058425.8272000002
   },
   "source_metadata": {
     "input_identity": {
       "current_price": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-        "timestamp": "2026-04-07T13:00:00Z"
+        "timestamp": "2026-04-07T12:00:00Z"
       },
       "open_interest": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-        "timestamp": "2026-04-07T13:00:00Z"
+        "timestamp": "2026-04-07T12:00:00Z"
+      },
+      "funding": {
+        "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/funding_rate/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+        "timestamp": "2026-04-07T11:44:53Z",
+        "value": 2.58e-05,
+        "next_funding_time": "2026-04-07T16:00:00Z"
       },
       "large_trades": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
@@ -123,9 +130,9 @@
     }
   },
   "generation_metadata": {
-    "run_id": "run_1775584394",
+    "run_id": "run_1775592522",
     "run_reason": "scheduled_export",
-    "run_ts": "2026-04-07T17:53:14Z",
+    "run_ts": "2026-04-07T20:08:42Z",
     "producer_version": "1.0.0"
   }
 }

@@ -52,8 +52,10 @@ Hard invariants:
   blanket exchange state.
 - Bybit `bybit_standard` requires OI, trades, funding, and klines.
 - Bybit `depth_weighted` requires OI, trades, funding, klines, and orderbook.
-- Bybit `depth_weighted` may be `available` only for windows covered by source
-  orderbook data. It must be `blocked_*` or `partial` for uncovered gaps.
+- Bybit `depth_weighted` may be `available` only for windows covered by
+  producer-readable orderbook data. Current producer-readable Bybit source is
+  ccxt-data-pipeline Parquet; historical 3TB-WDC files are audited but remain
+  `blocked_source_unverified` until a reader/normalizer exists.
 - Do not treat WebSocket/Redis as prerequisites for artifact export.
 
 Audited Bybit source availability as of 2026-04-07:
@@ -74,6 +76,8 @@ Audited Bybit source availability as of 2026-04-07:
 - Important gap: Bybit orderbook is not continuous between 2025-08-21 and
   live ccxt-data-pipeline coverage starting 2026-04-06. Review implementations
   must not claim `depth_weighted` availability for that uncovered interval.
+- Historical-only 3TB-WDC windows must not be marked `available` unless the
+  reviewed slice implements a real historical reader/normalizer.
 
 Expected output format:
 1. Findings
@@ -236,10 +240,13 @@ Review focus:
   - `/media/sam/1TB/ccxt-data-pipeline/data/catalog/{type}/BTCUSDT-PERP.BYBIT/`
   - `/media/sam/3TB-WDC/bybit_data_downloader/data/historical/{type}/contract/BTCUSDT/`
   - `/media/sam/3TB-WDC/bybit_data_downloader/data/market_metrics/{type}/`
+- Historical-only 3TB-WDC coverage is blocked as `blocked_source_unverified`
+  unless it has been normalized into producer-readable inputs.
 
 Blockers:
 - Blanket `bybit_available = true`.
 - `depth_weighted` marked available for 2025-08-21 to 2026-04-05 orderbook gap.
+- Historical-only 3TB-WDC window marked available without a reader/normalizer.
 - `bybit_standard` omits klines.
 - Readiness report only logs text and is not machine-readable.
 
@@ -268,8 +275,8 @@ Review focus:
 - `bybit_standard` uses Bybit-specific MMR tiers or an explicitly parameterized
   shared model with Bybit tier table.
 - `depth_weighted` requires orderbook and respects the coverage gap.
-- Input identity covers both ccxt-data-pipeline catalog and 3TB-WDC historical
-  sources when used.
+- Input identity covers ccxt-data-pipeline catalog and any normalized 3TB-WDC
+  historical sources actually used.
 - Backfill records expose per-channel coverage, gaps, failures, and provenance.
 
 Blockers:
@@ -329,4 +336,3 @@ If test names differ, find relevant tests with:
 ```bash
 rg -n "ModeledSnapshot|modeled_snapshot|bybit.*readiness|depth_weighted|input_identity" tests src
 ```
-

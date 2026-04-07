@@ -23,6 +23,18 @@ from src.liquidationheatmap.models.binance_depth_weighted import BinanceDepthWei
 
 logger = logging.getLogger(__name__)
 
+
+def _format_utc_z(value: Any) -> str:
+    """Format DuckDB/Pandas timestamp values as canonical UTC Z timestamps."""
+    if hasattr(value, "to_pydatetime"):
+        value = value.to_pydatetime()
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc)
+        return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return str(value)
+
+
 class BybitProducer:
     """Producer for Bybit modeled snapshots."""
 
@@ -176,7 +188,10 @@ class BybitProducer:
                 
             current_price = Decimal(str(price_row[0]))
             inputs["current_price"] = current_price
-            input_identity["current_price"] = {"source": str(ohlcv_path), "timestamp": price_row[1].strftime("%Y-%m-%dT%H:%M:%SZ")}
+            input_identity["current_price"] = {
+                "source": str(ohlcv_path),
+                "timestamp": _format_utc_z(price_row[1]),
+            }
         except Exception as e:
             logger.warning(f"Failed to read ohlcv parquet {ohlcv_path}: {e}")
             return {}, {}, "blocked_source_missing"
@@ -191,7 +206,10 @@ class BybitProducer:
                 """, [snapshot_ts]).fetchone()
                 if oi_row:
                     inputs["open_interest"] = Decimal(str(oi_row[0]))
-                    input_identity["open_interest"] = {"source": str(oi_path), "timestamp": oi_row[1].strftime("%Y-%m-%dT%H:%M:%SZ")}
+                    input_identity["open_interest"] = {
+                        "source": str(oi_path),
+                        "timestamp": _format_utc_z(oi_row[1]),
+                    }
                 else:
                     status = "partial"
                     inputs["open_interest"] = current_price * Decimal("100") # fallback
@@ -201,8 +219,39 @@ class BybitProducer:
         else:
             status = "partial"
             inputs["open_interest"] = current_price * Decimal("100")
+
+        # 3. Funding Rate (required provenance input even though the current MVP
+        # model does not directly apply the rate in its formula).
+        funding_path = self.CATALOG_ROOT / "funding_rate" / parquet_symbol / f"{date_str}.parquet"
+        if funding_path.exists():
+            try:
+                funding_row = self.db_service.conn.execute(f"""
+                    SELECT funding_rate, timestamp, next_funding_time, predicted_rate
+                    FROM read_parquet('{funding_path}')
+                    WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT 1
+                """, [snapshot_ts]).fetchone()
+                if funding_row:
+                    inputs["funding_rate"] = Decimal(str(funding_row[0]))
+                    input_identity["funding"] = {
+                        "source": str(funding_path),
+                        "timestamp": _format_utc_z(funding_row[1]),
+                        "value": float(funding_row[0]),
+                    }
+                    if funding_row[2] is not None:
+                        input_identity["funding"]["next_funding_time"] = _format_utc_z(funding_row[2])
+                    if funding_row[3] is not None:
+                        input_identity["funding"]["predicted_rate"] = float(funding_row[3])
+                else:
+                    status = "partial"
+                    input_identity["funding"] = {"source": str(funding_path), "status": "no_row_before_ts"}
+            except Exception as e:
+                status = "partial"
+                input_identity["funding"] = {"source": str(funding_path), "status": "error", "error": str(e)}
+        else:
+            status = "partial"
+            input_identity["funding"] = {"source": str(funding_path), "status": "missing"}
             
-        # 3. Trades
+        # 4. Trades
         trades_path = self.CATALOG_ROOT / "trades" / parquet_symbol / f"{date_str}.parquet"
         if trades_path.exists():
             try:
@@ -214,14 +263,20 @@ class BybitProducer:
                 """, [snapshot_ts]).df()
                 inputs["large_trades"] = trades_df
                 input_identity["large_trades"] = {"source": str(trades_path), "count": len(trades_df)}
-            except Exception:
+            except Exception as e:
+                status = "partial"
                 inputs["large_trades"] = None
-                input_identity["large_trades"] = {"source": "error"}
+                input_identity["large_trades"] = {
+                    "source": str(trades_path),
+                    "status": "error",
+                    "error": str(e),
+                }
         else:
+            status = "partial"
             inputs["large_trades"] = None
-            input_identity["large_trades"] = {"source": "missing"}
+            input_identity["large_trades"] = {"source": str(trades_path), "status": "missing"}
             
-        # 4. Orderbook
+        # 5. Orderbook
         if channel == "depth_weighted":
             ob_path = self.CATALOG_ROOT / "orderbook" / parquet_symbol / f"{date_str}.parquet"
             if ob_path.exists():
@@ -238,7 +293,10 @@ class BybitProducer:
                             bids.append((ob_row[base_idx], ob_row[base_idx+1]))
                             asks.append((ob_row[base_idx+2], ob_row[base_idx+3]))
                         inputs["orderbook"] = {'bids': bids, 'asks': asks}
-                        input_identity["orderbook"] = {"source": str(ob_path), "timestamp": ob_row[0].strftime("%Y-%m-%dT%H:%M:%SZ")}
+                        input_identity["orderbook"] = {
+                            "source": str(ob_path),
+                            "timestamp": _format_utc_z(ob_row[0]),
+                        }
                     else:
                         return {}, {}, "blocked_source_missing"
                 except Exception:

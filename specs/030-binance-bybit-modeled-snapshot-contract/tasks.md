@@ -91,7 +91,10 @@
     - Open Interest: ✅ 336 files total, 169 BTCUSDT
   - Caveat: there is still an uncovered orderbook gap between the 3TB-WDC
     historical range and the ccxt-data-pipeline live catalog. `depth_weighted`
-    availability must be decided per requested timestamp/window.
+    availability must be decided per requested timestamp/window. Current
+    producer-readable Bybit exports use ccxt-data-pipeline Parquet; historical
+    3TB-WDC files are audited but remain `blocked_source_unverified` until a
+    reader/normalizer is implemented.
 - [x] T018 Define the readiness statuses for Bybit using the shared taxonomy from T002B:
   - `blocked_source_unverified` (spec.md FR-012 minimum)
   - `blocked_source_missing`
@@ -115,7 +118,7 @@
   - `depth_weighted` (LOB-aware): orderbook depth weights liquidation probability
     - Bybit orderbook: historical 3TB-WDC files for 2024-01-01 → 2025-08-20 plus live ccxt-data-pipeline Parquet from 2026-04-06 onward
     - Readiness gate for this channel checks orderbook availability separately from `bybit_standard` and per requested timestamp/window
-  - Ingestion bridge needed: ccxt-pipeline Parquet + 3TB-WDC CSV.gz → direct Parquet read
+  - Ingestion bridge needed for future historical replay: 3TB-WDC CSV.gz/zip/JSON → producer-readable normalized files. Until then, historical-only 3TB-WDC windows are `blocked_source_unverified`, while live ccxt-data-pipeline Parquet windows can be `available`.
 
 ## Phase 5: Bybit Export Implementation (Gated, TDD)
 

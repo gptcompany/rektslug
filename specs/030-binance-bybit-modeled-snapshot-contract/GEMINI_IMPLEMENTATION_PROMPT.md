@@ -60,8 +60,10 @@ Hard invariants:
 - Bybit readiness is per channel and per requested timestamp/window.
 - `bybit_standard` requires OI, trades, funding, and klines.
 - `depth_weighted` requires OI, trades, funding, klines, and orderbook.
-- Bybit `depth_weighted` may be `available` only for windows covered by orderbook
-  data and must be `blocked_*` or `partial` for uncovered windows.
+- Bybit `depth_weighted` may be `available` only for windows covered by
+  producer-readable orderbook data. Current producer-readable Bybit source is
+  ccxt-data-pipeline Parquet; historical 3TB-WDC files are audited but remain
+  `blocked_source_unverified` until a reader/normalizer exists.
 
 Audited Bybit source availability as of 2026-04-07:
 - ccxt-data-pipeline:
@@ -86,6 +88,9 @@ Audited Bybit source availability as of 2026-04-07:
   - open interest: 336 total files, 169 BTCUSDT.
 - Important gap: Bybit orderbook is not continuous between 2025-08-21 and
   live ccxt-data-pipeline coverage starting 2026-04-06.
+- Current MVP behavior: live ccxt-data-pipeline Parquet windows can be
+  `available`; historical-only 3TB-WDC windows must not be marked `available`
+  until normalized into producer-readable files.
 
 Start now by implementing only the requested slice.
 ```
@@ -259,11 +264,13 @@ Expected implementation:
   - `/media/sam/3TB-WDC/bybit_data_downloader/data/market_metrics/{type}/`
 - For `depth_weighted`, mark windows in 2025-08-21 to 2026-04-05 as
   `blocked_source_missing` or `partial`; do not mark them `available`.
+- Mark historical-only 3TB-WDC windows `blocked_source_unverified` unless the
+  slice also implements a real historical reader/normalizer.
 
 Stop condition:
 - Readiness tests pass for:
   - covered live window
-  - covered historical window
+  - historical-only window blocked as unverified unless a reader exists
   - uncovered orderbook gap window
   - missing path
 - Do not implement artifact export in this slice unless asked.
@@ -307,7 +314,8 @@ Expected implementation:
 - `bybit_standard` uses Bybit-specific MMR tiers or an explicitly parameterized
   shared model with Bybit tier table.
 - `depth_weighted` uses available orderbook data and respects coverage gaps.
-- Input identity covers ccxt-data-pipeline and/or 3TB-WDC sources used.
+- Input identity covers ccxt-data-pipeline and any normalized 3TB-WDC sources
+  actually used.
 - Backfill records expose per-channel coverage, gaps, failures, and provenance.
 
 Stop condition:
@@ -357,4 +365,3 @@ Tasks: T009R, T010R, T010A, T011, T012.
 Edit files directly, follow TDD, run the relevant tests, and stop after Slice A.
 Final response: changed files, tests run, pass/fail, blockers.
 ```
-

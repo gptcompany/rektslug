@@ -3,7 +3,7 @@
   "model_id": "depth_weighted",
   "symbol": "BTCUSDT",
   "snapshot_ts": "2026-04-07T12:00:00Z",
-  "reference_price": 68356.2,
+  "reference_price": 68320.2,
   "bucket_grid": {
     "min_price": 55100.0,
     "max_price": 82500.0,
@@ -62,6 +62,7 @@
     "74500.0": 7071359.528695439,
     "70400.0": 8044994.90106749,
     "69000.0": 10325641.271848442,
+    "68300.0": 5170673.722635494,
     "81200.0": 1894868.72536859,
     "74400.0": 3064385.468862746,
     "70300.0": 2090750.0964906951,
@@ -75,8 +76,8 @@
     "74800.0": 2665727.309125041,
     "70700.0": 2665727.309125041,
     "69300.0": 4485101.41810876,
-    "68600.0": 2058790.7888170863,
-    "81700.0": 4406477.444778578,
+    "68600.0": 2058790.7888170865,
+    "81700.0": 4406477.444778579,
     "81800.0": 611823.1454188346,
     "75000.0": 611823.1454188346,
     "70900.0": 885547.217990182,
@@ -110,11 +111,17 @@
     "input_identity": {
       "current_price": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-        "timestamp": "2026-04-07T13:00:00Z"
+        "timestamp": "2026-04-07T12:00:00Z"
       },
       "open_interest": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-        "timestamp": "2026-04-07T13:00:00Z"
+        "timestamp": "2026-04-07T12:00:00Z"
+      },
+      "funding": {
+        "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/funding_rate/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+        "timestamp": "2026-04-07T11:44:53Z",
+        "value": 2.58e-05,
+        "next_funding_time": "2026-04-07T16:00:00Z"
       },
       "large_trades": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
@@ -122,14 +129,14 @@
       },
       "orderbook": {
         "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/orderbook/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
-        "timestamp": "2026-04-07T12:59:59Z"
+        "timestamp": "2026-04-07T11:59:59Z"
       }
     }
   },
   "generation_metadata": {
-    "run_id": "run_1775584394",
+    "run_id": "run_1775592523",
     "run_reason": "scheduled_export",
-    "run_ts": "2026-04-07T17:53:14Z",
+    "run_ts": "2026-04-07T20:08:43Z",
     "producer_version": "1.0.0"
   }
 }
