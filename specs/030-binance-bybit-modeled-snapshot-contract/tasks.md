@@ -1,33 +1,27 @@
-# Tasks: Binance/Bybit Modeled Snapshot Contract
+# Tasks: spec-030
 
-**Input**: `specs/030-binance-bybit-modeled-snapshot-contract/spec.md`
-**Dependencies**: `spec-028`, `spec-029`, current Binance model/runtime, and external Bybit source persistence audit
-**Feature Type**: Producer contract + readiness gate + deterministic export
+## Phase 1: Contract Lock-In (Design Freeze)
 
-## Phase 1: Contract Lock-In
-
-- [ ] T001 Re-read `spec-028`, `spec-029`, `spec-012`, and the current Binance/Bybit exchange code
-- [ ] T002 Freeze the minimum `ModeledSnapshotArtifact` field set and manifest shape
-- [ ] T002B Define the shared availability status taxonomy required by FR-009 across all exchanges:
+- [x] T001 Re-read `spec-028`, `spec-029`, `spec-012`, and the current Binance/Bybit exchange code
+- [x] T002 Freeze the minimum `ModeledSnapshotArtifact` field set and manifest shape
+- [x] T002B Define the shared availability status taxonomy required by FR-009 across all exchanges:
   - `available`
-  - `partial` (some required inputs missing; artifact produced with degraded coverage)
+  - `partial` (coverage gap but enough for degraded output)
   - `blocked_source_unverified`
   - `blocked_source_missing`
   - `failed_processing`
   - `unsupported`
-  - This vocabulary applies to Binance and Bybit manifests uniformly
-- [ ] T003 Freeze canonical timestamp semantics:
-  - `snapshot_ts` = exported identity time
-  - `run_ts` = actual producer execution time
-  - UTC RFC 3339 / ISO8601 with `Z` suffix
-- [ ] T004 Freeze the architecture boundary:
-  - this spec defines artifacts/manifests
-  - WebSocket remains `spec-025`
+- [x] T003 Freeze canonical timestamp semantics:
+  - `snapshot_ts`: the identity timestamp (e.g., 12:00:00Z)
+  - `run_ts`: the generation wall-clock time
+- [x] T004 Freeze the architecture boundary:
+  - Transport remains `spec-025`
+  - Artifacts remain the primary source of truth for validation
   - Redis remains optional infrastructure, not a prerequisite
 
 ## Phase 2: Binance Source Inventory And Provenance Design
 
-- [ ] T005 Audit the exact Binance inputs already available in-repo for modeled export:
+- [x] T005 Audit the exact Binance inputs already available in-repo for modeled export:
   - trades / aggTrades
   - open interest
   - funding
@@ -40,11 +34,11 @@
     of `binance_standard` (same inputs, same formula family) — not worth separate channels
   - Two genuinely different paradigms > four similar variations
   - Binance LOB data: ccxt-pipeline orderbook, 20 levels, 720k snapshots/day, Mar 2026+
-- [ ] T007 Define the immutable `input_identity` fields required for Binance deterministic reruns.
+- [x] T007 Define the immutable `input_identity` fields required for Binance deterministic reruns.
   Note: `DuckDBService.calculate_liquidations_oi_based()` is NOT snapshot_ts-addressable (uses MAX(open_time)).
   The producer must add explicit `snapshot_ts` time-window pinning so identical inputs produce identical outputs.
-- [ ] T007A Ensure each authoritative Binance source input set has at least one immutable digest, retained manifest id, or equivalent non-mutable identity reference
-- [ ] T008 Document which current Binance paths are authoritative inputs versus derived caches
+- [x] T007A Ensure each authoritative Binance source input set has at least one immutable digest, retained manifest id, or equivalent non-mutable identity reference
+- [x] T008 Document which current Binance paths are authoritative inputs versus derived caches
 
 ## Phase 3: Binance Export Implementation (TDD)
 
@@ -114,8 +108,7 @@
   - ccxt-pipeline: `/media/sam/1TB/ccxt-data-pipeline/data/catalog/{type}/BTCUSDT-PERP.BYBIT/`
   - 3TB-WDC: `/media/sam/3TB-WDC/bybit_data_downloader/data/historical/{type}/contract/BTCUSDT/`
 - [x] T022 Implement the readiness gate logic including the orderbook gap (2025-08-21 to 2026-04-05)
-
-- [ ] T022 Define Bybit model channels — same two-paradigm approach as Binance:
+- [x] T022 Define Bybit model channels — same two-paradigm approach as Binance:
   - `bybit_standard` (canonical): aggregate statistical — OI + trades + funding + klines + Bybit MMR tiers
     - Requires: `BybitStandardModel` with Bybit-specific MMR tiers (different from Binance)
     - OR: parameterize `BinanceStandardModel` to accept per-exchange tier tables
@@ -134,9 +127,9 @@
 
 ## Phase 6: Consumer Handoff
 
-- [ ] T028 Produce one sample Binance export batch for consumer inspection
-- [ ] T029 Produce one blocked or available Bybit sample manifest reflecting the true readiness state
-- [ ] T030 Document how NT or any other consumer should read the artifacts:
+- [x] T028 Produce one sample Binance export batch for consumer inspection
+- [x] T029 Produce one blocked or available Bybit sample manifest reflecting the true readiness state
+- [x] T030 Document how NT or any other consumer should read the artifacts:
   - file pickup / manifest parsing first
   - REST / WebSocket / Redis are optional integration layers outside this spec
 

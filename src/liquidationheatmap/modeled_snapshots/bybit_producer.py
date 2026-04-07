@@ -113,8 +113,10 @@ class BybitProducer:
                     "bucket_grid": {
                         "min_price": float(grid.min_price) if grid.min_price is not None else None,
                         "max_price": float(grid.max_price) if grid.max_price is not None else None,
-                        "step": float(grid.step) if grid.step is not None else None
+                        "step": float(grid.step) if grid.step is not None else None,
+                        "price_levels": grid.price_levels
                     },
+
                     "long_distribution": {k: float(v) for k, v in long_dist.items()},
                     "short_distribution": {k: float(v) for k, v in short_dist.items()},
                     "source_metadata": {
