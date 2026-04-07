@@ -15,6 +15,7 @@ venv/
 # Data
 *.duckdb
 *.duckdb.wal
+data/cache/
 
 # IDE
 .idea/

@@ -1,0 +1,53 @@
+{
+  "exchange": "bybit",
+  "snapshot_ts": "2026-04-07T12:00:00Z",
+  "distribution_normalization": "normalized",
+  "models": {
+    "bybit_standard": {
+      "model_id": "bybit_standard",
+      "availability_status": "available",
+      "source_metadata": {
+        "input_identity": {
+          "current_price": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T13:00:00Z"
+          },
+          "open_interest": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T13:00:00Z"
+          },
+          "large_trades": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "count": 92
+          }
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-07T12:00:00Z/bybit_standard.json"
+    },
+    "depth_weighted": {
+      "model_id": "depth_weighted",
+      "availability_status": "available",
+      "source_metadata": {
+        "input_identity": {
+          "current_price": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/ohlcv/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T13:00:00Z"
+          },
+          "open_interest": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/open_interest/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T13:00:00Z"
+          },
+          "large_trades": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/trades/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "count": 92
+          },
+          "orderbook": {
+            "source": "/media/sam/1TB/ccxt-data-pipeline/data/catalog/orderbook/BTCUSDT-PERP.BYBIT/2026-04-07.parquet",
+            "timestamp": "2026-04-07T12:59:59Z"
+          }
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2026-04-07T12:00:00Z/depth_weighted.json"
+    }
+  }
+}

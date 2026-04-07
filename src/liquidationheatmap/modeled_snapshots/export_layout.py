@@ -37,34 +37,53 @@ class ModeledSnapshotManifest:
     distribution_normalization: str
     models: dict[str, ManifestModelEntry]
 
+def _validated_availability_status(value: Any, default: str) -> str:
+    status = str(value) if value else default
+    if status not in VALID_AVAILABILITY_STATUSES:
+        return default
+    return status
+
 def build_manifest(
     exchange: str,
     snapshot_ts: str,
     artifacts: list[ModeledSnapshotArtifact] | None = None,
     failures: dict[str, dict[str, Any]] | None = None,
     distribution_normalization: str = "normalized",
+    artifact_statuses: dict[str, str] | None = None,
 ) -> ModeledSnapshotManifest:
     snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", snapshot_ts)
     artifacts = artifacts or []
     failures = failures or {}
+    artifact_statuses = artifact_statuses or {}
 
     manifest_entries = {}
 
-    # Add available artifacts
+    # Add written artifacts, including degraded artifacts that remain consumable.
     for artifact in artifacts:
+        failure_info = failures.get(artifact.model_id)
+        requested_status = artifact_statuses.get(artifact.model_id)
+        if failure_info is not None:
+            requested_status = failure_info.get("status", requested_status)
+        status = _validated_availability_status(requested_status, "available")
+        source_metadata = dict(artifact.source_metadata)
+        if failure_info is not None:
+            source_metadata["availability_metadata"] = dict(failure_info)
+
         manifest_entries[artifact.model_id] = ManifestModelEntry(
             model_id=artifact.model_id,
-            availability_status="available",
-            source_metadata=artifact.source_metadata,
+            availability_status=status,
+            source_metadata=source_metadata,
             artifact_path=f"artifacts/{artifact.symbol}/{snapshot_ts}/{artifact.model_id}.json",
         )
 
-    # Add failures
+    # Add failures for models without written artifacts.
     for model_id, failure_info in failures.items():
-        status = failure_info.get("status", "failed_processing")
-        if status not in VALID_AVAILABILITY_STATUSES:
-            status = "failed_processing"
-            
+        if model_id in manifest_entries:
+            continue
+        status = _validated_availability_status(
+            failure_info.get("status"), "failed_processing"
+        )
+
         manifest_entries[model_id] = ManifestModelEntry(
             model_id=model_id,
             availability_status=status,
