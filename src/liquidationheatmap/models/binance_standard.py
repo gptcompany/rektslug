@@ -48,6 +48,7 @@ class BinanceStandardModel(AbstractLiquidationModel):
         leverage_tiers: List[int] = None,
         num_bins: int = 50,
         large_trades=None,  # Optional DataFrame with real aggTrades data
+        **kwargs,
     ) -> List[LiquidationLevel]:
         """Calculate liquidation levels using REAL trade data or synthetic binning.
 
