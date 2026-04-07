@@ -49,7 +49,7 @@
 ## Phase 3: Binance Export Implementation (TDD)
 
 - [x] T009R RED: Write failing tests for Binance artifact schema validation
-- [ ] T009B RED: Write failing test that verifies Decimal128 internal precision is preserved through the export path and serialized as float64 in JSON artifacts (NFR-001 boundary validation)
+- [x] T009B RED: Write failing test that verifies Decimal128 internal precision is preserved through the export path and serialized as float64 in JSON artifacts (NFR-001 boundary validation)
 - [x] T010R RED: Write failing tests for Binance manifest layout and timestamp-derived paths
 - [x] T010A RED: Write failing tests for canonical export subpaths:
   - `artifacts/{symbol}/{snapshot_ts}/`
@@ -67,14 +67,14 @@
   - output: `(BucketGrid, long_distribution: dict[str, float], short_distribution: dict[str, float])`
   - Must work for all model channels without API router dependencies
 - [ ] T013 Implement Binance artifact export for two model channels:
-  - `binance_standard` (canonical) — aggregate statistical, validates the full pipeline first
+  - `binance_standard` (canonical): ✅ aggregate statistical, validates the full pipeline first
   - `depth_weighted` (LOB-aware) — reads orderbook Parquet from ccxt-pipeline,
     computes depth at each liquidation level, weights cluster probability accordingly
   - Both share: aggregation bridge, export layout, manifest writing
   - Each gets its own `model_id` in the artifact and manifest
-- [ ] T014 Implement Binance manifest writing with explicit availability status
+- [x] T014 Implement Binance manifest writing with explicit availability status
 - [ ] T015 Implement Binance backfill batch records with interval, coverage, gaps, and provenance
-- [ ] T015A RED: Write failing test for Binance export when one required source input is missing (edge case spec.md:L159); manifest MUST report `partial` status instead of failing silently
+- [x] T015A RED: Write failing test for Binance export when one required source input is missing (edge case spec.md:L159); manifest MUST report `partial` status instead of failing silently
 - [ ] T016 Prove deterministic rerun behavior for identical Binance inputs apart from declared generation metadata
 - [ ] T016A Benchmark: verify single Binance export completes in <10s (NFR-002) and 1-week backfill in <10min (NFR-003) for an already-ingested input set
 
