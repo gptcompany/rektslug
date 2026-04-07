@@ -40,15 +40,17 @@ stable modeled-snapshot producer contract that:
     - OHLCV: collecting since 2026-01-28
     - Open Interest: collecting since 2026-02-24
     - Funding Rate: collecting since 2026-02-24
-    - Liquidations: streamed via WS but NOT persisted to Parquet catalog
+    - Trades: persisted to Parquet catalog from 2026-04-06
+    - Liquidations: persisted to Parquet catalog from 2026-04-06
+    - Orderbook: persisted to Parquet catalog from 2026-04-06
   - bybit_data_downloader on 3TB-WDC (external repo):
-    - Trades: 133GB, 2020-05-01 to 2026-04-04 (current)
-    - Orderbook: 319GB, 2024-01-01 to 2025-09-24 (STALE — downloader stopped)
-    - Funding rates: 328 files
-    - Open Interest: 332 files
+    - Trades: 2167 BTCUSDT files, 2020-05-01 to 2026-04-06
+    - Orderbook: 598 BTCUSDT files, 2024-01-01 to 2025-08-20
+    - Funding rates: 332 files total, 166 BTCUSDT
+    - Open Interest: 336 files total, 169 BTCUSDT
 - Readiness is per-channel:
   - `bybit_standard` (OI + trades + funding + klines): data exists, readiness gate can pass
-  - `depth_weighted` (requires orderbook): orderbook gap (Sep 2025 to present) being fixed in bybit_data_downloader and ccxt-data-pipeline; historical 319GB available for backtest
+  - `depth_weighted` (requires orderbook): can pass for windows covered by 3TB-WDC historical orderbook or ccxt-data-pipeline live Parquet; uncovered historical gaps must remain blocked or partial
 
 ### Source Documents
 
@@ -169,10 +171,10 @@ Both Binance and Bybit implement `depth_weighted`:
 
 - **Binance**: orderbook available via ccxt-data-pipeline (20 levels, 720k
   snapshots/day, Mar 2026+). Ready now.
-- **Bybit**: 319GB historical orderbook on 3TB-WDC (2024-01 to 2025-09).
-  Collection gap (Sep 2025 to present) being fixed in bybit_data_downloader
-  and ccxt-data-pipeline. The readiness gate for `depth_weighted` checks
-  orderbook availability separately from `bybit_standard`.
+- **Bybit**: historical BTCUSDT orderbook on 3TB-WDC (2024-01-01 to
+  2025-08-20) and live ccxt-data-pipeline Parquet from 2026-04-06 onward.
+  The readiness gate for `depth_weighted` checks orderbook availability
+  separately from `bybit_standard` and per requested timestamp/window.
 
 Future evolution (out of scope): `cascade_sim` — simulate liquidation cascades
 through the orderbook to estimate second-order price impact. Requires

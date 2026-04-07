@@ -48,20 +48,20 @@
 
 ## Phase 3: Binance Export Implementation (TDD)
 
-- [ ] T009R RED: Write failing tests for Binance artifact schema validation
+- [x] T009R RED: Write failing tests for Binance artifact schema validation
 - [ ] T009B RED: Write failing test that verifies Decimal128 internal precision is preserved through the export path and serialized as float64 in JSON artifacts (NFR-001 boundary validation)
-- [ ] T010R RED: Write failing tests for Binance manifest layout and timestamp-derived paths
-- [ ] T010A RED: Write failing tests for canonical export subpaths:
+- [x] T010R RED: Write failing tests for Binance manifest layout and timestamp-derived paths
+- [x] T010A RED: Write failing tests for canonical export subpaths:
   - `artifacts/{symbol}/{snapshot_ts}/`
   - `manifests/{symbol}/`
   - `batches/`
-- [ ] T011 Create a generic modeled-snapshot schema/helper module, reusing `spec-029` patterns with explicit rename mapping:
+- [x] T011 Create a generic modeled-snapshot schema/helper module, reusing `spec-029` patterns with explicit rename mapping:
   - `ExpertSnapshotArtifact` -> `ModeledSnapshotArtifact`
   - `expert_id` -> `model_id`
   - `research_policy_tag` -> dropped (not applicable to exchange-level contracts)
   - `exchange` -> new required field (not present in spec-029)
   - Reuse `BucketGrid`, `validate_iso8601_z_timestamp`, `validate_artifact` pattern as-is
-- [ ] T012 Create export root and layout under `data/validation/modeled_snapshots/binance/`
+- [x] T012 Create export root and layout under `data/validation/modeled_snapshots/binance/`
 - [ ] T012A Extract aggregation bridge from `liquidations.py:_aggregate_legacy_levels` into `src/liquidationheatmap/contracts/aggregation.py`:
   - input: `List[LiquidationLevel]` + `bin_size`
   - output: `(BucketGrid, long_distribution: dict[str, float], short_distribution: dict[str, float])`
@@ -81,19 +81,23 @@
 ## Phase 4: Bybit Source Readiness Gate
 
 - [ ] T017 Define the mandatory input set required before Bybit can be considered export-ready.
-  Known data sources (as of 2026-04-06):
+  Known data sources (audited 2026-04-07):
   - ccxt-data-pipeline (live daemon, default exchanges include bybit):
     - OHLCV: ✅ from 2026-01-28 (Parquet, daily)
     - Open Interest: ✅ from 2026-02-24 (Parquet, daily)
     - Funding Rate: ✅ from 2026-02-24 (Parquet, daily)
-    - Liquidations: ❌ streamed via WS but NOT persisted to catalog
-    - Orderbook: ❌ not collected yet — being added (see ccxt-pipeline GAP-ANALYSIS-REKTSLUG.md)
-    - Trades: ❌ not collected by ccxt-pipeline (historical on 3TB-WDC)
+    - Trades: ✅ from 2026-04-06 (Parquet, daily)
+    - Liquidations: ✅ from 2026-04-06 (Parquet, daily)
+    - Orderbook: ✅ from 2026-04-06 (Parquet, daily; `orderbook.50` stream truncated to 20 levels in schema)
   - bybit_data_downloader (3TB-WDC, external repo):
-    - Trades: ✅ 133GB, 2020-05-01 → 2026-04-04 (csv.gz, daily)
-    - Orderbook: ⚠️ 319GB, 2024-01-01 → 2025-09-24 (zip, daily) — gap being fixed
-    - Funding rates: ✅ 328 files
-    - Open Interest: ✅ 332 files
+    - Trades: ✅ 2167 BTCUSDT files, 2020-05-01 → 2026-04-06 (csv.gz, daily)
+    - Orderbook: ✅ 598 BTCUSDT files, 2024-01-01 → 2025-08-20 (zip, daily)
+    - Klines: ✅ 6501 BTCUSDT files, 2020-05-01 → 2026-04-06
+    - Funding rates: ✅ 332 files total, 166 BTCUSDT
+    - Open Interest: ✅ 336 files total, 169 BTCUSDT
+  - Caveat: there is still an uncovered orderbook gap between the 3TB-WDC
+    historical range and the ccxt-data-pipeline live catalog. `depth_weighted`
+    availability must be decided per requested timestamp/window.
 - [ ] T018 Define the readiness statuses for Bybit using the shared taxonomy from T002B:
   - `blocked_source_unverified` (spec.md FR-012 minimum)
   - `blocked_source_missing`
@@ -103,8 +107,8 @@
 - [ ] T019R RED: Write failing test for Bybit readiness report shape validation (schema, required fields, machine-readable output)
 - [ ] T019 Produce a machine-readable readiness report shape for Bybit source audit results
 - [ ] T020 Audit the actual Bybit data availability across both sources:
-  - ccxt-data-pipeline Parquet files for OI/funding/klines (verified present)
-  - 3TB-WDC historical trades and orderbook (trades current, orderbook gap being fixed)
+  - ccxt-data-pipeline Parquet files for OI/funding/klines/trades/liquidations/orderbook (verified present)
+  - 3TB-WDC historical trades and orderbook (verified present, but not continuous into live catalog)
   - Determine per-channel input requirements: `bybit_standard` (OI+trades+funding+klines) vs `depth_weighted` (+orderbook)
 - [ ] T021 Record the canonical path contract for Bybit source files:
   - ccxt-pipeline: `/media/sam/1TB/ccxt-data-pipeline/data/catalog/{type}/BTCUSDT-PERP.BYBIT/`
@@ -115,8 +119,8 @@
     - Requires: `BybitStandardModel` with Bybit-specific MMR tiers (different from Binance)
     - OR: parameterize `BinanceStandardModel` to accept per-exchange tier tables
   - `depth_weighted` (LOB-aware): orderbook depth weights liquidation probability
-    - Bybit orderbook: 319GB historical on 3TB-WDC (2024-01 to 2025-09); gap being fixed
-    - Readiness gate for this channel checks orderbook availability separately from `bybit_standard`
+    - Bybit orderbook: historical 3TB-WDC files for 2024-01-01 → 2025-08-20 plus live ccxt-data-pipeline Parquet from 2026-04-06 onward
+    - Readiness gate for this channel checks orderbook availability separately from `bybit_standard` and per requested timestamp/window
   - Ingestion bridge needed: ccxt-pipeline Parquet + 3TB-WDC CSV.gz → direct Parquet read
 
 ## Phase 5: Bybit Export Implementation (Gated, TDD)
