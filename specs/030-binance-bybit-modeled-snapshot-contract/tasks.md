@@ -73,10 +73,10 @@
   - Both share: aggregation bridge, export layout, manifest writing
   - Each gets its own `model_id` in the artifact and manifest
 - [x] T014 Implement Binance manifest writing with explicit availability status
-- [ ] T015 Implement Binance backfill batch records with interval, coverage, gaps, and provenance
+- [x] T015 Implement Binance backfill batch records with interval, coverage, gaps, and provenance
 - [x] T015A RED: Write failing test for Binance export when one required source input is missing (edge case spec.md:L159); manifest MUST report `partial` status instead of failing silently
-- [ ] T016 Prove deterministic rerun behavior for identical Binance inputs apart from declared generation metadata
-- [ ] T016A Benchmark: verify single Binance export completes in <10s (NFR-002) and 1-week backfill in <10min (NFR-003) for an already-ingested input set
+- [x] T016 Prove deterministic rerun behavior for identical Binance inputs apart from declared generation metadata
+- [x] T016A Benchmark: verify single Binance export completes in <10s (NFR-002) and 1-week backfill in <10min (NFR-003) for an already-ingested input set
 
 ## Phase 4: Bybit Source Readiness Gate
 
