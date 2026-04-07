@@ -80,7 +80,7 @@
 
 ## Phase 4: Bybit Source Readiness Gate
 
-- [ ] T017 Define the mandatory input set required before Bybit can be considered export-ready.
+- [x] T017 Define the mandatory input set required before Bybit can be considered export-ready.
   Known data sources (audited 2026-04-07):
   - ccxt-data-pipeline (live daemon, default exchanges include bybit):
     - OHLCV: ✅ from 2026-01-28 (Parquet, daily)
@@ -98,22 +98,23 @@
   - Caveat: there is still an uncovered orderbook gap between the 3TB-WDC
     historical range and the ccxt-data-pipeline live catalog. `depth_weighted`
     availability must be decided per requested timestamp/window.
-- [ ] T018 Define the readiness statuses for Bybit using the shared taxonomy from T002B:
+- [x] T018 Define the readiness statuses for Bybit using the shared taxonomy from T002B:
   - `blocked_source_unverified` (spec.md FR-012 minimum)
   - `blocked_source_missing`
   - `failed_processing`
   - `unsupported`
   - `available`
-- [ ] T019R RED: Write failing test for Bybit readiness report shape validation (schema, required fields, machine-readable output)
-- [ ] T019 Produce a machine-readable readiness report shape for Bybit source audit results
-- [ ] T020 Audit the actual Bybit data availability across both sources:
+- [x] T019R RED: Write failing test for Bybit readiness report shape validation (schema, required fields, machine-readable output)
+- [x] T019 Produce a machine-readable readiness report shape for Bybit source audit results
+- [x] T020 Audit the actual Bybit data availability across both sources:
   - ccxt-data-pipeline Parquet files for OI/funding/klines/trades/liquidations/orderbook (verified present)
   - 3TB-WDC historical trades and orderbook (verified present, but not continuous into live catalog)
   - Determine per-channel input requirements: `bybit_standard` (OI+trades+funding+klines) vs `depth_weighted` (+orderbook)
-- [ ] T021 Record the canonical path contract for Bybit source files:
+- [x] T021 Record the canonical path contract for Bybit source files:
   - ccxt-pipeline: `/media/sam/1TB/ccxt-data-pipeline/data/catalog/{type}/BTCUSDT-PERP.BYBIT/`
-  - 3TB-WDC historical: `/media/sam/3TB-WDC/bybit_data_downloader/data/historical/{type}/contract/BTCUSDT/`
-  - Market metrics: `/media/sam/3TB-WDC/bybit_data_downloader/data/market_metrics/{type}/`
+  - 3TB-WDC: `/media/sam/3TB-WDC/bybit_data_downloader/data/historical/{type}/contract/BTCUSDT/`
+- [x] T022 Implement the readiness gate logic including the orderbook gap (2025-08-21 to 2026-04-05)
+
 - [ ] T022 Define Bybit model channels — same two-paradigm approach as Binance:
   - `bybit_standard` (canonical): aggregate statistical — OI + trades + funding + klines + Bybit MMR tiers
     - Requires: `BybitStandardModel` with Bybit-specific MMR tiers (different from Binance)
