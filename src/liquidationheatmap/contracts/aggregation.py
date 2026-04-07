@@ -39,9 +39,10 @@ def aggregate_to_bucket_grid(
         bucket_str = str(float(bucket_price))
         volume = float(level.liquidation_volume)
         
-        if level.side == "buy": # Buy side means long liquidations (per legacy contract)
+        side = level.side.lower()
+        if side in ("buy", "long"): # Long liquidations (positions were long, they sell to liquidate? No, usually long_liquidations means liquidations of long positions)
             long_dist[bucket_str] = long_dist.get(bucket_str, 0.0) + volume
-        else: # Sell side means short liquidations
+        elif side in ("sell", "short"):
             short_dist[bucket_str] = short_dist.get(bucket_str, 0.0) + volume
             
         all_prices.append(float(bucket_price))

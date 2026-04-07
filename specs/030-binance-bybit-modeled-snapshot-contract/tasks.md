@@ -33,7 +33,7 @@
   - funding
   - klines
   - any precomputed heatmap cache inputs used by the selected model path
-- [ ] T006 Define the Binance model channels to export under this contract:
+- [x] T006 Define the Binance model channels to export under this contract:
   - `binance_standard` (canonical): aggregate statistical — OI + aggTrades + MMR tiers — `BinanceStandardModel`
   - `depth_weighted` (LOB-aware): orderbook depth weights liquidation probability
   - The existing `binance_standard_bias`, `funding_adjusted`, `ensemble` are parameter tweaks
@@ -66,9 +66,9 @@
   - input: `List[LiquidationLevel]` + `bin_size`
   - output: `(BucketGrid, long_distribution: dict[str, float], short_distribution: dict[str, float])`
   - Must work for all model channels without API router dependencies
-- [ ] T013 Implement Binance artifact export for two model channels:
+- [x] T013 Implement Binance artifact export for two model channels:
   - `binance_standard` (canonical): ✅ aggregate statistical, validates the full pipeline first
-  - `depth_weighted` (LOB-aware) — reads orderbook Parquet from ccxt-pipeline,
+  - `depth_weighted` (LOB-aware): ✅ reads orderbook Parquet from ccxt-pipeline,
     computes depth at each liquidation level, weights cluster probability accordingly
   - Both share: aggregation bridge, export layout, manifest writing
   - Each gets its own `model_id` in the artifact and manifest
