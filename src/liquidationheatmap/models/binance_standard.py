@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from .base import AbstractLiquidationModel, LiquidationLevel
 
@@ -31,6 +31,9 @@ class BinanceStandardModel(AbstractLiquidationModel):
         (Decimal("300000000"), Decimal("0.25"), Decimal("25016300")),  # 200M-300M: 25.0%
         (Decimal("500000000"), Decimal("0.50"), Decimal("100016300")),  # 300M-500M: 50.0%
     ]
+
+    def __init__(self, mmr_tiers: Optional[List[tuple]] = None):
+        self._mmr_tiers = mmr_tiers if mmr_tiers is not None else self.MMR_TIERS
 
     @property
     def model_name(self) -> str:
@@ -223,12 +226,12 @@ class BinanceStandardModel(AbstractLiquidationModel):
         Returns:
             MMR percentage (e.g., 0.004 for 0.4%)
         """
-        for tier_max, mmr_rate, _ in self.MMR_TIERS:
+        for tier_max, mmr_rate, _ in self._mmr_tiers:
             if position_notional <= tier_max:
                 return mmr_rate
 
         # If exceeds all tiers, use highest tier
-        return self.MMR_TIERS[-1][1]
+        return self._mmr_tiers[-1][1]
 
     def _calculate_long_liquidation(
         self, entry_price: Decimal, leverage: int, mmr: Decimal

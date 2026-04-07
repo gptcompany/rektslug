@@ -126,8 +126,8 @@
 
 ## Phase 5: Bybit Export Implementation (Gated, TDD)
 
-- [ ] T023R RED: Write failing tests for blocked Bybit export states
-- [ ] T024 Implement manifest-only blocked output when Bybit readiness has not passed
+- [x] T023R RED: Write failing tests for blocked Bybit export states
+- [x] T024 Implement manifest-only blocked output when Bybit readiness has not passed
 - [ ] T025R RED: Write failing tests for real Bybit artifact export after readiness passes
 - [ ] T026 Implement Bybit artifact export only after source-readiness gate is green
 - [ ] T027 Implement Bybit backfill batch records and input-identity metadata
