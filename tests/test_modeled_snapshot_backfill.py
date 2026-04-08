@@ -51,7 +51,7 @@ def test_backfill_determinism(tmp_path, mock_db_backfill, monkeypatch):
 
     # Check that artifact contents are identical (except generation metadata)
     snapshot_ts = "2026-04-07T12:00:00Z"
-    artifact_path = tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
+    artifact_path = tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
     
     with open(artifact_path, "r") as f:
         data1 = json.load(f)
@@ -68,3 +68,5 @@ def test_backfill_determinism(tmp_path, mock_db_backfill, monkeypatch):
     
     assert data1 == data2
     assert record1.coverage == record2.coverage
+    assert (tmp_path / "binance" / "batches" / "batch1.json").exists()
+    assert (tmp_path / "binance" / "batches" / "batch2.json").exists()

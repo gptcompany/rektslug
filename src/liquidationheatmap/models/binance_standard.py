@@ -231,8 +231,14 @@ class BinanceStandardModel(AbstractLiquidationModel):
             if position_notional <= tier_max:
                 return mmr_rate
 
-        # If exceeds all tiers, use highest tier
-        return self._mmr_tiers[-1][1]
+        # IMPORTANT (spec-031 fix):
+        # When using AGGREGATE Open Interest as an input to this model,
+        # it almost always exceeds the highest individual position tier (500M).
+        # Defaulting to the highest MMR (50%) is incorrect for aggregate OI
+        # and breaks liquidation calculations.
+        # We default to the LOWEST tier MMR (0.4%) which is the correct baseline
+        # for the vast majority of market participants contributing to the OI.
+        return self._mmr_tiers[0][1]
 
     def _calculate_long_liquidation(
         self, entry_price: Decimal, leverage: int, mmr: Decimal

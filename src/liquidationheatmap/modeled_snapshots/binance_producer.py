@@ -260,6 +260,7 @@ class BinanceProducer:
         date_str = dt.strftime("%Y-%m-%d")
         
         parquet_symbol = f"{symbol}-PERP.BINANCE"
+        orderbook_symbol = f"{symbol}-PERP"
         parquet_path = f"/media/sam/1TB/ccxt-data-pipeline/data/catalog/orderbook/{parquet_symbol}/{date_str}.parquet"
         
         if not Path(parquet_path).exists():
@@ -271,7 +272,7 @@ class BinanceProducer:
                 WHERE symbol = ? AND timestamp <= ?
                 ORDER BY timestamp DESC
                 LIMIT 1
-            """, [parquet_symbol, snapshot_ts]).fetchone()
+            """, [orderbook_symbol, snapshot_ts]).fetchone()
             
             if not ob_row:
                  return None, {"source": parquet_path, "status": "no_snapshot_before_ts"}, "blocked_source_missing"

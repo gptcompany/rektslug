@@ -62,7 +62,7 @@ def test_binance_producer_dual_channel_export(tmp_path, mock_db, monkeypatch):
     
     # Check artifact files
     for channel in ["binance_standard", "binance_depth_weighted"]:
-        path = tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / f"{channel}.json"
+        path = tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / f"{channel}.json"
         assert path.exists()
         with open(path, "r") as f:
             data = json.load(f)
@@ -84,13 +84,13 @@ def test_binance_depth_weighted_impact(tmp_path, mock_db, monkeypatch):
     # 1. Run with low depth
     monkeypatch.setattr(producer, "_collect_orderbook", mock_ob_low_depth)
     producer.export_snapshot(symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_depth_weighted"])
-    with open(tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_depth_weighted.json", "r") as f:
+    with open(tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_depth_weighted.json", "r") as f:
         low_depth_data = json.load(f)
         
     # 2. Run with high depth
     monkeypatch.setattr(producer, "_collect_orderbook", mock_ob_high_depth)
     producer.export_snapshot(symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_depth_weighted"])
-    with open(tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_depth_weighted.json", "r") as f:
+    with open(tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_depth_weighted.json", "r") as f:
         high_depth_data = json.load(f)
         
     # Verify volumes are different
@@ -133,4 +133,4 @@ def test_binance_partial_manifest_keeps_artifact_path_when_open_interest_missing
     assert entry.availability_status == "partial"
     assert entry.artifact_path == f"artifacts/BTCUSDT/{snapshot_ts}/binance_standard.json"
     assert entry.source_metadata["availability_metadata"]["reason"] == "Input collection was partial"
-    assert (tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json").exists()
+    assert (tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json").exists()

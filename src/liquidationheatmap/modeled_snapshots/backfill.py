@@ -111,6 +111,8 @@ class BackfillCoordinator:
             }
         )
         
-        write_backfill_batch_record(self.producer.base_dir, batch_id, asdict(record))
+        write_backfill_batch_record(
+            self.producer.base_dir, exchange, batch_id, asdict(record)
+        )
         
         return record

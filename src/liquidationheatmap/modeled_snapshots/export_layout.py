@@ -99,7 +99,7 @@ def build_manifest(
 
 def write_manifest(base_dir: Path | str, exchange: str, symbol: str, manifest: ModeledSnapshotManifest) -> Path:
     base_dir = Path(base_dir)
-    manifest_dir = base_dir / "manifests" / symbol
+    manifest_dir = base_dir / exchange / "manifests" / symbol
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", manifest.snapshot_ts)
@@ -125,7 +125,7 @@ def write_modeled_artifact(
     """Write a modeled artifact to the stable timestamp-derived layout."""
     base_dir = Path(base_dir)
     snapshot_ts = validate_iso8601_z_timestamp("snapshot_ts", snapshot_ts)
-    artifact_dir = base_dir / "artifacts" / symbol / snapshot_ts
+    artifact_dir = base_dir / exchange / "artifacts" / symbol / snapshot_ts
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     artifact_path = artifact_dir / f"{model_id}.json"
@@ -136,11 +136,11 @@ def write_modeled_artifact(
     return artifact_path
 
 def write_backfill_batch_record(
-    base_dir: Path | str, batch_id: str, payload: dict[str, Any]
+    base_dir: Path | str, exchange: str, batch_id: str, payload: dict[str, Any]
 ) -> Path:
     """Write a backfill batch coverage summary."""
     base_dir = Path(base_dir)
-    batch_dir = base_dir / "batches"
+    batch_dir = base_dir / exchange / "batches"
     batch_dir.mkdir(parents=True, exist_ok=True)
 
     batch_path = batch_dir / f"{batch_id}.json"

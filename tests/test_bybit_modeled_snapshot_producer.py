@@ -15,11 +15,11 @@ def test_bybit_blocked_manifest_gap(tmp_path):
     assert manifest.models["depth_weighted"].availability_status == "blocked_source_missing"
     
     # Check that NO artifact was written
-    artifact_dir = tmp_path / "artifacts" / "BTCUSDT" / gap_ts
+    artifact_dir = tmp_path / "bybit" / "artifacts" / "BTCUSDT" / gap_ts
     assert not artifact_dir.exists()
     
     # Check that manifest was written
-    manifest_path = tmp_path / "manifests" / "BTCUSDT" / f"{gap_ts}.json"
+    manifest_path = tmp_path / "bybit" / "manifests" / "BTCUSDT" / f"{gap_ts}.json"
     assert manifest_path.exists()
     
     with open(manifest_path, "r") as f:
@@ -51,7 +51,7 @@ def test_bybit_export_available_mock(tmp_path, monkeypatch):
     
     manifest = producer.export_snapshot(symbol="BTCUSDT", snapshot_ts=snapshot_ts)
     assert manifest.models["bybit_standard"].availability_status == "available"
-    assert (tmp_path / "artifacts" / "BTCUSDT" / snapshot_ts / "bybit_standard.json").exists()
+    assert (tmp_path / "bybit" / "artifacts" / "BTCUSDT" / snapshot_ts / "bybit_standard.json").exists()
 
 
 def test_bybit_partial_manifest_keeps_artifact_path(tmp_path, monkeypatch):
