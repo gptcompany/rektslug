@@ -64,32 +64,43 @@ def is_server_healthy(api_base: str) -> bool:
 
 def preflight_liqmap_api(
     api_base: str,
+    exchange: str,
     symbol: str,
     model: str,
     timeframe: int,
     profile: str | None = None,
 ) -> dict[str, Any]:
-    url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
-    if profile:
-        url = f"{url}&profile={profile}"
+    # Phase 3 (spec-031): Use unified CoinAnK-style endpoint for preflight if applicable
+    is_coinank_style = (profile is None or profile == "rektslug-ank-public")
+    if is_coinank_style and timeframe in (1, 7):
+        tf_str = "1d" if timeframe == 1 else "1w"
+        url = f"{api_base}/liquidations/coinank-public-map?exchange={exchange.lower()}&symbol={symbol.upper()}&timeframe={tf_str}"
+    else:
+        url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
+        if profile:
+            url = f"{url}&profile={profile}"
+
     try:
         payload = http_get_json(url, timeout=15.0)
     except Exception as exc:
         return {"ok": False, "error": str(exc), "url": url}
 
-    long_liqs = payload.get("long_liquidations", [])
-    short_liqs = payload.get("short_liquidations", [])
+    # Normalize response for validation metrics
+    long_list = payload.get("long_buckets") or payload.get("long_liquidations") or []
+    short_list = payload.get("short_buckets") or payload.get("short_liquidations") or []
+
     return {
         "ok": True,
         "url": url,
-        "long_count": len(long_liqs),
-        "short_count": len(short_liqs),
+        "long_count": len(long_list),
+        "short_count": len(short_list),
         "current_price": payload.get("current_price"),
     }
 
 
 def fetch_liqmap_payload(
     api_base: str,
+    exchange: str,
     symbol: str,
     model: str,
     timeframe: int,
@@ -99,9 +110,16 @@ def fetch_liqmap_payload(
 
     Returns the full response dict, or None on error.
     """
-    url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
-    if profile:
-        url = f"{url}&profile={profile}"
+    # Phase 3 (spec-031): Use unified CoinAnK-style endpoint if applicable
+    is_coinank_style = (profile is None or profile == "rektslug-ank-public")
+    if is_coinank_style and timeframe in (1, 7):
+        tf_str = "1d" if timeframe == 1 else "1w"
+        url = f"{api_base}/liquidations/coinank-public-map?exchange={exchange.lower()}&symbol={symbol.upper()}&timeframe={tf_str}"
+    else:
+        url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
+        if profile:
+            url = f"{url}&profile={profile}"
+
     try:
         return http_get_json(url, timeout=15.0)
     except Exception:
@@ -118,8 +136,8 @@ def compute_validation_metrics(payload: dict[str, Any] | None) -> dict[str, Any]
         return {"error": "payload is None"}
 
     current_price = float(payload.get("current_price", 0))
-    longs = payload.get("long_liquidations", [])
-    shorts = payload.get("short_liquidations", [])
+    longs = payload.get("long_buckets") or payload.get("long_liquidations") or []
+    shorts = payload.get("short_buckets") or payload.get("short_liquidations") or []
 
     all_prices = [float(entry["price_level"]) for entry in longs] + [
         float(entry["price_level"]) for entry in shorts
@@ -605,6 +623,7 @@ def main() -> int:
 
         api_preflight = preflight_liqmap_api(
             api_base=api_base,
+            exchange=args.exchange,
             symbol=args.symbol,
             model=args.model,
             timeframe=args.timeframe,
@@ -613,6 +632,7 @@ def main() -> int:
         # Fetch full payload for numerical metrics
         payload = fetch_liqmap_payload(
             api_base=api_base,
+            exchange=args.exchange,
             symbol=args.symbol,
             model=args.model,
             timeframe=args.timeframe,

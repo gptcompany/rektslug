@@ -26,6 +26,7 @@ from src.liquidationheatmap.api.heatmap_models import (
     TimeWindow,
 )
 from src.liquidationheatmap.api.public_liqmap import (
+    SUPPORTED_PUBLIC_LIQMAP_EXCHANGES,
     SUPPORTED_PUBLIC_LIQMAP_SYMBOLS,
     SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES,
     CoinankPublicMapResponse,
@@ -666,11 +667,22 @@ async def get_liquidation_levels(
     description="Dedicated public CoinAnK-style liq-map payload for canonical public routes.",
 )
 async def get_coinank_public_map(
+    exchange: str = Query("binance"),
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
     timeframe: str = Query(...),
 ):
+    normalized_exchange = exchange.lower()
     normalized_symbol = symbol.upper()
     normalized_timeframe = timeframe.lower()
+
+    if normalized_exchange not in SUPPORTED_PUBLIC_LIQMAP_EXCHANGES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported exchange '{exchange}'. "
+                f"Supported exchanges: {sorted(SUPPORTED_PUBLIC_LIQMAP_EXCHANGES)}"
+            ),
+        )
 
     if normalized_symbol not in SUPPORTED_PUBLIC_LIQMAP_SYMBOLS:
         raise HTTPException(
@@ -692,6 +704,7 @@ async def get_coinank_public_map(
     try:
         return await _run_read_operation_with_retry(
             lambda: build_coinank_public_map_response(
+                exchange=normalized_exchange,
                 symbol=normalized_symbol,
                 timeframe=normalized_timeframe,
             ),

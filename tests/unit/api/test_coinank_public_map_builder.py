@@ -25,6 +25,7 @@ def test_response_model_exposes_frozen_public_builder_contract():
     payload = CoinankPublicMapResponse(
         schema_version="1.0",
         source="coinank-public-builder",
+        exchange="binance",
         symbol="BTCUSDT",
         timeframe="1d",
         profile="rektslug-ank-public",
@@ -53,6 +54,7 @@ def test_response_model_exposes_frozen_public_builder_contract():
     dumped = payload.model_dump(mode="json")
     assert dumped["schema_version"] == "1.0"
     assert dumped["source"] == "coinank-public-builder"
+    assert dumped["exchange"] == "binance"
     assert dumped["grid"]["step"] == 10.0
     assert dumped["leverage_ladder"] == COINANK_PUBLIC_LEVERAGE_LADDER
     assert dumped["cumulative_long"][-1] == {"price_level": 60123.45, "value": 0.0}

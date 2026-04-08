@@ -443,7 +443,9 @@
 
             try {
                 const isHyperliquid = exchange === 'hyperliquid';
+                const isBybit = exchange === 'bybit';
                 const usePublicBuilder = _isCoinankPath
+                    && (exchange === 'binance' || isBybit)
                     && SUPPORTED_PUBLIC_MAP_SYMBOLS.includes(symbol)
                     && (timeframe === '1d' || timeframe === '1w')
                     && (
@@ -460,7 +462,7 @@
                     }
                 } else if (usePublicBuilder) {
                     endpointPath = '/liquidations/coinank-public-map';
-                    requestParams = new URLSearchParams({ symbol, timeframe });
+                    requestParams = new URLSearchParams({ exchange, symbol, timeframe });
                 } else {
                     endpointPath = '/liquidations/levels';
                     requestParams = new URLSearchParams({

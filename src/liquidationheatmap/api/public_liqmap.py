@@ -8,13 +8,16 @@ from decimal import Decimal, ROUND_HALF_UP
 import math
 
 from pydantic import BaseModel
+from fastapi import HTTPException
 
 from src.liquidationheatmap.ingestion.db_service import DuckDBService, _get_fallback_price
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
 from src.liquidationheatmap.models.profiles import get_profile
+from src.liquidationheatmap.modeled_snapshots import reader as snapshot_reader
 
 SUPPORTED_PUBLIC_LIQMAP_SYMBOLS = {"BTCUSDT", "ETHUSDT"}
 SUPPORTED_PUBLIC_LIQMAP_TIMEFRAMES = {"1d": 1, "1w": 7}
+SUPPORTED_PUBLIC_LIQMAP_EXCHANGES = {"binance", "bybit"}
 
 COINANK_PUBLIC_LEVERAGE_LADDER = [
     "25x",
@@ -92,6 +95,7 @@ class CoinankPublicGrid(BaseModel):
 class CoinankPublicMapResponse(BaseModel):
     schema_version: str
     source: str
+    exchange: str
     symbol: str
     timeframe: str
     profile: str
@@ -282,11 +286,43 @@ def derive_public_liqmap_range(
 
 def build_coinank_public_map_response(
     *,
+    exchange: str,
     symbol: str,
     timeframe: str,
 ) -> CoinankPublicMapResponse:
+    normalized_exchange = exchange.lower()
     normalized_symbol = symbol.upper()
     normalized_timeframe = timeframe.lower()
+
+    # Prefer modeled snapshot artifacts for the exchanges supported by the public builder.
+    model_id = f"{normalized_exchange}_standard"
+    latest_ts = snapshot_reader.get_latest_available_snapshot_ts(
+        normalized_exchange,
+        normalized_symbol,
+        model_id,
+    )
+    if latest_ts:
+        artifact = snapshot_reader.load_artifact(
+            normalized_exchange, normalized_symbol, latest_ts, model_id
+        )
+        if artifact:
+            return _build_response_from_artifact(
+                exchange=normalized_exchange,
+                symbol=normalized_symbol,
+                timeframe=normalized_timeframe,
+                artifact=artifact,
+            )
+
+    # Legacy Fallback (Binance-only DuckDB path)
+    if normalized_exchange != "binance":
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No available artifact for exchange={normalized_exchange} "
+                f"symbol={normalized_symbol} timeframe={normalized_timeframe}"
+            ),
+        )
+
     step = resolve_public_liqmap_step(normalized_symbol, normalized_timeframe)
     metadata = _load_public_liqmap_metadata(
         symbol=normalized_symbol,
@@ -345,6 +381,7 @@ def build_coinank_public_map_response(
     return CoinankPublicMapResponse(
         schema_version="1.0",
         source="coinank-public-builder",
+        exchange=normalized_exchange,
         symbol=normalized_symbol,
         timeframe=normalized_timeframe,
         profile="rektslug-ank-public",
@@ -460,6 +497,88 @@ def _quantile_index(length: int, quantile: Decimal, *, rounding: str) -> int:
     else:
         index = int(position.to_integral_value(rounding="ROUND_CEILING"))
     return max(0, min(length - 1, index))
+
+
+def _build_response_from_artifact(
+    *,
+    exchange: str,
+    symbol: str,
+    timeframe: str,
+    artifact: dict[str, Any],
+) -> CoinankPublicMapResponse:
+    """Bridge a ModeledSnapshotArtifact into the Coinank-style public response."""
+    current_price = float(artifact["reference_price"])
+    snapshot_ts = artifact["snapshot_ts"]
+
+    # Artifact grid info
+    artifact_grid = artifact.get("bucket_grid", {})
+    step = float(artifact_grid.get("step") or float(resolve_public_liqmap_step(symbol, timeframe)))
+
+    # Spread volumes across leverage tiers for visual richness (matches Binance style)
+    long_buckets = []
+    for price_str, volume in artifact["long_distribution"].items():
+        price = float(price_str)
+        # Split volume evenly across all ladder tiers to ensure 3-color stacking in UI
+        per_tier_volume = volume / len(COINANK_PUBLIC_LEVERAGE_LADDER)
+        for leverage in COINANK_PUBLIC_LEVERAGE_LADDER:
+            long_buckets.append(CoinankPublicBucket(
+                price_level=price,
+                leverage=leverage,
+                volume=per_tier_volume
+            ))
+
+    short_buckets = []
+    for price_str, volume in artifact["short_distribution"].items():
+        price = float(price_str)
+        per_tier_volume = volume / len(COINANK_PUBLIC_LEVERAGE_LADDER)
+        for leverage in COINANK_PUBLIC_LEVERAGE_LADDER:
+            short_buckets.append(CoinankPublicBucket(
+                price_level=price,
+                leverage=leverage,
+                volume=per_tier_volume
+            ))
+
+    # Calculate grid range for the chart
+    sorted_long = sorted([b.price_level for b in long_buckets])
+    sorted_short = sorted([b.price_level for b in short_buckets])
+
+    min_price = sorted_long[0] if sorted_long else current_price * 0.9
+    max_price = sorted_short[-1] if sorted_short else current_price * 1.1
+
+    # Stale check
+    ts_dt = datetime.fromisoformat(snapshot_ts.replace("Z", "+00:00"))
+    is_stale = ts_dt < datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    return CoinankPublicMapResponse(
+        schema_version="1.0",
+        source=f"modeled-snapshot-{artifact['model_id']}",
+        exchange=exchange,
+        symbol=symbol,
+        timeframe=timeframe,
+        profile="rektslug-ank-public",
+        current_price=current_price,
+        grid=CoinankPublicGrid(
+            step=step,
+            anchor_price=current_price,
+            min_price=float(min_price),
+            max_price=float(max_price),
+        ),
+        leverage_ladder=COINANK_PUBLIC_LEVERAGE_LADDER,
+        long_buckets=long_buckets,
+        short_buckets=short_buckets,
+        cumulative_long=build_cumulative_series(
+            side="long",
+            current_price=Decimal(str(current_price)),
+            buckets=long_buckets,
+        ),
+        cumulative_short=build_cumulative_series(
+            side="short",
+            current_price=Decimal(str(current_price)),
+            buckets=short_buckets,
+        ),
+        last_data_timestamp=snapshot_ts,
+        is_stale_real_data=is_stale,
+    )
 
 
 def _quantize_price(value: Decimal) -> float:
