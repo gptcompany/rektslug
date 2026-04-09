@@ -547,20 +547,31 @@ def extract_coinglass_state(
 def extract_rektslug_state(
     capture: provider_compare.CaptureFile,
 ) -> ProviderMapState:
-    """Extract the local rektslug /liquidations/levels payload into the map schema."""
+    """Extract the local rektslug liq-map payload into the map schema."""
     root = capture.payload
     if not isinstance(root, dict):
         raise SystemExit("rektslug capture payload is not an object.")
 
-    long_liqs = root.get("long_liquidations")
-    short_liqs = root.get("short_liquidations")
+    lowered_url = capture.source_url.lower()
+    is_public_map = "/liquidations/coinank-public-map" in lowered_url
+    if is_public_map:
+        long_liqs = root.get("long_buckets")
+        short_liqs = root.get("short_buckets")
+    else:
+        long_liqs = root.get("long_liquidations")
+        short_liqs = root.get("short_liquidations")
     if not isinstance(long_liqs, list) or not isinstance(short_liqs, list):
         raise SystemExit("rektslug capture payload has no long/short liquidation arrays.")
 
     params = provider_compare.parse_query_params(capture.source_url)
-    timeframe_labels = {"1": "1d", "7": "1w"}
-    timeframe = timeframe_labels.get(params.get("timeframe", ""), params.get("timeframe"))
+    raw_timeframe = params.get("timeframe", "")
+    if is_public_map:
+        timeframe = raw_timeframe
+    else:
+        timeframe_labels = {"1": "1d", "7": "1w"}
+        timeframe = timeframe_labels.get(raw_timeframe, raw_timeframe)
     current_price = provider_compare.safe_float(root.get("current_price"))
+    exchange = params.get("exchange", "binance")
 
     total_map: dict[float, float] = {}
     long_map: dict[float, float] = {}
@@ -593,14 +604,23 @@ def extract_rektslug_state(
     ingest_rows(short_liqs, short_map)
 
     if not total_map:
-        raise SystemExit("rektslug /liquidations/levels capture has no active price levels.")
+        raise SystemExit("rektslug liq-map capture has no active price levels.")
+
+    route_name = (
+        "/liquidations/coinank-public-map" if is_public_map else "/liquidations/levels"
+    )
+    route_note = (
+        "Local rektslug state uses the captured /liquidations/coinank-public-map payload from the same manifest."
+        if is_public_map
+        else "Local rektslug state uses the captured /liquidations/levels payload from the same manifest."
+    )
 
     return ProviderMapState(
         provider="rektslug",
         source_url=capture.source_url,
         saved_file=str(capture.saved_file),
         symbol=root.get("symbol"),
-        exchange="binance",
+        exchange=exchange,
         timeframe=timeframe,
         current_price=current_price,
         total_map=rounded_map(total_map),
@@ -612,8 +632,9 @@ def extract_rektslug_state(
         },
         leverage_totals=dict(sorted(leverage_totals.items())),
         notes=[
-            "Local rektslug state uses the captured /liquidations/levels payload from the same manifest.",
-            "Long/short buckets come directly from the local OI-based liq-map contract.",
+            route_note,
+            "Long/short buckets come directly from the local liq-map contract.",
+            f"Captured from {route_name}.",
         ],
     )
 

@@ -170,6 +170,15 @@ class TestCoinglassTimeframeMappings:
         assert limit == 1500
 
 
+def test_generate_coinglass_data_param_requires_pyotp(monkeypatch):
+    from scripts import capture_provider_api as capture
+
+    monkeypatch.setattr(capture, "pyotp", None)
+
+    with pytest.raises(RuntimeError, match="pyotp"):
+        capture.generate_coinglass_data_param()
+
+
 # ============================================================================
 # T020: Manifest metadata fields
 # ============================================================================
@@ -330,7 +339,7 @@ class TestRektslugProviderInTargets:
 
 
 class TestRektslugParser:
-    """Validate the rektslug /liquidations/levels parser."""
+    """Validate the rektslug legacy/public liq-map parser."""
 
     def test_parses_valid_levels_payload(self):
         from scripts.compare_provider_liquidations import (
@@ -394,6 +403,34 @@ class TestRektslugParser:
         result = parse_rektslug_levels(capture)
         assert result is not None
         assert result.timeframe == "1d"
+
+    def test_parses_valid_public_builder_payload(self):
+        from scripts.compare_provider_liquidations import (
+            CaptureFile,
+            parse_rektslug_levels,
+        )
+
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url=(
+                "http://localhost:8002/liquidations/coinank-public-map"
+                "?exchange=bybit&symbol=BTCUSDT&timeframe=1w"
+            ),
+            saved_file=Path("/tmp/fake.json"),
+            content_type="application/json",
+            payload=_build_rektslug_public_payload(),
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+        result = parse_rektslug_levels(capture)
+        assert result is not None
+        assert result.provider == "rektslug"
+        assert result.exchange == "bybit"
+        assert result.timeframe == "1w"
+        assert result.symbol == "BTCUSDT"
+        assert result.total_long > 0
+        assert result.total_short > 0
+        assert result.bucket_count > 0
+        assert result.current_price == 85000.0
 
 
 class TestRektslugInManifest:
@@ -576,6 +613,33 @@ class TestGapAnalysisLocalRektslug:
         state = extract_rektslug_state(capture)
 
         assert state.provider == "rektslug"
+        assert state.timeframe == "1w"
+        assert state.current_price == 85000.0
+        assert sorted(state.leverage_totals) == [10, 25, 50, 100]
+        assert state.total_value > 0
+        assert state.long_map
+        assert state.short_map
+
+    def test_extract_rektslug_state_supports_public_builder_payload(self):
+        from scripts.compare_provider_liquidations import CaptureFile
+        from scripts.provider_gap_analysis import extract_rektslug_state
+
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url=(
+                "http://localhost:8002/liquidations/coinank-public-map"
+                "?exchange=bybit&symbol=BTCUSDT&timeframe=1w"
+            ),
+            saved_file=Path("/tmp/rektslug_public.json"),
+            content_type="application/json",
+            payload=_build_rektslug_public_payload(),
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+
+        state = extract_rektslug_state(capture)
+
+        assert state.provider == "rektslug"
+        assert state.exchange == "bybit"
         assert state.timeframe == "1w"
         assert state.current_price == 85000.0
         assert sorted(state.leverage_totals) == [10, 25, 50, 100]
@@ -769,6 +833,41 @@ def _build_rektslug_levels_payload() -> dict:
             {"price_level": "88000", "volume": "2500000.0", "count": 1, "leverage": "50x"},
             {"price_level": "90000", "volume": "1000000.0", "count": 1, "leverage": "100x"},
         ],
+    }
+
+
+def _build_rektslug_public_payload() -> dict:
+    """Build a realistic /liquidations/coinank-public-map response payload."""
+    return {
+        "schema_version": "1.0",
+        "source": "coinank-public-builder",
+        "symbol": "BTCUSDT",
+        "timeframe": "1w",
+        "profile": "rektslug-ank-public",
+        "current_price": 85000.0,
+        "grid": {
+            "step": 25.0,
+            "anchor_price": 85000.0,
+            "min_price": 78000.0,
+            "max_price": 92000.0,
+        },
+        "leverage_ladder": ["10x", "25x", "50x", "100x"],
+        "long_buckets": [
+            {"price_level": 84000.0, "volume": 5000000.0, "leverage": "10x"},
+            {"price_level": 83000.0, "volume": 3500000.0, "leverage": "25x"},
+            {"price_level": 82000.0, "volume": 2000000.0, "leverage": "50x"},
+            {"price_level": 80000.0, "volume": 1500000.0, "leverage": "100x"},
+        ],
+        "short_buckets": [
+            {"price_level": 86000.0, "volume": 4500000.0, "leverage": "10x"},
+            {"price_level": 87000.0, "volume": 3000000.0, "leverage": "25x"},
+            {"price_level": 88000.0, "volume": 2500000.0, "leverage": "50x"},
+            {"price_level": 90000.0, "volume": 1000000.0, "leverage": "100x"},
+        ],
+        "cumulative_long": [],
+        "cumulative_short": [],
+        "last_data_timestamp": "2026-03-13T12:00:00Z",
+        "is_stale_real_data": False,
     }
 
 

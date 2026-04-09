@@ -37,7 +37,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlparse
 
-import pyotp
+try:
+    import pyotp
+except ModuleNotFoundError:  # pragma: no cover - exercised in test envs without optional deps
+    pyotp = None
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
@@ -135,6 +138,10 @@ def generate_coinglass_data_param() -> str:
     The frontend builds this by creating a TOTP token, concatenating it with the
     current Unix timestamp, and encrypting the result with AES-128-ECB.
     """
+    if pyotp is None:
+        raise RuntimeError(
+            "pyotp is required for CoinGlass signed requests. Install it before using CoinGlass REST capture."
+        )
     ts = int(time.time())
     totp = pyotp.TOTP(_CG_TOTP_SECRET, interval=30)
     otp_code = totp.at(ts)

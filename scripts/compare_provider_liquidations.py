@@ -1145,7 +1145,7 @@ def parse_coinglass_liquidity_heatmap(
 
 
 def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
-    """Parse the local rektslug /liquidations/levels payload.
+    """Parse the local rektslug liq-map payload from legacy or public routes.
 
     Expected shape:
         {
@@ -1160,15 +1160,21 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         return None
 
     lowered_url = capture.source_url.lower()
-    if "/liquidations/levels" not in lowered_url:
+    is_legacy_levels = "/liquidations/levels" in lowered_url
+    is_public_map = "/liquidations/coinank-public-map" in lowered_url
+    if not is_legacy_levels and not is_public_map:
         return None
 
     root = capture.payload
     if not isinstance(root, dict):
         return None
 
-    long_liqs = root.get("long_liquidations")
-    short_liqs = root.get("short_liquidations")
+    if is_legacy_levels:
+        long_liqs = root.get("long_liquidations")
+        short_liqs = root.get("short_liquidations")
+    else:
+        long_liqs = root.get("long_buckets")
+        short_liqs = root.get("short_buckets")
     if not isinstance(long_liqs, list) or not isinstance(short_liqs, list):
         return None
 
@@ -1208,8 +1214,18 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
     raw_tf = params.get("timeframe")
     timeframe = None
     if raw_tf:
-        tf_labels = {"1": "1d", "7": "1w"}
-        timeframe = tf_labels.get(raw_tf, f"{raw_tf}d")
+        if is_public_map:
+            timeframe = raw_tf
+        else:
+            tf_labels = {"1": "1d", "7": "1w"}
+            timeframe = tf_labels.get(raw_tf, f"{raw_tf}d")
+    exchange = params.get("exchange", "binance")
+    route_name = "/liquidations/coinank-public-map" if is_public_map else "/liquidations/levels"
+    note_prefix = (
+        "Local rektslug /liquidations/coinank-public-map public builder."
+        if is_public_map
+        else "Local rektslug /liquidations/levels endpoint (OI-based liquidation model)."
+    )
 
     return NormalizedDataset(
         provider=capture.provider,
@@ -1220,7 +1236,7 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         unit="usd_notional",
         product="liq-map",
         symbol=symbol,
-        exchange="binance",
+        exchange=exchange,
         timeframe=timeframe,
         bucket_count=bucket_count,
         total_long=sum(long_values),
@@ -1231,8 +1247,9 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         price_step_median=median_step(all_prices),
         time_step_median_ms=None,
         notes=[
-            "Local rektslug /liquidations/levels endpoint (OI-based liquidation model).",
+            note_prefix,
             f"Parsed {len(long_values)} long bins and {len(short_values)} short bins.",
+            f"Captured from {route_name}.",
         ],
         parse_score=100,
     )

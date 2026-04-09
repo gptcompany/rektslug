@@ -59,3 +59,38 @@ def test_extract_bucket_prices_from_manifest_decodes_coinglass_payload(monkeypat
     prices = extract_bucket_prices_from_manifest(manifest_path, "coinglass")
 
     assert prices == [70000.0, 70100.0]
+
+
+def test_extract_bucket_prices_from_manifest_accepts_public_builder_payload(monkeypatch):
+    manifest_path = Path("/tmp/fake-manifest.json")
+    capture = CaptureFile(
+        provider="rektslug",
+        source_url=(
+            "http://localhost:8002/liquidations/coinank-public-map"
+            "?exchange=bybit&symbol=BTCUSDT&timeframe=1w"
+        ),
+        saved_file=Path("/tmp/fake.json"),
+        content_type="application/json",
+        payload={
+            "symbol": "BTCUSDT",
+            "current_price": 85000.0,
+            "long_buckets": [
+                {"price_level": 84000.0, "volume": 100.0, "leverage": "25x"},
+                {"price_level": 83000.0, "volume": 50.0, "leverage": "50x"},
+            ],
+            "short_buckets": [
+                {"price_level": 86000.0, "volume": 120.0, "leverage": "25x"},
+                {"price_level": 87000.0, "volume": 80.0, "leverage": "50x"},
+            ],
+        },
+        manifest_path=manifest_path,
+    )
+
+    monkeypatch.setattr(
+        "scripts.run_ank_calibration.load_capture_files",
+        lambda manifest_paths: [capture],
+    )
+
+    prices = extract_bucket_prices_from_manifest(manifest_path, "rektslug")
+
+    assert prices == [83000.0, 84000.0, 86000.0, 87000.0]

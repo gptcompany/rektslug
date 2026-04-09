@@ -130,13 +130,23 @@ def extract_bucket_prices_from_manifest(manifest_path: Path, provider: str) -> l
     captures = load_capture_files([manifest_path])
     if provider == "rektslug":
         for capture in captures:
-            if capture.provider != "rektslug" or "/liquidations/levels" not in capture.source_url.lower():
+            lowered_url = capture.source_url.lower()
+            if capture.provider != "rektslug":
+                continue
+            if (
+                "/liquidations/levels" not in lowered_url
+                and "/liquidations/coinank-public-map" not in lowered_url
+            ):
                 continue
             root = capture.payload
             if not isinstance(root, dict):
                 continue
             prices: list[float] = []
-            for side_key in ("long_liquidations", "short_liquidations"):
+            if "/liquidations/coinank-public-map" in lowered_url:
+                side_keys = ("long_buckets", "short_buckets")
+            else:
+                side_keys = ("long_liquidations", "short_liquidations")
+            for side_key in side_keys:
                 entries = root.get(side_key)
                 if not isinstance(entries, list):
                     continue
