@@ -180,6 +180,9 @@ async def test_canonical_liqmap_frontend_renders_from_public_builder_payload(liq
                             }
                         });
                     },
+                    react: function(id, traces, layout) {
+                        return this.newPlot(id, traces, layout);
+                    },
                     relayout: function() {
                         return Promise.resolve();
                     }
@@ -222,6 +225,9 @@ async def test_non_parity_symbol_falls_back_to_legacy_levels(liqmap_server):
                                 yaxis2: { range: [0, 30] }
                             }
                         });
+                    },
+                    react: function(id, traces, layout) {
+                        return this.newPlot(id, traces, layout);
                     },
                     relayout: function() {
                         return Promise.resolve();
@@ -266,6 +272,9 @@ async def test_explicit_profile_override_preserves_legacy_levels_path(liqmap_ser
                                 yaxis2: { range: [0, 30] }
                             }
                         });
+                    },
+                    react: function(id, traces, layout) {
+                        return this.newPlot(id, traces, layout);
                     },
                     relayout: function() {
                         return Promise.resolve();

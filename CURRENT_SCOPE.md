@@ -46,8 +46,10 @@ Use these as the only primary references unless a task explicitly says otherwise
   `frontend/liq_map_1w.html`
 - Primary validation script:
   `scripts/validate_liqmap_visual.py`
-- Primary API payload:
-  `/liquidations/levels`
+- Primary API payloads:
+  - `/liquidations/coinank-public-map` for Binance / Bybit public liq-map views
+  - `/liquidations/hl-public-map` for Hyperliquid
+  - `/liquidations/levels` remains the legacy fallback surface
 
 Current reference matrix for the active `liq-map` workstream:
 

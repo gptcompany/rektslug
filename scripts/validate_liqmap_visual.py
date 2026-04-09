@@ -48,6 +48,13 @@ ROUTE_TIMEFRAME_BY_DAYS = {
     7: "1w",
 }
 
+PUBLIC_MAP_EXCHANGES = {"binance", "bybit"}
+LIQMAP_API_PATH_MARKERS = (
+    "/liquidations/coinank-public-map",
+    "/liquidations/hl-public-map",
+    "/liquidations/levels",
+)
+
 
 def http_get_json(url: str, timeout: float = 3.0) -> dict[str, Any]:
     with urlopen(url, timeout=timeout) as resp:
@@ -62,6 +69,36 @@ def is_server_healthy(api_base: str) -> bool:
         return False
 
 
+def build_liqmap_api_url(
+    api_base: str,
+    exchange: str,
+    symbol: str,
+    model: str,
+    timeframe: int,
+    profile: str | None = None,
+) -> str:
+    """Build the backend API URL for the selected liq-map surface."""
+    exchange_lower = exchange.lower()
+    symbol_upper = symbol.upper()
+    is_coinank_style = profile is None or profile == "rektslug-ank-public"
+    tf_str = ROUTE_TIMEFRAME_BY_DAYS.get(timeframe)
+
+    if tf_str and exchange_lower == "hyperliquid":
+        return f"{api_base}/liquidations/hl-public-map?symbol={symbol_upper}&timeframe={tf_str}"
+
+    if is_coinank_style and tf_str:
+        if exchange_lower in PUBLIC_MAP_EXCHANGES:
+            return (
+                f"{api_base}/liquidations/coinank-public-map"
+                f"?exchange={exchange_lower}&symbol={symbol_upper}&timeframe={tf_str}"
+            )
+
+    url = f"{api_base}/liquidations/levels?symbol={symbol_upper}&model={model}&timeframe={timeframe}"
+    if profile:
+        url = f"{url}&profile={profile}"
+    return url
+
+
 def preflight_liqmap_api(
     api_base: str,
     exchange: str,
@@ -70,15 +107,14 @@ def preflight_liqmap_api(
     timeframe: int,
     profile: str | None = None,
 ) -> dict[str, Any]:
-    # Phase 3 (spec-031): Use unified CoinAnK-style endpoint for preflight if applicable
-    is_coinank_style = (profile is None or profile == "rektslug-ank-public")
-    if is_coinank_style and timeframe in (1, 7):
-        tf_str = "1d" if timeframe == 1 else "1w"
-        url = f"{api_base}/liquidations/coinank-public-map?exchange={exchange.lower()}&symbol={symbol.upper()}&timeframe={tf_str}"
-    else:
-        url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
-        if profile:
-            url = f"{url}&profile={profile}"
+    url = build_liqmap_api_url(
+        api_base=api_base,
+        exchange=exchange,
+        symbol=symbol,
+        model=model,
+        timeframe=timeframe,
+        profile=profile,
+    )
 
     try:
         payload = http_get_json(url, timeout=15.0)
@@ -106,19 +142,18 @@ def fetch_liqmap_payload(
     timeframe: int,
     profile: str | None = None,
 ) -> dict[str, Any] | None:
-    """Fetch the complete /liquidations/levels JSON payload.
+    """Fetch the complete liq-map API payload for the selected surface.
 
     Returns the full response dict, or None on error.
     """
-    # Phase 3 (spec-031): Use unified CoinAnK-style endpoint if applicable
-    is_coinank_style = (profile is None or profile == "rektslug-ank-public")
-    if is_coinank_style and timeframe in (1, 7):
-        tf_str = "1d" if timeframe == 1 else "1w"
-        url = f"{api_base}/liquidations/coinank-public-map?exchange={exchange.lower()}&symbol={symbol.upper()}&timeframe={tf_str}"
-    else:
-        url = f"{api_base}/liquidations/levels?symbol={symbol}&model={model}&timeframe={timeframe}"
-        if profile:
-            url = f"{url}&profile={profile}"
+    url = build_liqmap_api_url(
+        api_base=api_base,
+        exchange=exchange,
+        symbol=symbol,
+        model=model,
+        timeframe=timeframe,
+        profile=profile,
+    )
 
     try:
         return http_get_json(url, timeout=15.0)
@@ -209,20 +244,27 @@ def fetch_data_freshness(
     api_base: str,
     symbol: str = "BTCUSDT",
     max_age_minutes: int = 5,
+    payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Check data freshness via /data/date-range endpoint.
 
-    Returns dict with end_date, age_hours, age_minutes, and optional warning.
+    Prefer the payload's own last-data timestamp when available. Fall back to
+    /data/date-range for legacy paths that do not expose payload freshness.
     """
-    url = f"{api_base}/data/date-range?symbol={symbol}"
-    try:
-        data = http_get_json(url, timeout=10.0)
-    except Exception as exc:
-        return {"error": str(exc)}
+    if payload and payload.get("last_data_timestamp"):
+        end_date_str = str(payload["last_data_timestamp"])
+        source = "payload"
+    else:
+        url = f"{api_base}/data/date-range?symbol={symbol}"
+        try:
+            data = http_get_json(url, timeout=10.0)
+        except Exception as exc:
+            return {"error": str(exc)}
 
-    end_date_str = data.get("end_date", "")
-    if not end_date_str:
-        return {"error": "no end_date in response"}
+        end_date_str = data.get("end_date", "")
+        if not end_date_str:
+            return {"error": "no end_date in response"}
+        source = "date_range"
 
     try:
         end_dt = datetime.fromisoformat(end_date_str.replace("Z", "+00:00"))
@@ -240,6 +282,7 @@ def fetch_data_freshness(
         "age_hours": round(age_hours, 2),
         "age_minutes": round(age_minutes, 2),
         "max_age_minutes": max_age_minutes,
+        "source": source,
     }
     if age_minutes > max_age_minutes:
         result["stale"] = True
@@ -372,11 +415,11 @@ async def _extract_local_liqmap_state(page) -> dict[str, Any]:
 
 
 def _derive_local_liqmap_failure_reason(state: dict[str, Any]) -> str:
-    if state.get("levels_request_failures"):
-        return "levels_request_failed"
+    if state.get("api_request_failures"):
+        return "api_request_failed"
     if state.get("loadErrorText"):
         if "payload" in state["loadErrorText"].lower():
-            return "levels_payload_invalid"
+            return "api_payload_invalid"
         return "page_load_error"
     if not state.get("hasPlotlyGlobal", True):
         return "plotly_not_loaded"
@@ -390,7 +433,7 @@ def _derive_local_liqmap_failure_reason(state: dict[str, Any]) -> str:
 def _should_abort_local_liqmap_wait(state: dict[str, Any]) -> bool:
     if state.get("ready"):
         return False
-    if state.get("levels_request_failures"):
+    if state.get("api_request_failures"):
         return True
     if state.get("loadErrorText"):
         return True
@@ -433,7 +476,7 @@ async def capture_local_liqmap_page(
         )
         page = await browser.new_page(viewport={"width": 1920, "height": 1400})
         console_errors: list[str] = []
-        levels_request_failures: list[dict[str, Any]] = []
+        api_request_failures: list[dict[str, Any]] = []
         dialog_messages: list[str] = []
 
         def _handle_console(msg) -> None:
@@ -441,8 +484,8 @@ async def capture_local_liqmap_page(
                 console_errors.append(msg.text)
 
         def _handle_response(response) -> None:
-            if "/liquidations/levels" in response.url and not response.ok:
-                levels_request_failures.append(
+            if any(marker in response.url for marker in LIQMAP_API_PATH_MARKERS) and not response.ok:
+                api_request_failures.append(
                     {
                         "url": response.url,
                         "status": response.status,
@@ -464,13 +507,13 @@ async def capture_local_liqmap_page(
                 abort_if=lambda state: _should_abort_local_liqmap_wait(
                     {
                         **state,
-                        "levels_request_failures": levels_request_failures,
+                        "api_request_failures": api_request_failures,
                         "dialog_messages": dialog_messages,
                     }
                 ),
             )
             ready_state["console_errors"] = console_errors
-            ready_state["levels_request_failures"] = levels_request_failures
+            ready_state["api_request_failures"] = api_request_failures
             ready_state["dialog_messages"] = dialog_messages
             if not ready_state.get("ready"):
                 ready_state["failure_reason"] = _derive_local_liqmap_failure_reason(
@@ -644,6 +687,7 @@ def main() -> int:
             api_base=api_base,
             symbol=args.symbol,
             max_age_minutes=args.max_freshness_minutes,
+            payload=payload,
         )
         if data_freshness.get("stale") and not args.allow_stale_data:
             raise RuntimeError(

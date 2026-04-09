@@ -57,8 +57,8 @@ def _local_capture_not_ready(_request: VisualHarnessRequest, output_path: Path):
         "ready": False,
         "local_page_state": {
             "hasPlotlyGlobal": True,
-            "levels_request_failures": [{"status": 503}],
-            "failure_reason": "levels_request_failed",
+            "api_request_failures": [{"status": 503}],
+            "failure_reason": "api_request_failed",
         },
     }
 

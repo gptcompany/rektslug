@@ -73,6 +73,7 @@ def test_preflight_liqmap_api_parses_response(free_port):
     try:
         result = preflight_liqmap_api(
             api_base=f"http://127.0.0.1:{free_port}",
+            exchange="binance",
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
@@ -93,6 +94,7 @@ def test_preflight_liqmap_api_handles_error():
 
     result = preflight_liqmap_api(
         api_base="http://127.0.0.1:1",  # unreachable port
+        exchange="binance",
         symbol="BTCUSDT",
         model="openinterest",
         timeframe=7,
@@ -145,6 +147,7 @@ def test_fetch_liqmap_payload_returns_full_payload(free_port):
     try:
         payload = fetch_liqmap_payload(
             api_base=f"http://127.0.0.1:{free_port}",
+            exchange="binance",
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
@@ -177,12 +180,65 @@ def test_build_liqmap_page_url_includes_profile_query():
     )
 
 
+def test_build_liqmap_api_url_uses_hl_public_map_for_hyperliquid():
+    from validate_liqmap_visual import build_liqmap_api_url
+
+    url = build_liqmap_api_url(
+        api_base="http://127.0.0.1:8002",
+        exchange="hyperliquid",
+        symbol="BTCUSDT",
+        model="openinterest",
+        timeframe=7,
+    )
+
+    assert url == (
+        "http://127.0.0.1:8002/liquidations/hl-public-map"
+        "?symbol=BTCUSDT&timeframe=1w"
+    )
+
+
+def test_build_liqmap_api_url_keeps_hl_public_map_with_profile_override():
+    from validate_liqmap_visual import build_liqmap_api_url
+
+    url = build_liqmap_api_url(
+        api_base="http://127.0.0.1:8002",
+        exchange="hyperliquid",
+        symbol="BTCUSDT",
+        model="openinterest",
+        timeframe=1,
+        profile="rektslug-glass",
+    )
+
+    assert url == (
+        "http://127.0.0.1:8002/liquidations/hl-public-map"
+        "?symbol=BTCUSDT&timeframe=1d"
+    )
+
+
+def test_build_liqmap_api_url_uses_coinank_public_map_for_bybit():
+    from validate_liqmap_visual import build_liqmap_api_url
+
+    url = build_liqmap_api_url(
+        api_base="http://127.0.0.1:8002",
+        exchange="bybit",
+        symbol="BTCUSDT",
+        model="openinterest",
+        timeframe=1,
+    )
+
+    assert url == (
+        "http://127.0.0.1:8002/liquidations/coinank-public-map"
+        "?exchange=bybit&symbol=BTCUSDT&timeframe=1d"
+    )
+
+
 def test_fetch_liqmap_payload_returns_none_on_error():
     """fetch_liqmap_payload should return None when server is unreachable."""
     from validate_liqmap_visual import fetch_liqmap_payload
 
     result = fetch_liqmap_payload(
         api_base="http://127.0.0.1:1",
+        exchange="binance",
         symbol="BTCUSDT",
         model="openinterest",
         timeframe=7,
@@ -341,6 +397,7 @@ def test_fetch_data_freshness_returns_fields(free_port):
         assert isinstance(result["age_minutes"], float)
         assert result["stale"] is False
         assert "warning" not in result
+        assert result["source"] == "date_range"
     finally:
         server.shutdown()
 
@@ -370,6 +427,7 @@ def test_fetch_data_freshness_marks_stale_when_over_threshold(free_port):
         assert result["stale"] is True
         assert "warning" in result
         assert result["max_age_minutes"] == 5
+        assert result["source"] == "date_range"
     finally:
         server.shutdown()
 
@@ -383,6 +441,37 @@ def test_fetch_data_freshness_returns_error_on_failure():
         symbol="BTCUSDT",
     )
     assert "error" in result
+
+
+def test_fetch_data_freshness_prefers_payload_last_data_timestamp():
+    """When payload has last_data_timestamp, freshness should use it directly."""
+    from validate_liqmap_visual import fetch_data_freshness
+
+    recent_ts = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+    result = fetch_data_freshness(
+        api_base="http://127.0.0.1:1",
+        symbol="BTCUSDT",
+        payload={"last_data_timestamp": recent_ts},
+    )
+
+    assert result["stale"] is False
+    assert result["source"] == "payload"
+
+
+def test_fetch_data_freshness_payload_can_mark_stale():
+    """Payload freshness path should still enforce the max-age gate."""
+    from validate_liqmap_visual import fetch_data_freshness
+
+    stale_ts = (datetime.now(timezone.utc) - timedelta(minutes=9)).isoformat().replace("+00:00", "Z")
+    result = fetch_data_freshness(
+        api_base="http://127.0.0.1:1",
+        symbol="BTCUSDT",
+        max_age_minutes=5,
+        payload={"last_data_timestamp": stale_ts},
+    )
+
+    assert result["stale"] is True
+    assert result["source"] == "payload"
 
 
 def test_wait_for_local_liqmap_ready_accepts_plotly_dom_signals():
@@ -469,30 +558,30 @@ def test_wait_for_local_liqmap_ready_can_abort_early_on_explicit_failure():
     assert state["ready"] is False
 
 
-def test_derive_local_liqmap_failure_reason_prioritizes_levels_failure():
-    """The validator should surface a failed levels fetch ahead of generic browser errors."""
+def test_derive_local_liqmap_failure_reason_prioritizes_api_failure():
+    """The validator should surface a failed liq-map API fetch ahead of generic browser errors."""
     from validate_liqmap_visual import _derive_local_liqmap_failure_reason
 
     reason = _derive_local_liqmap_failure_reason(
         {
             "hasPlotlyGlobal": True,
-            "levels_request_failures": [{"status": 503}],
+            "api_request_failures": [{"status": 503}],
             "console_errors": ["Error loading levels"],
             "dialog_messages": ["Error: Service Unavailable"],
         }
     )
 
-    assert reason == "levels_request_failed"
+    assert reason == "api_request_failed"
 
 
-def test_should_abort_local_liqmap_wait_on_levels_failure():
-    """A failed levels request should short-circuit the wait loop."""
+def test_should_abort_local_liqmap_wait_on_api_failure():
+    """A failed liq-map API request should short-circuit the wait loop."""
     from validate_liqmap_visual import _should_abort_local_liqmap_wait
 
     should_abort = _should_abort_local_liqmap_wait(
         {
             "ready": False,
-            "levels_request_failures": [{"status": 503}],
+            "api_request_failures": [{"status": 503}],
             "dialog_messages": [],
         }
     )
@@ -507,7 +596,7 @@ def test_should_abort_local_liqmap_wait_on_explicit_page_load_error():
     should_abort = _should_abort_local_liqmap_wait(
         {
             "ready": False,
-            "levels_request_failures": [],
+            "api_request_failures": [],
             "dialog_messages": [],
             "loadErrorText": "Invalid liquidation levels payload",
         }
@@ -523,11 +612,11 @@ def test_derive_local_liqmap_failure_reason_marks_invalid_payloads():
     reason = _derive_local_liqmap_failure_reason(
         {
             "hasPlotlyGlobal": True,
-            "levels_request_failures": [],
+            "api_request_failures": [],
             "loadErrorText": "Invalid liquidation levels payload",
             "console_errors": [],
             "dialog_messages": [],
         }
     )
 
-    assert reason == "levels_payload_invalid"
+    assert reason == "api_payload_invalid"
