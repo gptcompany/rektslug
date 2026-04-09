@@ -80,6 +80,40 @@ class _LiqMapHandler(BaseHTTPRequestHandler):
         "last_data_timestamp": "2026-03-13T12:00:00Z",
         "is_stale_real_data": False,
     }
+    hl_payload = {
+        "source": "hyperliquid-sidecar",
+        "symbol": "BTCUSDT",
+        "timeframe": "1w",
+        "current_price": 68500.0,
+        "mark_price": 68500.0,
+        "account_count": 123,
+        "generated_at": "2026-03-13T12:00:00Z",
+        "grid": {
+            "step": 500.0,
+            "anchor_price": 68500.0,
+            "min_price": 50000.0,
+            "max_price": 90000.0,
+        },
+        "leverage_ladder": ["cross"],
+        "long_buckets": [
+            {"price_level": 64000.0, "leverage": "cross", "volume": 1000.0},
+        ],
+        "short_buckets": [
+            {"price_level": 72000.0, "leverage": "cross", "volume": 1500.0},
+        ],
+        "cumulative_long": [
+            {"price_level": 64000.0, "value": 1000.0},
+        ],
+        "cumulative_short": [
+            {"price_level": 72000.0, "value": 1500.0},
+        ],
+        "out_of_range_volume": {
+            "long": 0.0,
+            "short": 0.0,
+        },
+        "source_anchor": "data/cache/hl_sidecar_btcusdt.json",
+        "bin_size": 500.0,
+    }
     legacy_payload = {
         "symbol": "SOLUSDT",
         "model": "openinterest",
@@ -117,6 +151,13 @@ class _LiqMapHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(self.payload).encode("utf-8"))
+            return
+
+        if self.path.startswith("/liquidations/hl-public-map"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(self.hl_payload).encode("utf-8"))
             return
 
         if self.path.startswith("/liquidations/levels"):
@@ -160,37 +201,40 @@ async def _launch_browser_or_skip(playwright):
         raise
 
 
+async def _route_plotly(page) -> None:
+    async def _fulfill_plotly(route):
+        await route.fulfill(
+            content_type="application/javascript",
+            body="""
+            window.Plotly = {
+                newPlot: function(_id, traces, layout) {
+                    window.__lastPlotlyRender = { traces, layout };
+                    return Promise.resolve({
+                        _fullLayout: {
+                            yaxis: { range: [0, 30] },
+                            yaxis2: { range: [0, 30] }
+                        }
+                    });
+                },
+                react: function(id, traces, layout) {
+                    return this.newPlot(id, traces, layout);
+                },
+                relayout: function() {
+                    return Promise.resolve();
+                }
+            };
+            """,
+        )
+
+    await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+
+
 @pytest.mark.asyncio
 async def test_canonical_liqmap_frontend_renders_from_public_builder_payload(liqmap_server):
     async with async_playwright() as playwright:
         browser = await _launch_browser_or_skip(playwright)
         page = await browser.new_page()
-
-        async def _fulfill_plotly(route):
-            await route.fulfill(
-                content_type="application/javascript",
-                body="""
-                window.Plotly = {
-                    newPlot: function(_id, traces, layout) {
-                        window.__lastPlotlyRender = { traces, layout };
-                        return Promise.resolve({
-                            _fullLayout: {
-                                yaxis: { range: [0, 30] },
-                                yaxis2: { range: [0, 30] }
-                            }
-                        });
-                    },
-                    react: function(id, traces, layout) {
-                        return this.newPlot(id, traces, layout);
-                    },
-                    relayout: function() {
-                        return Promise.resolve();
-                    }
-                };
-                """,
-            )
-
-        await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+        await _route_plotly(page)
         await page.goto(f"{liqmap_server}/chart/derivatives/liq-map/binance/btcusdt/1d")
         await page.wait_for_function(
             "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
@@ -211,33 +255,8 @@ async def test_non_parity_symbol_falls_back_to_legacy_levels(liqmap_server):
     async with async_playwright() as playwright:
         browser = await _launch_browser_or_skip(playwright)
         page = await browser.new_page()
-
-        async def _fulfill_plotly(route):
-            await route.fulfill(
-                content_type="application/javascript",
-                body="""
-                window.Plotly = {
-                    newPlot: function(_id, traces, layout) {
-                        window.__lastPlotlyRender = { traces, layout };
-                        return Promise.resolve({
-                            _fullLayout: {
-                                yaxis: { range: [0, 30] },
-                                yaxis2: { range: [0, 30] }
-                            }
-                        });
-                    },
-                    react: function(id, traces, layout) {
-                        return this.newPlot(id, traces, layout);
-                    },
-                    relayout: function() {
-                        return Promise.resolve();
-                    }
-                };
-                """,
-            )
-
         _LiqMapHandler.request_log = []
-        await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+        await _route_plotly(page)
         await page.goto(f"{liqmap_server}/chart/derivatives/liq-map/binance/solusdt/1w")
         await page.wait_for_function(
             "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
@@ -258,33 +277,8 @@ async def test_explicit_profile_override_preserves_legacy_levels_path(liqmap_ser
     async with async_playwright() as playwright:
         browser = await _launch_browser_or_skip(playwright)
         page = await browser.new_page()
-
-        async def _fulfill_plotly(route):
-            await route.fulfill(
-                content_type="application/javascript",
-                body="""
-                window.Plotly = {
-                    newPlot: function(_id, traces, layout) {
-                        window.__lastPlotlyRender = { traces, layout };
-                        return Promise.resolve({
-                            _fullLayout: {
-                                yaxis: { range: [0, 30] },
-                                yaxis2: { range: [0, 30] }
-                            }
-                        });
-                    },
-                    react: function(id, traces, layout) {
-                        return this.newPlot(id, traces, layout);
-                    },
-                    relayout: function() {
-                        return Promise.resolve();
-                    }
-                };
-                """,
-            )
-
         _LiqMapHandler.request_log = []
-        await page.route("https://cdn.plot.ly/plotly-2.26.0.min.js", _fulfill_plotly)
+        await _route_plotly(page)
         await page.goto(
             f"{liqmap_server}/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-glass"
         )
@@ -302,6 +296,61 @@ async def test_explicit_profile_override_preserves_legacy_levels_path(liqmap_ser
         assert not any(
             "/liquidations/coinank-public-map" in request_path
             for request_path in _LiqMapHandler.request_log
+        )
+
+        await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_bybit_route_uses_unified_public_map_endpoint(liqmap_server):
+    async with async_playwright() as playwright:
+        browser = await _launch_browser_or_skip(playwright)
+        page = await browser.new_page()
+
+        _LiqMapHandler.request_log = []
+        await _route_plotly(page)
+        await page.goto(f"{liqmap_server}/chart/derivatives/liq-map/bybit/btcusdt/1w")
+        await page.wait_for_function(
+            "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
+        )
+
+        assert await page.evaluate("() => window.__liqMapLoadError") is None
+        assert any(
+            "/liquidations/coinank-public-map" in request_path
+            and "exchange=bybit" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+        assert not any(
+            "/liquidations/levels" in request_path for request_path in _LiqMapHandler.request_log
+        )
+
+        await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_hyperliquid_route_uses_hl_public_endpoint(liqmap_server):
+    async with async_playwright() as playwright:
+        browser = await _launch_browser_or_skip(playwright)
+        page = await browser.new_page()
+
+        _LiqMapHandler.request_log = []
+        await _route_plotly(page)
+        await page.goto(f"{liqmap_server}/chart/derivatives/liq-map/hyperliquid/btcusdt/1w")
+        await page.wait_for_function(
+            "() => Boolean(window.__lastPlotlyRender) || typeof window.__liqMapLoadError === 'string'"
+        )
+
+        assert await page.evaluate("() => window.__liqMapLoadError") is None
+        assert any(
+            "/liquidations/hl-public-map" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+        assert not any(
+            "/liquidations/coinank-public-map" in request_path
+            for request_path in _LiqMapHandler.request_log
+        )
+        assert not any(
+            "/liquidations/levels" in request_path for request_path in _LiqMapHandler.request_log
         )
 
         await browser.close()

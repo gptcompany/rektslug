@@ -44,6 +44,7 @@ CAPTURES = {
         "coinglass_summary": "summary.json",
         "symbol": "ETHUSDT",
         "timeframe": "1d",
+        "exchange": "binance",
     },
     "ETH_1w": {
         "timestamp": "20260319T192350Z",
@@ -51,6 +52,7 @@ CAPTURES = {
         "coinglass_summary": "summary.json",
         "symbol": "ETHUSDT",
         "timeframe": "1w",
+        "exchange": "binance",
     },
 }
 
@@ -249,9 +251,10 @@ def load_rektslug(capture_cfg: dict) -> LiqDistribution:
         timeframe=capture_cfg["timeframe"],
     )
     try:
+        exchange = str(capture_cfg.get("exchange", "binance")).lower()
         url = (
             f"{REKTSLUG_BASE}/liquidations/coinank-public-map"
-            f"?symbol={capture_cfg['symbol']}&timeframe={capture_cfg['timeframe']}"
+            f"?exchange={exchange}&symbol={capture_cfg['symbol']}&timeframe={capture_cfg['timeframe']}"
         )
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=10) as resp:

@@ -23,6 +23,10 @@ class _FakeHttpResponse:
         return self._body
 
 
+class _RequestRecorder:
+    last_full_url: str | None = None
+
+
 def test_load_rektslug_reads_price_level_buckets(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = {
         "current_price": 100.0,
@@ -50,3 +54,34 @@ def test_load_rektslug_reads_price_level_buckets(monkeypatch: pytest.MonkeyPatch
     assert dist.raw_prices.tolist() == [90.0, 92.0, 94.0, 106.0, 108.0]
     assert dist.raw_volumes.tolist() == [10.0, 20.0, 30.0, 40.0, 50.0]
     assert 0.0 not in dist.raw_prices.tolist()
+
+
+def test_load_rektslug_requests_explicit_exchange(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "current_price": 100.0,
+        "long_buckets": [
+            {"price_level": 90.0, "volume": 10.0},
+            {"price_level": 92.0, "volume": 20.0},
+            {"price_level": 94.0, "volume": 30.0},
+        ],
+        "short_buckets": [
+            {"price_level": 106.0, "volume": 40.0},
+            {"price_level": 108.0, "volume": 50.0},
+        ],
+    }
+
+    def _fake_urlopen(request, timeout=10):
+        _RequestRecorder.last_full_url = request.full_url
+        return _FakeHttpResponse(payload)
+
+    monkeypatch.setattr(analysis.urllib.request, "urlopen", _fake_urlopen)
+
+    dist = analysis.load_rektslug(
+        {"symbol": "ETHUSDT", "timeframe": "1w", "exchange": "bybit"}
+    )
+
+    assert dist.valid is True
+    assert _RequestRecorder.last_full_url is not None
+    assert "exchange=bybit" in _RequestRecorder.last_full_url
+    assert "symbol=ETHUSDT" in _RequestRecorder.last_full_url
+    assert "timeframe=1w" in _RequestRecorder.last_full_url
