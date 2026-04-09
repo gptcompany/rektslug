@@ -19,6 +19,7 @@ def _sample_public_map_payload() -> dict:
     return {
         "schema_version": "1.0",
         "source": "coinank-public-builder",
+        "exchange": "binance",
         "symbol": "BTCUSDT",
         "timeframe": "1d",
         "profile": "rektslug-ank-public",
@@ -76,6 +77,7 @@ class TestCoinankPublicMapContract:
         data = response.json()
         assert data["schema_version"] == "1.0"
         assert data["source"] == "coinank-public-builder"
+        assert data["exchange"] == "binance"
         assert data["symbol"] == "BTCUSDT"
         assert data["timeframe"] == "1d"
         assert data["profile"] == "rektslug-ank-public"

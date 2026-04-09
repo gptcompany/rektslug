@@ -151,6 +151,11 @@ def public_builder_env(monkeypatch):
 
     monkeypatch.setattr(public_liqmap, "_load_public_liqmap_metadata", _fake_load_public_liqmap_metadata)
     monkeypatch.setattr(public_liqmap, "DuckDBService", _FakeDuckDBService)
+    monkeypatch.setattr(
+        public_liqmap.snapshot_reader,
+        "get_latest_available_snapshot_ts",
+        lambda *_args, **_kwargs: None,
+    )
 
 
 # ---------------------------------------------------------------------------

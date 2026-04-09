@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 import math
+from typing import Any
 
 from pydantic import BaseModel
 from fastapi import HTTPException
@@ -284,6 +285,15 @@ def derive_public_liqmap_range(
     return (_quantize_price(x_min), _quantize_price(x_max))
 
 
+def _artifact_has_public_liqmap_data(artifact: dict[str, Any]) -> bool:
+    """Return True when an artifact can produce a meaningful public payload."""
+    long_distribution = artifact.get("long_distribution")
+    short_distribution = artifact.get("short_distribution")
+    if not isinstance(long_distribution, dict) or not isinstance(short_distribution, dict):
+        return False
+    return bool(long_distribution) or bool(short_distribution)
+
+
 def build_coinank_public_map_response(
     *,
     exchange: str,
@@ -305,7 +315,7 @@ def build_coinank_public_map_response(
         artifact = snapshot_reader.load_artifact(
             normalized_exchange, normalized_symbol, latest_ts, model_id
         )
-        if artifact:
+        if artifact and _artifact_has_public_liqmap_data(artifact):
             return _build_response_from_artifact(
                 exchange=normalized_exchange,
                 symbol=normalized_symbol,

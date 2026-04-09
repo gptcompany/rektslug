@@ -134,3 +134,30 @@ def test_binance_partial_manifest_keeps_artifact_path_when_open_interest_missing
     assert entry.artifact_path == f"artifacts/BTCUSDT/{snapshot_ts}/binance_standard.json"
     assert entry.source_metadata["availability_metadata"]["reason"] == "Input collection was partial"
     assert (tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json").exists()
+
+
+def test_binance_empty_model_output_is_not_marked_available(tmp_path, mock_db, monkeypatch):
+    producer = BinanceProducer(base_dir=tmp_path, db_path=mock_db)
+    snapshot_ts = "2026-04-07T12:00:00Z"
+
+    monkeypatch.setattr(
+        producer.standard_model,
+        "calculate_liquidations",
+        lambda **_kwargs: [],
+    )
+
+    manifest = producer.export_snapshot(
+        symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_standard"]
+    )
+
+    entry = manifest.models["binance_standard"]
+    assert entry.availability_status == "failed_processing"
+    assert entry.source_metadata["reason"] == "Model produced empty distributions"
+    assert not (
+        tmp_path
+        / "binance"
+        / "artifacts"
+        / "BTCUSDT"
+        / snapshot_ts
+        / "binance_standard.json"
+    ).exists()

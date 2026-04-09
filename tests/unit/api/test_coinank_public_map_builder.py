@@ -2,9 +2,11 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import HTTPException
 
 from src.liquidationheatmap.api.public_liqmap import (
     COINANK_PUBLIC_LEVERAGE_LADDER,
@@ -13,6 +15,7 @@ from src.liquidationheatmap.api.public_liqmap import (
     CoinankPublicGrid,
     CoinankPublicMapResponse,
     _load_public_liqmap_metadata,
+    build_coinank_public_map_response,
     build_cumulative_series,
     derive_public_liqmap_range,
     expand_public_leverage_ladder,
@@ -211,3 +214,118 @@ def test_public_builder_metadata_uses_questdb_for_latest_price(monkeypatch):
 
     assert metadata.current_price == Decimal("60123.45")
     assert metadata.last_data_timestamp == datetime(2026, 3, 31, 12, 0, tzinfo=timezone.utc)
+
+
+class _FakeProfile:
+    def get_leverage_weights(self, *_args, **_kwargs):
+        return {}
+
+    def get_side_weights(self, *_args, **_kwargs):
+        return {}
+
+
+class _FakeFrame:
+    def __init__(self, records):
+        self._records = records
+        self.empty = not records
+
+    def to_dict(self, orient):
+        assert orient == "records"
+        return self._records
+
+
+class _FakeDuckDBContext:
+    def __init__(self, records):
+        self._records = records
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def calculate_liquidations_oi_based(self, **_kwargs):
+        return _FakeFrame(self._records)
+
+
+def test_binance_empty_artifact_falls_back_to_legacy_builder(monkeypatch):
+    snapshot_ts = "2026-04-07T12:00:00Z"
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.get_latest_available_snapshot_ts",
+        lambda *_args, **_kwargs: snapshot_ts,
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.load_artifact",
+        lambda *_args, **_kwargs: {
+            "exchange": "binance",
+            "model_id": "binance_standard",
+            "symbol": "BTCUSDT",
+            "snapshot_ts": snapshot_ts,
+            "reference_price": 100000.0,
+            "bucket_grid": {"step": 25.0, "price_levels": []},
+            "long_distribution": {},
+            "short_distribution": {},
+        },
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap._load_public_liqmap_metadata",
+        lambda **_kwargs: SimpleNamespace(
+            current_price=Decimal("100000"),
+            last_data_timestamp=datetime(2026, 4, 7, 12, 0, tzinfo=timezone.utc),
+            is_stale_real_data=False,
+            timeframe_days=7,
+            step=Decimal("25"),
+        ),
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.get_profile",
+        lambda *_args, **_kwargs: _FakeProfile(),
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.DuckDBService",
+        lambda **_kwargs: _FakeDuckDBContext(
+            [
+                {"side": "buy", "liq_price": 99000.0, "leverage": 50, "volume": 120.0},
+                {"side": "sell", "liq_price": 101000.0, "leverage": 50, "volume": 80.0},
+            ]
+        ),
+    )
+
+    response = build_coinank_public_map_response(
+        exchange="binance",
+        symbol="BTCUSDT",
+        timeframe="1w",
+    )
+
+    assert response.source == "coinank-public-builder"
+    assert response.exchange == "binance"
+    assert response.long_buckets
+    assert response.short_buckets
+
+
+def test_bybit_empty_artifact_returns_explicit_failure(monkeypatch):
+    snapshot_ts = "2026-04-07T12:00:00Z"
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.get_latest_available_snapshot_ts",
+        lambda *_args, **_kwargs: snapshot_ts,
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.load_artifact",
+        lambda *_args, **_kwargs: {
+            "exchange": "bybit",
+            "model_id": "bybit_standard",
+            "symbol": "BTCUSDT",
+            "snapshot_ts": snapshot_ts,
+            "reference_price": 100000.0,
+            "bucket_grid": {"step": 25.0, "price_levels": []},
+            "long_distribution": {},
+            "short_distribution": {},
+        },
+    )
+
+    with pytest.raises(HTTPException, match="No available artifact"):
+        build_coinank_public_map_response(
+            exchange="bybit",
+            symbol="BTCUSDT",
+            timeframe="1w",
+        )

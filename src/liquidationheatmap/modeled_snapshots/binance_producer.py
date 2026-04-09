@@ -91,6 +91,13 @@ class BinanceProducer:
                     )
                     
                     grid, long_dist, short_dist = aggregate_to_bucket_grid(levels, bin_size)
+                    if not long_dist and not short_dist:
+                        failures[channel] = {
+                            "status": "failed_processing",
+                            "reason": "Model produced empty distributions",
+                            "details": {"input_identity": current_input_identity},
+                        }
+                        continue
                     
                     run_id = f"run_{int(datetime.now(timezone.utc).timestamp())}"
                     run_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
