@@ -2,11 +2,14 @@ import pytest
 import json
 import duckdb
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from src.liquidationheatmap.modeled_snapshots.snapshot_schema import validate_artifact
-from src.liquidationheatmap.modeled_snapshots.binance_producer import BinanceProducer
+from src.liquidationheatmap.modeled_snapshots.binance_producer import (
+    BinanceProducer,
+    _format_utc_z,
+)
 
 @pytest.fixture
 def mock_db(tmp_path):
@@ -160,4 +163,48 @@ def test_binance_empty_model_output_is_not_marked_available(tmp_path, mock_db, m
         / "BTCUSDT"
         / snapshot_ts
         / "binance_standard.json"
+    ).exists()
+
+
+def test_binance_timestamp_formatter_normalizes_tz_aware_values_to_utc():
+    west = timezone(timedelta(hours=1))
+    assert _format_utc_z(datetime(2026, 4, 7, 12, 59, 59, tzinfo=west)) == "2026-04-07T11:59:59Z"
+
+
+def test_binance_stale_current_price_blocks_and_removes_existing_artifact(tmp_path, mock_db):
+    producer = BinanceProducer(base_dir=tmp_path, db_path=mock_db)
+    producer.MAX_CURRENT_PRICE_AGE = timedelta(minutes=1)
+    producer.MAX_OPEN_INTEREST_AGE = timedelta(days=1)
+    snapshot_ts = "2026-04-07T12:05:00Z"
+
+    stale_artifact = tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
+    stale_artifact.parent.mkdir(parents=True, exist_ok=True)
+    stale_artifact.write_text("{}", encoding="utf-8")
+
+    manifest = producer.export_snapshot(
+        symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_standard"]
+    )
+
+    entry = manifest.models["binance_standard"]
+    assert entry.availability_status == "blocked_source_missing"
+    assert entry.source_metadata["reason"] == "Critical input collection failed"
+    assert entry.source_metadata["details"]["current_price"]["status"] == "stale"
+    assert not stale_artifact.exists()
+
+
+def test_binance_stale_open_interest_degrades_to_partial(tmp_path, mock_db):
+    producer = BinanceProducer(base_dir=tmp_path, db_path=mock_db)
+    producer.MAX_CURRENT_PRICE_AGE = timedelta(days=1)
+    producer.MAX_OPEN_INTEREST_AGE = timedelta(minutes=1)
+    snapshot_ts = "2026-04-07T12:05:00Z"
+
+    manifest = producer.export_snapshot(
+        symbol="BTCUSDT", snapshot_ts=snapshot_ts, channels=["binance_standard"]
+    )
+
+    entry = manifest.models["binance_standard"]
+    assert entry.availability_status == "partial"
+    assert entry.source_metadata["availability_metadata"]["details"]["open_interest"]["status"] == "stale"
+    assert (
+        tmp_path / "binance" / "artifacts" / "BTCUSDT" / snapshot_ts / "binance_standard.json"
     ).exists()

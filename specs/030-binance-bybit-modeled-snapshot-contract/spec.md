@@ -2,7 +2,7 @@
 
 **Feature Branch**: `030-binance-bybit-modeled-snapshot-contract`
 **Created**: 2026-04-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: Reuse the `spec-028` persistence discipline and the `spec-029` producer/export contract to make Binance and Bybit consumable as deterministic modeled-snapshot producers
 **Dependencies**: spec-012 (exchange aggregation baseline), spec-024 (heatmap precompute), spec-028 (consumer checkpoint discipline), spec-029 (producer contract patterns), current Binance liquidation model/runtime, external downloader/collector repo for Bybit orderbook persistence
 

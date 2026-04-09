@@ -2,6 +2,28 @@
 
 This repository must be worked in strict sequence.
 
+## Completed Foundation
+
+`spec-030` and `spec-031` are implemented.
+
+- `spec-030`: deterministic Binance/Bybit modeled-snapshot producer contract
+- `spec-031`: unified Binance/Bybit public CoinAnK-style serving layer
+
+These two specs do **not** mean the whole repo backlog is closed.
+
+## Explicit Open Backlog
+
+The following remain open and should be treated as separate backlog tracks:
+
+- `spec-030` follow-up: Bybit historical 3TB-WDC reader / normalizer bridge for historical-only windows
+- Root worktree backlog in `tasks.md`:
+  reserved-margin validation and portfolio-margin solver
+- WebSocket backlog in:
+  - `specs/011-realtime-streaming/`
+  - `specs/025-websocket-streaming/`
+
+Do not infer that these are complete just because the Binance/Bybit liq-map serving path is now implemented.
+
 ## Active Workstream
 
 Current priority is **liq-map only**.

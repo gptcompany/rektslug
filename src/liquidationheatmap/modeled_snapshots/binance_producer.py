@@ -22,14 +22,41 @@ from src.liquidationheatmap.models.binance_depth_weighted import BinanceDepthWei
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_utc_datetime(value: Any) -> datetime:
+    """Normalize DuckDB / pandas timestamp values into UTC-aware datetimes."""
+    if hasattr(value, "to_pydatetime"):
+        value = value.to_pydatetime()
+    if not isinstance(value, datetime):
+        raise TypeError(f"Expected datetime-compatible value, got {type(value)!r}")
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _format_utc_z(value: Any) -> str:
+    """Format timestamps as canonical UTC Z strings."""
+    return _normalize_utc_datetime(value).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 class BinanceProducer:
     """Producer for Binance modeled snapshots."""
+    MAX_CURRENT_PRICE_AGE = timedelta(hours=2)
+    MAX_OPEN_INTEREST_AGE = timedelta(hours=24)
 
     def __init__(self, base_dir: Path | str, db_path: Optional[str] = None):
         self.base_dir = Path(base_dir)
         self.db_service = DuckDBService(db_path=db_path, read_only=True)
         self.standard_model = BinanceStandardModel()
         self.depth_weighted_model = BinanceDepthWeightedModel()
+
+    def _artifact_path(self, symbol: str, snapshot_ts: str, model_id: str) -> Path:
+        return self.base_dir / "binance" / "artifacts" / symbol / snapshot_ts / f"{model_id}.json"
+
+    def _remove_artifact_if_exists(self, symbol: str, snapshot_ts: str, model_id: str) -> None:
+        artifact_path = self._artifact_path(symbol, snapshot_ts, model_id)
+        if artifact_path.exists():
+            artifact_path.unlink()
 
     def export_snapshot(
         self, 
@@ -49,9 +76,17 @@ class BinanceProducer:
             inputs, input_identity, base_status = self._collect_inputs(symbol, snapshot_ts, lookback_days)
             
             if base_status == "blocked_source_missing":
-                 manifest = build_manifest("binance", snapshot_ts, [], {c: {"status": base_status, "reason": "Missing critical inputs"} for c in channels})
-                 write_manifest(self.base_dir, "binance", symbol, manifest)
-                 return manifest
+                failures = {}
+                for channel in channels:
+                    self._remove_artifact_if_exists(symbol, snapshot_ts, channel)
+                    failures[channel] = {
+                        "status": base_status,
+                        "reason": "Critical input collection failed",
+                        "details": input_identity,
+                    }
+                manifest = build_manifest("binance", snapshot_ts, [], failures)
+                write_manifest(self.base_dir, "binance", symbol, manifest)
+                return manifest
 
             artifacts = []
             failures = {}
@@ -79,7 +114,12 @@ class BinanceProducer:
 
                     # If channel is blocked, skip artifact production
                     if channel_status.startswith("blocked"):
-                        failures[channel] = {"status": channel_status, "reason": "Missing required source data"}
+                        self._remove_artifact_if_exists(symbol, snapshot_ts, channel)
+                        failures[channel] = {
+                            "status": channel_status,
+                            "reason": "Missing required source data",
+                            "details": current_input_identity,
+                        }
                         continue
 
                     levels = model.calculate_liquidations(
@@ -92,6 +132,7 @@ class BinanceProducer:
                     
                     grid, long_dist, short_dist = aggregate_to_bucket_grid(levels, bin_size)
                     if not long_dist and not short_dist:
+                        self._remove_artifact_if_exists(symbol, snapshot_ts, channel)
                         failures[channel] = {
                             "status": "failed_processing",
                             "reason": "Model produced empty distributions",
@@ -143,6 +184,7 @@ class BinanceProducer:
                         }
 
                 except Exception as e:
+                    self._remove_artifact_if_exists(symbol, snapshot_ts, channel)
                     logger.exception(f"Failed to produce Binance {channel} snapshot")
                     failures[channel] = {"status": "failed_processing", "reason": str(e)}
 
@@ -169,6 +211,9 @@ class BinanceProducer:
         status = "available"
         input_identity = {}
         inputs = {}
+        snapshot_dt = _normalize_utc_datetime(
+            datetime.fromisoformat(snapshot_ts.replace("Z", "+00:00"))
+        )
         
         # 1. Get current price at or before snapshot_ts
         kline_table = self.db_service._kline_table_for_interval("1m")
@@ -188,12 +233,23 @@ class BinanceProducer:
             return {}, {}, "blocked_source_missing"
             
         current_price = Decimal(str(price_row[0]))
-        price_ts = price_row[1].strftime("%Y-%m-%dT%H:%M:%SZ")
+        price_dt = _normalize_utc_datetime(price_row[1])
+        price_age = snapshot_dt - price_dt
         input_identity["current_price"] = {
             "source": kline_table,
-            "timestamp": price_ts,
+            "timestamp": _format_utc_z(price_row[1]),
+            "age_seconds": int(price_age.total_seconds()),
             "value": float(current_price)
         }
+        if price_age > self.MAX_CURRENT_PRICE_AGE:
+            input_identity["current_price"]["status"] = "stale"
+            input_identity["current_price"]["max_age_seconds"] = int(
+                self.MAX_CURRENT_PRICE_AGE.total_seconds()
+            )
+            input_identity["current_price"]["reason"] = (
+                "No sufficiently fresh current price anchor for snapshot_ts"
+            )
+            return {}, input_identity, "blocked_source_missing"
         inputs["current_price"] = current_price
         
         # 2. Get OI at or before snapshot_ts
@@ -219,12 +275,23 @@ class BinanceProducer:
             }
         else:
             open_interest = Decimal(str(oi_row[0]))
-            oi_ts = oi_row[1].strftime("%Y-%m-%dT%H:%M:%SZ")
+            oi_dt = _normalize_utc_datetime(oi_row[1])
+            oi_age = snapshot_dt - oi_dt
             input_identity["open_interest"] = {
                 "source": "open_interest_history",
-                "timestamp": oi_ts,
+                "timestamp": _format_utc_z(oi_row[1]),
+                "age_seconds": int(oi_age.total_seconds()),
                 "value": float(open_interest)
             }
+            if oi_age > self.MAX_OPEN_INTEREST_AGE:
+                status = "partial"
+                input_identity["open_interest"]["status"] = "stale"
+                input_identity["open_interest"]["max_age_seconds"] = int(
+                    self.MAX_OPEN_INTEREST_AGE.total_seconds()
+                )
+                input_identity["open_interest"]["reason"] = (
+                    "Open interest anchor is stale for snapshot_ts"
+                )
         
         inputs["open_interest"] = open_interest
         
@@ -297,7 +364,7 @@ class BinanceProducer:
             orderbook = {'bids': bids, 'asks': asks}
             identity = {
                 "source": parquet_path,
-                "timestamp": ob_row[0].strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "timestamp": _format_utc_z(ob_row[0]),
                 "status": "available"
             }
             return orderbook, identity, "available"

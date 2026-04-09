@@ -2,7 +2,7 @@
 
 **Feature Branch**: `031-unified-liqmap-exchange-support`
 **Created**: 2026-04-08
-**Status**: Draft
+**Status**: Implemented
 **Dependencies**: spec-016 (CoinAnK-style Binance parity), spec-022 (public liq-map data path), spec-030 (Binance/Bybit modeled snapshot contract)
 
 ## Context
