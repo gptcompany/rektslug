@@ -8,10 +8,10 @@
 
 ## Phase 2: Workflow Surface Contract
 
-- [ ] T004R RED: Write failing tests for `scripts/validate_liqmap_visual.py` surface selection and defaults
-- [ ] T005 Add `surface` handling to `scripts/validate_liqmap_visual.py`
-- [ ] T006R RED: Write failing tests for visual-harness local liq-map capture using explicit `surface`
-- [ ] T007 Add `surface` handling to the liq-map visual harness local provider flow
+- [x] T004R RED: Write failing tests for `scripts/validate_liqmap_visual.py` surface selection and defaults
+- [x] T005 Add `surface` handling to `scripts/validate_liqmap_visual.py`
+- [x] T006R RED: Write failing tests for visual-harness local liq-map capture using explicit `surface`
+- [x] T007 Add `surface` handling to the liq-map visual harness local provider flow
 - [ ] T008R RED: Write failing tests for `scripts/capture_provider_api.py` / `scripts/run_provider_api_comparison.py` surface selection
 - [ ] T009 Add explicit `surface` selection to capture/comparison entrypoints
 - [ ] T010 Make product-facing liq-map workflows default to `surface=public`
@@ -19,8 +19,8 @@
 
 ## Phase 3: Manifest and Report Semantics
 
-- [ ] T012R RED: Write failing tests for manifest/report persistence of requested/effective surface
-- [ ] T013 Persist `requested_surface`, `effective_surface`, and effective endpoint path in liq-map workflow artifacts
+- [x] T012R RED: Write failing tests for manifest/report persistence of requested/effective surface
+- [x] T013 Persist `requested_surface`, `effective_surface`, and effective endpoint path in liq-map workflow artifacts
 - [ ] T014 Propagate surface metadata through comparison/gap-analysis/calibration report layers
 - [ ] T015 Remove workflow assumptions that infer surface only from ad hoc endpoint substrings
 

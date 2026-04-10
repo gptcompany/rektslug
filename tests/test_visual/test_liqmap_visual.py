@@ -77,6 +77,7 @@ def test_preflight_liqmap_api_parses_response(free_port):
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
+            surface="legacy",
             profile="rektslug-ank",
         )
         assert result["ok"] is True
@@ -115,6 +116,7 @@ def test_validate_liqmap_cli_args_defaults():
     assert args.coin == "BTC"
     assert args.exchange == "binance"
     assert args.coinank_timeframe == "1w"
+    assert args.surface == "public"
     assert args.chart_mode == "bar"
     assert args.max_freshness_minutes == 5
     assert args.allow_stale_data is False
@@ -151,6 +153,7 @@ def test_fetch_liqmap_payload_returns_full_payload(free_port):
             symbol="BTCUSDT",
             model="openinterest",
             timeframe=7,
+            surface="legacy",
             profile="rektslug-ank",
         )
         assert "long_liquidations" in payload
@@ -171,6 +174,7 @@ def test_build_liqmap_page_url_includes_profile_query():
         symbol="BTCUSDT",
         timeframe=1,
         chart_mode="bar",
+        surface="legacy",
         profile="rektslug-ank",
     )
 
@@ -230,6 +234,39 @@ def test_build_liqmap_api_url_uses_coinank_public_map_for_bybit():
         "http://127.0.0.1:8002/liquidations/coinank-public-map"
         "?exchange=bybit&symbol=BTCUSDT&timeframe=1d"
     )
+
+
+def test_build_liqmap_api_url_can_force_legacy_surface():
+    from validate_liqmap_visual import build_liqmap_api_url
+
+    url = build_liqmap_api_url(
+        api_base="http://127.0.0.1:8002",
+        exchange="binance",
+        symbol="BTCUSDT",
+        model="openinterest",
+        timeframe=7,
+        surface="legacy",
+        profile="rektslug-ank",
+    )
+
+    assert url == (
+        "http://127.0.0.1:8002/liquidations/levels"
+        "?symbol=BTCUSDT&model=openinterest&timeframe=7&profile=rektslug-ank"
+    )
+
+
+def test_build_liqmap_api_url_rejects_hyperliquid_legacy_surface():
+    from validate_liqmap_visual import build_liqmap_api_url
+
+    with pytest.raises(ValueError, match="Hyperliquid"):
+        build_liqmap_api_url(
+            api_base="http://127.0.0.1:8002",
+            exchange="hyperliquid",
+            symbol="BTCUSDT",
+            model="openinterest",
+            timeframe=7,
+            surface="legacy",
+        )
 
 
 def test_fetch_liqmap_payload_returns_none_on_error():

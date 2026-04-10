@@ -14,9 +14,16 @@ def _timeframe_days(timeframe: str) -> int:
         raise ValueError(f"Unsupported liq-map timeframe: {timeframe}") from exc
 
 
-def _profile_for_provider(provider: str) -> str | None:
+def _profile_for_request(*, provider: str, exchange: str, surface: str) -> str | None:
+    exchange_lower = exchange.lower()
+    if surface == "public":
+        if exchange_lower == "hyperliquid":
+            return None
+        return "rektslug-ank-public"
+    if exchange_lower == "hyperliquid":
+        raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
     mapping = {
-        "coinank": "rektslug-ank-public",
+        "coinank": "rektslug-ank",
         "coinglass": "rektslug-glass",
     }
     return mapping.get(provider)
@@ -30,7 +37,12 @@ def capture_local_liqmap_capture(request, output_path: Path) -> dict:
         symbol=request.symbol,
         timeframe=_timeframe_days(request.timeframe or ""),
         chart_mode="bar",
-        profile=_profile_for_provider(request.provider),
+        surface=request.surface,
+        profile=_profile_for_request(
+            provider=request.provider,
+            exchange=request.exchange or "binance",
+            surface=request.surface,
+        ),
     )
     ready_state = asyncio.run(
         module.capture_local_liqmap_page(

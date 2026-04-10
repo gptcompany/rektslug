@@ -48,6 +48,26 @@ def build_manifest_dict(
     provider_capture: dict[str, Any] | None,
     failure_reason: str | None = None,
 ) -> dict[str, Any]:
+    requested_surface = getattr(request, "surface", None)
+    effective_surface = (
+        local_capture.get("effective_surface")
+        if local_capture and local_capture.get("effective_surface") is not None
+        else requested_surface
+    )
+    effective_api_endpoint_path = (
+        local_capture.get("effective_api_endpoint_path")
+        if local_capture and local_capture.get("effective_api_endpoint_path") is not None
+        else None
+    )
+    if request.product == "liq-map" and effective_api_endpoint_path is None:
+        exchange = (request.exchange or "").lower()
+        if effective_surface == "legacy":
+            effective_api_endpoint_path = "/liquidations/levels"
+        elif exchange == "hyperliquid":
+            effective_api_endpoint_path = "/liquidations/hl-public-map"
+        elif exchange:
+            effective_api_endpoint_path = "/liquidations/coinank-public-map"
+
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "run_id": request.run_id,
@@ -72,6 +92,10 @@ def build_manifest_dict(
             "capture_mode": provider_capture.get("capture_mode") if provider_capture else None,
         },
     }
+    if request.product == "liq-map":
+        manifest["requested_surface"] = requested_surface
+        manifest["effective_surface"] = effective_surface
+        manifest["effective_api_endpoint_path"] = effective_api_endpoint_path
     if request.exchange is not None:
         manifest["exchange"] = request.exchange
     if request.timeframe is not None:

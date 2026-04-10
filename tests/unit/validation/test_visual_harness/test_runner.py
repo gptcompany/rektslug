@@ -132,6 +132,9 @@ def test_manifest_json_validates_against_required_field_schema(
     assert manifest["symbol"] == "BTCUSDT"
     assert manifest["exchange"] == "binance"
     assert manifest["timeframe"] == "1d"
+    assert manifest["requested_surface"] == "public"
+    assert manifest["effective_surface"] == "public"
+    assert manifest["effective_api_endpoint_path"] == "/liquidations/coinank-public-map"
     assert "window" not in manifest
     assert manifest["viewport"] == {"width": 1920, "height": 1400}
     assert manifest["local"]["ready"] is True
@@ -187,6 +190,20 @@ def test_window_requests_are_allowed_for_liq_heat_map_adapters():
 
     assert request.timeframe is None
     assert request.window == "48h"
+
+
+def test_visual_harness_request_rejects_unknown_surface():
+    with pytest.raises(ValueError, match="surface must be one of: public, legacy"):
+        VisualHarnessRequest(
+            run_id="run-001",
+            product="liq-map",
+            renderer="plotly",
+            provider="coinank",
+            symbol="BTCUSDT",
+            exchange="binance",
+            timeframe="1d",
+            surface="unsupported",
+        )
 
 
 def test_unsupported_product_renderer_combination_fails_before_capture(tmp_path: Path):
@@ -359,6 +376,14 @@ def test_default_runner_scoring_passes_when_capture_contract_is_complete(
 def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_path: Path, harness_request):
     from src.liquidationheatmap.validation.visual_harness.providers.local import capture_local_liqmap_capture
 
+    def _build_liqmap_page_url(**kwargs):
+        assert kwargs["surface"] == "public"
+        assert kwargs["profile"] == "rektslug-ank-public"
+        return (
+            "http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1d"
+            f"?profile={kwargs['profile']}"
+        )
+
     async def _capture_local_liqmap_page(*, page_url, output_path, headless):
         output_path.write_text("local")
         assert page_url.endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank-public")
@@ -366,10 +391,7 @@ def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_p
         return {"ready": True}
 
     fake_module = SimpleNamespace(
-        build_liqmap_page_url=lambda **kwargs: (
-            "http://localhost:8002/chart/derivatives/liq-map/binance/btcusdt/1d"
-            f"?profile={kwargs['profile']}"
-        ),
+        build_liqmap_page_url=_build_liqmap_page_url,
         capture_local_liqmap_page=_capture_local_liqmap_page,
     )
     monkeypatch.setattr(
@@ -383,7 +405,7 @@ def test_local_provider_wrapper_reuses_validate_liqmap_visual(monkeypatch, tmp_p
     assert result["url"].endswith("/chart/derivatives/liq-map/binance/btcusdt/1d?profile=rektslug-ank-public")
 
 
-def test_local_provider_wrapper_uses_glass_profile_for_coinglass(monkeypatch, tmp_path: Path):
+def test_local_provider_wrapper_defaults_to_public_surface_for_coinglass(monkeypatch, tmp_path: Path):
     from src.liquidationheatmap.validation.visual_harness.providers.local import capture_local_liqmap_capture
 
     request = VisualHarnessRequest(
@@ -396,6 +418,57 @@ def test_local_provider_wrapper_uses_glass_profile_for_coinglass(monkeypatch, tm
         timeframe="1w",
     )
 
+    def _build_liqmap_page_url(**kwargs):
+        assert kwargs["surface"] == "public"
+        assert kwargs["profile"] == "rektslug-ank-public"
+        return (
+            "http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1w"
+            f"?profile={kwargs['profile']}"
+        )
+
+    async def _capture_local_liqmap_page(*, page_url, output_path, headless):
+        output_path.write_text("local")
+        assert page_url.endswith("/chart/derivatives/liq-map/binance/ethusdt/1w?profile=rektslug-ank-public")
+        assert headless is True
+        return {"ready": True}
+
+    fake_module = SimpleNamespace(
+        build_liqmap_page_url=_build_liqmap_page_url,
+        capture_local_liqmap_page=_capture_local_liqmap_page,
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.validation.visual_harness.providers.local.import_module",
+        lambda _name: fake_module,
+    )
+
+    result = capture_local_liqmap_capture(request, tmp_path / "local.png")
+
+    assert result["ready"] is True
+    assert result["url"].endswith("/chart/derivatives/liq-map/binance/ethusdt/1w?profile=rektslug-ank-public")
+
+
+def test_local_provider_wrapper_can_force_legacy_surface(monkeypatch, tmp_path: Path):
+    from src.liquidationheatmap.validation.visual_harness.providers.local import capture_local_liqmap_capture
+
+    request = VisualHarnessRequest(
+        run_id="run-001",
+        product="liq-map",
+        renderer="plotly",
+        provider="coinglass",
+        symbol="ETHUSDT",
+        exchange="binance",
+        timeframe="1w",
+        surface="legacy",
+    )
+
+    def _build_liqmap_page_url(**kwargs):
+        assert kwargs["surface"] == "legacy"
+        assert kwargs["profile"] == "rektslug-glass"
+        return (
+            "http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1w"
+            f"?profile={kwargs['profile']}"
+        )
+
     async def _capture_local_liqmap_page(*, page_url, output_path, headless):
         output_path.write_text("local")
         assert page_url.endswith("/chart/derivatives/liq-map/binance/ethusdt/1w?profile=rektslug-glass")
@@ -403,10 +476,7 @@ def test_local_provider_wrapper_uses_glass_profile_for_coinglass(monkeypatch, tm
         return {"ready": True}
 
     fake_module = SimpleNamespace(
-        build_liqmap_page_url=lambda **kwargs: (
-            "http://localhost:8002/chart/derivatives/liq-map/binance/ethusdt/1w"
-            f"?profile={kwargs['profile']}"
-        ),
+        build_liqmap_page_url=_build_liqmap_page_url,
         capture_local_liqmap_page=_capture_local_liqmap_page,
     )
     monkeypatch.setattr(

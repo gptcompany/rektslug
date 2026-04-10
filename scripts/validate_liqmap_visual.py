@@ -42,6 +42,12 @@ DEFAULT_PORT = _SETTINGS.port
 DEFAULT_SYMBOL = "BTCUSDT"
 DEFAULT_MODEL = "openinterest"
 DEFAULT_TIMEFRAME = 7
+DEFAULT_SURFACE = "public"
+PUBLIC_SURFACE = "public"
+LEGACY_SURFACE = "legacy"
+VALID_LIQMAP_SURFACES = {PUBLIC_SURFACE, LEGACY_SURFACE}
+PUBLIC_BROWSER_PROFILE = "rektslug-ank-public"
+LEGACY_BROWSER_PROFILE = "rektslug-ank"
 
 ROUTE_TIMEFRAME_BY_DAYS = {
     1: "1d",
@@ -54,6 +60,43 @@ LIQMAP_API_PATH_MARKERS = (
     "/liquidations/hl-public-map",
     "/liquidations/levels",
 )
+
+
+def normalize_liqmap_surface(surface: str) -> str:
+    normalized = surface.strip().lower()
+    if normalized not in VALID_LIQMAP_SURFACES:
+        valid = ", ".join(sorted(VALID_LIQMAP_SURFACES))
+        raise ValueError(f"Unsupported liq-map surface '{surface}'. Expected one of: {valid}.")
+    return normalized
+
+
+def build_liqmap_api_endpoint_path(exchange: str, surface: str) -> str:
+    exchange_lower = exchange.lower()
+    normalized_surface = normalize_liqmap_surface(surface)
+
+    if normalized_surface == LEGACY_SURFACE:
+        if exchange_lower == "hyperliquid":
+            raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
+        return "/liquidations/levels"
+
+    if exchange_lower == "hyperliquid":
+        return "/liquidations/hl-public-map"
+    if exchange_lower in PUBLIC_MAP_EXCHANGES:
+        return "/liquidations/coinank-public-map"
+    raise ValueError(f"Unsupported liq-map exchange '{exchange}' for public surface.")
+
+
+def default_browser_profile_for_surface(exchange: str, surface: str) -> str | None:
+    exchange_lower = exchange.lower()
+    normalized_surface = normalize_liqmap_surface(surface)
+
+    if normalized_surface == LEGACY_SURFACE:
+        if exchange_lower == "hyperliquid":
+            raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
+        return LEGACY_BROWSER_PROFILE
+    if exchange_lower in PUBLIC_MAP_EXCHANGES:
+        return PUBLIC_BROWSER_PROFILE
+    return None
 
 
 def http_get_json(url: str, timeout: float = 3.0) -> dict[str, Any]:
@@ -75,28 +118,29 @@ def build_liqmap_api_url(
     symbol: str,
     model: str,
     timeframe: int,
+    surface: str = DEFAULT_SURFACE,
     profile: str | None = None,
 ) -> str:
     """Build the backend API URL for the selected liq-map surface."""
     exchange_lower = exchange.lower()
     symbol_upper = symbol.upper()
-    is_coinank_style = profile is None or profile == "rektslug-ank-public"
+    endpoint_path = build_liqmap_api_endpoint_path(exchange=exchange, surface=surface)
     tf_str = ROUTE_TIMEFRAME_BY_DAYS.get(timeframe)
 
-    if tf_str and exchange_lower == "hyperliquid":
-        return f"{api_base}/liquidations/hl-public-map?symbol={symbol_upper}&timeframe={tf_str}"
+    if endpoint_path == "/liquidations/levels":
+        url = f"{api_base}{endpoint_path}?symbol={symbol_upper}&model={model}&timeframe={timeframe}"
+        if profile:
+            url = f"{url}&profile={profile}"
+        return url
 
-    if is_coinank_style and tf_str:
-        if exchange_lower in PUBLIC_MAP_EXCHANGES:
-            return (
-                f"{api_base}/liquidations/coinank-public-map"
-                f"?exchange={exchange_lower}&symbol={symbol_upper}&timeframe={tf_str}"
-            )
-
-    url = f"{api_base}/liquidations/levels?symbol={symbol_upper}&model={model}&timeframe={timeframe}"
-    if profile:
-        url = f"{url}&profile={profile}"
-    return url
+    if tf_str is None:
+        raise ValueError(f"Unsupported liq-map timeframe '{timeframe}'. Use 1 or 7 days only.")
+    if endpoint_path == "/liquidations/hl-public-map":
+        return f"{api_base}{endpoint_path}?symbol={symbol_upper}&timeframe={tf_str}"
+    return (
+        f"{api_base}{endpoint_path}"
+        f"?exchange={exchange_lower}&symbol={symbol_upper}&timeframe={tf_str}"
+    )
 
 
 def preflight_liqmap_api(
@@ -105,21 +149,32 @@ def preflight_liqmap_api(
     symbol: str,
     model: str,
     timeframe: int,
+    surface: str = DEFAULT_SURFACE,
     profile: str | None = None,
 ) -> dict[str, Any]:
+    normalized_surface = normalize_liqmap_surface(surface)
     url = build_liqmap_api_url(
         api_base=api_base,
         exchange=exchange,
         symbol=symbol,
         model=model,
         timeframe=timeframe,
+        surface=normalized_surface,
         profile=profile,
     )
+    endpoint_path = build_liqmap_api_endpoint_path(exchange=exchange, surface=normalized_surface)
 
     try:
         payload = http_get_json(url, timeout=15.0)
     except Exception as exc:
-        return {"ok": False, "error": str(exc), "url": url}
+        return {
+            "ok": False,
+            "error": str(exc),
+            "url": url,
+            "requested_surface": normalized_surface,
+            "effective_surface": normalized_surface,
+            "endpoint_path": endpoint_path,
+        }
 
     # Normalize response for validation metrics
     long_list = payload.get("long_buckets") or payload.get("long_liquidations") or []
@@ -128,6 +183,9 @@ def preflight_liqmap_api(
     return {
         "ok": True,
         "url": url,
+        "requested_surface": normalized_surface,
+        "effective_surface": normalized_surface,
+        "endpoint_path": endpoint_path,
         "long_count": len(long_list),
         "short_count": len(short_list),
         "current_price": payload.get("current_price"),
@@ -140,6 +198,7 @@ def fetch_liqmap_payload(
     symbol: str,
     model: str,
     timeframe: int,
+    surface: str = DEFAULT_SURFACE,
     profile: str | None = None,
 ) -> dict[str, Any] | None:
     """Fetch the complete liq-map API payload for the selected surface.
@@ -152,6 +211,7 @@ def fetch_liqmap_payload(
         symbol=symbol,
         model=model,
         timeframe=timeframe,
+        surface=surface,
         profile=profile,
     )
 
@@ -367,11 +427,15 @@ def build_liqmap_page_url(
     symbol: str,
     timeframe: int,
     chart_mode: str,
+    surface: str = DEFAULT_SURFACE,
     profile: str | None = None,
 ) -> str:
     route_timeframe = ROUTE_TIMEFRAME_BY_DAYS.get(timeframe)
     if route_timeframe is None:
         raise ValueError(f"Unsupported liq-map timeframe '{timeframe}'. Use 1 or 7 days only.")
+    normalized_surface = normalize_liqmap_surface(surface)
+    if normalized_surface == LEGACY_SURFACE and exchange.lower() == "hyperliquid":
+        raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
     page_url = (
         f"{api_base}/chart/derivatives/liq-map/"
         f"{exchange.lower()}/{symbol.lower()}/{route_timeframe}"
@@ -566,6 +630,12 @@ def parse_args() -> argparse.Namespace:
         help="Exchange for Coinank liq-map",
     )
     parser.add_argument(
+        "--surface",
+        default=DEFAULT_SURFACE,
+        choices=sorted(VALID_LIQMAP_SURFACES),
+        help="Liq-map surface to validate (default: public)",
+    )
+    parser.add_argument(
         "--coinank-timeframe",
         default="1w",
         help="Coinank timeframe path segment",
@@ -644,12 +714,15 @@ def main() -> int:
 
     proc: subprocess.Popen | None = None
     api_base = f"http://{args.host}:{args.port}"
+    profile = default_browser_profile_for_surface(args.exchange, args.surface)
     page_url = build_liqmap_page_url(
         api_base=api_base,
         exchange=args.exchange,
         symbol=args.symbol,
         timeframe=args.timeframe,
         chart_mode=args.chart_mode,
+        surface=args.surface,
+        profile=profile,
     )
 
     try:
@@ -662,6 +735,8 @@ def main() -> int:
             symbol=args.symbol,
             timeframe=args.timeframe,
             chart_mode=args.chart_mode,
+            surface=args.surface,
+            profile=profile,
         )
 
         api_preflight = preflight_liqmap_api(
@@ -670,6 +745,8 @@ def main() -> int:
             symbol=args.symbol,
             model=args.model,
             timeframe=args.timeframe,
+            surface=args.surface,
+            profile=profile,
         )
 
         # Fetch full payload for numerical metrics
@@ -679,6 +756,8 @@ def main() -> int:
             symbol=args.symbol,
             model=args.model,
             timeframe=args.timeframe,
+            surface=args.surface,
+            profile=profile,
         )
         numerical_metrics = compute_validation_metrics(payload)
 
@@ -896,6 +975,12 @@ def main() -> int:
         manifest = {
             "timestamp": timestamp,
             "api_base": api_base,
+            "requested_surface": normalize_liqmap_surface(args.surface),
+            "effective_surface": api_preflight.get("effective_surface", normalize_liqmap_surface(args.surface)),
+            "effective_api_endpoint_path": api_preflight.get(
+                "endpoint_path",
+                build_liqmap_api_endpoint_path(exchange=args.exchange, surface=args.surface),
+            ),
             "page_url": page_url,
             "ours_screenshot": str(ours_path),
             "coinank_screenshot": str(coinank_path),

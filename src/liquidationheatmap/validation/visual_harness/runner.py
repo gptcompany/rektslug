@@ -29,6 +29,7 @@ class VisualHarnessRequest:
     exchange: str | None = None
     timeframe: str | None = None
     window: str | None = None
+    surface: str = "public"
     api_base: str = "http://localhost:8002"
     viewport_width: int = 1920
     viewport_height: int = 1400
@@ -36,6 +37,8 @@ class VisualHarnessRequest:
     def __post_init__(self) -> None:
         if bool(self.timeframe) == bool(self.window):
             raise ValueError("Exactly one of timeframe or window must be provided")
+        if self.surface not in {"public", "legacy"}:
+            raise ValueError("surface must be one of: public, legacy")
         product_adapter = get_product_adapter(self.product)
         mode = _entry_mode(self)
         if mode not in product_adapter.supported_entry_modes:
