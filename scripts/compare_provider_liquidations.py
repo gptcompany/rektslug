@@ -126,6 +126,9 @@ class CaptureFile:
     manifest_path: Path
     response_headers: dict[str, str] = field(default_factory=dict)
     request_headers: dict[str, str] = field(default_factory=dict)
+    requested_surface: str | None = None
+    effective_surface: str | None = None
+    effective_api_endpoint_path: str | None = None
 
 
 @dataclass
@@ -150,6 +153,9 @@ class NormalizedDataset:
     current_price: float | None = None
     price_step_median: float | None = None
     time_step_median_ms: float | None = None
+    requested_surface: str | None = None
+    effective_surface: str | None = None
+    effective_api_endpoint_path: str | None = None
     notes: list[str] = field(default_factory=list)
     parse_score: int = 0
 
@@ -229,8 +235,18 @@ def load_capture_files(manifest_paths: list[Path]) -> list[CaptureFile]:
             raise SystemExit(f"Manifest not found: {manifest_path}")
 
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_args = payload.get("args", {})
         for provider_summary in payload.get("providers", []):
             provider = provider_summary.get("provider") or "unknown"
+            provider_requested_surface = provider_summary.get("requested_surface")
+            if provider_requested_surface is None and provider == "rektslug":
+                provider_requested_surface = manifest_args.get("surface")
+            provider_effective_surface = (
+                provider_summary.get("effective_surface") or provider_requested_surface
+            )
+            provider_effective_api_endpoint_path = provider_summary.get(
+                "effective_api_endpoint_path"
+            )
             for capture in provider_summary.get("captures", []):
                 saved_file = capture.get("saved_file")
                 if not saved_file:
@@ -257,6 +273,17 @@ def load_capture_files(manifest_paths: list[Path]) -> list[CaptureFile]:
                         manifest_path=manifest_path,
                         response_headers=normalize_headers(capture.get("response_headers")),
                         request_headers=normalize_headers(capture.get("request_headers")),
+                        requested_surface=(
+                            capture.get("requested_surface") or provider_requested_surface
+                        ),
+                        effective_surface=(
+                            capture.get("effective_surface") or provider_effective_surface
+                        ),
+                        effective_api_endpoint_path=(
+                            capture.get("effective_api_endpoint_path")
+                            or provider_effective_api_endpoint_path
+                            or infer_effective_api_endpoint_path(capture.get("source_url", ""))
+                        ),
                     )
                 )
 
@@ -336,11 +363,37 @@ def parse_query_params(url: str) -> dict[str, str]:
     return {key: values[0] for key, values in params.items() if values}
 
 
+def infer_effective_api_endpoint_path(url: str) -> str | None:
+    """Infer the liq-map endpoint path from a captured source URL."""
+    lowered_path = urlparse(url).path.lower()
+    if lowered_path in {
+        "/liquidations/levels",
+        "/liquidations/coinank-public-map",
+        "/liquidations/hl-public-map",
+    }:
+        return lowered_path
+    return None
+
+
+def infer_surface_from_source_url(url: str) -> str | None:
+    """Infer whether a captured liq-map URL belongs to the public or legacy surface."""
+    endpoint_path = infer_effective_api_endpoint_path(url)
+    if endpoint_path == "/liquidations/levels":
+        return "legacy"
+    if endpoint_path in {"/liquidations/coinank-public-map", "/liquidations/hl-public-map"}:
+        return "public"
+    return None
+
+
 def infer_product_from_source_url(url: str) -> str | None:
     """Infer the product family from a captured source URL."""
     lowered_path = urlparse(url).path.lower()
 
-    if "/liquidations/levels" in lowered_path:
+    if lowered_path in {
+        "/liquidations/levels",
+        "/liquidations/coinank-public-map",
+        "/liquidations/hl-public-map",
+    }:
         return "liq-map"
     if "/api/liqmap/" in lowered_path or lowered_path.endswith("/liqmap"):
         return "liq-map"
@@ -1159,9 +1212,16 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
     if capture.provider != "rektslug":
         return None
 
-    lowered_url = capture.source_url.lower()
-    is_legacy_levels = "/liquidations/levels" in lowered_url
-    is_public_map = "/liquidations/coinank-public-map" in lowered_url
+    endpoint_path = (
+        capture.effective_api_endpoint_path or infer_effective_api_endpoint_path(capture.source_url)
+    )
+    requested_surface = capture.requested_surface or infer_surface_from_source_url(capture.source_url)
+    effective_surface = capture.effective_surface or infer_surface_from_source_url(capture.source_url)
+    is_legacy_levels = endpoint_path == "/liquidations/levels" or effective_surface == "legacy"
+    is_public_map = endpoint_path in {
+        "/liquidations/coinank-public-map",
+        "/liquidations/hl-public-map",
+    } or effective_surface == "public"
     if not is_legacy_levels and not is_public_map:
         return None
 
@@ -1219,12 +1279,17 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         else:
             tf_labels = {"1": "1d", "7": "1w"}
             timeframe = tf_labels.get(raw_tf, f"{raw_tf}d")
-    exchange = params.get("exchange", "binance")
-    route_name = "/liquidations/coinank-public-map" if is_public_map else "/liquidations/levels"
+    if endpoint_path == "/liquidations/hl-public-map":
+        exchange = "hyperliquid"
+    else:
+        exchange = params.get("exchange", "binance")
+    route_name = endpoint_path or (
+        "/liquidations/coinank-public-map" if is_public_map else "/liquidations/levels"
+    )
     note_prefix = (
-        "Local rektslug /liquidations/coinank-public-map public builder."
+        f"Local rektslug {route_name} public builder."
         if is_public_map
-        else "Local rektslug /liquidations/levels endpoint (OI-based liquidation model)."
+        else f"Local rektslug {route_name} endpoint (OI-based liquidation model)."
     )
 
     return NormalizedDataset(
@@ -1246,6 +1311,9 @@ def parse_rektslug_levels(capture: CaptureFile) -> NormalizedDataset | None:
         current_price=current_price,
         price_step_median=median_step(all_prices),
         time_step_median_ms=None,
+        requested_surface=requested_surface,
+        effective_surface=effective_surface,
+        effective_api_endpoint_path=route_name,
         notes=[
             note_prefix,
             f"Parsed {len(long_values)} long bins and {len(short_values)} short bins.",

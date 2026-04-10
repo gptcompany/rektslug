@@ -1,11 +1,13 @@
 """Unit tests for spec-018 calibration helpers."""
 
+import json
 from pathlib import Path
 
 from scripts.compare_provider_liquidations import CaptureFile
 from scripts.run_ank_calibration import (
     aligned_bucket_overlap,
     extract_bucket_prices_from_manifest,
+    run_comparison_for_profile,
 )
 
 
@@ -94,3 +96,29 @@ def test_extract_bucket_prices_from_manifest_accepts_public_builder_payload(monk
     prices = extract_bucket_prices_from_manifest(manifest_path, "rektslug")
 
     assert prices == [83000.0, 84000.0, 86000.0, 87000.0]
+
+
+def test_run_comparison_for_profile_passes_legacy_surface(monkeypatch, tmp_path: Path):
+    import scripts.run_ank_calibration as module
+
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps({"providers": {"rektslug": {}}}), encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def _fake_run(cmd, capture_output, text, timeout):
+        commands.append(cmd)
+
+        class _Result:
+            stdout = f"comparison report: {report_path}\n"
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    resolved = run_comparison_for_profile("BTC", "1d", "rektslug-ank", provider="rektslug")
+
+    assert resolved == report_path
+    assert "--surface" in commands[0]
+    assert commands[0][commands[0].index("--surface") + 1] == "legacy"

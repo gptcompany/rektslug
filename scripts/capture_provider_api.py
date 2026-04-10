@@ -68,6 +68,13 @@ BITCOINCOUNTERFLOW_LIQUIDATIONS_URL = (
     "?exchange=BinanceUSDM&symbol=BTCUSDT&timeframe=15m&days=7"
 )
 REKTSLUG_DEFAULT_API_BASE = os.environ.get("REKTSLUG_API_BASE", "http://localhost:8002")
+DEFAULT_LIQMAP_SURFACE = "public"
+DEFAULT_REKTSLUG_PROFILE = "rektslug-default"
+VALID_LIQMAP_SURFACES = {"public", "legacy"}
+PUBLIC_REKTSLUG_EXCHANGES = {"binance", "bybit"}
+REKTSLUG_PUBLIC_MAP_PATH = "/liquidations/coinank-public-map"
+REKTSLUG_HL_PUBLIC_MAP_PATH = "/liquidations/hl-public-map"
+REKTSLUG_LEGACY_MAP_PATH = "/liquidations/levels"
 
 PROVIDER_DOMAINS = {
     "coinank": ("coinank.com",),
@@ -259,6 +266,71 @@ class CaptureTarget:
     ui_timeframe: str | None = None
     coin: str = "BTC"
     exchange: str = "binance"
+    requested_surface: str | None = None
+    effective_surface: str | None = None
+    effective_api_endpoint_path: str | None = None
+
+
+def normalize_liqmap_surface(surface: str | None) -> str:
+    """Normalize the local liq-map workflow surface."""
+    normalized = (surface or DEFAULT_LIQMAP_SURFACE).strip().lower()
+    if normalized not in VALID_LIQMAP_SURFACES:
+        valid = ", ".join(sorted(VALID_LIQMAP_SURFACES))
+        raise ValueError(f"Unsupported liq-map surface {surface!r}. Expected one of: {valid}.")
+    return normalized
+
+
+def build_rektslug_liqmap_capture_url(
+    *,
+    api_base: str,
+    coin: str,
+    timeframe: str,
+    exchange: str,
+    surface: str,
+    profile: str,
+) -> tuple[str, str, str]:
+    """Build the local rektslug capture URL and its explicit surface metadata."""
+    normalized_surface = normalize_liqmap_surface(surface)
+    exchange_lower = exchange.strip().lower()
+    symbol = f"{coin.upper()}USDT"
+    api_base = api_base.rstrip("/")
+
+    if normalized_surface == "legacy":
+        if exchange_lower == "hyperliquid":
+            raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
+        tf_days = REKTSLUG_TIMEFRAME_DAYS.get(timeframe.lower(), 7)
+        url = (
+            f"{api_base}{REKTSLUG_LEGACY_MAP_PATH}"
+            f"?symbol={symbol}&model=openinterest&timeframe={tf_days}"
+        )
+        if profile and profile != DEFAULT_REKTSLUG_PROFILE:
+            url += f"&profile={profile}"
+        return url, normalized_surface, REKTSLUG_LEGACY_MAP_PATH
+
+    normalized_timeframe = timeframe.strip().lower()
+    if profile and profile != DEFAULT_REKTSLUG_PROFILE:
+        raise ValueError("Non-default rektslug profiles require surface=legacy.")
+    if normalized_timeframe not in REKTSLUG_TIMEFRAME_DAYS:
+        supported = ", ".join(sorted(REKTSLUG_TIMEFRAME_DAYS))
+        raise ValueError(
+            f"Unsupported public liq-map timeframe {timeframe!r}. Supported: {supported}"
+        )
+    if exchange_lower == "hyperliquid":
+        url = (
+            f"{api_base}{REKTSLUG_HL_PUBLIC_MAP_PATH}"
+            f"?symbol={symbol}&timeframe={normalized_timeframe}"
+        )
+        return url, normalized_surface, REKTSLUG_HL_PUBLIC_MAP_PATH
+    if exchange_lower not in PUBLIC_REKTSLUG_EXCHANGES:
+        supported = ", ".join(sorted(PUBLIC_REKTSLUG_EXCHANGES | {"hyperliquid"}))
+        raise ValueError(
+            f"Unsupported liq-map exchange {exchange!r}. Supported: {supported}"
+        )
+    url = (
+        f"{api_base}{REKTSLUG_PUBLIC_MAP_PATH}"
+        f"?exchange={exchange_lower}&symbol={symbol}&timeframe={normalized_timeframe}"
+    )
+    return url, normalized_surface, REKTSLUG_PUBLIC_MAP_PATH
 
 
 def utc_timestamp_slug() -> str:
@@ -292,6 +364,17 @@ def parse_args() -> argparse.Namespace:
         default="binance",
         choices=["binance", "bybit", "hyperliquid"],
         help="Exchange for CoinAnk liq-map URL generation.",
+    )
+    parser.add_argument(
+        "--surface",
+        choices=sorted(VALID_LIQMAP_SURFACES),
+        default=DEFAULT_LIQMAP_SURFACE,
+        help="Local rektslug liq-map surface when capturing rektslug (default: public).",
+    )
+    parser.add_argument(
+        "--profile",
+        default=DEFAULT_REKTSLUG_PROFILE,
+        help="Local rektslug legacy profile (default: rektslug-default).",
     )
     parser.add_argument(
         "--coinank-url",
@@ -404,21 +487,29 @@ def build_targets(args: argparse.Namespace) -> list[CaptureTarget]:
 
     if args.provider in {"rektslug", "all"} or include_rektslug:
         rektslug_base = getattr(args, "rektslug_api_base", None) or REKTSLUG_DEFAULT_API_BASE
-        symbol = f"{coin.upper()}USDT"
-        tf_days = REKTSLUG_TIMEFRAME_DAYS.get(args.timeframe.lower(), 7)
-        rektslug_url = (
-            f"{rektslug_base}/liquidations/levels"
-            f"?symbol={symbol}&model=openinterest&timeframe={tf_days}"
+        rektslug_profile = getattr(args, "profile", DEFAULT_REKTSLUG_PROFILE)
+        rektslug_surface = normalize_liqmap_surface(
+            getattr(args, "surface", DEFAULT_LIQMAP_SURFACE)
         )
-        # Append calibration profile if not default (spec-018)
-        rektslug_profile = getattr(args, "profile", "rektslug-default")
-        if rektslug_profile and rektslug_profile != "rektslug-default":
-            rektslug_url += f"&profile={rektslug_profile}"
+        rektslug_url, effective_surface, effective_api_endpoint_path = (
+            build_rektslug_liqmap_capture_url(
+                api_base=rektslug_base,
+                coin=coin,
+                timeframe=args.timeframe,
+                exchange=getattr(args, "exchange", "binance"),
+                surface=rektslug_surface,
+                profile=rektslug_profile,
+            )
+        )
         targets.append(
             CaptureTarget(
                 provider="rektslug",
                 url=rektslug_url,
                 coin=coin,
+                exchange=getattr(args, "exchange", "binance"),
+                requested_surface=rektslug_surface,
+                effective_surface=effective_surface,
+                effective_api_endpoint_path=effective_api_endpoint_path,
             )
         )
 
@@ -1465,12 +1556,19 @@ def build_run_comparison(provider_summaries: list[dict[str, Any]]) -> dict[str, 
     providers: dict[str, dict[str, Any]] = {}
 
     for summary in provider_summaries:
-        providers[summary["provider"]] = {
+        provider_entry = {
             "page_url": summary["page_url"],
             "capture_count": summary["capture_count"],
             "login_success": summary["login_success"],
             "endpoints": [capture["source_url"] for capture in summary["captures"]],
         }
+        if summary.get("requested_surface") is not None:
+            provider_entry["requested_surface"] = summary.get("requested_surface")
+            provider_entry["effective_surface"] = summary.get("effective_surface")
+            provider_entry["effective_api_endpoint_path"] = summary.get(
+                "effective_api_endpoint_path"
+            )
+        providers[summary["provider"]] = provider_entry
 
     return {
         "providers": providers,
@@ -1607,7 +1705,7 @@ def capture_rektslug_rest(
     target: CaptureTarget,
     run_dir: Path,
 ) -> dict[str, Any]:
-    """Capture local rektslug /liquidations/levels via REST (no browser).
+    """Capture local rektslug liq-map via REST (no browser).
 
     Produces the same summary shape as ``capture_target()`` so downstream
     consumers (manifest, comparator) work unchanged.
@@ -1623,7 +1721,8 @@ def capture_rektslug_rest(
         status_code = resp.status
 
     body_text = json.dumps(body, indent=2, ensure_ascii=True)
-    output_path = provider_dir / "01_levels.json"
+    endpoint_slug = safe_slug(target.effective_api_endpoint_path or "rektslug")
+    output_path = provider_dir / f"01_{endpoint_slug}.json"
     output_path.write_text(body_text, encoding="utf-8")
 
     payload_summary = summarize_json_payload(body)
@@ -1640,12 +1739,18 @@ def capture_rektslug_rest(
             "request_post_data": "",
             "saved_file": str(output_path),
             "summary": payload_summary,
+            "requested_surface": target.requested_surface,
+            "effective_surface": target.effective_surface,
+            "effective_api_endpoint_path": target.effective_api_endpoint_path,
         }
     ]
 
     summary = {
         "provider": target.provider,
         "page_url": target.url,
+        "requested_surface": target.requested_surface,
+        "effective_surface": target.effective_surface,
+        "effective_api_endpoint_path": target.effective_api_endpoint_path,
         "login_attempted": False,
         "login_success": False,
         "requested_ui_timeframe": None,
@@ -1741,9 +1846,10 @@ async def run_capture(args: argparse.Namespace, emit_progress: bool = True) -> P
             "coinglass_timeframe": getattr(args, "coinglass_timeframe", None),
             "coinglass_mode": cg_mode,
             "exchange": args.exchange,
+            "surface": normalize_liqmap_surface(getattr(args, "surface", DEFAULT_LIQMAP_SURFACE)),
             "max_responses": args.max_responses,
             "post_load_wait_ms": args.post_load_wait_ms,
-            "profile": getattr(args, "profile", "rektslug-default"),
+            "profile": getattr(args, "profile", DEFAULT_REKTSLUG_PROFILE),
         },
         "providers": provider_summaries,
         "comparison": build_run_comparison(provider_summaries),

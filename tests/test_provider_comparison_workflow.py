@@ -298,7 +298,7 @@ class TestRektslugProviderInTargets:
         providers = [t.provider for t in targets]
         assert "rektslug" in providers
 
-    def test_rektslug_target_url_contains_levels(self):
+    def test_rektslug_target_defaults_to_public_surface_for_binance(self):
         from scripts.capture_provider_api import build_targets
         import argparse
 
@@ -315,11 +315,40 @@ class TestRektslugProviderInTargets:
         targets = build_targets(args)
         assert len(targets) == 1
         assert targets[0].provider == "rektslug"
-        assert "/liquidations/levels" in targets[0].url
+        assert "/liquidations/coinank-public-map" in targets[0].url
+        assert "exchange=binance" in targets[0].url
         assert "BTCUSDT" in targets[0].url
-        assert "timeframe=7" in targets[0].url
+        assert "timeframe=1w" in targets[0].url
+        assert targets[0].requested_surface == "public"
+        assert targets[0].effective_surface == "public"
+        assert targets[0].effective_api_endpoint_path == "/liquidations/coinank-public-map"
 
-    def test_rektslug_target_1d_maps_to_timeframe_1(self):
+    def test_rektslug_target_legacy_surface_uses_levels(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="rektslug",
+            coin="ETH",
+            timeframe="1w",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url=None,
+            coinglass_timeframe=None,
+            surface="legacy",
+            profile="rektslug-ank",
+        )
+        targets = build_targets(args)
+        assert "ETHUSDT" in targets[0].url
+        assert "/liquidations/levels" in targets[0].url
+        assert "timeframe=7" in targets[0].url
+        assert "profile=rektslug-ank" in targets[0].url
+        assert targets[0].requested_surface == "legacy"
+        assert targets[0].effective_surface == "legacy"
+        assert targets[0].effective_api_endpoint_path == "/liquidations/levels"
+
+    def test_rektslug_target_uses_hl_public_map_for_hyperliquid(self):
         from scripts.capture_provider_api import build_targets
         import argparse
 
@@ -327,15 +356,37 @@ class TestRektslugProviderInTargets:
             provider="rektslug",
             coin="ETH",
             timeframe="1d",
-            exchange="binance",
+            exchange="hyperliquid",
             coinank_url=None,
             coinglass_url=None,
             bitcoincounterflow_url=None,
             coinglass_timeframe=None,
         )
         targets = build_targets(args)
-        assert "ETHUSDT" in targets[0].url
-        assert "timeframe=1" in targets[0].url
+        assert len(targets) == 1
+        assert "/liquidations/hl-public-map" in targets[0].url
+        assert "symbol=ETHUSDT" in targets[0].url
+        assert "timeframe=1d" in targets[0].url
+        assert targets[0].effective_api_endpoint_path == "/liquidations/hl-public-map"
+
+    def test_rektslug_target_rejects_hyperliquid_legacy_surface(self):
+        from scripts.capture_provider_api import build_targets
+        import argparse
+
+        args = argparse.Namespace(
+            provider="rektslug",
+            coin="BTC",
+            timeframe="1w",
+            exchange="hyperliquid",
+            coinank_url=None,
+            coinglass_url=None,
+            bitcoincounterflow_url=None,
+            coinglass_timeframe=None,
+            surface="legacy",
+        )
+
+        with pytest.raises(ValueError, match="Hyperliquid"):
+            build_targets(args)
 
 
 class TestRektslugParser:
@@ -431,6 +482,29 @@ class TestRektslugParser:
         assert result.total_short > 0
         assert result.bucket_count > 0
         assert result.current_price == 85000.0
+
+    def test_parses_hyperliquid_public_builder_payload(self):
+        from scripts.compare_provider_liquidations import (
+            CaptureFile,
+            parse_rektslug_levels,
+        )
+
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url=(
+                "http://localhost:8002/liquidations/hl-public-map"
+                "?symbol=BTCUSDT&timeframe=1w"
+            ),
+            saved_file=Path("/tmp/fake.json"),
+            content_type="application/json",
+            payload=_build_rektslug_public_payload(),
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+        result = parse_rektslug_levels(capture)
+        assert result is not None
+        assert result.exchange == "hyperliquid"
+        assert result.effective_surface == "public"
+        assert result.effective_api_endpoint_path == "/liquidations/hl-public-map"
 
 
 class TestRektslugInManifest:
@@ -545,6 +619,67 @@ class TestSpec017ProviderScope:
         capture_args = build_capture_namespace(args)
         assert capture_args.include_rektslug is True
 
+    def test_build_capture_namespace_defaults_surface_to_public(self):
+        from scripts.run_provider_api_comparison import build_capture_namespace
+        import argparse
+
+        args = argparse.Namespace(
+            provider="coinank",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url="https://www.coinglass.com/LiquidationData",
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            capture_output_dir=Path("/tmp/captures"),
+            comparison_output=None,
+            max_responses=5,
+            post_load_wait_ms=1000,
+            headed=False,
+            no_persist_db=True,
+            db_path=None,
+            product="liq-map",
+            matrix_preset="spec-017",
+            coinglass_mode="rest",
+            profile="rektslug-default",
+            include_rektslug=False,
+            skip_gap_analysis=False,
+        )
+
+        capture_args = build_capture_namespace(args)
+        assert capture_args.surface == "public"
+
+    def test_build_capture_namespace_preserves_explicit_legacy_surface(self):
+        from scripts.run_provider_api_comparison import build_capture_namespace
+        import argparse
+
+        args = argparse.Namespace(
+            provider="rektslug",
+            coin="BTC",
+            timeframe="1d",
+            exchange="binance",
+            coinank_url=None,
+            coinglass_url="https://www.coinglass.com/LiquidationData",
+            bitcoincounterflow_url="https://bitcoincounterflow.com/liquidation-heatmap/",
+            capture_output_dir=Path("/tmp/captures"),
+            comparison_output=None,
+            max_responses=5,
+            post_load_wait_ms=1000,
+            headed=False,
+            no_persist_db=True,
+            db_path=None,
+            product="liq-map",
+            matrix_preset="spec-017",
+            coinglass_mode="rest",
+            profile="rektslug-ank",
+            include_rektslug=False,
+            skip_gap_analysis=False,
+            surface="legacy",
+        )
+
+        capture_args = build_capture_namespace(args)
+        assert capture_args.surface == "legacy"
+
 
 class TestRealProductFiltering:
     """Validate real liq-map filtering against heatmap-like Coinglass captures."""
@@ -646,6 +781,30 @@ class TestGapAnalysisLocalRektslug:
         assert state.total_value > 0
         assert state.long_map
         assert state.short_map
+
+    def test_extract_rektslug_state_supports_hyperliquid_public_builder_payload(self):
+        from scripts.compare_provider_liquidations import CaptureFile
+        from scripts.provider_gap_analysis import extract_rektslug_state
+
+        capture = CaptureFile(
+            provider="rektslug",
+            source_url=(
+                "http://localhost:8002/liquidations/hl-public-map"
+                "?symbol=BTCUSDT&timeframe=1w"
+            ),
+            saved_file=Path("/tmp/rektslug_hl_public.json"),
+            content_type="application/json",
+            payload=_build_rektslug_public_payload(),
+            manifest_path=Path("/tmp/manifest.json"),
+        )
+
+        state = extract_rektslug_state(capture)
+
+        assert state.provider == "rektslug"
+        assert state.exchange == "hyperliquid"
+        assert state.timeframe == "1w"
+        assert state.effective_surface == "public"
+        assert state.effective_api_endpoint_path == "/liquidations/hl-public-map"
 
 
 class TestRunnerGapAnalysisFailureHandling:
@@ -767,6 +926,62 @@ def test_derive_coinglass_seed_key_supports_static_v66_seed_source():
 
     assert seed_key == "ZDY1MzdkODQ1YTk2"
     assert note == "Derived seed key from Coinglass version-aware flow (v=66)."
+
+
+def test_generate_report_preserves_rektslug_surface_metadata(tmp_path: Path):
+    import json
+
+    from scripts.compare_provider_liquidations import generate_report
+
+    saved_file = tmp_path / "rektslug_public.json"
+    saved_file.write_text(json.dumps(_build_rektslug_public_payload()), encoding="utf-8")
+    manifest_path = tmp_path / "manifest.json"
+    manifest = {
+        "timestamp_utc": "2026-03-10T12:00:00+00:00",
+        "run_dir": str(tmp_path),
+        "product": "liq-map",
+        "args": {
+            "provider": "rektslug",
+            "coin": "BTC",
+            "timeframe": "1w",
+            "exchange": "bybit",
+            "surface": "public",
+        },
+        "providers": [
+            {
+                "provider": "rektslug",
+                "page_url": (
+                    "http://localhost:8002/liquidations/coinank-public-map"
+                    "?exchange=bybit&symbol=BTCUSDT&timeframe=1w"
+                ),
+                "capture_count": 1,
+                "capture_mode": "rest",
+                "requested_surface": "public",
+                "effective_surface": "public",
+                "effective_api_endpoint_path": "/liquidations/coinank-public-map",
+                "captures": [
+                    {
+                        "source_url": (
+                            "http://localhost:8002/liquidations/coinank-public-map"
+                            "?exchange=bybit&symbol=BTCUSDT&timeframe=1w"
+                        ),
+                        "saved_file": str(saved_file),
+                        "content_type": "application/json",
+                        "response_headers": {},
+                        "request_headers": {},
+                    }
+                ],
+            }
+        ],
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    report, _ = generate_report([manifest_path], persist_db=False, product_filter="liq-map")
+
+    rektslug = report["providers"]["rektslug"]
+    assert rektslug["requested_surface"] == "public"
+    assert rektslug["effective_surface"] == "public"
+    assert rektslug["effective_api_endpoint_path"] == "/liquidations/coinank-public-map"
 
 
 # ============================================================================

@@ -418,6 +418,7 @@ def run_comparison_for_profile(
             "--coin", coin,
             "--timeframe", timeframe,
             "--matrix-preset", "spec-017",
+            "--surface", "legacy",
             "--profile", profile,
             "--no-persist-db",
             "--skip-gap-analysis",
@@ -523,6 +524,7 @@ def main() -> int:
             report = {
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                 "profile": args.profile,
+                "surface": "legacy",
                 "status": "aborted",
                 "reason": "CoinAnK unreachable (EC-001)",
                 "matrix": [{"symbol": c, "timeframe": tf} for c, tf in MATRIX],
@@ -662,6 +664,7 @@ def main() -> int:
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "profile": args.profile,
         "baseline_profile": args.baseline_profile,
+        "surface": "legacy",
         "profile_params": cal_profile.to_dict(),
         "status": "accepted" if acceptance["accepted"] else "rejected",
         "acceptance": acceptance,

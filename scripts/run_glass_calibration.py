@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -96,8 +97,6 @@ def run_local_profile_capture(
     attempts: int = 3,
 ) -> Path | None:
     """Run only the local rektslug side for a matrix entry."""
-    import subprocess
-
     last_error = ""
     for attempt in range(1, attempts + 1):
         cmd = [
@@ -111,6 +110,8 @@ def run_local_profile_capture(
             timeframe,
             "--matrix-preset",
             "spec-017",
+            "--surface",
+            "legacy",
             "--profile",
             profile,
             "--no-persist-db",
@@ -316,6 +317,7 @@ def main() -> int:
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "profile": args.profile,
         "baseline_profile": args.baseline_profile,
+        "surface": "legacy",
         "profile_params": cal_profile.to_dict(),
         "improvement_thresholds": GLASS_IMPROVEMENT_THRESHOLDS,
         "status": "accepted" if acceptance["accepted"] else "rejected",

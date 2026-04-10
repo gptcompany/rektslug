@@ -48,6 +48,9 @@ class ProviderMapState:
     symbol: str | None
     exchange: str | None
     timeframe: str | None
+    requested_surface: str | None
+    effective_surface: str | None
+    effective_api_endpoint_path: str | None
     current_price: float | None
     total_map: dict[float, float]
     long_map: dict[float, float]
@@ -418,6 +421,9 @@ def extract_coinank_state(
         symbol=data.get("symbol") or params.get("symbol"),
         exchange=params.get("exchange"),
         timeframe=params.get("interval"),
+        requested_surface=None,
+        effective_surface=None,
+        effective_api_endpoint_path=None,
         current_price=current_price,
         total_map=rounded_map(total_map),
         long_map=rounded_map(long_map),
@@ -531,6 +537,9 @@ def extract_coinglass_state(
         symbol=symbol,
         exchange=exchange,
         timeframe=timeframe,
+        requested_surface=None,
+        effective_surface=None,
+        effective_api_endpoint_path=None,
         current_price=current_price,
         total_map=rounded_map(total_map),
         long_map=rounded_map(long_map),
@@ -552,8 +561,20 @@ def extract_rektslug_state(
     if not isinstance(root, dict):
         raise SystemExit("rektslug capture payload is not an object.")
 
-    lowered_url = capture.source_url.lower()
-    is_public_map = "/liquidations/coinank-public-map" in lowered_url
+    route_name = (
+        capture.effective_api_endpoint_path
+        or provider_compare.infer_effective_api_endpoint_path(capture.source_url)
+    )
+    requested_surface = (
+        capture.requested_surface or provider_compare.infer_surface_from_source_url(capture.source_url)
+    )
+    effective_surface = (
+        capture.effective_surface or provider_compare.infer_surface_from_source_url(capture.source_url)
+    )
+    is_public_map = route_name in {
+        "/liquidations/coinank-public-map",
+        "/liquidations/hl-public-map",
+    } or effective_surface == "public"
     if is_public_map:
         long_liqs = root.get("long_buckets")
         short_liqs = root.get("short_buckets")
@@ -571,7 +592,10 @@ def extract_rektslug_state(
         timeframe_labels = {"1": "1d", "7": "1w"}
         timeframe = timeframe_labels.get(raw_timeframe, raw_timeframe)
     current_price = provider_compare.safe_float(root.get("current_price"))
-    exchange = params.get("exchange", "binance")
+    if route_name == "/liquidations/hl-public-map":
+        exchange = "hyperliquid"
+    else:
+        exchange = params.get("exchange", "binance")
 
     total_map: dict[float, float] = {}
     long_map: dict[float, float] = {}
@@ -606,13 +630,13 @@ def extract_rektslug_state(
     if not total_map:
         raise SystemExit("rektslug liq-map capture has no active price levels.")
 
-    route_name = (
+    route_name = route_name or (
         "/liquidations/coinank-public-map" if is_public_map else "/liquidations/levels"
     )
     route_note = (
-        "Local rektslug state uses the captured /liquidations/coinank-public-map payload from the same manifest."
+        f"Local rektslug state uses the captured {route_name} payload from the same manifest."
         if is_public_map
-        else "Local rektslug state uses the captured /liquidations/levels payload from the same manifest."
+        else f"Local rektslug state uses the captured {route_name} payload from the same manifest."
     )
 
     return ProviderMapState(
@@ -622,6 +646,9 @@ def extract_rektslug_state(
         symbol=root.get("symbol"),
         exchange=exchange,
         timeframe=timeframe,
+        requested_surface=requested_surface,
+        effective_surface=effective_surface,
+        effective_api_endpoint_path=route_name,
         current_price=current_price,
         total_map=rounded_map(total_map),
         long_map=rounded_map(long_map),
@@ -659,6 +686,9 @@ def clone_state(
         symbol=state.symbol,
         exchange=state.exchange,
         timeframe=state.timeframe,
+        requested_surface=state.requested_surface,
+        effective_surface=state.effective_surface,
+        effective_api_endpoint_path=state.effective_api_endpoint_path,
         current_price=state.current_price,
         total_map=rounded_map(total_map),
         long_map=rounded_map(long_map),
@@ -1298,6 +1328,9 @@ def build_report(
             "symbol": coinank_state.symbol,
             "exchange": coinank_state.exchange,
             "timeframe": coinank_state.timeframe,
+            "requested_surface": coinank_state.requested_surface,
+            "effective_surface": coinank_state.effective_surface,
+            "effective_api_endpoint_path": coinank_state.effective_api_endpoint_path,
             "bucket_count": coinank_state.bucket_count,
             "total_value": coinank_state.total_value,
             "total_long": coinank_state.total_long,
@@ -1314,6 +1347,9 @@ def build_report(
             "symbol": coinglass_state.symbol,
             "exchange": coinglass_state.exchange,
             "timeframe": coinglass_state.timeframe,
+            "requested_surface": coinglass_state.requested_surface,
+            "effective_surface": coinglass_state.effective_surface,
+            "effective_api_endpoint_path": coinglass_state.effective_api_endpoint_path,
             "bucket_count": coinglass_state.bucket_count,
             "total_value": coinglass_state.total_value,
             "total_long": coinglass_state.total_long,
@@ -1332,6 +1368,9 @@ def build_report(
             "symbol": local_state.symbol,
             "exchange": local_state.exchange,
             "timeframe": local_state.timeframe,
+            "requested_surface": local_state.requested_surface,
+            "effective_surface": local_state.effective_surface,
+            "effective_api_endpoint_path": local_state.effective_api_endpoint_path,
             "bucket_count": local_state.bucket_count,
             "total_value": local_state.total_value,
             "total_long": local_state.total_long,
@@ -1409,12 +1448,17 @@ def main() -> int:
     rektslug_capture = choose_capture(
         captures,
         provider="rektslug",
-        url_paths=("/liquidations/levels",),
+        url_paths=(
+            "/liquidations/levels",
+            "/liquidations/coinank-public-map",
+            "/liquidations/hl-public-map",
+        ),
     )
 
     coinank_state = extract_coinank_state(coinank_capture)
     coinglass_state = extract_coinglass_state(coinglass_capture)
     local_state = extract_rektslug_state(rektslug_capture)
+    local_route_name = local_state.effective_api_endpoint_path or "/liquidations/levels"
 
     common_tiers = sorted(
         set(coinank_state.leverage_totals) & set(coinglass_state.leverage_totals)
@@ -1480,7 +1524,7 @@ def main() -> int:
             coinank_state,
             notes=[
                 (
-                    "rektslug uses the captured /liquidations/levels payload from the same run. "
+                    f"rektslug uses the captured {local_route_name} payload from the same run. "
                     "Shape metrics are aligned on a shared grid; totals stay native."
                 ),
             ],
@@ -1493,7 +1537,7 @@ def main() -> int:
             common_tiers=common_tiers,
             notes=[
                 (
-                    "rektslug uses the captured /liquidations/levels payload from the same run. "
+                    f"rektslug uses the captured {local_route_name} payload from the same run. "
                     "This is the direct benchmark path for our local model vs Coinglass."
                 ),
             ],

@@ -26,6 +26,9 @@ SPEC_017_SUPPORTED_SYMBOLS = {"BTC", "ETH"}
 SPEC_017_SUPPORTED_TIMEFRAMES = {"1d", "1w"}
 SPEC_017_SUPPORTED_PRODUCTS = {"liq-map"}
 SPEC_017_ALLOWED_PROVIDERS = {"coinank", "coinglass", "rektslug", "both", "all"}
+DEFAULT_LIQMAP_SURFACE = "public"
+VALID_LIQMAP_SURFACES = {"public", "legacy"}
+DEFAULT_REKTSLUG_PROFILE = "rektslug-default"
 
 
 def validate_spec017_matrix(symbol: str, timeframe: str) -> None:
@@ -64,6 +67,33 @@ def validate_spec017_provider(provider: str) -> None:
         )
 
 
+def validate_surface_selection(args: argparse.Namespace) -> None:
+    """Fail fast on unsupported or ambiguous local rektslug surface selection."""
+    surface = getattr(args, "surface", DEFAULT_LIQMAP_SURFACE)
+    if surface not in VALID_LIQMAP_SURFACES:
+        valid = ", ".join(sorted(VALID_LIQMAP_SURFACES))
+        raise ValueError(f"Unsupported surface: {surface!r}. Supported: {valid}")
+
+    includes_rektslug = (
+        args.provider in {"rektslug", "all"}
+        or getattr(args, "include_rektslug", False)
+        or (
+            args.matrix_preset == "spec-017"
+            and args.provider in {"both", "all"}
+        )
+    )
+    if not includes_rektslug:
+        return
+
+    if surface == "legacy" and args.exchange == "hyperliquid":
+        raise ValueError("Hyperliquid does not support the legacy liq-map surface.")
+    if (
+        surface == "public"
+        and getattr(args, "profile", DEFAULT_REKTSLUG_PROFILE) != DEFAULT_REKTSLUG_PROFILE
+    ):
+        raise ValueError("Non-default rektslug profiles require --surface legacy.")
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the combined workflow."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -84,6 +114,12 @@ def parse_args() -> argparse.Namespace:
         default="binance",
         choices=["binance", "bybit", "hyperliquid"],
         help="Exchange for CoinAnk liq-map URL generation.",
+    )
+    parser.add_argument(
+        "--surface",
+        choices=sorted(VALID_LIQMAP_SURFACES),
+        default=DEFAULT_LIQMAP_SURFACE,
+        help="Local rektslug liq-map surface when rektslug is captured (default: public).",
     )
     parser.add_argument("--coinank-url", help="Override CoinAnk page URL.")
     parser.add_argument(
@@ -182,6 +218,7 @@ def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
         coin=args.coin,
         timeframe=args.timeframe,
         exchange=args.exchange,
+        surface=getattr(args, "surface", DEFAULT_LIQMAP_SURFACE),
         coinank_url=args.coinank_url,
         coinglass_url=args.coinglass_url,
         bitcoincounterflow_url=getattr(args, "bitcoincounterflow_url", BITCOINCOUNTERFLOW_DEFAULT_URL),
@@ -193,7 +230,7 @@ def build_capture_namespace(args: argparse.Namespace) -> argparse.Namespace:
         coinglass_timeframe=None,
         include_rektslug=include_rektslug,
         include_bitcoincounterflow=include_bitcoincounterflow,
-        profile=getattr(args, "profile", "rektslug-default"),
+        profile=getattr(args, "profile", DEFAULT_REKTSLUG_PROFILE),
     )
 
 
@@ -208,6 +245,7 @@ def main() -> int:
     if args.matrix_preset == "spec-017":
         validate_spec017_matrix(args.coin, args.timeframe)
         validate_spec017_provider(args.provider)
+    validate_surface_selection(args)
 
     capture_args = build_capture_namespace(args)
 
