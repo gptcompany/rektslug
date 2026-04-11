@@ -157,7 +157,7 @@ The profile should preserve these semantics:
 
 ## API Contract Additions
 
-The public endpoint SHOULD accept:
+The public endpoint MUST accept:
 
 - `reference_provider`: enum `{coinank, coinglass}`, default `coinank`
 
@@ -174,6 +174,33 @@ The public response MUST expose:
 `serving_provenance` remains the source-serving provenance from `spec-032`.
 `reference_provider` is the intended parity target. These are different fields
 and MUST NOT be conflated.
+
+## Calibration Artifact Contract
+
+Any accepted calibration coefficients MUST be persisted in a versioned artifact
+instead of being embedded as silent constants.
+
+Canonical artifact path:
+
+- `data/validation/public_liqmap_provider_parity/calibrations/{calibration_id}.json`
+
+Minimum calibration artifact fields:
+
+- `calibration_id`
+- `reference_provider`
+- `exchange`
+- `matrix_entries`
+- `source_report_ids`
+- `created_at`
+- `parity_model_id`
+- `parity_model_version`
+- `coefficients`
+- `metric_contract_version`
+- `acceptance_summary`
+
+The public response `parity_calibration_id` MUST point to this artifact when a
+non-default calibration is applied. Reports MUST include the calibration id and
+source report ids so a later run can audit or roll back a tuning decision.
 
 ## Metrics Contract
 
@@ -208,6 +235,52 @@ Every provider-parity report MUST include at least:
 Reports MUST distinguish provider-data failure from local-model failure. Missing
 provider capture must not be interpreted as a passing local model.
 
+## Metric Math Contract
+
+All metric calculations MUST be deterministic and testable on fixed inputs.
+
+Precision policy:
+
+- Monetary totals, ratios, and score inputs MUST use `Decimal` or an equivalent
+  fixed-precision type internally.
+- JSON report serialization MAY emit numbers as JSON numbers, but the report
+  MUST preserve enough decimal precision to reproduce pass/fail decisions.
+- Price-bucket alignment MUST use an explicit grid step and deterministic
+  rounding mode. The initial rounding mode is half-up to the nearest effective
+  local grid step unless a provider parser supplies exact bucket keys.
+
+Definitions:
+
+- `long_total = sum(long_bucket.volume)`
+- `short_total = sum(short_bucket.volume)`
+- `total_volume = long_total + short_total`
+- `long_short_ratio = long_total / short_total` when `short_total > 0`, else
+  `null` and Tier 1 failure
+- `total_scale_ratio = local.total_volume / provider.total_volume` when
+  `provider.total_volume > 0`, else `null` and Tier 1 failure
+- `long_short_ratio_delta = abs(local.long_short_ratio - provider.long_short_ratio)`
+  when both ratios are present, else `null` and Tier 1 failure
+- `bucket_count_ratio = local.bucket_count / provider.bucket_count` when
+  `provider.bucket_count > 0`, else `null` and Tier 1 failure
+- `price_step_ratio = local.price_step_median / provider.price_step_median` when
+  `provider.price_step_median > 0`, else `null` and Tier 1 failure
+- `normalized_overlap = sum(min(local_i, provider_i))` after both distributions
+  are rebinned to the comparison grid and normalized to sum to `1.0`
+- `normalized_wasserstein` is the 1D earth-mover distance over the same normalized
+  rebinned price distribution, divided by the provider price span
+- `pearson_r` is computed on the same rebinned normalized vectors; if either
+  vector has zero variance, report `null` and fail the shape component
+- `top_peak_hit_rate = matched_provider_peaks / requested_provider_peaks`, using
+  the top 5 provider peaks per side and a match tolerance of two local grid steps
+
+Boundary rules:
+
+- Empty local or provider datasets are Tier 1 failures.
+- Zero provider totals are Tier 1 failures, not passing ratios.
+- NaN/Infinity MUST NOT be serialized into reports.
+- Out-of-range buckets may be retained for audit, but they MUST be excluded from
+  score computation only via a named, versioned filter recorded in the report.
+
 ## Parity Score
 
 The initial score is a diagnostic gate, not a claim of exact clone behavior.
@@ -221,6 +294,21 @@ For the CoinAnK profile, compute:
 | Grid and bucket density | 15 |
 | Normalized shape | 30 |
 | Peak alignment | 15 |
+
+Component scoring formulas:
+
+- `scale_score = 20` when `0.5 <= total_scale_ratio <= 2.0`, otherwise `0`.
+- `long_short_score = 20` when the local long/short ratio is within `0.6x..1.6x`
+  of the provider ratio, otherwise `0`.
+- `grid_score = 15` when both `0.5 <= bucket_count_ratio <= 2.0` and
+  `0.5 <= price_step_ratio <= 2.0`, otherwise `0`.
+- `shape_score = 30 * max(0, normalized_overlap)`, capped to `30`; if
+  `pearson_r` is present and negative, cap `shape_score` at `15`.
+- `peak_score = 15 * top_peak_hit_rate`, capped to `15`.
+- `parity_score = scale_score + long_short_score + grid_score + shape_score + peak_score`.
+
+Tier 1 failures set `parity_score = 0` and must include a machine-readable
+`tier1_failure_reason`.
 
 The first accepted CoinAnK profile target is:
 
@@ -269,6 +357,23 @@ Coinglass profile acceptance is diagnostic in this spec:
   fields.
 - **FR-012**: Browser validation MUST continue to cover the canonical Binance,
   Bybit, and Hyperliquid public routes after the provider-profile axis is added.
+
+### Acceptance Criteria
+
+| Requirement | Acceptance Criteria |
+|-------------|---------------------|
+| FR-001 | A baseline run for any matrix entry records `requested_surface=public`, `effective_surface=public`, and `/liquidations/coinank-public-map`; no local `/liquidations/levels` URL appears in the local capture. |
+| FR-002 | A CoinAnK parity report includes `serving_provenance`; final signoff rejects reports where Binance serving is `legacy-fallback`. |
+| FR-003 | Calling `/liquidations/coinank-public-map` without `reference_provider` returns the same default provider profile as `reference_provider=coinank`. |
+| FR-004 | Calling the public endpoint with an unsupported `reference_provider` returns a non-2xx validation error and no partial parity metadata. |
+| FR-005 | A public response contains both serving provenance fields and parity metadata fields; tests assert they are distinct values. |
+| FR-006 | A generated provider-parity report contains every field listed in the Metrics Contract and no NaN/Infinity values. |
+| FR-007 | A report using equal-volume leverage spreading sets a display-only ladder metadata flag and fails final parity signoff. |
+| FR-008 | CoinAnK profile reports include local/provider long/short ratios and `long_short_ratio_delta`; the score uses that component. |
+| FR-009 | CoinAnK profile reports include local/provider effective price steps and `price_step_ratio`; the score uses that component. |
+| FR-010 | A Coinglass profile run rejects aggregate-market and heatmap endpoints and accepts only Binance per-exchange `liqMap`. |
+| FR-011 | Existing provider-comparison fixtures without parity metadata still load without exception and are marked `legacy_report=true` or equivalent. |
+| FR-012 | Browser regression tests continue passing for Binance, Bybit, and Hyperliquid public routes after the provider-profile axis lands. |
 
 ## Non-Functional Requirements
 

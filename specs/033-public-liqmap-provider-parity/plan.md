@@ -2,7 +2,14 @@
 
 **Spec**: `specs/033-public-liqmap-provider-parity/spec.md`
 **Feature Type**: Product-model hardening
-**Branch**: master
+**Feature Branch**: `033-public-liqmap-provider-parity`
+
+Note: this repo is currently working from `master`; when using Spec Kit
+prerequisite scripts without a feature branch checkout, set:
+
+```bash
+SPECIFY_FEATURE=033-public-liqmap-provider-parity
+```
 
 ## Summary
 
@@ -76,6 +83,13 @@ prove what was compared:
 - reference provider
 - calibration id/version
 
+### D3a: Metric Math Is Part Of The Contract
+
+The metrics module is not a loose dashboard helper. It is the acceptance gate for
+public provider parity, so it must use deterministic Decimal/fixed-precision
+math, explicit boundary rules, and fixture-backed tests for empty datasets, zero
+totals, zero-variance vectors, and out-of-range buckets.
+
 ### D4: Display Fallback Is Not Evidence
 
 Equal distribution across leverage tiers may remain as a display fallback, but
@@ -105,6 +119,8 @@ and is governed by spec-026 for its CoinGlass/top-position parity questions.
 ### Phase 2: Metrics And Report Contract
 
 - Add a provider-parity report schema.
+- Add a calibration artifact schema under
+  `data/validation/public_liqmap_provider_parity/calibrations/`.
 - Implement or extend report generation to compute:
   - total scale ratio
   - long/short ratio delta
@@ -114,6 +130,8 @@ and is governed by spec-026 for its CoinGlass/top-position parity questions.
   - normalized Wasserstein distance
   - Pearson correlation
   - top peak hit rate
+- Add deterministic fixture tests for the exact formulas and boundary rules in
+  the spec's Metric Math Contract.
 - Store reports separately from generic provider-comparison JSON when useful,
   under a path such as:
   - `data/validation/public_liqmap_provider_parity/`
@@ -136,6 +154,8 @@ and is governed by spec-026 for its CoinGlass/top-position parity questions.
 - Replace or label equal leverage spreading so it cannot masquerade as true
   provider ladder parity.
 - Version calibration coefficients by source run and matrix entry.
+- Persist calibration artifacts with source report ids before wiring a calibration
+  id into API responses.
 - Gate the result on the initial CoinAnK parity score:
   - every matrix entry `>= 70`
   - matrix average `>= 80`
@@ -172,6 +192,11 @@ and is governed by spec-026 for its CoinGlass/top-position parity questions.
   Binance, Bybit, and Hyperliquid.
 - Workflow tests proving `surface=public` is used for public provider-parity
   runs and legacy reports remain readable.
+- Benchmark/smoke tests or recorded validation commands for:
+  - a single report run under 120s
+  - a warm public API response under 2s
+- Determinism tests proving the same fixed artifact and calibration config
+  produce identical report metrics and parity score.
 
 ## Risks
 
@@ -186,9 +211,11 @@ and is governed by spec-026 for its CoinGlass/top-position parity questions.
 
 The first slice should be:
 
-1. Add RED tests and implementation for a small provider-parity metrics module.
+1. Add RED tests and implementation for a small provider-parity metrics module,
+   including the Metric Math Contract boundary cases.
 2. Add `reference_provider` metadata to public API response contracts with
    default `coinank`.
 3. Extend the comparison workflow or create a focused report wrapper that runs
    `surface=public` and emits the new metric contract.
-4. Generate the public Binance baseline before changing model math.
+4. Add calibration artifact schema validation.
+5. Generate the public Binance baseline before changing model math.
