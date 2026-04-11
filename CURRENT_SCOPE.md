@@ -4,12 +4,13 @@ This repository must be worked in strict sequence.
 
 ## Completed Foundation
 
-`spec-030` and `spec-031` are implemented.
+`spec-030`, `spec-031`, and `spec-032` are implemented.
 
 - `spec-030`: deterministic Binance/Bybit modeled-snapshot producer contract
 - `spec-031`: unified Binance/Bybit public CoinAnK-style serving layer
+- `spec-032`: canonical public-vs-legacy liq-map surface hardening
 
-These two specs do **not** mean the whole repo backlog is closed.
+These specs do **not** mean the whole repo backlog is closed.
 
 ## Explicit Open Backlog
 
@@ -28,6 +29,10 @@ Do not infer that these are complete just because the Binance/Bybit liq-map serv
 
 Current priority is **liq-map only**.
 
+Current active spec is `spec-033`: public `liq-map` provider parity. The first
+target is Binance public `reference_provider=coinank`; Coinglass is a secondary
+diagnostic reference. Do not branch into heatmap work for this spec.
+
 Within `liq-map`, the exchange is a **variant axis**:
 
 - `binance`
@@ -36,7 +41,9 @@ Within `liq-map`, the exchange is a **variant axis**:
 
 This means exchange selection must be treated as a parameter of the same product, not as a separate parallel project.
 
-Operationally, the current baseline remains **Binance first** until the liq-map is aligned 1:1 with Coinank on the reference route. Only after that should work expand to the exchange variants.
+Operationally, the current baseline remains **Binance first** until the liq-map
+meets the spec-033 CoinAnK public provider-parity gate on the reference route.
+Only after that should work expand to the exchange variants.
 
 Use these as the only primary references unless a task explicitly says otherwise:
 
