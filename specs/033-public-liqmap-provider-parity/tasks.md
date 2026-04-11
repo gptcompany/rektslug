@@ -5,7 +5,7 @@
 - [ ] T001 Freeze `reference_provider` as the public-route provider-parity profile axis with enum `{coinank, coinglass}`
 - [ ] T002 Freeze CoinAnK as the default public reference profile and Coinglass as secondary diagnostic profile
 - [ ] T003 Explicitly mark heatmap, Hyperliquid top-position parity, and Bybit signoff out of scope for the first Binance parity pass
-- [ ] T004R RED: Write tests proving provider-parity baseline workflows use `surface=public`, not `/liquidations/levels`
+- [x] T004R RED: Write tests proving provider-parity baseline workflows use `surface=public`, not `/liquidations/levels`
 - [ ] T005 Generate or document a fresh public Binance baseline for `BTC/ETH x 1d/1w`
 - [ ] T006 Persist baseline serving provenance and mark `legacy-fallback` runs as evidence-only, not final artifact-backed signoff
 
