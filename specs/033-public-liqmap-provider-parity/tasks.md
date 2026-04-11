@@ -11,7 +11,7 @@
 
 ## Phase 2: Parity Metrics Contract
 
-- [ ] T007R RED: Write tests for provider-parity metric computation on two small synthetic price-bin datasets
+- [x] T007R RED: Write tests for provider-parity metric computation on two small synthetic price-bin datasets
 - [ ] T008 Implement metric helpers for total scale ratio, long/short ratio delta, bucket count ratio, and price step ratio using Decimal/fixed-precision math
 - [ ] T009 Implement normalized shape metrics: overlap coefficient, normalized Wasserstein distance, and Pearson correlation with zero-total and zero-variance boundary handling
 - [ ] T010 Implement top-peak hit-rate metric with grid-step tolerance and deterministic tie-breaking
