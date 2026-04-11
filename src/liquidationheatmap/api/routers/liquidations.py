@@ -670,7 +670,11 @@ async def get_coinank_public_map(
     exchange: str = Query("binance"),
     symbol: str = Query(..., pattern="^[A-Z]{6,12}$"),
     timeframe: str = Query(...),
+    reference_provider: str = Query("coinank"),
 ):
+    if reference_provider not in ["coinank", "coinglass"]:
+        raise HTTPException(status_code=422, detail="Unsupported reference_provider")
+    
     normalized_exchange = exchange.lower()
     normalized_symbol = symbol.upper()
     normalized_timeframe = timeframe.lower()
