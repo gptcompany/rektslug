@@ -2,9 +2,9 @@
 
 ## Phase 1: Scope Freeze
 
-- [ ] T001 Freeze the canonical liq-map browser/API matrix for Binance, Bybit, and Hyperliquid
-- [ ] T002 Freeze `surface` as a first-class workflow axis with enum `{public, legacy}`
-- [ ] T003 Explicitly mark provider-parity math and heatmap work out of scope for this spec
+- [x] T001 Freeze the canonical liq-map browser/API matrix for Binance, Bybit, and Hyperliquid
+- [x] T002 Freeze `surface` as a first-class workflow axis with enum `{public, legacy}`
+- [x] T003 Explicitly mark provider-parity math and heatmap work out of scope for this spec
 
 ## Phase 2: Workflow Surface Contract
 
@@ -26,14 +26,14 @@
 
 ## Phase 4: Binance Public Fallback Provenance
 
-- [ ] T016R RED: Write failing test that distinguishes Binance public artifact-backed serving from Binance public legacy fallback
-- [ ] T017 Freeze the Binance public fallback policy under this spec
-- [ ] T018 Expose public-serving provenance for Binance in a machine-readable way suitable for validators/manifests
+- [x] T016R RED: Write failing test that distinguishes Binance public artifact-backed serving from Binance public legacy fallback
+- [x] T017 Freeze the Binance public fallback policy under this spec
+- [x] T018 Expose public-serving provenance for Binance in a machine-readable way suitable for validators/manifests
 - [x] T019 Ensure Hyperliquid public runs cannot silently degrade to legacy `/liquidations/levels`
 
 ## Phase 5: Validation and Documentation
 
-- [ ] T020 Keep canonical-route browser coverage for Binance, Bybit, and Hyperliquid public flows
+- [x] T020 Keep canonical-route browser coverage for Binance, Bybit, and Hyperliquid public flows
 - [x] T021 Keep regression coverage for legacy calibration flows after explicit `surface` adoption
-- [ ] T022 Update active liq-map docs/runbooks to reflect the canonical/public-vs-legacy split
-- [ ] T023 Produce final handoff documenting the frozen product boundary and the remaining follow-up spec for provider-parity models
+- [x] T022 Update active liq-map docs/runbooks to reflect the canonical/public-vs-legacy split
+- [x] T023 Produce final handoff documenting the frozen product boundary and the remaining follow-up spec for provider-parity models

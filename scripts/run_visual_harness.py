@@ -26,6 +26,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--provider", default="coinank")
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--exchange", default="binance")
+    parser.add_argument(
+        "--surface",
+        choices=["public", "legacy"],
+        default="public",
+        help="Local liq-map surface for local captures (default: public).",
+    )
     parser.add_argument("--api-base", default="http://localhost:8002")
     parser.add_argument(
         "--pass-threshold",
@@ -62,6 +68,7 @@ def main() -> int:
         exchange=args.exchange,
         timeframe=args.timeframe,
         window=args.window,
+        surface=args.surface,
         api_base=args.api_base,
     )
     outcome = run_visual_pair(

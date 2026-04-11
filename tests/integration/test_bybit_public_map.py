@@ -24,6 +24,9 @@ def test_bybit_public_map_uses_artifact(client):
     assert data["exchange"] == "bybit"
     assert data["symbol"] == "BTCUSDT"
     assert "modeled-snapshot-bybit_standard" in data["source"]
+    assert data["serving_provenance"] == "artifact-backed"
+    assert data["serving_artifact_model_id"] == "bybit_standard"
+    assert data["serving_artifact_snapshot_ts"]
     assert len(data["long_buckets"]) > 0
     assert len(data["short_buckets"]) > 0
     # Verify leverage spreading
@@ -50,6 +53,13 @@ def test_binance_public_map_legacy_regression(client):
     assert data["symbol"] == "BTCUSDT"
     # It might use artifact if available, or fall back to DuckDB
     assert data["source"] in ("coinank-public-builder", "modeled-snapshot-binance_standard")
+    assert data["serving_provenance"] in ("legacy-fallback", "artifact-backed")
+    if data["serving_provenance"] == "artifact-backed":
+        assert data["serving_artifact_model_id"] == "binance_standard"
+        assert data["serving_artifact_snapshot_ts"]
+    else:
+        assert data["serving_artifact_model_id"] is None
+        assert data["serving_artifact_snapshot_ts"] is None
     assert len(data["long_buckets"]) > 0
 
 

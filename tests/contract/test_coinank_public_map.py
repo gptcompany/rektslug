@@ -19,6 +19,9 @@ def _sample_public_map_payload() -> dict:
     return {
         "schema_version": "1.0",
         "source": "coinank-public-builder",
+        "serving_provenance": "legacy-fallback",
+        "serving_artifact_model_id": None,
+        "serving_artifact_snapshot_ts": None,
         "exchange": "binance",
         "symbol": "BTCUSDT",
         "timeframe": "1d",
@@ -77,6 +80,9 @@ class TestCoinankPublicMapContract:
         data = response.json()
         assert data["schema_version"] == "1.0"
         assert data["source"] == "coinank-public-builder"
+        assert data["serving_provenance"] == "legacy-fallback"
+        assert data["serving_artifact_model_id"] is None
+        assert data["serving_artifact_snapshot_ts"] is None
         assert data["exchange"] == "binance"
         assert data["symbol"] == "BTCUSDT"
         assert data["timeframe"] == "1d"

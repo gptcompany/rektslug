@@ -51,6 +51,11 @@ Use these as the only primary references unless a task explicitly says otherwise
   - `/liquidations/hl-public-map` for Hyperliquid
   - `/liquidations/levels` remains the legacy fallback surface
 
+For Binance and Bybit public liq-map responses, inspect
+`serving_provenance`: `artifact-backed` means the public route served a modeled
+snapshot artifact, while `legacy-fallback` means Binance public serving used
+the legacy DuckDB builder fallback.
+
 Current reference matrix for the active `liq-map` workstream:
 
 Coinank reference paths:

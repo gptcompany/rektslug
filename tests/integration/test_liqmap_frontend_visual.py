@@ -38,6 +38,9 @@ class _LiqMapHandler(BaseHTTPRequestHandler):
     payload = {
         "schema_version": "1.0",
         "source": "coinank-public-builder",
+        "serving_provenance": "legacy-fallback",
+        "serving_artifact_model_id": None,
+        "serving_artifact_snapshot_ts": None,
         "symbol": "BTCUSDT",
         "timeframe": "1d",
         "profile": "rektslug-ank-public",

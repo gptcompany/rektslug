@@ -28,6 +28,9 @@ def test_response_model_exposes_frozen_public_builder_contract():
     payload = CoinankPublicMapResponse(
         schema_version="1.0",
         source="coinank-public-builder",
+        serving_provenance="legacy-fallback",
+        serving_artifact_model_id=None,
+        serving_artifact_snapshot_ts=None,
         exchange="binance",
         symbol="BTCUSDT",
         timeframe="1d",
@@ -57,6 +60,9 @@ def test_response_model_exposes_frozen_public_builder_contract():
     dumped = payload.model_dump(mode="json")
     assert dumped["schema_version"] == "1.0"
     assert dumped["source"] == "coinank-public-builder"
+    assert dumped["serving_provenance"] == "legacy-fallback"
+    assert dumped["serving_artifact_model_id"] is None
+    assert dumped["serving_artifact_snapshot_ts"] is None
     assert dumped["exchange"] == "binance"
     assert dumped["grid"]["step"] == 10.0
     assert dumped["leverage_ladder"] == COINANK_PUBLIC_LEVERAGE_LADDER
@@ -298,7 +304,44 @@ def test_binance_empty_artifact_falls_back_to_legacy_builder(monkeypatch):
     )
 
     assert response.source == "coinank-public-builder"
+    assert response.serving_provenance == "legacy-fallback"
+    assert response.serving_artifact_model_id is None
+    assert response.serving_artifact_snapshot_ts is None
     assert response.exchange == "binance"
+    assert response.long_buckets
+    assert response.short_buckets
+
+
+def test_binance_available_artifact_reports_artifact_backed_provenance(monkeypatch):
+    snapshot_ts = "2026-04-07T12:00:00Z"
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.get_latest_available_snapshot_ts",
+        lambda *_args, **_kwargs: snapshot_ts,
+    )
+    monkeypatch.setattr(
+        "src.liquidationheatmap.api.public_liqmap.snapshot_reader.load_artifact",
+        lambda *_args, **_kwargs: {
+            "exchange": "binance",
+            "model_id": "binance_standard",
+            "symbol": "BTCUSDT",
+            "snapshot_ts": snapshot_ts,
+            "reference_price": 100000.0,
+            "bucket_grid": {"step": 25.0, "price_levels": ["99000", "101000"]},
+            "long_distribution": {"99000": 120.0},
+            "short_distribution": {"101000": 80.0},
+        },
+    )
+
+    response = build_coinank_public_map_response(
+        exchange="binance",
+        symbol="BTCUSDT",
+        timeframe="1w",
+    )
+
+    assert response.source == "modeled-snapshot-binance_standard"
+    assert response.serving_provenance == "artifact-backed"
+    assert response.serving_artifact_model_id == "binance_standard"
+    assert response.serving_artifact_snapshot_ts == snapshot_ts
     assert response.long_buckets
     assert response.short_buckets
 

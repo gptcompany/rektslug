@@ -96,6 +96,9 @@ class CoinankPublicGrid(BaseModel):
 class CoinankPublicMapResponse(BaseModel):
     schema_version: str
     source: str
+    serving_provenance: str
+    serving_artifact_model_id: str | None = None
+    serving_artifact_snapshot_ts: str | None = None
     exchange: str
     symbol: str
     timeframe: str
@@ -391,6 +394,9 @@ def build_coinank_public_map_response(
     return CoinankPublicMapResponse(
         schema_version="1.0",
         source="coinank-public-builder",
+        serving_provenance="legacy-fallback",
+        serving_artifact_model_id=None,
+        serving_artifact_snapshot_ts=None,
         exchange=normalized_exchange,
         symbol=normalized_symbol,
         timeframe=normalized_timeframe,
@@ -562,6 +568,9 @@ def _build_response_from_artifact(
     return CoinankPublicMapResponse(
         schema_version="1.0",
         source=f"modeled-snapshot-{artifact['model_id']}",
+        serving_provenance="artifact-backed",
+        serving_artifact_model_id=str(artifact["model_id"]),
+        serving_artifact_snapshot_ts=snapshot_ts,
         exchange=exchange,
         symbol=symbol,
         timeframe=timeframe,

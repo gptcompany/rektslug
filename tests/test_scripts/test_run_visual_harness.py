@@ -26,6 +26,7 @@ def test_parse_args_accepts_timeframe():
     assert args.provider == "coinank"
     assert args.symbol == "BTCUSDT"
     assert args.exchange == "binance"
+    assert args.surface == "public"
     assert args.timeframe == "1d"
     assert args.window is None
     assert args.pass_threshold == 95
@@ -69,6 +70,22 @@ def test_parse_args_accepts_explicit_pass_threshold():
     assert args.pass_threshold == 90
 
 
+def test_parse_args_accepts_explicit_surface():
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--timeframe",
+            "1d",
+            "--surface",
+            "legacy",
+        ],
+    ):
+        args = parse_args()
+
+    assert args.surface == "legacy"
+
+
 def test_parse_args_rejects_threshold_below_90():
     with patch(
         "sys.argv",
@@ -108,7 +125,35 @@ def test_main_prints_manifest_and_score_paths(capsys, tmp_path: Path):
     assert "manifest=" in output
     assert "score=" in output
     assert mock_run.called
+    assert mock_run.call_args.kwargs["request"].surface == "public"
     assert mock_run.call_args.kwargs["pass_threshold"] == 95
+
+
+def test_main_passes_explicit_surface_to_request(capsys, tmp_path: Path):
+    class _Outcome:
+        exit_code = 0
+        manifest_path = tmp_path / "manifest.json"
+        score_path = None
+
+    with patch(
+        "sys.argv",
+        [
+            "run_visual_harness.py",
+            "--run-id",
+            "run-001",
+            "--timeframe",
+            "1d",
+            "--surface",
+            "legacy",
+            "--output-dir",
+            str(tmp_path),
+        ],
+    ), patch("scripts.run_visual_harness.run_visual_pair", return_value=_Outcome()) as mock_run:
+        exit_code = main()
+
+    assert exit_code == 0
+    assert "manifest=" in capsys.readouterr().out
+    assert mock_run.call_args.kwargs["request"].surface == "legacy"
 
 
 def test_main_returns_non_zero_and_prints_manifest_for_unwired_lightweight_path(

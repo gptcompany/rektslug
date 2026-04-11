@@ -2,7 +2,7 @@
 
 **Feature Branch**: `032-canonical-liqmap-product-hardening`
 **Created**: 2026-04-10
-**Status**: Draft
+**Status**: Implemented
 **Dependencies**: spec-020 (visual harness), spec-022 (CoinAnK public liq-map data path), spec-030 (modeled snapshot contract), spec-031 (unified Binance/Bybit public serving)
 
 ## Context

@@ -180,12 +180,42 @@ second.
 python3 scripts/run_provider_api_comparison.py \
   --provider all \
   --coin BTC \
-  --timeframe 1w
+  --timeframe 1w \
+  --surface public
 ```
 
 By default, this command also persists normalized comparison rows into the
 validation DuckDB (`data/validation/validation_results.duckdb`). Use
 `--no-persist-db` if you want a file-only run.
+
+## Liq-Map Surface Contract
+
+`spec-032` makes the local Rektslug `liq-map` surface explicit anywhere the
+workflow captures or compares local data:
+
+- `surface=public`: product-facing default.
+- `surface=legacy`: internal OI-model/calibration surface only.
+- Binance and Bybit public captures resolve to `/liquidations/coinank-public-map`.
+- Hyperliquid public captures resolve to `/liquidations/hl-public-map`.
+- Legacy captures resolve to `/liquidations/levels`.
+- Hyperliquid legacy captures are unsupported and must fail explicitly.
+
+The workflow metadata preserves the selected route:
+
+- `requested_surface`
+- `effective_surface`
+- `effective_api_endpoint_path`
+
+Binance and Bybit public API payloads also expose public-serving provenance:
+
+- `serving_provenance`
+- `serving_artifact_model_id`
+- `serving_artifact_snapshot_ts`
+
+Use these fields to distinguish an artifact-backed public response from a
+public route served by the Binance legacy fallback builder. Bybit public
+serving is artifact-backed when an artifact is available and fails explicitly
+when it is not.
 
 ## Calibration Commands
 
@@ -194,6 +224,10 @@ validation DuckDB (`data/validation/validation_results.duckdb`). Use
 `spec-018` freezes CoinAnK references from `spec-017`, then compares a fresh
 local baseline (`rektslug-default`) and the candidate `rektslug-ank` profile
 against those same provider artifacts.
+
+The calibration runner intentionally calls the comparison workflow with
+`surface=legacy`, because these profiles inspect the internal OI-model family,
+not the canonical public product surface.
 
 Standard run:
 
@@ -217,6 +251,9 @@ The accepted calibration artifact is currently:
 `spec-019` reuses frozen Coinglass references from `spec-017`, then compares a
 fresh local baseline (`rektslug-default`) and the candidate
 `rektslug-glass` profile against those same provider artifacts.
+
+The calibration runner intentionally calls the comparison workflow with
+`surface=legacy`, for the same internal-model reason as `spec-018`.
 
 Standard run:
 
@@ -295,6 +332,7 @@ uv run python scripts/run_visual_harness.py \
   --provider coinank \
   --product liq-map \
   --renderer plotly \
+  --surface public \
   --symbol BTCUSDT \
   --timeframe 1d \
   --pass-threshold 95
@@ -304,6 +342,7 @@ uv run python scripts/run_visual_harness.py \
   --provider coinglass \
   --product liq-map \
   --renderer plotly \
+  --surface public \
   --symbol ETHUSDT \
   --timeframe 1w \
   --pass-threshold 95
@@ -595,6 +634,9 @@ They do not replace the raw JSON capture artifacts stored on disk.
 
 # Use REST replay for Coinglass (now default in orchestrator)
 --coinglass-mode rest
+
+# Select the local Rektslug liq-map surface explicitly
+--surface public
 ```
 
 ### Quick run (single entry)

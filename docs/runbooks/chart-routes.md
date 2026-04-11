@@ -10,6 +10,27 @@ provider reference pages.
 - Liquidation heatmap:
   `http://localhost:8002/chart/derivatives/liq-heat-map/<symbol>/<timeframe>`
 
+## Canonical Liq-Map Surface Contract
+
+The browser product route is always the canonical `liq-map` entrypoint. The
+local API surface behind it is explicit:
+
+| Exchange | `surface=public` API | `surface=legacy` API |
+|----------|----------------------|----------------------|
+| `binance` | `/liquidations/coinank-public-map` | `/liquidations/levels` |
+| `bybit` | `/liquidations/coinank-public-map` | `/liquidations/levels` |
+| `hyperliquid` | `/liquidations/hl-public-map` | unsupported |
+
+Product-facing validation defaults to `surface=public`. The legacy
+`/liquidations/levels` surface remains available for calibration and
+model-inspection only; it is not the canonical product surface.
+
+Binance and Bybit public responses expose machine-readable serving provenance:
+
+- `serving_provenance`: `artifact-backed`, or `legacy-fallback` for Binance fallback serving
+- `serving_artifact_model_id`: modeled artifact id when artifact-backed, else `null`
+- `serving_artifact_snapshot_ts`: modeled artifact snapshot timestamp when artifact-backed, else `null`
+
 ## Current Liq-Map Reference Matrix
 
 These are the exact Coinank `liq-map` paths that define the current 1:1 validation scope:
@@ -64,6 +85,7 @@ uv run python scripts/run_visual_harness.py \
   --provider coinank \
   --product liq-map \
   --renderer plotly \
+  --surface public \
   --symbol BTCUSDT \
   --timeframe 1d
 
@@ -71,6 +93,7 @@ uv run python scripts/run_visual_harness.py \
   --provider coinglass \
   --product liq-map \
   --renderer plotly \
+  --surface public \
   --symbol ETHUSDT \
   --timeframe 1w
 ```
