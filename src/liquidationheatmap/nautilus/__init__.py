@@ -14,3 +14,8 @@ def _check_nautilus():
             "nautilus_trader is required for this module. "
             "Install with: uv pip install -e '.[nautilus]'"
         ) from None
+
+
+from src.liquidationheatmap.nautilus.feedback_publisher import NautilusFeedbackPublisher
+
+__all__ = ["_check_nautilus", "NautilusFeedbackPublisher"]
