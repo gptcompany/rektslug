@@ -1,17 +1,17 @@
 """Data Transfer Objects (DTOs) for Hyperliquid API responses and validation."""
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 
-class MarginMode(StrEnum):
+class MarginMode(str, Enum):
     """Detected margin mode for an account."""
     CROSS_MARGIN = "cross_margin"
     ISOLATED_MARGIN = "isolated_margin"
     PORTFOLIO_MARGIN = "portfolio_margin"
 
 
-class AccountAbstraction(StrEnum):
+class AccountAbstraction(str, Enum):
     """Account abstraction state reported by Hyperliquid."""
 
     DEFAULT = "default"
@@ -22,10 +22,14 @@ class AccountAbstraction(StrEnum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def from_api(cls, payload: str | None) -> "AccountAbstraction":
+    def from_api(cls, payload: object) -> "AccountAbstraction":
         if payload is None:
             return cls.UNKNOWN
+        if isinstance(payload, cls):
+            return payload
         try:
+            if hasattr(payload, "value"):
+                return cls(str(payload.value))
             return cls(str(payload))
         except ValueError:
             return cls.UNKNOWN

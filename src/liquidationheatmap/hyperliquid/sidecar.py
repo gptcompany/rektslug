@@ -15,7 +15,7 @@ import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
 
@@ -52,7 +52,7 @@ FALLBACK_BIN_SIZES = {
 }
 
 
-class ExactnessGap(StrEnum):
+class ExactnessGap(str, Enum):
     """Known blockers for path-exact replay claims."""
 
     MISSING_START_ANCHOR = "missing_start_anchor"
