@@ -94,7 +94,7 @@ class BybitProducer:
                     failures[channel] = {"status": "unsupported", "reason": f"Unknown channel: {channel}"}
                     continue
 
-                inputs, input_identity, status = self._collect_inputs(symbol, snapshot_ts, lookback_days, channel)
+                inputs, input_identity, status = self._collect_inputs(symbol, snapshot_ts, lookback_days, channel, report)
                 
                 if status.startswith("blocked"):
                     failures[channel] = {"status": status, "reason": "Input collection failed", "details": input_identity}
@@ -162,7 +162,7 @@ class BybitProducer:
         
         return manifest
 
-    def _collect_inputs(self, symbol: str, snapshot_ts: str, lookback_days: int, channel: str) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
+    def _collect_inputs(self, symbol: str, snapshot_ts: str, lookback_days: int, channel: str, report: Any = None) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
         """Collect pinned inputs for Bybit from Parquet catalog."""
         dt = datetime.fromisoformat(snapshot_ts.replace("Z", "+00:00"))
         date_str = dt.strftime("%Y-%m-%d")
@@ -171,9 +171,15 @@ class BybitProducer:
         status = "available"
         input_identity = {}
         inputs = {}
+
+        def get_path(input_key, default_type):
+            if report and input_key in report.details and report.details[input_key].get("present"):
+                return Path(report.details[input_key]["path"])
+            return self.CATALOG_ROOT / default_type / parquet_symbol / f"{date_str}.parquet"
         
         # 1. Current Price (from ohlcv Parquet)
-        ohlcv_path = self.CATALOG_ROOT / "ohlcv" / parquet_symbol / f"{date_str}.parquet"
+        ohlcv_path = get_path("klines", "ohlcv")
+        print("DEBUG OHLCV PATH:", ohlcv_path, ohlcv_path.exists())
         if not ohlcv_path.exists():
             return {}, {}, "blocked_source_missing"
             
@@ -182,7 +188,7 @@ class BybitProducer:
                 SELECT close, timestamp FROM read_parquet('{ohlcv_path}')
                 WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT 1
             """, [snapshot_ts]).fetchone()
-            
+            print("DEBUG PRICE ROW:", price_row)
             if not price_row:
                 return {}, {}, "blocked_source_missing"
                 
@@ -197,7 +203,7 @@ class BybitProducer:
             return {}, {}, "blocked_source_missing"
         
         # 2. Open Interest
-        oi_path = self.CATALOG_ROOT / "open_interest" / parquet_symbol / f"{date_str}.parquet"
+        oi_path = get_path("open_interest", "open_interest")
         if oi_path.exists():
             try:
                 oi_row = self.db_service.conn.execute(f"""
@@ -222,7 +228,7 @@ class BybitProducer:
 
         # 3. Funding Rate (required provenance input even though the current MVP
         # model does not directly apply the rate in its formula).
-        funding_path = self.CATALOG_ROOT / "funding_rate" / parquet_symbol / f"{date_str}.parquet"
+        funding_path = get_path("funding", "funding_rate")
         if funding_path.exists():
             try:
                 funding_row = self.db_service.conn.execute(f"""
@@ -252,7 +258,7 @@ class BybitProducer:
             input_identity["funding"] = {"source": str(funding_path), "status": "missing"}
             
         # 4. Trades
-        trades_path = self.CATALOG_ROOT / "trades" / parquet_symbol / f"{date_str}.parquet"
+        trades_path = get_path("trades", "trades")
         if trades_path.exists():
             try:
                 trades_df = self.db_service.conn.execute(f"""
@@ -278,7 +284,7 @@ class BybitProducer:
             
         # 5. Orderbook
         if channel == "depth_weighted":
-            ob_path = self.CATALOG_ROOT / "orderbook" / parquet_symbol / f"{date_str}.parquet"
+            ob_path = get_path("orderbook", "orderbook")
             if ob_path.exists():
                 try:
                     ob_row = self.db_service.conn.execute(f"""
