@@ -26,6 +26,27 @@ The following remain open and should be treated as separate backlog tracks:
 
 Do not infer that these are complete just because the Binance/Bybit liq-map serving path is now implemented.
 
+## Execution Readiness Program
+
+The next-stage execution roadmap is documented in:
+
+- `docs/EXECUTION_READINESS_ROADMAP.md`
+
+Proposed follow-on specs now staged in repo:
+
+- `spec-034`: Bybit historical producer bridge
+- `spec-035`: Nautilus event-driven backtest hardening
+- `spec-036`: paper/live trading runtime hardening
+
+Existing execution-adjacent tracks that remain relevant:
+
+- `spec-015`: adaptive signal loop, especially external Nautilus integration
+- `spec-025`: WebSocket / event distribution
+- `spec-027`: Hyperliquid reserved-margin / portfolio-margin hardening
+
+This roadmap does **not** change the active default workstream below. It defines
+the planned execution program after the current public `liq-map` baseline.
+
 ## Active Workstream
 
 Current priority is **liq-map only**.
