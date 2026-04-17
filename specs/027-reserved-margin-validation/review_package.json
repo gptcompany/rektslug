@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T14:59:19.056302+00:00",
+  "generated_at": "2026-04-17T16:52:01.989530+00:00",
   "source_fixture": "tests/fixtures/hyperliquid/portfolio_margin_live_cases.json",
   "source_accounts": "data/validation/portfolio_margin_accounts_full.json",
   "source_repo_scan": "data/validation/portfolio_margin_repo_scan.json",
@@ -29,6 +29,27 @@
   "observed_portfolio_margin_account_count": 3,
   "repo_scan_result_count": 3,
   "fixture_user_count": 3,
+  "coverage": {
+    "fixture_users": [
+      "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c"
+    ],
+    "observed_users": [
+      "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c"
+    ],
+    "repo_scan_users": [
+      "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c"
+    ],
+    "missing_from_fixture": [],
+    "missing_from_observed": [],
+    "missing_from_repo_scan": [],
+    "coverage_complete": true
+  },
   "comparable_position_count": 1,
   "within_tolerance_count": 1,
   "within_tolerance_rate": 1.0,
@@ -111,5 +132,5 @@
       ]
     }
   ],
-  "residual_note": "Portfolio-margin solver implementation is covered by local fixtures and the retained offline review package. The currently observable PM universe is fully captured here, including non-comparable accounts, and all comparable live liquidationPx cases remain within tolerance."
+  "residual_note": "Portfolio-margin solver implementation is covered by local fixtures and the retained offline review package. The currently observable PM universe is fully captured here, coverage is explicitly checked against retained account artifacts, and all comparable live liquidationPx cases remain within tolerance."
 }

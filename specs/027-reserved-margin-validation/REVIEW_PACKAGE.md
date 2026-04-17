@@ -13,6 +13,7 @@ Interpretation:
 - The currently observable PM universe in local artifacts contains three PM accounts.
 - Only one of those accounts currently exposes a comparable live `liquidationPx`; it remains within tolerance.
 - The other two observed PM accounts are retained explicitly as non-comparable cases, so the repo does not pretend to have more live-comparable evidence than actually exists.
+- The builder now checks that the retained fixture users, observed PM account artifact, and repo scan artifact all describe the same PM account set. A mismatch is treated as an error, not a silent partial package.
 
 Regeneration:
 ```bash

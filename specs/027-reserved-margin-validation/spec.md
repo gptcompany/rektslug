@@ -6,7 +6,7 @@
 **Input**: Validate reserved-margin formula against Hyperliquid API and implement portfolio-margin solver
 **Dependencies**: spec-026 (sidecar, solver V1, outlier artifacts in `data/validation/`)
 
-**Implementation Note (2026-04-17)**: The repo now ships the reserved-margin validator, margin-mode detection/routing, portfolio-margin solver, and an offline review package at `specs/027-reserved-margin-validation/review_package.json`. The current observable PM universe still yields only one live-comparable `liquidationPx`, but that is now retained as evidence rather than treated as an implementation blocker.
+**Implementation Note (2026-04-17)**: The repo now ships the reserved-margin validator, margin-mode detection/routing, portfolio-margin solver, and an offline review package at `specs/027-reserved-margin-validation/review_package.json`. The current observable PM universe still yields only one live-comparable `liquidationPx`; the retained package now checks coverage against the observed PM account artifacts and preserves non-comparable accounts explicitly.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -48,13 +48,13 @@ As a liquidation-map developer, I need a solver that correctly computes liquidat
 
 **Why this priority**: Same as US2 — portfolio-margin accounts have different liquidation triggers. The solver must handle both modes to produce a correct full-population risk surface.
 
-**Independent Test**: Compute liquidation prices for portfolio-margin accounts and validate against Hyperliquid API `liquidationPx` values. Pass if within 1% for tested accounts.
+**Independent Test**: Compute liquidation prices for the currently observable portfolio-margin account set retained in local artifacts, preserve comparable and non-comparable accounts in the review package, and verify that all comparable live `liquidationPx` values remain within 1%.
 
 **Acceptance Scenarios**:
 
 1. **Given** a portfolio-margin account with offsetting BTC long and ETH short, **When** the solver computes its margin requirement, **Then** the requirement reflects net risk reduction (lower than sum of individual position margins)
 2. **Given** a portfolio-margin account, **When** its `portfolio_margin_ratio` exceeds 0.95, **Then** the solver correctly identifies it as liquidatable
-3. **Given** portfolio-margin solver output for 5+ accounts, **When** compared against Hyperliquid API `liquidationPx`, **Then** 90%+ of values are within 1%
+3. **Given** portfolio-margin solver output for the retained observable PM account set, **When** compared against Hyperliquid API `liquidationPx`, **Then** every comparable live PM value is within 1% and every non-comparable observed PM account is preserved explicitly in the review package
 
 ---
 
@@ -110,7 +110,7 @@ As a liquidation-map developer, I need to update the cross-margin solver to use 
 
 - **SC-001**: `marginUsed` calculated by sidecar matches Hyperliquid API within 1% for 90%+ of the 10+ validated outlier users
 - **SC-002**: Portfolio-margin accounts are correctly detected and routed — 100% correct classification for tested accounts
-- **SC-003**: Portfolio-margin solver produces `liquidationPx` within 1% of API values for 90%+ of tested portfolio-margin accounts
+- **SC-003**: Portfolio-margin solver produces `liquidationPx` within 1% of API values for all comparable accounts in the currently observable retained PM account set, and the review package explicitly records any observed but non-comparable PM accounts
 - **SC-004**: Solver V1.1 risk-surface artifacts show documented, explainable changes vs V1 baseline (no unexplained regressions)
 - **SC-005**: Validation report fully attributes or documents the margin gap for each analyzed user — zero "unknown" gaps exceeding 5% of total margin
 

@@ -49,14 +49,71 @@ def _load_json(path: str | Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _build_asset_meta_lookup(fixture: dict) -> dict[str, dict]:
+    universe = fixture["meta"]["universe"]
+    asset_contexts = fixture["meta"]["assetContexts"]
+    lookup: dict[str, dict] = {}
+    for idx, meta in enumerate(universe):
+        coin = str(meta["name"])
+        if idx >= len(asset_contexts):
+            raise ValueError(f"Missing asset context for coin {coin} at universe index {idx}")
+        lookup[coin] = {
+            "idx": idx,
+            "mark_px": float(asset_contexts[idx]["markPx"]),
+            "margin_table_id": str(meta["marginTableId"]),
+        }
+    return lookup
+
+
+def _normalise_margin_tiers(fixture: dict, table_id: str) -> list[dict]:
+    margin_tables = fixture["meta"].get("marginTables") or fixture["meta"].get("margin_tables", {})
+    tiers = margin_tables.get(table_id, [])
+    return [
+        {
+            "lower_bound": tier.get("lowerBound", tier.get("lower_bound", 0.0)),
+            "mmr_rate": tier.get("mmrRate", tier.get("mmr_rate", 0.0)),
+            "maintenance_deduction": tier.get(
+                "maintenanceDeduction",
+                tier.get("maintenance_deduction", 0.0),
+            ),
+        }
+        for tier in tiers
+    ]
+
+
+def _extract_users(payload: dict, key: str) -> list[str]:
+    users: list[str] = []
+    for item in payload.get(key, []):
+        if isinstance(item, dict) and isinstance(item.get("user"), str):
+            users.append(item["user"])
+    return sorted(set(users))
+
+
+def _build_coverage(
+    fixture_users: list[str],
+    observed_users: list[str],
+    repo_scan_users: list[str],
+) -> dict:
+    fixture_set = set(fixture_users)
+    observed_set = set(observed_users)
+    repo_scan_set = set(repo_scan_users)
+    return {
+        "fixture_users": fixture_users,
+        "observed_users": observed_users,
+        "repo_scan_users": repo_scan_users,
+        "missing_from_fixture": sorted((observed_set | repo_scan_set) - fixture_set),
+        "missing_from_observed": sorted(fixture_set - observed_set),
+        "missing_from_repo_scan": sorted(fixture_set - repo_scan_set),
+        "coverage_complete": fixture_set == observed_set == repo_scan_set,
+    }
+
+
 def _build_solver_context(fixture: dict, user_address: str) -> dict:
     user_payload = fixture["users"][user_address]
     clearinghouse_state = ClearinghouseUserState.from_api(user_payload["clearinghouseState"])
     spot_state = SpotClearinghouseState.from_api(user_payload["spotClearinghouseState"])
     borrow_lend_user_state = BorrowLendUserState.from_api(user_payload["borrowLendUserState"])
-
-    universe = fixture["meta"]["universe"]
-    asset_contexts = fixture["meta"]["assetContexts"]
+    asset_meta_lookup = _build_asset_meta_lookup(fixture)
     reserve_states = {
         int(token): _make_reserve_state(state)
         for token, state in fixture["reserve_states"].items()
@@ -65,14 +122,18 @@ def _build_solver_context(fixture: dict, user_address: str) -> dict:
     positions: list[UserPosition] = []
     mark_prices: dict[int, float] = {}
     asset_margin_tiers: dict[int, list[dict]] = {}
-    for idx, api_position in enumerate(clearinghouse_state.assetPositions):
+    for api_position in clearinghouse_state.assetPositions:
         position = api_position.position
-        meta = universe[idx]
-        context = asset_contexts[idx]
+        if position.coin not in asset_meta_lookup:
+            raise ValueError(
+                f"Fixture meta does not contain coin {position.coin} for user {user_address}"
+            )
+        meta = asset_meta_lookup[position.coin]
+        asset_idx = meta["idx"]
         positions.append(
             UserPosition(
                 coin=position.coin,
-                asset_idx=idx,
+                asset_idx=asset_idx,
                 size=position.szi,
                 entry_px=position.entryPx,
                 leverage=float(position.leverage.value),
@@ -80,18 +141,11 @@ def _build_solver_context(fixture: dict, user_address: str) -> dict:
                 margin=position.marginUsed,
             )
         )
-        mark_prices[idx] = context["markPx"]
-        margin_table_id = str(meta["marginTableId"])
-        margin_tables = fixture["meta"].get("marginTables") or fixture["meta"].get("margin_tables", {})
-        tiers = margin_tables.get(margin_table_id, [])
-        asset_margin_tiers[idx] = [
-            {
-                "lower_bound": tier.get("lowerBound", tier.get("lower_bound", 0.0)),
-                "mmr_rate": tier.get("mmrRate", tier.get("mmr_rate", 0.0)),
-                "maintenance_deduction": tier.get("maintenanceDeduction", tier.get("maintenance_deduction", 0.0)),
-            }
-            for tier in tiers
-        ]
+        mark_prices[asset_idx] = meta["mark_px"]
+        asset_margin_tiers[asset_idx] = _normalise_margin_tiers(
+            fixture,
+            meta["margin_table_id"],
+        )
 
     return {
         "user_address": user_address,
@@ -114,11 +168,23 @@ def build_review_package(
     accounts_payload = _load_json(accounts_path)
     repo_scan_payload = _load_json(repo_scan_path)
     solver = HyperliquidPortfolioMarginSolver()
+    fixture_users = sorted(fixture["users"])
+    observed_users = _extract_users(accounts_payload, "portfolio_margin_accounts")
+    repo_scan_users = _extract_users(repo_scan_payload, "results")
+    if not repo_scan_users:
+        repo_scan_users = _extract_users(repo_scan_payload, "pm_candidates")
+    coverage = _build_coverage(fixture_users, observed_users, repo_scan_users)
+    if not coverage["coverage_complete"]:
+        raise ValueError(
+            "Portfolio-margin review package coverage mismatch: "
+            f"fixture={coverage['fixture_users']} observed={coverage['observed_users']} "
+            f"repo_scan={coverage['repo_scan_users']}"
+        )
 
     cases = []
     comparable_cases = 0
     within_tolerance_cases = 0
-    for user_address in sorted(fixture["users"]):
+    for user_address in fixture_users:
         context = _build_solver_context(fixture, user_address)
         summary = solver.compute_portfolio_margin(
             user_address=user_address,
@@ -167,9 +233,6 @@ def build_review_package(
         )
 
     observed_accounts = accounts_payload.get("portfolio_margin_accounts", [])
-    repo_scan_results = []
-    if isinstance(repo_scan_payload, dict):
-        repo_scan_results = repo_scan_payload.get("results") or repo_scan_payload.get("pm_candidates", [])
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -178,8 +241,9 @@ def build_review_package(
         "source_repo_scan": str(repo_scan_path),
         "observed_portfolio_margin_accounts": observed_accounts,
         "observed_portfolio_margin_account_count": len(observed_accounts),
-        "repo_scan_result_count": len(repo_scan_results),
-        "fixture_user_count": len(fixture["users"]),
+        "repo_scan_result_count": len(repo_scan_users),
+        "fixture_user_count": len(fixture_users),
+        "coverage": coverage,
         "comparable_position_count": comparable_cases,
         "within_tolerance_count": within_tolerance_cases,
         "within_tolerance_rate": (
@@ -188,7 +252,8 @@ def build_review_package(
         "cases": cases,
         "residual_note": (
             "Portfolio-margin solver implementation is covered by local fixtures and the retained offline review package. "
-            "The currently observable PM universe is fully captured here, including non-comparable accounts, and all comparable live liquidationPx cases remain within tolerance."
+            "The currently observable PM universe is fully captured here, coverage is explicitly checked against retained account artifacts, "
+            "and all comparable live liquidationPx cases remain within tolerance."
         ),
     }
 
