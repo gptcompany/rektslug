@@ -179,7 +179,6 @@ class BybitProducer:
         
         # 1. Current Price (from ohlcv Parquet)
         ohlcv_path = get_path("klines", "ohlcv")
-        print("DEBUG OHLCV PATH:", ohlcv_path, ohlcv_path.exists())
         if not ohlcv_path.exists():
             return {}, {}, "blocked_source_missing"
             
@@ -188,7 +187,6 @@ class BybitProducer:
                 SELECT close, timestamp FROM read_parquet('{ohlcv_path}')
                 WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT 1
             """, [snapshot_ts]).fetchone()
-            print("DEBUG PRICE ROW:", price_row)
             if not price_row:
                 return {}, {}, "blocked_source_missing"
                 

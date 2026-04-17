@@ -35,7 +35,7 @@ def test_bybit_export_available_mock(tmp_path, monkeypatch):
     def mock_check_readiness(symbol, ts, channel):
         return ReadinessReport("bybit", ts, channel, "available", {})
         
-    def mock_collect_inputs(symbol, ts, lookback, channel):
+    def mock_collect_inputs(symbol, ts, lookback, channel, report=None):
         import pandas as pd
         from decimal import Decimal
         inputs = {
@@ -63,7 +63,7 @@ def test_bybit_partial_manifest_keeps_artifact_path(tmp_path, monkeypatch):
     def mock_check_readiness(symbol, ts, channel):
         return ReadinessReport("bybit", ts, channel, "available", {})
 
-    def mock_collect_inputs(symbol, ts, lookback, channel):
+    def mock_collect_inputs(symbol, ts, lookback, channel, report=None):
         import pandas as pd
         from decimal import Decimal
 
