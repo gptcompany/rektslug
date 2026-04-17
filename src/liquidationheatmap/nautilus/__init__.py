@@ -17,5 +17,6 @@ def _check_nautilus():
 
 
 from src.liquidationheatmap.nautilus.feedback_publisher import NautilusFeedbackPublisher
+from src.liquidationheatmap.nautilus.feedback_tracker import SignalFeedbackTracker
 
-__all__ = ["_check_nautilus", "NautilusFeedbackPublisher"]
+__all__ = ["_check_nautilus", "NautilusFeedbackPublisher", "SignalFeedbackTracker"]
