@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import logging
 import uuid
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -94,21 +95,22 @@ class SignalPublisher:
                 f"Published signal to {channel}: "
                 f"price={signal.price}, side={signal.side}, confidence={signal.confidence}"
             )
-            # Update last publish timestamp for status tracking
-            self._update_last_publish()
+            # Update persisted and in-memory status tracking on successful publish.
+            self._update_last_publish(signal.signal_id)
             return True
         else:
             logger.warning(f"Failed to publish signal to {channel}")
             return False
 
-    def _update_last_publish(self) -> None:
-        """Update last publish timestamp for API status tracking."""
+    def _update_last_publish(self, signal_id: str | None) -> None:
+        """Update persisted and in-memory publish metrics for API status tracking."""
+        published_at = datetime.now(timezone.utc)
         try:
-            from datetime import datetime, timezone
-
             from src.liquidationheatmap.api.routers.signals import set_last_publish
+            from src.liquidationheatmap.signals.status_store import record_signal_publish
 
-            set_last_publish(datetime.now(timezone.utc))
+            set_last_publish(published_at)
+            record_signal_publish(self.redis_client, published_at, signal_id)
         except ImportError:
             # API router may not be available (e.g., in tests or standalone mode)
             pass
@@ -136,6 +138,7 @@ class SignalPublisher:
 
             if result is not None:
                 published += 1
+                self._update_last_publish(signal.signal_id)
                 logger.debug(f"Published signal {signal.signal_id} to {channel}")
             else:
                 logger.warning(f"Failed to publish signal {signal.signal_id}")

@@ -23,10 +23,10 @@
 - [x] T010R RED: Add failing tests for restart-safe recovery and no duplicate actions
 - [x] T011 Implement durable execution state and recovery flow
 - [x] T012 Implement audit artifact generation for executed, rejected, and canceled actions
-- [ ] T013 Replace estimated runtime counters with real persisted or measured metrics
+- [x] T013 Replace estimated runtime counters with real persisted or measured metrics
 
 ## Phase 5: Rollout and Review
 
-- [ ] T014 Define paper deployment acceptance checklist
-- [ ] T015 Define limited-live rollout checklist
-- [ ] T016 Produce external review evidence package and rollback checklist
+- [x] T014 Define paper deployment acceptance checklist
+- [x] T015 Define limited-live rollout checklist
+- [x] T016 Produce external review evidence package and rollback checklist

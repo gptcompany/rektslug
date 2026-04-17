@@ -2,7 +2,7 @@
 
 **Feature Branch**: `036-paper-live-trading-runtime-hardening`
 **Created**: 2026-04-17
-**Status**: Proposed
+**Status**: Implemented
 **Input**: Define the runtime contract that must exist before `rektslug`-driven
 signals or strategies are allowed to progress from backtests into paper or live trading
 **Dependencies**: spec-015 (signals), spec-025 (event distribution), spec-027

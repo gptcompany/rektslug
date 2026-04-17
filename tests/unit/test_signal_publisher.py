@@ -158,6 +158,31 @@ class TestSignalPublisher:
 
             assert result is False
 
+    def test_publish_signal_records_persisted_status_metrics(self, mock_redis_client):
+        """Successful publish should persist last-publish and rolling 24h metrics."""
+        from src.liquidationheatmap.signals.publisher import SignalPublisher
+
+        raw_backend = MagicMock()
+        mock_redis_client.connect.return_value = raw_backend
+
+        with patch(
+            "src.liquidationheatmap.signals.publisher.get_redis_client",
+            return_value=mock_redis_client,
+        ):
+            publisher = SignalPublisher()
+            result = publisher.publish_signal(
+                symbol="BTCUSDT",
+                price=95000.50,
+                side="long",
+                confidence=0.85,
+                signal_id="sig-1",
+            )
+
+            assert result is True
+            raw_backend.set.assert_called_once()
+            raw_backend.zadd.assert_called_once()
+            raw_backend.zremrangebyscore.assert_called_once()
+
     def test_extract_top_signals_returns_list(self):
         """extract_top_signals should return list of signals."""
         from src.liquidationheatmap.signals.publisher import SignalPublisher

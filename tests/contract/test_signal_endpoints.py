@@ -16,9 +16,13 @@ class TestSignalStatusEndpoint:
     def client(self):
         """Create test client with mocked dependencies."""
         # Mock Redis and DB before importing app
-        with patch("src.liquidationheatmap.signals.redis_client.get_redis_client") as mock_redis:
+        with patch("src.liquidationheatmap.api.routers.signals.get_redis_client") as mock_redis:
             mock_redis_instance = MagicMock()
             mock_redis_instance.is_connected = True
+            raw_backend = MagicMock()
+            raw_backend.get.return_value = "2026-04-17T12:00:00Z"
+            raw_backend.zcount.return_value = 5
+            mock_redis_instance.connect.return_value = raw_backend
             mock_redis.return_value = mock_redis_instance
 
             with patch("src.liquidationheatmap.api.routers.signals.FeedbackDBService") as mock_db:
@@ -68,6 +72,13 @@ class TestSignalStatusEndpoint:
         assert isinstance(data["signals_published_24h"], int)
         assert isinstance(data["feedback_received_24h"], int)
 
+    def test_status_uses_persisted_signal_count(self, client):
+        """Status should use measured Redis-backed counts, not estimated values."""
+        response = client.get("/signals/status")
+        data = response.json()
+        assert data["signals_published_24h"] == 5
+        assert data["last_publish"].startswith("2026-04-17T12:00:00")
+
 
 class TestSignalMetricsEndpoint:
     """Contract tests for GET /signals/metrics."""
@@ -75,7 +86,7 @@ class TestSignalMetricsEndpoint:
     @pytest.fixture
     def client(self):
         """Create test client with mocked dependencies."""
-        with patch("src.liquidationheatmap.signals.redis_client.get_redis_client") as mock_redis:
+        with patch("src.liquidationheatmap.api.routers.signals.get_redis_client") as mock_redis:
             mock_redis_instance = MagicMock()
             mock_redis_instance.is_connected = True
             mock_redis.return_value = mock_redis_instance
@@ -163,7 +174,7 @@ class TestSignalHealthEndpoint:
     @pytest.fixture
     def client(self):
         """Create test client."""
-        with patch("src.liquidationheatmap.signals.redis_client.get_redis_client") as mock_redis:
+        with patch("src.liquidationheatmap.api.routers.signals.get_redis_client") as mock_redis:
             mock_redis_instance = MagicMock()
             mock_redis_instance.is_connected = True
             mock_redis.return_value = mock_redis_instance

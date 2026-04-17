@@ -15,6 +15,7 @@ from src.liquidationheatmap.signals import (
     SignalStatus,
     get_redis_client,
 )
+from src.liquidationheatmap.signals.status_store import load_signal_status_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -56,21 +57,12 @@ async def get_signal_status():
         if db_service is not None:
             db_service.close()
 
-    # Signals published (using cached timestamp, actual count would need Redis MONITOR)
-    # This is a simplified implementation - in production, track via metrics
-    signals_24h = 0
-    if _last_publish_timestamp:
-        # Estimate: 96 signals/day = 4 per hour (15min interval)
-        # Use max(0, ...) to handle edge case where timestamp is in future (clock skew)
-        hours_active = max(
-            0,
-            min(24, (datetime.now(timezone.utc) - _last_publish_timestamp).total_seconds() / 3600),
-        )
-        signals_24h = int(hours_active * 4)
+    persisted_last_publish, signals_24h = load_signal_status_metrics(redis_client)
+    effective_last_publish = persisted_last_publish or _last_publish_timestamp
 
     return SignalStatus(
         connected=connected,
-        last_publish=_last_publish_timestamp,
+        last_publish=effective_last_publish,
         signals_published_24h=signals_24h,
         feedback_received_24h=feedback_24h,
     )

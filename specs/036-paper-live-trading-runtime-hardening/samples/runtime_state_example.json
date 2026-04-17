@@ -1,0 +1,38 @@
+{
+  "state": {
+    "mode": "paper",
+    "active_positions": 0,
+    "daily_loss_usd": 0.0,
+    "last_restart": "2026-04-17 14:36:36.862233+00:00",
+    "kill_switch": false
+  },
+  "risk_policy": {
+    "max_position_size_usd": 250.0,
+    "max_daily_loss_usd": 50.0,
+    "max_concurrent_positions": 1,
+    "allowed_symbols": [
+      "BTCUSDT"
+    ],
+    "allowed_venues": [
+      "hyperliquid"
+    ],
+    "kill_switch_active": false
+  },
+  "stale_seconds": 120,
+  "seen_signals": [],
+  "audit_log": [
+    {
+      "action_id": "ee74d1ae-c493-4640-838e-d1ffbe792a15",
+      "signal_id": "sample-sig-1",
+      "strategy_id": "default",
+      "timestamp": "2026-04-17 14:36:36.862348+00:00",
+      "mode": "paper",
+      "symbol": "BTCUSDT",
+      "side": "long",
+      "price": 40000.0,
+      "size": 100.0,
+      "status": "rejected",
+      "reason": "stale_signal (age=9396.9s, max=120s)"
+    }
+  ]
+}
