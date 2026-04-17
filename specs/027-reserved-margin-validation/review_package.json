@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-04-17T14:59:19.056302+00:00",
+  "source_fixture": "tests/fixtures/hyperliquid/portfolio_margin_live_cases.json",
+  "source_accounts": "data/validation/portfolio_margin_accounts_full.json",
+  "source_repo_scan": "data/validation/portfolio_margin_repo_scan.json",
+  "observed_portfolio_margin_accounts": [
+    {
+      "user": "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "user_abstraction": "portfolioMargin",
+      "portfolio_margin_ratio": null,
+      "account_value": 10316.152327,
+      "position_count": 1
+    },
+    {
+      "user": "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "user_abstraction": "portfolioMargin",
+      "portfolio_margin_ratio": null,
+      "account_value": 0.0,
+      "position_count": 0
+    },
+    {
+      "user": "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c",
+      "user_abstraction": "portfolioMargin",
+      "portfolio_margin_ratio": null,
+      "account_value": 300.812907,
+      "position_count": 1
+    }
+  ],
+  "observed_portfolio_margin_account_count": 3,
+  "repo_scan_result_count": 3,
+  "fixture_user_count": 3,
+  "comparable_position_count": 1,
+  "within_tolerance_count": 1,
+  "within_tolerance_rate": 1.0,
+  "cases": [
+    {
+      "user": "0xb1c4a17f0f39c2b04333831104a82e94ab808510",
+      "portfolio_margin_ratio": 0.09421600949151156,
+      "is_liquidatable": false,
+      "total_margin_required": 1669.219187,
+      "current_liquidation_value": 17716.93787509,
+      "borrowed_notional_usdc": 0.0,
+      "collateral_support_usdc": 21.6750670299989,
+      "net_exposures": {
+        "USDC": 17695.26280806,
+        "HYPE": -910.07837303,
+        "UBTC": 0.0,
+        "USDE": 0.0,
+        "USOL": 0.0,
+        "USDT0": 0.0,
+        "USDH": 0.0
+      },
+      "positions": [
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": 53.0335169147,
+          "solver_liquidation_px": 52.89471018161149,
+          "deviation_pct": 0.2617339772351399,
+          "comparable": true
+        }
+      ]
+    },
+    {
+      "user": "0xdc00aede8219c1151ddd86372deed7a36bdeb405",
+      "portfolio_margin_ratio": 0.9999998695000171,
+      "is_liquidatable": true,
+      "total_margin_required": 20.0,
+      "current_liquidation_value": 20.00000261,
+      "borrowed_notional_usdc": 0.0,
+      "collateral_support_usdc": 20.0,
+      "net_exposures": {
+        "USDC": 2.61e-06,
+        "JEFF": 0.0,
+        "TJIF": 116.42912191,
+        "H": 0.0,
+        "HYPE": 0.00870746,
+        "UBTC": 0.0,
+        "USDE": 0.0,
+        "USDT0": 0.0,
+        "USDH": 0.0
+      },
+      "positions": []
+    },
+    {
+      "user": "0xfc8b2f2b98705037ec9fa816f40c42077b237d3c",
+      "portfolio_margin_ratio": 0.019572674376357634,
+      "is_liquidatable": false,
+      "total_margin_required": 170.7376,
+      "current_liquidation_value": 8723.26370515,
+      "borrowed_notional_usdc": 0.0,
+      "collateral_support_usdc": 8157.985213100001,
+      "net_exposures": {
+        "USDC": 550.39286169,
+        "HPL": 132.1524691,
+        "HYPE": 383.2,
+        "BEATS": 4003.59966248,
+        "UBTC": 0.0,
+        "HAR": 17141.73670046,
+        "USDE": 0.0,
+        "USDT0": 0.0,
+        "USDH": 14.88563036
+      },
+      "positions": [
+        {
+          "coin": "HYPE",
+          "api_liquidation_px": null,
+          "solver_liquidation_px": 13.681029788005727,
+          "deviation_pct": null,
+          "comparable": false
+        }
+      ]
+    }
+  ],
+  "residual_note": "Portfolio-margin solver implementation is covered by local fixtures and the retained offline review package. The currently observable PM universe is fully captured here, including non-comparable accounts, and all comparable live liquidationPx cases remain within tolerance."
+}

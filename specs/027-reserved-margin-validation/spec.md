@@ -2,9 +2,11 @@
 
 **Feature Branch**: `027-reserved-margin-validation`
 **Created**: 2026-03-24
-**Status**: Draft
+**Status**: Implemented
 **Input**: Validate reserved-margin formula against Hyperliquid API and implement portfolio-margin solver
 **Dependencies**: spec-026 (sidecar, solver V1, outlier artifacts in `data/validation/`)
+
+**Implementation Note (2026-04-17)**: The repo now ships the reserved-margin validator, margin-mode detection/routing, portfolio-margin solver, and an offline review package at `specs/027-reserved-margin-validation/review_package.json`. The current observable PM universe still yields only one live-comparable `liquidationPx`, but that is now retained as evidence rather than treated as an implementation blocker.
 
 ## User Scenarios & Testing *(mandatory)*
 
