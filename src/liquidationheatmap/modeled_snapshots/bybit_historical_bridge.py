@@ -152,23 +152,128 @@ class BybitHistoricalBridge:
             df["open_interest_value"] = df["open_interest"].astype(float)
         return df
 
+    def _normalize_for_producer(self, df: pd.DataFrame, input_class: str) -> pd.DataFrame:
+        if df.empty:
+            return df
+
+        if input_class == "klines":
+            normalized = df.copy()
+            columns = ["timestamp", "open", "high", "low", "close", "volume", "turnover"]
+            return normalized.loc[:, [col for col in columns if col in normalized.columns]]
+
+        if input_class == "trades":
+            normalized = df.copy()
+            if "qty" in normalized.columns and "quantity" not in normalized.columns:
+                normalized["quantity"] = normalized["qty"]
+            if "size" in normalized.columns and "quantity" not in normalized.columns:
+                normalized["quantity"] = normalized["size"]
+            if "value" not in normalized.columns and {"price", "quantity"} <= set(normalized.columns):
+                normalized["value"] = normalized["price"].astype(float) * normalized["quantity"].astype(float)
+            columns = ["timestamp", "price", "quantity", "side", "value"]
+            return normalized.loc[:, [col for col in columns if col in normalized.columns]]
+
+        if input_class == "funding":
+            normalized = df.copy()
+            if "next_funding_time" in normalized.columns:
+                normalized["next_funding_time"] = pd.to_datetime(
+                    normalized["next_funding_time"], utc=True, errors="coerce"
+                )
+            else:
+                normalized["next_funding_time"] = pd.NaT
+            if "predicted_rate" not in normalized.columns:
+                normalized["predicted_rate"] = None
+            columns = ["timestamp", "funding_rate", "next_funding_time", "predicted_rate"]
+            return normalized.loc[:, columns]
+
+        if input_class == "open_interest":
+            normalized = df.copy()
+            columns = ["timestamp", "open_interest_value"]
+            return normalized.loc[:, [col for col in columns if col in normalized.columns]]
+
+        if input_class == "orderbook":
+            return self._normalize_orderbook(df)
+
+        return df
+
+    def _normalize_orderbook(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+
+        wide_columns = {
+            "timestamp",
+            "receipt_timestamp",
+            "exchange",
+            "symbol",
+            "bid_0_price",
+            "bid_0_size",
+            "ask_0_price",
+            "ask_0_size",
+        }
+        if wide_columns <= set(df.columns):
+            return df
+
+        if not {"timestamp", "side", "price", "size"} <= set(df.columns):
+            return pd.DataFrame()
+
+        normalized = df.copy()
+        if "receipt_timestamp" not in normalized.columns:
+            normalized["receipt_timestamp"] = normalized["timestamp"]
+        if "exchange" not in normalized.columns:
+            normalized["exchange"] = "bybit"
+
+        def build_snapshot(group: pd.DataFrame) -> dict[str, Any]:
+            snapshot: dict[str, Any] = {
+                "timestamp": group["timestamp"].iloc[0],
+                "receipt_timestamp": group["receipt_timestamp"].iloc[0],
+                "exchange": group["exchange"].iloc[0],
+                "symbol": group["symbol"].iloc[0] if "symbol" in group.columns else None,
+            }
+
+            bids = group[group["side"].astype(str).str.lower().isin({"buy", "bid", "b"})].copy()
+            asks = group[group["side"].astype(str).str.lower().isin({"sell", "ask", "a"})].copy()
+            bids = bids.sort_values("price", ascending=False).head(20)
+            asks = asks.sort_values("price", ascending=True).head(20)
+
+            for i in range(20):
+                if i < len(bids):
+                    snapshot[f"bid_{i}_price"] = float(bids.iloc[i]["price"])
+                    snapshot[f"bid_{i}_size"] = float(bids.iloc[i]["size"])
+                else:
+                    snapshot[f"bid_{i}_price"] = None
+                    snapshot[f"bid_{i}_size"] = None
+
+                if i < len(asks):
+                    snapshot[f"ask_{i}_price"] = float(asks.iloc[i]["price"])
+                    snapshot[f"ask_{i}_size"] = float(asks.iloc[i]["size"])
+                else:
+                    snapshot[f"ask_{i}_price"] = None
+                    snapshot[f"ask_{i}_size"] = None
+
+            return snapshot
+
+        snapshots = [build_snapshot(group) for _, group in normalized.groupby("timestamp", sort=True)]
+        return pd.DataFrame(snapshots)
+
     def write_normalized(self, df: pd.DataFrame, input_class: str, symbol: str, date_str: str, source_path: str) -> Tuple[Path, Dict[str, Any]]:
         dest = self.normalized_root / input_class / f"{symbol}-PERP.BYBIT" / f"{date_str}.parquet"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        
-        df.to_parquet(dest)
-        
+
+        normalized_df = self._normalize_for_producer(df, input_class)
+        normalized_df.to_parquet(dest)
+
         # Calculate simple digest
         with open(dest, "rb") as f:
             digest = hashlib.sha256(f.read()).hexdigest()
-            
+
         meta = {
             "source_path": source_path,
-            "digest": digest
+            "digest": digest,
+            "normalization_version": "v1",
+            "row_count": int(len(normalized_df)),
         }
-        
+
         meta_path = dest.with_suffix(".json")
         with open(meta_path, "w") as f:
             json.dump(meta, f)
-            
+
         return dest, meta

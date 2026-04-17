@@ -1,0 +1,67 @@
+{
+  "exchange": "bybit",
+  "snapshot_ts": "2024-01-01T12:00:00Z",
+  "distribution_normalization": "normalized",
+  "models": {
+    "bybit_standard": {
+      "model_id": "bybit_standard",
+      "availability_status": "available",
+      "source_metadata": {
+        "input_identity": {
+          "current_price": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/klines/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z"
+          },
+          "open_interest": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/open_interest/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z"
+          },
+          "funding": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/funding/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z",
+            "value": 0.0001,
+            "next_funding_time": "1970-01-01T00:28:24Z",
+            "predicted_rate": 0.0001
+          },
+          "large_trades": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/trades/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "count": 1
+          }
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2024-01-01T12:00:00Z/bybit_standard.json"
+    },
+    "depth_weighted": {
+      "model_id": "depth_weighted",
+      "availability_status": "available",
+      "source_metadata": {
+        "input_identity": {
+          "current_price": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/klines/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z"
+          },
+          "open_interest": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/open_interest/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z"
+          },
+          "funding": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/funding/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z",
+            "value": 0.0001,
+            "next_funding_time": "1970-01-01T00:28:24Z",
+            "predicted_rate": 0.0001
+          },
+          "large_trades": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/trades/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "count": 1
+          },
+          "orderbook": {
+            "source": "/media/sam/1TB/rektslug/specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/normalized/orderbook/BTCUSDT-PERP.BYBIT/2024-01-01.parquet",
+            "timestamp": "2024-01-01T11:59:00Z"
+          }
+        }
+      },
+      "artifact_path": "artifacts/BTCUSDT/2024-01-01T12:00:00Z/depth_weighted.json"
+    }
+  }
+}

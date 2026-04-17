@@ -29,7 +29,7 @@
 
 ## Phase 5: Validation and Handoff
 
-- [ ] T014 Produce sample historical manifests for `bybit_standard`
-- [ ] T015 Produce sample historical manifests for `depth_weighted`
-- [ ] T016 Validate deterministic rerun behavior from identical normalized inputs
-- [ ] T017 Update `CURRENT_SCOPE.md` and roadmap references after validation
+- [x] T014 Produce sample historical manifests for `bybit_standard`
+- [x] T015 Produce sample historical manifests for `depth_weighted`
+- [x] T016 Validate deterministic rerun behavior from identical normalized inputs
+- [x] T017 Update `CURRENT_SCOPE.md` and roadmap references after validation

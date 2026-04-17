@@ -2,7 +2,7 @@
 
 **Feature Branch**: `034-bybit-historical-producer-bridge`
 **Created**: 2026-04-17
-**Status**: Proposed
+**Status**: Implemented
 **Input**: Close the `spec-030` follow-up so historical Bybit windows on 3TB-WDC
 become producer-readable inside `rektslug`
 **Dependencies**: spec-030 (modeled snapshot contract), spec-031 (public serving),

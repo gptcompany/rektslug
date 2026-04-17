@@ -162,3 +162,45 @@ def test_read_raw_missing_file_returns_empty(tmp_path):
     for cls in ["klines", "trades", "funding", "open_interest", "orderbook"]:
         df = bridge.read_raw(cls, tmp_path / "missing")
         assert df.empty, f"{cls} should return empty for missing file"
+
+
+def test_write_normalized_orderbook_produces_producer_schema(tmp_path):
+    bridge = _make_bridge(tmp_path)
+
+    csv_content = (
+        "timestamp,side,price,size,symbol\n"
+        "1704067200000,Buy,40000.0,1.5,BTCUSDT\n"
+        "1704067200000,Buy,39990.0,1.0,BTCUSDT\n"
+        "1704067200000,Sell,40100.0,2.0,BTCUSDT\n"
+        "1704067200000,Sell,40110.0,3.0,BTCUSDT\n"
+    )
+    zip_path = tmp_path / "2024-01-01_BTCUSDT_ob500.data.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("ob_2024-01-01.csv", csv_content)
+
+    df = bridge.read_raw("orderbook", zip_path)
+    normalized_path, meta = bridge.write_normalized(df, "orderbook", "BTCUSDT", "2024-01-01", str(zip_path))
+
+    normalized = __import__("pandas").read_parquet(normalized_path)
+    assert "bid_0_price" in normalized.columns
+    assert "bid_0_size" in normalized.columns
+    assert "ask_0_price" in normalized.columns
+    assert "ask_0_size" in normalized.columns
+    assert normalized.iloc[0]["bid_0_price"] == pytest.approx(40000.0)
+    assert normalized.iloc[0]["ask_0_price"] == pytest.approx(40100.0)
+    assert meta["normalization_version"] == "v1"
+    assert meta["row_count"] == 1
+
+
+def test_write_normalized_is_deterministic_for_identical_inputs(tmp_path):
+    bridge = _make_bridge(tmp_path)
+    raw_path = tmp_path / "historical" / "klines" / "linear" / "BTCUSDT" / "1m" / "BTCUSDT_1m_2024-01-01.json"
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path.write_text('[[1704067200000, "40000.0", "40100.0", "39900.0", "40050.0", "1.5", "60000.0"]]')
+
+    df = bridge.read_raw("klines", raw_path)
+    _, meta1 = bridge.write_normalized(df, "klines", "BTCUSDT", "2024-01-01", str(raw_path))
+    _, meta2 = bridge.write_normalized(df, "klines", "BTCUSDT", "2024-01-01", str(raw_path))
+
+    assert meta1["digest"] == meta2["digest"]
+    assert meta1["row_count"] == meta2["row_count"] == 1
