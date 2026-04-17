@@ -2,7 +2,7 @@
 
 **Feature Branch**: `035-nautilus-event-driven-backtest-hardening`
 **Created**: 2026-04-17
-**Status**: Proposed
+**Status**: Implemented
 **Input**: Promote the current Nautilus bridge from demo support to an
 execution-grade, reproducible event-driven backtest harness
 **Dependencies**: spec-015 (signals), spec-027 (margin correctness), spec-030

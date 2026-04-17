@@ -1,0 +1,21 @@
+{
+  "artifact_manifest_path": "data/modeled_snapshots/bybit/manifests/BTCUSDT/2024-01-01T12:00:00Z.json",
+  "catalog_path": "/media/sam/1TB/ccxt-data-pipeline/data/catalog",
+  "instrument_id": "BTCUSDT-PERP.BYBIT",
+  "strategy_config": {
+    "instrument_id": "BTCUSDT-PERP.BYBIT",
+    "trade_size": 0.001,
+    "proximity_threshold": 0.02,
+    "imbalance_threshold": 0.6,
+    "reversal_bias": true
+  },
+  "execution_assumptions": {
+    "fill_delay_ns": 1000,
+    "slippage_bps": 1.5,
+    "fee_bps": 0.75,
+    "funding_enabled": true
+  },
+  "expert_ids": ["bybit_standard", "depth_weighted"],
+  "start_time": "2024-01-01T00:00:00Z",
+  "end_time": "2024-01-01T12:00:00Z"
+}

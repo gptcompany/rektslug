@@ -1,0 +1,21 @@
+{
+  "artifact_manifest_path": "data/validation/expert_snapshots/hyperliquid/manifests/BTCUSDT/2026-04-14T01:46:57Z.json",
+  "catalog_path": "/media/sam/1TB/ccxt-data-pipeline/data/catalog",
+  "instrument_id": "BTCUSDT-PERP.HYPERLIQUID",
+  "strategy_config": {
+    "instrument_id": "BTCUSDT-PERP.HYPERLIQUID",
+    "trade_size": 0.001,
+    "proximity_threshold": 0.02,
+    "imbalance_threshold": 0.6,
+    "reversal_bias": true
+  },
+  "execution_assumptions": {
+    "fill_delay_ns": 0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0,
+    "funding_enabled": false
+  },
+  "expert_ids": ["v1"],
+  "start_time": "2026-04-14T00:00:00Z",
+  "end_time": "2026-04-14T12:00:00Z"
+}

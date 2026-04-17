@@ -21,13 +21,13 @@
 
 ## Phase 4: Result Artifacts
 
-- [ ] T010R RED: Add failing tests for machine-readable backtest result bundles
+- [x] T010R RED: Add failing tests for machine-readable backtest result bundles
 - [x] T011 Implement result bundle writing and sample reproduction helpers
-- [ ] T012 Validate deterministic replay on retained sample bundles
+- [x] T012 Validate deterministic replay on retained sample bundles
 
 ## Phase 5: Review Handoff
 
-- [ ] T013 Produce one Hyperliquid replay bundle for external review
-- [ ] T014 Produce one modeled-snapshot replay bundle for external review
-- [ ] T015 Document known limitations and assumptions that still separate this
+- [x] T013 Produce one Hyperliquid replay bundle for external review
+- [x] T014 Produce one modeled-snapshot replay bundle for external review
+- [x] T015 Document known limitations and assumptions that still separate this
   harness from paper/live trading

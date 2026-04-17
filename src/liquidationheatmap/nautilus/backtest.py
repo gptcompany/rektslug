@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -345,6 +346,46 @@ def _money_map_to_dict(values) -> dict[str, float]:
     return {currency.code: money.as_double() for currency, money in values.items()}
 
 
+def _json_default_serializer(obj):
+    if isinstance(obj, Decimal):
+        return str(obj)
+    if isinstance(obj, Path):
+        return str(obj)
+    if hasattr(obj, "__dict__"):
+        return asdict(obj)
+    return str(obj)
+
+
+def replay_bundle_to_dict(bundle: ReplayBundle) -> dict[str, Any]:
+    return asdict(bundle)
+
+
+def replay_bundle_fingerprint(bundle: ReplayBundle) -> str:
+    payload = json.dumps(replay_bundle_to_dict(bundle), sort_keys=True, default=_json_default_serializer)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def write_replay_bundle(bundle: ReplayBundle, output_path: Path | str) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(replay_bundle_to_dict(bundle), indent=2, default=_json_default_serializer), encoding="utf-8")
+    return path
+
+
+def load_replay_bundle(path: Path | str) -> ReplayBundle:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload["execution_assumptions"] = ExecutionAssumptions(**payload["execution_assumptions"])
+    return ReplayBundle(**payload)
+
+
+def load_backtest_result(path: Path | str) -> BacktestResult:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload["bundle"]["execution_assumptions"] = ExecutionAssumptions(**payload["bundle"]["execution_assumptions"])
+    payload["bundle"] = ReplayBundle(**payload["bundle"])
+    payload["summary"] = BacktestRunSummary(**payload["summary"])
+    return BacktestResult(**payload)
+
+
 def export_backtest_result(result: BacktestResult, output_dir: Path | str) -> Path:
     """Save a backtest result and its replay bundle as machine-readable JSON."""
     output_path = Path(output_dir)
@@ -355,17 +396,11 @@ def export_backtest_result(result: BacktestResult, output_dir: Path | str) -> Pa
     filename = f"backtest_result_{result.bundle.instrument_id}_{ts_str}.json"
     file_path = output_path / filename
 
-    def default_serializer(obj):
-        if isinstance(obj, Decimal):
-            return str(obj)
-        if isinstance(obj, Path):
-            return str(obj)
-        if hasattr(obj, "__dict__"):
-            return asdict(obj)
-        return str(obj)
+    payload = asdict(result)
+    payload["results_path"] = str(file_path)
 
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(asdict(result), f, indent=2, default=default_serializer)
+        json.dump(payload, f, indent=2, default=_json_default_serializer)
 
     logger.info("Exported backtest result to %s", file_path)
     return file_path
