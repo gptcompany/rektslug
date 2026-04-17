@@ -95,7 +95,28 @@ def test_bybit_readiness_historical_only_is_not_marked_available(tmp_path):
     report = gate.check_readiness("BTCUSDT", "2024-01-01T12:00:00Z", "depth_weighted")
 
     assert report.status == "blocked_source_unverified"
-    assert report.details["orderbook"]["source_status"] == "historical_unreadable"
+    assert report.details["orderbook"]["source_status"] == "historical_raw_unnormalized"
+    assert "historical bridge" in report.details["orderbook"]["reason"]
+    assert "ccxt-data-pipeline" not in report.details["orderbook"]["reason"]
+
+
+def test_bybit_readiness_reason_mentions_bridge_for_raw_metrics(tmp_path):
+    gate = _gate(tmp_path)
+    date_str = "2024-01-01"
+    # Touch klines in catalog so only funding hits the metrics path
+    _touch_catalog_file(tmp_path, "ohlcv", date_str=date_str)
+    _touch_catalog_file(tmp_path, "open_interest", date_str=date_str)
+    _touch_catalog_file(tmp_path, "trades", date_str=date_str)
+    # Create a raw metric file that matches the glob pattern
+    funding_dir = tmp_path / "metrics" / "funding_rates"
+    funding_dir.mkdir(parents=True, exist_ok=True)
+    (funding_dir / "BTCUSDT_2024.json").touch()
+
+    report = gate.check_readiness("BTCUSDT", "2024-01-01T12:00:00Z", "bybit_standard")
+
+    assert report.details["funding"]["source_status"] == "historical_raw_unnormalized"
+    assert "historical bridge" in report.details["funding"]["reason"]
+    assert "ccxt-data-pipeline" not in report.details["funding"]["reason"]
 
 
 def test_bybit_readiness_normalized_historical_clears_unverified(tmp_path):

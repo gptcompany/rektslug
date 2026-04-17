@@ -139,7 +139,7 @@ class BybitReadinessGate:
             if reason:
                 details[req.input_class]["reason"] = reason
             
-            if source_status == "historical_unreadable" and req.required and status == "available":
+            if source_status == "historical_raw_unnormalized" and req.required and status == "available":
                 status = "blocked_source_unverified"
             elif not found and req.required:
                 status = "blocked_source_missing"
@@ -216,17 +216,19 @@ class BybitReadinessGate:
         historical_file = self._historical_file(input_class, symbol, date_str)
         if historical_file and historical_file.exists():
             return (
-                "historical_unreadable",
+                "historical_raw_unnormalized",
                 str(historical_file),
-                "Historical source exists but this producer path only reads ccxt-data-pipeline Parquet",
+                "Raw historical source exists but has not been normalized yet; "
+                "run the historical bridge to produce a normalized parquet",
             )
 
         metrics_dir = self._metrics_dir(input_class)
         if metrics_dir and metrics_dir.exists() and any(metrics_dir.glob(f"{symbol}_*.json")):
             return (
-                "historical_unreadable",
+                "historical_raw_unnormalized",
                 str(metrics_dir),
-                "Historical metric source exists but this producer path only reads ccxt-data-pipeline Parquet",
+                "Raw historical metric source exists but has not been normalized yet; "
+                "run the historical bridge to produce a normalized parquet",
             )
 
         return "missing", None, None
