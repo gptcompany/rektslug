@@ -4,47 +4,47 @@ Date: 2026-04-17
 
 ## What This Review Covers
 
-This review package covers the proposed work needed to move the repo from its
-current public `liq-map` and artifact-serving baseline into:
+This review package now covers delivered follow-on work that moves the repo from
+public `liq-map` and artifact serving into:
 
-- deterministic historical replay where currently missing
-- execution-grade event-driven backtesting
-- controlled paper trading
-- constrained live trading
+- deterministic historical replay for Bybit historical-only windows
+- retained replay bundles for event-driven Nautilus backtesting
+- paper/live runtime hardening with persisted status metrics and restart-safe state
 
-## What Was Added
+## Delivered Review Assets
 
 - roadmap document: [docs/EXECUTION_READINESS_ROADMAP.md](./EXECUTION_READINESS_ROADMAP.md)
-- proposed spec: `034-bybit-historical-producer-bridge`
-- proposed spec: `035-nautilus-event-driven-backtest-hardening`
-- proposed spec: `036-paper-live-trading-runtime-hardening`
+- `spec-034` retained historical producer sample output:
+  `specs/034-bybit-historical-producer-bridge/samples/bybit_historical_output/`
+- `spec-035` retained replay bundles:
+  - `specs/035-nautilus-event-driven-backtest-hardening/samples/hyperliquid_replay_bundle.json`
+  - `specs/035-nautilus-event-driven-backtest-hardening/samples/modeled_snapshot_replay_bundle.json`
+- `spec-035` review notes:
+  `specs/035-nautilus-event-driven-backtest-hardening/REVIEW_NOTES.md`
+- `spec-036` runtime evidence package:
+  `specs/036-paper-live-trading-runtime-hardening/EVIDENCE_PACKAGE.md`
 
-## Existing Tracks Reused
+## Existing Tracks Still Open
 
 - `spec-027`: Hyperliquid reserved-margin and portfolio-margin hardening
-- `spec-015`: signal-loop infrastructure and downstream integration contract
-- `spec-025`: WebSocket / event distribution backlog
+- `spec-015`: signal-loop downstream integration beyond the current bridge
+- `spec-025` / `spec-011`: broader event distribution backlog
 
-## Program Recommendation
+## Main Design Decisions Preserved
 
-Recommended sequencing:
+- source-data existence is not treated as equivalent to producer-readiness
+- event-driven backtest hardening remains separate from paper/live trading hardening
+- runtime safety controls remain explicit and reviewable before live deployment
+- manifest-first and provenance-first design is preserved across all delivered follow-ons
 
-1. close correctness and historical-producer gaps first
-2. harden event delivery and execution-grade backtesting second
-3. only then promote to paper/live runtime hardening
+## What External Reviewers Should Inspect First
 
-## Main Design Decisions
+1. `spec-034` sample historical output and the Bybit bridge tests.
+2. `src/liquidationheatmap/nautilus/backtest.py` plus `tests/test_nautilus_backtest_hardening.py`.
+3. `src/liquidationheatmap/runtime/executor.py`, `src/liquidationheatmap/signals/status_store.py`, and the signal/runtime tests.
+4. `specs/036-paper-live-trading-runtime-hardening/rollout.md` and `EVIDENCE_PACKAGE.md`.
 
-- do not treat source-data existence as equivalent to producer-readiness
-- keep event-driven backtest hardening separate from paper/live trading hardening
-- keep runtime safety controls explicit and reviewable before live deployment
-- preserve manifest-first and provenance-first design across all new work
+## Residual Environment Note
 
-## Questions For External Reviewers
-
-1. Is `spec-034` correctly placed before execution work, or should it run in parallel?
-2. Should `spec-035` and `spec-036` remain separate, or be merged?
-3. Is WebSocket/event distribution truly on the critical path for execution, or
-   can Redis-based downstream integration suffice initially?
-4. Are the proposed live-trading runtime controls strong enough for a first
-   limited rollout?
+Native `nautilus_trader` execution still requires Python 3.12+ for real engine runs.
+That is now an environment prerequisite, not an unfinished spec task in this repo.

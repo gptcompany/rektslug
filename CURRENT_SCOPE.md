@@ -11,19 +11,25 @@ This repository must be worked in strict sequence.
 - `spec-032`: canonical public-vs-legacy liq-map surface hardening
 - `spec-033`: public liq-map provider parity (Binance primary, CoinAnK default)
 
-These specs do **not** mean the whole repo backlog is closed.
+Execution-readiness follow-ons now implemented and validated in-repo:
+
+- `spec-034`: Bybit historical producer bridge with retained sample historical manifests
+- `spec-035`: Nautilus replay bundle/result hardening with retained review bundles
+- `spec-036`: paper/live runtime hardening with persisted signal metrics and evidence package
+
+These completions do **not** mean the whole repo backlog is closed.
 
 ## Explicit Open Backlog
 
 The following remain open and should be treated as separate backlog tracks:
 
-- `spec-030` follow-up: Bybit historical 3TB-WDC reader / normalizer bridge for historical-only windows
 - Root worktree backlog in `tasks.md`:
   reserved-margin validation and portfolio-margin solver
 - WebSocket backlog in:
   - `specs/011-realtime-streaming/`
 
-Do not infer that these are complete just because the Binance/Bybit liq-map serving path is now implemented.
+Do not infer that the whole execution program is closed just because the current
+Bybit historical bridge, replay bundles, and runtime evidence package are now implemented.
 
 ## Active Workstream
 
