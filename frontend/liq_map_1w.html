@@ -1125,8 +1125,55 @@
         }
 
         // Auto-load on page load
+        let ws;
+        let wsFailures = 0;
+        let pollingInterval = null;
+
+        function connectWebSocket() {
+            if (wsFailures >= 3) {
+                console.log("WebSocket failed 3 times, falling back to polling");
+                if (!pollingInterval) {
+                    pollingInterval = setInterval(loadPublicMap, 30000);
+                }
+                return;
+            }
+            
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws/liqmap/${getSymbol()}/${getTimeframeKey()}`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log("Connected to liqmap WebSocket");
+                wsFailures = 0;
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "heartbeat" || data.type === "pong") {
+                    if (data.type === "heartbeat") ws.send("ping");
+                    return;
+                }
+                console.log("Received liqmap update via WebSocket");
+                renderLiquidationMap(data, getSymbol());
+            };
+            
+            ws.onclose = () => {
+                wsFailures++;
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
         window.onload = () => {
             loadPublicMap();
+            connectWebSocket();
         };
     </script>
 </body>

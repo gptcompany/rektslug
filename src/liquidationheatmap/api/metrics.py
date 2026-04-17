@@ -49,6 +49,17 @@ QUESTDB_AVAILABLE = Gauge(
     "Whether QuestDB SQL is currently reachable (1 healthy, 0 unavailable)",
 )
 
+WS_ACTIVE_CONNECTIONS = Gauge(
+    "lh_ws_active_connections",
+    "Number of active WebSocket connections",
+    ["stream_type", "symbol"],
+)
+
+WS_BROADCASTS_TOTAL = Counter(
+    "lh_ws_broadcasts_total",
+    "Total number of WebSocket broadcasts triggered",
+)
+
 
 def get_metrics_response() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

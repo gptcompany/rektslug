@@ -12,10 +12,80 @@ from src.liquidationheatmap.api.shared import _gap_fill_lock, _require_internal_
 from src.liquidationheatmap.ingestion.db_service import DuckDBService
 from src.liquidationheatmap.ingestion.gap_fill import run_gap_fill
 from src.liquidationheatmap.settings import get_settings
+from src.liquidationheatmap.api.websocket import manager
+import json
 
 router = APIRouter(prefix="/api/v1", tags=["Admin"])
 _settings = get_settings()
 logger = logging.getLogger(__name__)
+
+
+async def _broadcast_updates(symbols: list[str]):
+    """Broadcast latest data to websocket clients."""
+    from src.liquidationheatmap.api.public_liqmap import build_coinank_public_map_response
+    from src.liquidationheatmap.api.metrics import WS_BROADCASTS_TOTAL
+    
+    WS_BROADCASTS_TOTAL.inc()
+    
+    for symbol in symbols:
+        # 1. Broadcast Heatmap (15m and 1h)
+        try:
+            with DuckDBService(read_only=True) as db:
+                for interval in ["15m", "1h"]:
+                    key = f"heatmap:{symbol}:{interval}"
+                    if key in manager.active_connections:
+                        # Get latest from duckdb cache
+                        row = db.conn.execute(f"""
+                            SELECT timestamp, price, payload 
+                            FROM heatmap_timeseries_cache
+                            WHERE symbol = ? AND interval = ?
+                            ORDER BY timestamp DESC LIMIT 1
+                        """, [symbol, interval]).fetchone()
+                        
+                        if row:
+                            payload = {
+                                "metadata": {
+                                    "symbol": symbol,
+                                    "interval": interval,
+                                    "source": "websocket"
+                                },
+                                "data": [{
+                                    "timestamp": row[0],
+                                    "current_price": row[1],
+                                    "levels": json.loads(row[2])
+                                }]
+                            }
+                            await manager.broadcast(key, payload)
+        except Exception as e:
+            logger.warning(f"Error broadcasting heatmap for {symbol}: {e}")
+
+        # 2. Broadcast Liqmap (1d and 1w)
+        try:
+            for timeframe in ["1d", "1w"]:
+                key = f"liqmap:{symbol}:{timeframe}"
+                if key in manager.active_connections:
+                    payload = build_coinank_public_map_response(
+                        exchange="binance", symbol=symbol, timeframe=timeframe
+                    )
+                    # Convert pydantic model to dict
+                    if hasattr(payload, "model_dump"):
+                        payload_dict = payload.model_dump()
+                    elif hasattr(payload, "dict"):
+                        payload_dict = payload.dict()
+                    else:
+                        payload_dict = dict(payload)
+                    await manager.broadcast(key, payload_dict)
+        except Exception as e:
+            logger.warning(f"Error broadcasting liqmap for {symbol}: {e}")
+
+@router.post("/ws-broadcast")
+async def ws_broadcast(
+    symbol: str = Query("BTCUSDT", description="Symbol to broadcast"),
+    token_valid: None = Depends(_require_internal_token),
+):
+    """Manually trigger WebSocket broadcast for testing."""
+    await _broadcast_updates([symbol])
+    return {"status": "success", "message": f"Broadcast triggered for {symbol}"}
 
 
 @router.post("/prepare-for-ingestion")
@@ -89,6 +159,9 @@ async def gap_fill(
                     GAP_FILL_INSERTED_TOTAL.labels(symbol=symbol, type=data_type).inc(
                         details["inserted"]
                     )
+
+        if not dry_run:
+            asyncio.create_task(_broadcast_updates(symbols))
 
         return result
     except Exception as e:

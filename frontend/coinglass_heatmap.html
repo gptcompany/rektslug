@@ -712,6 +712,65 @@
                     console.error('Initial load failed:', err);
                     setStatus('Initial load failed. Click "Load Heatmap" to retry.', 'error');
                 });
+                connectWebSocket();
+            }, 500);
+            
+            // Reconnect websocket if symbol or window changes
+            document.getElementById('symbolSelect').addEventListener('change', () => {
+                wsFailures = 0;
+                connectWebSocket();
+            });
+            document.getElementById('timeWindow').addEventListener('change', () => {
+                wsFailures = 0;
+                connectWebSocket();
+            });
+        });
+    </script>
+</body>
+</html>
+;
+                // In a perfect world we would append the new snapshot, but to avoid 
+                // client-side calculation bugs, we just trigger a data reload
+                loadHeatmap().catch(console.error);
+            };
+            
+            ws.onclose = () => {
+                wsFailures++;
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('symbol')) {
+                document.getElementById('symbolSelect').value = params.get('symbol').toUpperCase();
+            }
+            if (params.has('window')) {
+                document.getElementById('timeWindow').value = params.get('window');
+            }
+            if (params.has('bin')) {
+                document.getElementById('priceBinSize').value = params.get('bin');
+            }
+            if (params.get('ui') === 'minimal') {
+                document.querySelector('.controls').style.display = 'none';
+                document.getElementById('helpToggle').style.display = 'none';
+            }
+
+            updateHeader(
+                document.getElementById('symbolSelect').value,
+                document.getElementById('timeWindow').value
+            );
+
+            // Give the server time to be ready
+            setTimeout(() => {
+                loadHeatmap().catch(err => {
+                    console.error('Initial load failed:', err);
+                    setStatus('Initial load failed. Click "Load Heatmap" to retry.', 'error');
+                });
             }, 500);
         });
     </script>

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from src.liquidationheatmap.settings import get_settings
 from src.liquidationheatmap.api.shared import (
     SUPPORTED_EXCHANGES,
+    SUPPORTED_SYMBOLS,
     IngestionLockError,
     _warmup_read_connection,
     get_cors_origins,
@@ -245,3 +246,53 @@ async def heatmap_coinank_style(symbol: str, timeframe: str):
             f"?symbol={symbol.upper()}&window={normalized_timeframe}&ui=minimal"
         )
     )
+
+from fastapi import WebSocket, WebSocketDisconnect
+from src.liquidationheatmap.api.websocket import manager
+
+@app.websocket("/ws/heatmap/{symbol}/{interval}")
+async def websocket_heatmap(websocket: WebSocket, symbol: str, interval: str):
+    symbol = symbol.upper()
+    if symbol not in SUPPORTED_SYMBOLS:
+        await websocket.close(code=1008, reason="Invalid symbol")
+        return
+    if interval not in ["15m", "1h"]:
+        await websocket.close(code=1008, reason="Invalid interval")
+        return
+        
+    key = f"heatmap:{symbol}:{interval}"
+    connected = await manager.connect(key, websocket)
+    if not connected:
+        return
+        
+    try:
+        while True:
+            # We just hold the connection and wait for disconnect or ping responses
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        manager.disconnect(key, websocket)
+
+@app.websocket("/ws/liqmap/{symbol}/{timeframe}")
+async def websocket_liqmap(websocket: WebSocket, symbol: str, timeframe: str):
+    symbol = symbol.upper()
+    if symbol not in SUPPORTED_SYMBOLS:
+        await websocket.close(code=1008, reason="Invalid symbol")
+        return
+    if timeframe not in ["1d", "1w"]:
+        await websocket.close(code=1008, reason="Invalid timeframe")
+        return
+        
+    key = f"liqmap:{symbol}:{timeframe}"
+    connected = await manager.connect(key, websocket)
+    if not connected:
+        return
+        
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        manager.disconnect(key, websocket)
