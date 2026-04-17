@@ -22,30 +22,8 @@ The following remain open and should be treated as separate backlog tracks:
   reserved-margin validation and portfolio-margin solver
 - WebSocket backlog in:
   - `specs/011-realtime-streaming/`
-  - `specs/025-websocket-streaming/`
 
 Do not infer that these are complete just because the Binance/Bybit liq-map serving path is now implemented.
-
-## Execution Readiness Program
-
-The next-stage execution roadmap is documented in:
-
-- `docs/EXECUTION_READINESS_ROADMAP.md`
-
-Proposed follow-on specs now staged in repo:
-
-- `spec-034`: Bybit historical producer bridge
-- `spec-035`: Nautilus event-driven backtest hardening
-- `spec-036`: paper/live trading runtime hardening
-
-Existing execution-adjacent tracks that remain relevant:
-
-- `spec-015`: adaptive signal loop, especially external Nautilus integration
-- `spec-025`: WebSocket / event distribution
-- `spec-027`: Hyperliquid reserved-margin / portfolio-margin hardening
-
-This roadmap does **not** change the active default workstream below. It defines
-the planned execution program after the current public `liq-map` baseline.
 
 ## Active Workstream
 
@@ -107,6 +85,46 @@ The only active liq-map timeframes are:
 `liq-heat-map` is explicitly **phase 2**.
 
 Do not treat these as active implementation targets unless the task explicitly asks for heatmap work:
+
+- `frontend/coinglass_heatmap.html`
+- `scripts/validate_heatmap_visual.py`
+- `/chart/derivatives/liq-heat-map/...`
+- `/liquidations/heatmap-timeseries`
+
+When heatmap work starts, the canonical route shape is:
+
+- `http://localhost:8002/chart/derivatives/liq-heat-map/<symbol>/<timeframe>`
+
+For heatmap, the active path axes are:
+
+- `symbol` (for example `btcusdt`, `ethusdt`)
+- `timeframe` (currently `1d`, `1w`)
+
+There is no exchange segment in the canonical heatmap route.
+
+## Legacy / Reference-Only
+
+The following remain in the repo only as historical reference or compatibility surface:
+
+- `frontend/heatmap.html`
+- `frontend/heatmap_30d.html`
+- `frontend/liquidation_map.html`
+- `frontend/compare.html`
+- `frontend/historical_liquidations.html`
+- `/coinglass`
+- `/heatmap_30d.html`
+- `/liq_map_1w.html`
+
+## Working Rule
+
+When a new request is ambiguous, default to the active workstream above and ignore deferred or legacy references.
+
+If a request mentions exchange variants without further detail:
+
+- default to `binance`
+- keep the work inside `liq-map`
+- do not branch into `liq-heat-map`
+ive implementation targets unless the task explicitly asks for heatmap work:
 
 - `frontend/coinglass_heatmap.html`
 - `scripts/validate_heatmap_visual.py`
