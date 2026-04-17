@@ -57,7 +57,18 @@ async def lifespan(app: FastAPI):
     
     # Optional: warm up connections
     asyncio.create_task(_warmup_read_connection())
+
+    # Start WebSocket heartbeat monitoring
+    from src.liquidationheatmap.api.websocket import manager
+    manager.start_heartbeat(interval_seconds=30)
+    logger.info("Lifespan: WebSocket heartbeat monitoring started")
+
     yield
+
+    # Stop heartbeat on shutdown
+    if manager._heartbeat_task and not manager._heartbeat_task.done():
+        manager._heartbeat_task.cancel()
+        logger.info("Lifespan: WebSocket heartbeat monitoring stopped")
 
 app = FastAPI(
     title="Liquidation Heatmap API",

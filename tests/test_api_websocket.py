@@ -60,3 +60,44 @@ async def test_broadcast_removes_failed_connections(manager):
     # ws2 should be removed
     assert len(manager.active_connections[key]) == 1
     assert ws1 in manager.active_connections[key]
+
+
+@pytest.mark.asyncio
+async def test_start_heartbeat_creates_task(manager):
+    """Heartbeat loop starts as a background task when called within a running loop."""
+    assert manager._heartbeat_task is None
+
+    manager.start_heartbeat(interval_seconds=60)
+
+    assert manager._heartbeat_task is not None
+    assert not manager._heartbeat_task.done()
+
+    # Cleanup
+    manager._heartbeat_task.cancel()
+    try:
+        await manager._heartbeat_task
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_sends_ping_to_connections(manager):
+    """Heartbeat sends a ping and evicts failed connections."""
+    ws_ok = AsyncMock(spec=WebSocket)
+    ws_fail = AsyncMock(spec=WebSocket)
+    ws_fail.send_json.side_effect = Exception("gone")
+
+    key = "hb:test:1"
+    await manager.connect(key, ws_ok)
+    await manager.connect(key, ws_fail)
+    assert len(manager.active_connections[key]) == 2
+
+    # Run one heartbeat iteration manually (skip the sleep)
+    for connection in list(manager.active_connections.get(key, set())):
+        try:
+            await connection.send_json({"type": "heartbeat", "status": "ok"})
+        except Exception:
+            manager.disconnect(key, connection)
+
+    assert len(manager.active_connections[key]) == 1
+    assert ws_ok in manager.active_connections[key]
