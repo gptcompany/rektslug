@@ -81,3 +81,50 @@ def test_executor_persistence(tmp_path):
     success, reason = new_executor.process_signal("sig1", "BTCUSDT", "hyperliquid", "long", 40000.0, 100.0, now)
     assert success is False
     assert reason == "duplicate_signal"
+
+
+def test_executor_persists_non_default_policy(tmp_path):
+    """After restart, non-default risk_policy and stale_seconds must survive."""
+    state_file = tmp_path / "runtime_state.json"
+
+    custom_policy = RiskPolicy(
+        max_position_size_usd=250.0,
+        max_daily_loss_usd=50.0,
+        max_concurrent_positions=3,
+        allowed_symbols=["ETHUSDT"],
+        allowed_venues=["bybit"],
+        kill_switch_active=False,
+    )
+    executor = HardenedExecutor(
+        mode=ExecutionMode.LIVE_LIMITED,
+        risk_policy=custom_policy,
+        stale_seconds=120,
+    )
+
+    now = datetime.now(timezone.utc)
+    executor.process_signal("sig1", "ETHUSDT", "bybit", "short", 3000.0, 100.0, now)
+    executor.save_state(state_file)
+
+    # Restore
+    restored = HardenedExecutor.load_state(state_file)
+
+    # Mode
+    assert restored.mode == ExecutionMode.LIVE_LIMITED
+
+    # Risk policy fields
+    assert restored.risk_engine.policy.max_position_size_usd == 250.0
+    assert restored.risk_engine.policy.max_daily_loss_usd == 50.0
+    assert restored.risk_engine.policy.max_concurrent_positions == 3
+    assert restored.risk_engine.policy.allowed_symbols == ["ETHUSDT"]
+    assert restored.risk_engine.policy.allowed_venues == ["bybit"]
+    assert restored.risk_engine.policy.kill_switch_active is False
+
+    # Stale seconds
+    assert restored.signal_safety.stale_seconds == 120
+
+    # Seen signals survive
+    assert "sig1" in restored.signal_safety.seen_signals
+
+    # Audit log survives
+    assert len(restored.audit_log) == 1
+    assert restored.audit_log[0].signal_id == "sig1"

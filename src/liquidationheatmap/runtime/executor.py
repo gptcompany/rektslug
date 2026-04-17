@@ -95,27 +95,34 @@ class HardenedExecutor:
         return self.audit_log
 
     def save_state(self, path: str | Path):
-        """Save executor state and audit trail to disk."""
+        """Save executor state, policy, and audit trail to disk."""
         import json
         data = {
             "state": self.state.model_dump(),
+            "risk_policy": self.risk_engine.policy.model_dump(),
+            "stale_seconds": self.signal_safety.stale_seconds,
             "seen_signals": list(self.signal_safety.seen_signals),
-            "audit_log": [action.model_dump() for action in self.audit_log]
+            "audit_log": [action.model_dump() for action in self.audit_log],
         }
         with open(path, "w", encoding="utf-8") as f:
-            # use a simple serializer for non-serializable types if needed
             json.dump(data, f, indent=2, default=str)
         logger.info(f"Executor state saved to {path}")
 
     @classmethod
     def load_state(cls, path: str | Path) -> "HardenedExecutor":
-        """Load executor state from disk."""
+        """Load executor state, policy, and audit trail from disk."""
         import json
-        from pathlib import Path
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
-        executor = cls(mode=ExecutionMode(data["state"]["mode"]))
+
+        risk_policy = RiskPolicy(**data["risk_policy"]) if "risk_policy" in data else RiskPolicy()
+        stale_seconds = data.get("stale_seconds", 300)
+
+        executor = cls(
+            mode=ExecutionMode(data["state"]["mode"]),
+            risk_policy=risk_policy,
+            stale_seconds=stale_seconds,
+        )
         executor.state = RuntimeState(**data["state"])
         executor.signal_safety.seen_signals = set(data["seen_signals"])
         executor.audit_log = [ExecutionAction(**action) for action in data["audit_log"]]
