@@ -28,6 +28,7 @@ class BybitReadinessGate:
     CATALOG_ROOT = Path("/media/sam/1TB/ccxt-data-pipeline/data/catalog")
     HISTORICAL_ROOT = Path("/media/sam/3TB-WDC/bybit_data_downloader/data/historical")
     METRICS_ROOT = Path("/media/sam/3TB-WDC/bybit_data_downloader/data/market_metrics")
+    NORMALIZED_ROOT = Path("/media/sam/1TB/rektslug/data/historical_normalized/bybit")
 
     # Gap: Bybit orderbook is not continuous between historical 3TB-WDC files and
     # the live ccxt-data-pipeline catalog. End is exclusive.
@@ -47,12 +48,14 @@ class BybitReadinessGate:
         catalog_root: Path | str | None = None,
         historical_root: Path | str | None = None,
         metrics_root: Path | str | None = None,
+        normalized_root: Path | str | None = None,
     ):
         self.catalog_root = Path(catalog_root) if catalog_root is not None else self.CATALOG_ROOT
         self.historical_root = (
             Path(historical_root) if historical_root is not None else self.HISTORICAL_ROOT
         )
         self.metrics_root = Path(metrics_root) if metrics_root is not None else self.METRICS_ROOT
+        self.normalized_root = Path(normalized_root) if normalized_root is not None else self.NORMALIZED_ROOT
 
     def check_readiness(
         self, 
@@ -162,6 +165,9 @@ class BybitReadinessGate:
         catalog_type = self.CATALOG_TYPES[input_class]
         return self.catalog_root / catalog_type / f"{symbol}-PERP.BYBIT" / f"{date_str}.parquet"
 
+    def _normalized_file(self, input_class: str, symbol: str, date_str: str) -> Path:
+        return self.normalized_root / input_class / f"{symbol}-PERP.BYBIT" / f"{date_str}.parquet"
+
     def _historical_file(self, input_class: str, symbol: str, date_str: str) -> Path | None:
         if input_class == "klines":
             return self.historical_root / "klines" / "linear" / symbol / "1m" / f"{symbol}_1m_{date_str}.json"
@@ -202,6 +208,10 @@ class BybitReadinessGate:
         catalog_file = self._catalog_file(input_class, symbol, date_str)
         if catalog_file.exists():
             return "catalog_file", str(catalog_file), None
+
+        normalized_file = self._normalized_file(input_class, symbol, date_str)
+        if normalized_file.exists():
+            return "normalized_historical", str(normalized_file), None
 
         historical_file = self._historical_file(input_class, symbol, date_str)
         if historical_file and historical_file.exists():

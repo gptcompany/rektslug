@@ -96,3 +96,27 @@ def test_bybit_readiness_historical_only_is_not_marked_available(tmp_path):
 
     assert report.status == "blocked_source_unverified"
     assert report.details["orderbook"]["source_status"] == "historical_unreadable"
+
+
+def test_bybit_readiness_normalized_historical_clears_unverified(tmp_path):
+    # Setup gate with a normalized_root
+    gate = BybitReadinessGate(
+        catalog_root=tmp_path / "catalog",
+        historical_root=tmp_path / "historical",
+        metrics_root=tmp_path / "metrics",
+        normalized_root=tmp_path / "normalized",
+    )
+    
+    date_str = "2024-01-01"
+    
+    # Touch normalized parquet files instead of catalog
+    for input_type in ["klines", "open_interest", "funding", "trades", "orderbook"]:
+        normalized_path = tmp_path / "normalized" / input_type / "BTCUSDT-PERP.BYBIT" / f"{date_str}.parquet"
+        normalized_path.parent.mkdir(parents=True, exist_ok=True)
+        normalized_path.touch()
+
+    report = gate.check_readiness("BTCUSDT", "2024-01-01T12:00:00Z", "depth_weighted")
+
+    assert report.status == "available"
+    assert report.details["orderbook"]["source_status"] == "normalized_historical"
+    assert report.details["trades"]["source_status"] == "normalized_historical"
