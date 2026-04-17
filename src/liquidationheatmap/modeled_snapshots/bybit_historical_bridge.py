@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -49,37 +50,107 @@ class BybitHistoricalBridge:
                 / f"{date_str}_{symbol}_ob500.data.zip"
             )
         if input_class == "funding":
-            return self.metrics_root / "funding_rates"
+            return self.metrics_root / "funding_rates" / symbol / f"{date_str}.json"
         if input_class == "open_interest":
-            return self.metrics_root / "open_interest"
+            return self.metrics_root / "open_interest" / symbol / f"{date_str}.json"
         return None
 
     def read_raw(self, input_class: str, path: Path) -> pd.DataFrame:
         if not path.exists():
             return pd.DataFrame()
-            
-        if input_class == "klines":
-            with open(path, "r") as f:
-                data = json.load(f)
-            df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "turnover"])
-            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-            df["close"] = df["close"].astype(float)
-            return df
-        elif input_class == "trades":
-            # Just read the csv and convert timestamp if exists
-            try:
-                df = pd.read_csv(path, compression="gzip" if path.suffix == ".gz" else None)
-                if "timestamp" in df.columns:
-                    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-                return df
-            except Exception:
-                return pd.DataFrame()
-        elif input_class in ["funding", "open_interest"]:
-            # Typically json arrays from the metrics downloader
-            # path is the directory, we need to read all json files and concat or just read one for the exact date
+
+        try:
+            if input_class == "klines":
+                return self._read_klines(path)
+            elif input_class == "trades":
+                return self._read_trades(path)
+            elif input_class == "orderbook":
+                return self._read_orderbook(path)
+            elif input_class == "funding":
+                return self._read_funding(path)
+            elif input_class == "open_interest":
+                return self._read_open_interest(path)
+        except Exception as e:
+            logger.warning(f"Failed to read {input_class} from {path}: {e}")
             return pd.DataFrame()
-            
+
         return pd.DataFrame()
+
+    def _read_klines(self, path: Path) -> pd.DataFrame:
+        with open(path, "r") as f:
+            data = json.load(f)
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "turnover"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        df["close"] = df["close"].astype(float)
+        return df
+
+    def _read_trades(self, path: Path) -> pd.DataFrame:
+        df = pd.read_csv(path, compression="gzip" if path.suffix == ".gz" else None)
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        return df
+
+    def _read_orderbook(self, path: Path) -> pd.DataFrame:
+        """Read orderbook from Bybit .data.zip archive.
+
+        The archive contains one or more CSV files with columns:
+        timestamp, side, price, size (one row per level per snapshot).
+        We pivot into a wide format compatible with the producer.
+        """
+        frames = []
+        with zipfile.ZipFile(path, "r") as zf:
+            for name in zf.namelist():
+                if not name.endswith(".csv"):
+                    continue
+                with zf.open(name) as inner:
+                    df = pd.read_csv(inner)
+                    frames.append(df)
+        if not frames:
+            return pd.DataFrame()
+        df = pd.concat(frames, ignore_index=True)
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        return df
+
+    def _read_funding(self, path: Path) -> pd.DataFrame:
+        """Read funding rate JSON (metrics downloader format).
+
+        Expected: JSON array of objects with at least
+        ``funding_rate``, ``funding_rate_timestamp``.
+        """
+        with open(path, "r") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and "result" in data:
+            data = data["result"]
+        if not isinstance(data, list) or not data:
+            return pd.DataFrame()
+        df = pd.DataFrame(data)
+        if "funding_rate_timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["funding_rate_timestamp"], unit="ms", utc=True)
+        elif "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        if "funding_rate" in df.columns:
+            df["funding_rate"] = df["funding_rate"].astype(float)
+        return df
+
+    def _read_open_interest(self, path: Path) -> pd.DataFrame:
+        """Read open interest JSON (metrics downloader format).
+
+        Expected: JSON array of objects with at least
+        ``open_interest``, ``timestamp``.
+        """
+        with open(path, "r") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and "result" in data:
+            data = data["result"]
+        if not isinstance(data, list) or not data:
+            return pd.DataFrame()
+        df = pd.DataFrame(data)
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        if "open_interest" in df.columns:
+            df["open_interest_value"] = df["open_interest"].astype(float)
+        return df
 
     def write_normalized(self, df: pd.DataFrame, input_class: str, symbol: str, date_str: str, source_path: str) -> Tuple[Path, Dict[str, Any]]:
         dest = self.normalized_root / input_class / f"{symbol}-PERP.BYBIT" / f"{date_str}.parquet"
