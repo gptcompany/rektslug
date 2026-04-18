@@ -41,7 +41,7 @@ address label.
 
 ## Command
 
-Example using dotenvx without exposing the key:
+Single-cycle smoke using dotenvx without exposing the key:
 
 ```bash
 set +x
@@ -55,8 +55,26 @@ cd /media/sam/1TB/nautilus_dev
   --redis-host 172.20.0.4
 ```
 
-The `--confirm-testnet-order` flag is required. Without it, the script exits
-before placing any order.
+Short sequential soak:
+
+```bash
+set +x
+pk="$(dotenvx get HYPERLIQUID_TESTNET_PK -f /media/sam/1TB/nautilus_dev/.env 2>/dev/null)"
+export HYPERLIQUID_TESTNET_PK="$pk"
+unset pk
+
+cd /media/sam/1TB/nautilus_dev
+.venv/bin/python scripts/hyperliquid/liquidation_bridge_soak.py \
+  --confirm-testnet-order \
+  --redis-host 172.20.0.4 \
+  --cycles 2 \
+  --cycle-delay-secs 3 \
+  --log-level WARNING \
+  --output-dir /tmp/nautilus_liquidation_bridge_soak_codex
+```
+
+The `--confirm-testnet-order` flag is required for both scripts. Without it,
+the scripts exit before placing any order.
 
 ## Expected Success Output
 
@@ -104,6 +122,23 @@ Latest scripted smoke:
 - final `open_positions`: `0`
 - final `open_orders`: `0`
 
+Latest short sequential soak:
+
+- `cycles`: `2`
+- `passed_cycles`: `2`
+- `failed_cycles`: `0`
+- `final_open_positions`: `0`
+- `final_open_orders`: `0`
+- `total_pnl`: `-0.14259500`
+- `final_account_value`: `498.813527`
+- aggregate report:
+  `/tmp/nautilus_liquidation_bridge_soak_codex/aggregate.json`
+
+Cycle evidence:
+
+- cycle 1: `node-smoke-1776541001`, `feedback_rows=1`, `pnl=-0.07029700`
+- cycle 2: `node-smoke-1776541059`, `feedback_rows=1`, `pnl=-0.07229800`
+
 Earlier manual smoke before script hardening:
 
 - `signal_id`: `node-smoke-1776520197`
@@ -123,6 +158,9 @@ Earlier manual smoke before script hardening:
 - A non-zero count in `open_positions` or `open_orders` is a failed smoke.
 - A missing feedback row is a failed smoke even if the exchange lifecycle
   completed.
+- The soak runner invokes the guarded smoke as a subprocess per cycle. This is
+  intentional: it validates restart, reconciliation, cleanup, feedback
+  persistence, and account flatness repeatedly.
 
 ## Review Interpretation
 
@@ -144,4 +182,3 @@ Do not promote beyond testnet/paper if any of these are true:
 - `errors` is non-empty.
 - Redis feedback is received but DuckDB persistence fails.
 - The launcher requires manual code edits to start.
-
