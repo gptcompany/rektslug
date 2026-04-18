@@ -7,3 +7,4 @@ Operational runbooks for LiquidationHeatmap.
 - `chart-routes.md`
 - `parity-thresholds.md`
 - `hyperliquid-liqmap-checkpoint.md`
+- `nautilus-liquidation-bridge-live-smoke.md`
