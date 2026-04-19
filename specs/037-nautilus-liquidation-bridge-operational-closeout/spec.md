@@ -66,6 +66,15 @@ This spec spans two repositories:
 Any implementation must preserve small reviewable commits and must not mix
 unrelated worktree changes into this spec.
 
+## TDD Applicability Note
+
+This spec is primarily operational: it runs, configures, validates, and records
+evidence for an existing bridge across `rektslug` and `nautilus_dev`. New
+production code introduced while executing this spec, such as lifecycle trackers
+or fault-injection hooks, must still follow TDD discipline in the owning repo.
+Operational run tasks verify behavior and evidence; implementation tasks for new
+code must include RED tests before the production change.
+
 ## Requirements
 
 ### Functional Requirements
