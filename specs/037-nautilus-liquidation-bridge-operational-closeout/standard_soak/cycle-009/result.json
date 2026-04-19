@@ -1,0 +1,22 @@
+{
+  "account_value": "498.048192",
+  "close_submitted": true,
+  "closed": true,
+  "entry_submitted": true,
+  "errors": [],
+  "feedback_rows": 1,
+  "feedback_seen": true,
+  "open_orders": 0,
+  "open_positions": 0,
+  "opened": true,
+  "residual_reduce_only_orders_canceled": 1,
+  "row": [
+    "BTCUSDT",
+    "node-smoke-1776614960",
+    "75863.00000000",
+    "75856.00000000",
+    "-0.07527300",
+    "nautilus"
+  ],
+  "signal_id": "node-smoke-1776614960"
+}

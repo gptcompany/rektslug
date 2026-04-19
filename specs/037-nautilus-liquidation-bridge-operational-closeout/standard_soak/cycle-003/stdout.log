@@ -1,0 +1,5 @@
+[1m2026-04-19T16:06:10.477775801Z[0m [1;33m[WARN] TRADER-LIQ-BRIDGE-SMOKE.TRADER-LIQ-BRIDGE-SMOKE: AutoCloseLiquidationBridgeStrategy-000 already stopped[0m
+NODE_SMOKE_RUNNING {'signal_id': 'node-smoke-1776614758', 'symbol': 'BTCUSDT', 'instrument': 'BTC-USD-PERP.HYPERLIQUID', 'size': '0.001', 'db_path': '/media/sam/1TB/rektslug/specs/037-nautilus-liquidation-bridge-operational-closeout/standard_soak/cycle-003/feedback.duckdb', 'redis': '172.20.0.4:6379/0', 'testnet_address': '0x4d6e23...fA113B'}
+NODE_SMOKE_SIGNAL_PUBLISHED {'signal_id': 'node-smoke-1776614758', 'subscribers': 1}
+NODE_SMOKE_RESULT {'signal_id': 'node-smoke-1776614758', 'entry_submitted': True, 'opened': True, 'close_submitted': True, 'closed': True, 'feedback_seen': True, 'feedback_rows': 1, 'row': ('BTCUSDT', 'node-smoke-1776614758', Decimal('75938.00000000'), Decimal('75923.00000000'), Decimal('-0.08333700'), 'nautilus'), 'residual_reduce_only_orders_canceled': 0, 'open_positions': 0, 'open_orders': 0, 'account_value': '498.54044', 'errors': []}
+NODE_SMOKE_OK
