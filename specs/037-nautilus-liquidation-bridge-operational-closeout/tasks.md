@@ -13,7 +13,7 @@
   - short: `2` cycles for development smoke
   - standard: `20` cycles for pre-review
   - extended: `50` cycles or time-bounded equivalent for release evidence
-- [ ] T005a Verify guarded smoke command refuses to place orders without explicit
+- [x] T005a Verify guarded smoke command refuses to place orders without explicit
   `--confirm-testnet-order` flag; run once without flag and assert exit code
   is non-zero and zero venue orders are created
 - [ ] T006 Add or verify aggregate metrics in the soak report:
