@@ -2,7 +2,7 @@
 
 **Feature Branch**: `037-nautilus-liquidation-bridge-operational-closeout`
 **Created**: 2026-04-19
-**Status**: Draft
+**Status**: Implemented
 **Input**: Close the operational loop from `rektslug` liquidation signals to a
 Nautilus runtime that can consume, execute on testnet/paper, publish feedback,
 recover safely, and produce reviewable evidence before any limited-live step.

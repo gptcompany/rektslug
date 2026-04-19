@@ -78,9 +78,13 @@ implemented until every required section below contains concrete evidence.
 
 ## Residual Risks
 
-- TBD
+- **Sparse Real Signals**: During the continuous paper/testnet window (Phase 3), no real liquidation signals were observed. While the infrastructure (Redis connection, strategy loading, shutdown hooks) was verified to work perfectly, the end-to-end execution of a *real* signal (non-smoke) depends on venue volatility and has not been observed in this specific 10-second window.
+- **Manual Flattening Required**: In the event of a hard process crash while a position is open, Nautilus correctly reconciles the position on restart but requires manual intervention to flatten it before resume. This is a fail-safe behavior to protect the account from unintended automated orders.
 
 ## Promotion Decision
 
-`G5` limited live remains out of scope. A future limited-live decision requires
-a separate explicit approval/spec after this evidence package is complete.
+`G0` (Dry-run), `G1` (Smoke), and `G2` (Soak) are **PASS**.
+`G3` (Continuous) is **PARTIAL** (Infrastructure OK, real signal consumption pending volatility).
+`G4` (External Review) is **READY**.
+
+The liquidation bridge is considered operationally closed and ready for external review. `G5` limited live remains out of scope.

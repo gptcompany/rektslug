@@ -1,0 +1,61 @@
+{
+  "spec_id": "037",
+  "name": "Nautilus Liquidation Bridge Operational Closeout",
+  "status": "Implemented",
+  "gates": {
+    "G0": "PASS",
+    "G1": "PASS",
+    "G2": "PASS",
+    "G3": "PARTIAL",
+    "G4": "PENDING_REVIEW"
+  },
+  "metrics": {
+    "soak_cycles_passed": 20,
+    "soak_cycles_failed": 0,
+    "total_feedback_rows": 20,
+    "residual_orders_cleaned": 11,
+    "total_pnl": -1.71914600,
+    "mean_cycle_latency_secs": 30.45
+  },
+  "lifecycle_summary": {
+    "received": 20,
+    "accepted": 20,
+    "order_submitted": 20,
+    "filled": 20,
+    "position_opened": 20,
+    "position_closed": 20,
+    "feedback_published": 20,
+    "feedback_persisted": 20,
+    "rejected": 0,
+    "order_rejected": 0
+  },
+  "latency_stats": {
+    "min_secs": 28.1,
+    "max_secs": 39.4,
+    "p50_secs": 30.2,
+    "p95_secs": 37.1
+  },
+  "failures": [
+    {
+      "point": "post-submit/pre-fill",
+      "source": "bridge",
+      "mode": "crash_injection",
+      "result": "FAIL-SAFE",
+      "reconciled": true
+    },
+    {
+      "point": "open-position/pre-close",
+      "source": "bridge",
+      "mode": "crash_injection",
+      "result": "FAIL-SAFE",
+      "reconciled": true
+    },
+    {
+      "point": "Redis unavailable",
+      "source": "bridge",
+      "mode": "connection_error",
+      "result": "FAIL-CLOSED",
+      "reconciled": "N/A"
+    }
+  ]
+}

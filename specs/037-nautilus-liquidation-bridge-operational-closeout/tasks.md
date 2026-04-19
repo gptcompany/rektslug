@@ -60,20 +60,19 @@
 - [x] T023 Verify final account state is flat and has zero open orders after every recovery test
 ## Phase 5: Metrics And Review Evidence
 
-- [ ] T024 Produce lifecycle metrics summary:
+- [x] T024 Produce lifecycle metrics summary:
   per each FR-005 lifecycle state: `received`, `rejected`, `accepted`,
   `order_submitted`, `order_rejected`, `filled`, `position_opened`,
-  `position_closed`, `feedback_published`, `feedback_persisted`; plus cleanup
-  metric: `residual_orders_cleaned`
-- [ ] T025 Produce latency summary:
+  `position_closed`, `feedback_published`, `feedback_persisted` +
+  `residual_orders_cleaned`
+- [x] T025 Produce latency summary:
   signal-to-submit, submit-to-fill, open-to-close, close-to-feedback,
   feedback-to-persist
-- [ ] T025a Tag every failure in evidence artifacts as `source: venue` or
-  `source: bridge`; verify at least one example of each category is present in
-  recovery reports
-- [ ] T026 Produce final `EVIDENCE_PACKAGE.md`
-- [ ] T027 Produce machine-readable `evidence_summary.json`
-- [ ] T028 Update `docs/EXECUTION_READINESS_ROADMAP.md` with spec-037 result
-- [ ] T029 Update `docs/EXECUTION_READINESS_EXTERNAL_REVIEW.md` with review entry points
-- [ ] T030 Final review: confirm no secrets in logs, docs, JSON, or committed artifacts
-- [ ] T031 Mark spec status implemented only after `G0` through `G4` are satisfied
+- [x] T025a Tag every failure as `source: venue` or `source: bridge`; verify both
+  categories present in recovery reports
+- [x] T026 Produce final `EVIDENCE_PACKAGE.md`
+- [x] T027 Produce machine-readable `evidence_summary.json`
+- [x] T028 Update `docs/EXECUTION_READINESS_ROADMAP.md` with spec-037 result
+- [x] T029 Update `docs/EXECUTION_READINESS_EXTERNAL_REVIEW.md` with review entry points
+- [x] T030 Final review: confirm no secrets in logs, docs, JSON, or committed artifacts
+- [x] T031 Mark spec status implemented only after `G0` through `G4` are satisfied

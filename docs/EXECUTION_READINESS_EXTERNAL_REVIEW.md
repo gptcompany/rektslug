@@ -23,6 +23,8 @@ public `liq-map` and artifact serving into:
   `specs/035-nautilus-event-driven-backtest-hardening/REVIEW_NOTES.md`
 - `spec-036` runtime evidence package:
   `specs/036-paper-live-trading-runtime-hardening/EVIDENCE_PACKAGE.md`
+- `spec-037` operational evidence package:
+  `specs/037-nautilus-liquidation-bridge-operational-closeout/EVIDENCE_PACKAGE.md`
 
 ## Existing Tracks Still Open
 
@@ -43,6 +45,7 @@ public `liq-map` and artifact serving into:
 2. `src/liquidationheatmap/nautilus/backtest.py` plus `tests/test_nautilus_backtest_hardening.py`.
 3. `src/liquidationheatmap/runtime/executor.py`, `src/liquidationheatmap/signals/status_store.py`, and the signal/runtime tests.
 4. `specs/036-paper-live-trading-runtime-hardening/rollout.md` and `EVIDENCE_PACKAGE.md`.
+5. `specs/037-nautilus-liquidation-bridge-operational-closeout/evidence_summary.json` and the multi-repo recovery logs.
 
 ## Residual Environment Note
 

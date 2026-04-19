@@ -40,6 +40,7 @@ The repo is not yet fully execution-complete because the following gaps remain:
 | `spec-034` | Follow-on | Bybit historical producer bridge for 3TB-WDC historical windows | Implemented and sample-validated |
 | `spec-035` | Follow-on | Execution-grade Nautilus event-driven backtest harness | Implemented with retained replay bundles |
 | `spec-036` | Follow-on | Paper/live trading runtime hardening and operational controls | Implemented with evidence package |
+| `spec-037` | Follow-on | Nautilus liquidation bridge operational closeout | Implemented with multi-repo evidence |
 
 ## Delivered Sequence
 
@@ -57,6 +58,7 @@ The repo is not yet fully execution-complete because the following gaps remain:
 ### Wave 3 - Trading Runtime Hardening
 
 6. Implement `spec-036` runtime persistence, measured signal status counters, and rollout/evidence docs.
+7. Implement `spec-037` operational closeout for the Nautilus liquidation bridge with guarded soak evidence.
 
 ## Exit Criteria By Stage
 
