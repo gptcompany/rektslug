@@ -44,7 +44,7 @@
 
 ## Phase 4: Recovery And Fault Injection
 
-- [ ] T016 Define supported fault-injection points:
+- [x] T016 Define supported fault-injection points:
   pre-submit, post-submit/pre-fill, open-position/pre-close,
   post-close/pre-feedback, Redis unavailable, DuckDB unavailable
 - [ ] T016a Write failing tests for fault-injection hooks before implementation
