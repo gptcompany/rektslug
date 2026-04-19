@@ -19,9 +19,9 @@
 - [x] T006 Add or verify aggregate metrics in the soak report:
   `passed_cycles`, `failed_cycles`, `feedback_rows`, `open_positions`,
   `open_orders`, `cleanup_count`, `total_pnl`, per-cycle latency
-- [ ] T007 Run standard soak on Hyperliquid testnet and retain aggregate JSON
-- [ ] T008 Run extended soak or document why standard soak is the accepted gate
-- [ ] T009 Update runbook with accepted soak profile, command, and evidence path
+- [x] T007 Run standard soak on Hyperliquid testnet and retain aggregate JSON
+- [x] T008 Run extended soak or document why standard soak is the accepted gate
+- [x] T009 Update runbook with accepted soak profile, command, and evidence path
 
 ## Phase 3: Real-Signal Continuous Paper/Testnet Mode
 
