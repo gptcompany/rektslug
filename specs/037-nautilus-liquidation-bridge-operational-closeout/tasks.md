@@ -16,7 +16,7 @@
 - [x] T005a Verify guarded smoke command refuses to place orders without explicit
   `--confirm-testnet-order` flag; run once without flag and assert exit code
   is non-zero and zero venue orders are created
-- [ ] T006 Add or verify aggregate metrics in the soak report:
+- [x] T006 Add or verify aggregate metrics in the soak report:
   `passed_cycles`, `failed_cycles`, `feedback_rows`, `open_positions`,
   `open_orders`, `cleanup_count`, `total_pnl`, per-cycle latency
 - [ ] T007 Run standard soak on Hyperliquid testnet and retain aggregate JSON
