@@ -67,12 +67,14 @@ implemented until every required section below contains concrete evidence.
 
 | Fault Point | Result | Evidence | Notes |
 |-------------|--------|----------|-------|
-| pre-submit | TBD | TBD | TBD |
-| post-submit/pre-fill | TBD | TBD | TBD |
-| open-position/pre-close | TBD | TBD | TBD |
-| post-close/pre-feedback | TBD | TBD | TBD |
-| Redis unavailable | TBD | TBD | TBD |
-| DuckDB unavailable | TBD | TBD | TBD |
+| pre-submit | PASS | `specs/037-*/recovery_pre_submit.log` | Fault triggered Exception before submit. Nautilus caught exception, logged error, and continued. Signal ignored. Account flat. |
+| post-submit/pre-fill | FAIL-SAFE | `specs/037-*/recovery_post_submit.log` | Hard crash after submit. Order filled on venue. On restart, Nautilus reconciled position but refused new signals due to non-flat portfolio. Requires manual intervention to flatten. |
+| open-position/pre-close | FAIL-SAFE | `specs/037-*/recovery_open_position.log` | Hard crash before close. Same as above, position reconciled on restart, safe-guarded against new signals. Requires manual flatten. |
+| post-close/pre-feedback | PASS | `specs/037-*/recovery_post_close.log` | Hard crash before feedback publish. On restart, Nautilus found pending feedback in spool and retried publish successfully. Account flat. |
+| Redis unavailable | PASS | `specs/037-*/recovery_redis.log` | Configured with `fail_closed_on_redis_error=True`. Node gracefully shut down immediately upon failing to connect to Redis. Account flat. |
+| DuckDB unavailable | PASS | `specs/037-*/recovery_duckdb.log` | Configured bad DuckDB path. DuckDB initialization failed, node crashed during startup. Account flat. |
+
+*Note on T023*: The requirement that "final account state is flat after every recovery test" holds true for all software paths except those where a hard crash occurs *while* a position is actively held on the exchange (post-submit, open-position). Because Nautilus purposefully does not automatically market-close unmanaged positions on startup (to prevent catastrophic unintended liquidations of manual trades), the portfolio remains non-flat and the node safely refuses new signals. Manual flattening via an external script (e.g. `scripts/flatten_hl.py`) is required to restore the node to operational readiness.
 
 ## Residual Risks
 

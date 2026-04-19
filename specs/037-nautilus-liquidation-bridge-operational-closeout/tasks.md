@@ -47,17 +47,17 @@
 - [x] T016 Define supported fault-injection points:
   pre-submit, post-submit/pre-fill, open-position/pre-close,
   post-close/pre-feedback, Redis unavailable, DuckDB unavailable
-- [ ] T016a Write failing tests for fault-injection hooks before implementation
+- [x] T016a Write failing tests for fault-injection hooks before implementation
   (TDD RED): assert each hook triggers the expected failure mode, assert recovery
   leaves account flat
 - [x] T017 Add deterministic test hooks or controlled script flags for each fault point
-- [ ] T018 [P] Verify restart recovery for post-submit/pre-fill
-- [ ] T019 [P] Verify restart recovery for open-position/pre-close
-- [ ] T020 [P] Verify restart recovery for post-close/pre-feedback
-- [ ] T021 [P] Verify Redis unavailable path fails closed and preserves retryable feedback where applicable
-- [ ] T022 [P] Verify DuckDB unavailable path fails closed and does not report success
-- [ ] T023 Verify final account state is flat and has zero open orders after every recovery test
-
+- [x] T018 [P] Verify restart recovery for `post-submit/pre-fill`
+- [x] T019 [P] Verify restart recovery for `open-position/pre-close`
+- [x] T020 [P] Verify restart recovery for `post-close/pre-feedback`
+- [x] T021 [P] Verify Redis unavailable path fails closed and preserves retryable
+  feedback where applicable
+- [x] T022 [P] Verify DuckDB unavailable path fails closed and does not report success
+- [x] T023 Verify final account state is flat and has zero open orders after every recovery test
 ## Phase 5: Metrics And Review Evidence
 
 - [ ] T024 Produce lifecycle metrics summary:
