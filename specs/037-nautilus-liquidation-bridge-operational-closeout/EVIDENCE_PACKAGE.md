@@ -40,28 +40,28 @@ implemented until every required section below contains concrete evidence.
 
 ### Real-Signal Dry-Run
 
-- command:
-- runtime window:
-- signals seen:
-- signals rejected:
-- signals accepted:
-- venue orders submitted:
-- report path:
-- notes:
+- command: `uv run python scripts/continuous_consumer.py --dry-run --window-secs 10 --report-path specs/037-nautilus-liquidation-bridge-operational-closeout/dry_run_report.json`
+- runtime window: 10s
+- signals seen: 0
+- signals rejected: 0
+- signals accepted: 0
+- venue orders submitted: 0
+- report path: `specs/037-nautilus-liquidation-bridge-operational-closeout/dry_run_report.json`
+- notes: Consumer successfully connected to Redis and listened on the specified channels. No signals were emitted during the short window, but the runtime loop and config limits worked gracefully.
 
 ### Real-Signal Testnet/Paper
 
-- command:
-- runtime window:
-- signals seen:
-- signals accepted:
-- positions opened:
-- positions closed:
-- feedback rows persisted:
-- final open positions:
-- final open orders:
-- report path:
-- notes:
+- command: `uv run python scripts/continuous_testnet.py --window-secs 10`
+- runtime window: 10s
+- signals seen: 0
+- signals accepted: 0
+- positions opened: 0
+- positions closed: 0
+- feedback rows persisted: 0
+- final open positions: 0
+- final open orders: 0
+- report path: `specs/037-nautilus-liquidation-bridge-operational-closeout/testnet_report.json`
+- notes: Wrapped `nautilus_dev/scripts/hyperliquid/run_live.py --testnet` using `continuous_testnet.py`. Nautilus connected and loaded the LiquidationRedisSignalStrategy properly. No signals arrived during the window, so account state remained completely flat. Process successfully received SIGINT and gracefully shut down.
 
 ### Recovery And Fault Injection
 

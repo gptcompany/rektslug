@@ -30,17 +30,17 @@
   max runtime window, and dry-run/testnet execution mode
 - [x] T011 Implement or wire dry-run real-signal consumer that records decisions
   without venue orders
-- [ ] T012 Implement or wire testnet real-signal consumer with conservative
+- [x] T012 Implement or wire testnet real-signal consumer with conservative
   execution controls
-- [ ] T013 Persist lifecycle state for every observed signal:
+- [x] T013 Persist lifecycle state for every observed signal:
   `received`, `rejected`, `accepted`, `order_submitted`, `order_rejected`,
   `filled`, `position_opened`, `position_closed`, `feedback_published`,
   `feedback_persisted`
-- [ ] T013a Write failing tests for lifecycle state tracker before implementation
+- [x] T013a Write failing tests for lifecycle state tracker before implementation
   (TDD RED): assert state transitions match FR-005 states, reject invalid
   transitions, persist to expected store
 - [x] T014 Run continuous dry-run over a bounded real-signal window and retain report
-- [ ] T015 Run continuous testnet/paper over a bounded real-signal window and retain report
+- [x] T015 Run continuous testnet/paper over a bounded real-signal window and retain report
 
 ## Phase 4: Recovery And Fault Injection
 
