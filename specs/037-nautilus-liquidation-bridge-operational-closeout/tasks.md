@@ -50,7 +50,7 @@
 - [ ] T016a Write failing tests for fault-injection hooks before implementation
   (TDD RED): assert each hook triggers the expected failure mode, assert recovery
   leaves account flat
-- [ ] T017 Add deterministic test hooks or controlled script flags for each fault point
+- [x] T017 Add deterministic test hooks or controlled script flags for each fault point
 - [ ] T018 [P] Verify restart recovery for post-submit/pre-fill
 - [ ] T019 [P] Verify restart recovery for open-position/pre-close
 - [ ] T020 [P] Verify restart recovery for post-close/pre-feedback
