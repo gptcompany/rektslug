@@ -1,0 +1,22 @@
+{
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "min_confidence": 0.7,
+    "max_size": 0.01,
+    "max_signals": 10,
+    "window_secs": 10,
+    "dry_run": true,
+    "report_path": "specs/037-nautilus-liquidation-bridge-operational-closeout/dry_run_report.json"
+  },
+  "signals": [],
+  "summary": {
+    "signals_seen": 0,
+    "accepted": 0,
+    "rejected": 0,
+    "runtime_secs": 10.01404356956482,
+    "venue_orders_submitted": 0
+  }
+}

@@ -25,10 +25,10 @@
 
 ## Phase 3: Real-Signal Continuous Paper/Testnet Mode
 
-- [ ] T010 Define continuous-mode runtime config:
+- [x] T010 Define continuous-mode runtime config:
   symbol allowlist, minimum confidence, max size, max accepted signals,
   max runtime window, and dry-run/testnet execution mode
-- [ ] T011 Implement or wire dry-run real-signal consumer that records decisions
+- [x] T011 Implement or wire dry-run real-signal consumer that records decisions
   without venue orders
 - [ ] T012 Implement or wire testnet real-signal consumer with conservative
   execution controls
@@ -39,7 +39,7 @@
 - [ ] T013a Write failing tests for lifecycle state tracker before implementation
   (TDD RED): assert state transitions match FR-005 states, reject invalid
   transitions, persist to expected store
-- [ ] T014 Run continuous dry-run over a bounded real-signal window and retain report
+- [x] T014 Run continuous dry-run over a bounded real-signal window and retain report
 - [ ] T015 Run continuous testnet/paper over a bounded real-signal window and retain report
 
 ## Phase 4: Recovery And Fault Injection
