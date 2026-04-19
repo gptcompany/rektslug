@@ -55,7 +55,7 @@ cd /media/sam/1TB/nautilus_dev
   --redis-host 172.20.0.4
 ```
 
-Short sequential soak:
+Short sequential soak (Development):
 
 ```bash
 set +x
@@ -71,6 +71,24 @@ cd /media/sam/1TB/nautilus_dev
   --cycle-delay-secs 3 \
   --log-level WARNING \
   --output-dir /tmp/nautilus_liquidation_bridge_soak_codex
+```
+
+Standard sequential soak (Pre-review Gate G2):
+
+```bash
+set +x
+pk="$(dotenvx get HYPERLIQUID_TESTNET_PK -f /media/sam/1TB/nautilus_dev/.env 2>/dev/null)"
+export HYPERLIQUID_TESTNET_PK="$pk"
+unset pk
+
+cd /media/sam/1TB/nautilus_dev
+.venv/bin/python scripts/hyperliquid/liquidation_bridge_soak.py \
+  --confirm-testnet-order \
+  --redis-host 172.20.0.4 \
+  --cycles 20 \
+  --cycle-delay-secs 3 \
+  --log-level WARNING \
+  --output-dir /media/sam/1TB/rektslug/specs/037-nautilus-liquidation-bridge-operational-closeout/standard_soak
 ```
 
 The `--confirm-testnet-order` flag is required for both scripts. Without it,
