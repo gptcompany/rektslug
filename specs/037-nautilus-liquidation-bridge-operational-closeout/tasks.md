@@ -5,7 +5,7 @@
 - [x] T001 Freeze multi-repo ownership boundaries for `rektslug` and `nautilus_dev`
 - [x] T002 Freeze promotion gates `G0` through `G4`
 - [x] T003 Freeze required JSON schemas for smoke, soak, continuous, and recovery evidence
-- [ ] T004 Freeze fail-closed conditions and account-flatness requirements
+- [x] T004 Freeze fail-closed conditions and account-flatness requirements
 
 ## Phase 2: Long Soak
 
