@@ -66,7 +66,10 @@ Phase 1 freezes the concrete schema, but the required shape is:
 
 ## Phase 2: Long Soak Hardening
 
-1. Extend the existing guarded soak into a review-grade long soak profile.
+1. Extend the existing guarded soak into a review-grade long soak profile:
+   - short: `2` cycles for development smoke
+   - standard: `20` cycles for pre-review
+   - extended: `50` cycles or time-bounded equivalent for release evidence
 2. Retain aggregate and per-cycle JSON evidence.
 3. Enforce post-run venue cleanup checks as hard failures.
 4. Add runbook guidance for recommended cycle counts and interpretation.

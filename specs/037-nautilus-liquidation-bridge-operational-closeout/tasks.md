@@ -9,7 +9,7 @@
 
 ## Phase 2: Long Soak
 
-- [ ] T005 Define review-grade soak profiles:
+- [x] T005 Define review-grade soak profiles:
   - short: `2` cycles for development smoke
   - standard: `20` cycles for pre-review
   - extended: `50` cycles or time-bounded equivalent for release evidence
