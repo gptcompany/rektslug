@@ -17,6 +17,8 @@ x-core-service: &default-core-service
     context: .
     dockerfile: Dockerfile
   init: true
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   env_file: .env
   environment:
     HEATMAP_PROJECT_ROOT: /app
@@ -95,6 +97,105 @@ services:
         condition: service_healthy
       questdb:
         condition: service_started
+
+  redis:
+    image: redis:7-alpine
+    container_name: rektslug-redis
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  rektslug-shadow-producer:
+    <<: *default-core-service
+    container_name: rektslug-shadow-producer
+    command:
+      - /bin/bash
+      - /app/scripts/run-shadow-producer.sh
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      HEATMAP_PROJECT_ROOT: /app
+      HEATMAP_HOST: 0.0.0.0
+      HEATMAP_PORT: 8002
+      HEATMAP_API_URL: http://rektslug-api:8002
+      HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
+      REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
+      QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
+      QUESTDB_PORT: ${QUESTDB_PORT:-9009}
+      QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS: "${HEATMAP_HYPERLIQUID_INFO_FALLBACK_URLS:-http://host.docker.internal:3001/info,https://api.hyperliquid.xyz/info}"
+      REKTSLUG_SHADOW_INTERVAL_SECONDS: "${REKTSLUG_SHADOW_INTERVAL_SECONDS:-300}"
+      HEATMAP_ABCI_ROOT: /var/lib/rektslug-hl/periodic_abci_states
+    volumes:
+      - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
+      - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
+      - ${HL_ABCI_DIR:-/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data}:/var/lib/rektslug-hl:ro
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "find /app/data/cache -name 'hl_sidecar_btcusdt.json' -mmin -10 | grep -q ."]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
+  rektslug-shadow-consumer:
+    <<: *default-core-service
+    container_name: rektslug-shadow-consumer
+    command:
+      - uv
+      - run
+      - python
+      - scripts/continuous_consumer.py
+      - --shadow-mode
+      - --symbols
+      - BTCUSDT
+      - ETHUSDT
+      - --report-interval-secs
+      - "300"
+      - --report-path
+      - /var/lib/rektslug-db/shadow_report.json
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      HEATMAP_PROJECT_ROOT: /app
+      HEATMAP_HOST: 0.0.0.0
+      HEATMAP_PORT: 8002
+      HEATMAP_API_URL: http://rektslug-api:8002
+      HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
+      REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
+      QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
+      QUESTDB_PORT: ${QUESTDB_PORT:-9009}
+      QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    healthcheck:
+      test: ["CMD-SHELL", "find /var/lib/rektslug-db -name 'shadow_report.json' -mmin -10 | grep -q ."]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
 volumes:
   questdb-data:

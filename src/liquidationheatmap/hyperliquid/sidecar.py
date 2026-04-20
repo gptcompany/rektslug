@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -22,12 +23,18 @@ from types import MappingProxyType
 import msgpack
 import zstandard as zstd
 
+from src.liquidationheatmap.hyperliquid.margin_math import (
+    compute_position_maintenance_margin,
+    get_margin_tier,
+)
 from src.liquidationheatmap.models.profiles import get_profile
-from src.liquidationheatmap.hyperliquid.margin_math import get_margin_tier, compute_position_maintenance_margin
 
 DEFAULT_FILTERED_ROOT = Path("/media/sam/4TB-NVMe/hyperliquid/filtered")
 DEFAULT_ABCI_ROOT = Path(
-    "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states"
+    os.getenv(
+        "HEATMAP_ABCI_ROOT",
+        "/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data/periodic_abci_states",
+    )
 )
 DEFAULT_CCXT_CATALOG_ROOT = Path("/media/sam/1TB/ccxt-data-pipeline/data/catalog")
 DEFAULT_PROFILE_NAME = "rektslug-ank"
