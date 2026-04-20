@@ -2,7 +2,7 @@
 
 **Feature Branch**: `038-circuit-breaker-shadow-mode`
 **Created**: 2026-04-20
-**Status**: Draft
+**Status**: Implemented
 **Dependencies**: spec-037 (operational closeout), spec-015 (signals)
 
 ## Context

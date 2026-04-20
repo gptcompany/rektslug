@@ -790,8 +790,50 @@ logger.info("Processing liquidations", extra={
 - **Production Checklist**: See `docs/PRODUCTION_CHECKLIST.md`
 - **Model Accuracy**: See `docs/model_accuracy.md`
 
+## Signal Subsystem: Circuit Breaker + Shadow Mode (spec-038)
+
+### Circuit Breaker
+
+Automatic signal rejection under adverse conditions. Pure-logic class with
+zero external dependencies, injected into the continuous consumer via composition.
+
+**Trip Conditions**:
+- `CONSECUTIVE_LOSSES`: N consecutive negative PnL outcomes (default 5)
+- `SESSION_DRAWDOWN`: cumulative session PnL below threshold (default -50 USDT)
+- `RATE_LIMIT`: accepted signals in last hour exceed limit (default 10/hr)
+
+**Behavior**: on trip, publishes alert to `liquidation:alerts:{symbol}`,
+rejects all signals with reason `circuit_breaker:{type}`. Supports manual reset
+and auto-reset after configurable cooldown. State persists to DuckDB
+(`circuit_breaker_state` table).
+
+**API**: `GET /signals/circuit-breaker?symbol=BTCUSDT`
+
+**Files**:
+- `src/liquidationheatmap/signals/circuit_breaker.py` (logic + store)
+- `scripts/continuous_consumer.py` (integration)
+
+### Shadow Mode
+
+Extended dry-run observation for hours/days. Tracks hypothetical PnL using
+subsequent signal prices as exit proxy. Produces periodic JSON reports and a
+calibration summary at shutdown with suggested circuit breaker thresholds.
+
+**Data Flow**:
+```
+Redis signal → consumer (shadow mode)
+  → ShadowTracker.record_entry(signal_id, symbol, price, side)
+  → next signal for same symbol → ShadowTracker.record_exit(signal_id, price)
+  → hypothetical PnL → CircuitBreaker.record_outcome(symbol, pnl)
+  → periodic report + calibration summary at shutdown
+```
+
+**Files**:
+- `src/liquidationheatmap/signals/shadow.py` (tracker + calibration)
+- `scripts/continuous_consumer.py` (--shadow-mode, --report-interval-secs)
+
 ---
 
 **Maintained by**: Claude Code architecture-validator
-**Last Updated**: 2026-03-03
-**Version**: 1.2 (formula fix, ingestion schedule, Coinank-style routing)
+**Last Updated**: 2026-04-20
+**Version**: 1.3 (circuit breaker, shadow mode)
