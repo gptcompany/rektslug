@@ -35,3 +35,25 @@ class TestCorrelationEngine:
         matches = engine.process_event("BTCUSDT", 72100.0, "long", 0.5)
         assert len(matches) == 2
         assert {m.signal_id for m in matches} == {"sig1", "sig2"}
+
+    def test_match_canonical_symbol(self):
+        """Signal has BTCUSDT, WS event has BTCUSDT-PERP → match."""
+        engine = CorrelationEngine(price_threshold_pct=1.0, time_window_secs=1800)
+        engine.register_signal("sig1", "BTCUSDT", 72000.0, "long")
+
+        matches = engine.process_event("BTCUSDT-PERP", 72100.0, "long", 0.5)
+        assert len(matches) == 1
+        assert matches[0].signal_id == "sig1"
+
+    def test_single_match_per_signal(self):
+        """A signal should only match once."""
+        engine = CorrelationEngine(price_threshold_pct=1.0, time_window_secs=1800)
+        engine.register_signal("sig1", "BTCUSDT", 72000.0, "long")
+
+        # First event matches
+        matches1 = engine.process_event("BTCUSDT", 72100.0, "long", 0.5)
+        assert len(matches1) == 1
+
+        # Second event does not match since signal is consumed
+        matches2 = engine.process_event("BTCUSDT", 72100.0, "long", 0.5)
+        assert len(matches2) == 0

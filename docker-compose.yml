@@ -167,6 +167,7 @@ services:
       - python
       - scripts/continuous_consumer.py
       - --shadow-mode
+      - --enable-ws-stream
       - --symbols
       - BTCUSDT
       - ETHUSDT

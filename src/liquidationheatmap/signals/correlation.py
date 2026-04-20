@@ -42,8 +42,12 @@ class CorrelationEngine:
         self._signals = [s for s in self._signals if now - s.timestamp <= self.time_window_secs]
 
         matches = []
+        remaining_signals = []
+        event_sym_canon = symbol.upper().replace("-PERP", "")
+
         for s in self._signals:
-            if s.symbol == symbol and s.side == side:
+            sig_sym_canon = s.symbol.upper().replace("-PERP", "")
+            if sig_sym_canon == event_sym_canon and s.side == side:
                 diff_pct = abs(s.price - event_price) / s.price * 100
                 if diff_pct <= self.price_threshold_pct:
                     match = CorrelationMatch(
@@ -55,5 +59,9 @@ class CorrelationEngine:
                     )
                     matches.append(match)
                     self.matches.append(match)
+                    continue
 
+            remaining_signals.append(s)
+
+        self._signals = remaining_signals
         return matches

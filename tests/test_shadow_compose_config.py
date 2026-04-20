@@ -58,3 +58,9 @@ def test_shadow_producer_script_exists():
     script = Path("scripts/run-shadow-producer.sh")
     assert script.exists(), "run-shadow-producer.sh not found"
     assert os.access(script, os.X_OK), "run-shadow-producer.sh not executable"
+
+def test_shadow_consumer_enables_ws_stream(compose_config):
+    consumer = compose_config["services"]["rektslug-shadow-consumer"]
+    command = consumer.get("command", [])
+    assert "--enable-ws-stream" in command
+
