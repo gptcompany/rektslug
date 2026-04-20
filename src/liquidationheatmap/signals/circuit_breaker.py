@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable, Optional
+
+import duckdb
 
 
 class TripReason(Enum):
@@ -127,3 +131,84 @@ class CircuitBreaker:
         if state.tripped_at is None:
             return False
         return (time.time() - state.tripped_at) >= self.config.cooldown_secs
+
+
+class CircuitBreakerStore:
+    """DuckDB persistence for circuit breaker state."""
+
+    def __init__(
+        self,
+        db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb",
+        read_only: bool = False,
+    ):
+        self.db_path = db_path
+        self._read_only = read_only
+        self._conn: Optional[duckdb.DuckDBPyConnection] = None
+
+    @property
+    def conn(self) -> duckdb.DuckDBPyConnection:
+        if self._conn is None:
+            self._conn = duckdb.connect(self.db_path, read_only=self._read_only)
+            if not self._read_only:
+                self._ensure_table()
+        return self._conn
+
+    def _ensure_table(self) -> None:
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS circuit_breaker_state (
+                symbol VARCHAR PRIMARY KEY,
+                consecutive_losses INT NOT NULL DEFAULT 0,
+                session_pnl DOUBLE NOT NULL DEFAULT 0.0,
+                tripped BOOLEAN NOT NULL DEFAULT FALSE,
+                trip_reason VARCHAR,
+                tripped_at DOUBLE,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+    def save_state(self, state: CircuitBreakerState) -> None:
+        try:
+            now = datetime.now(timezone.utc)
+            trip_reason_val = state.trip_reason.value if state.trip_reason else None
+            self.conn.execute("""
+                INSERT INTO circuit_breaker_state
+                    (symbol, consecutive_losses, session_pnl, tripped, trip_reason, tripped_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (symbol) DO UPDATE SET
+                    consecutive_losses = EXCLUDED.consecutive_losses,
+                    session_pnl = EXCLUDED.session_pnl,
+                    tripped = EXCLUDED.tripped,
+                    trip_reason = EXCLUDED.trip_reason,
+                    tripped_at = EXCLUDED.tripped_at,
+                    updated_at = EXCLUDED.updated_at
+            """, [state.symbol, state.consecutive_losses, state.session_pnl,
+                  state.tripped, trip_reason_val, state.tripped_at, now])
+        except Exception as e:
+            logging.error(f"Failed to save circuit breaker state for {state.symbol}: {e}")
+
+    def load_state(self, symbol: str) -> Optional[CircuitBreakerState]:
+        try:
+            row = self.conn.execute(
+                "SELECT consecutive_losses, session_pnl, tripped, trip_reason, tripped_at "
+                "FROM circuit_breaker_state WHERE symbol = ?",
+                [symbol],
+            ).fetchone()
+            if row is None:
+                return None
+            trip_reason = TripReason(row[3]) if row[3] else None
+            return CircuitBreakerState(
+                symbol=symbol,
+                consecutive_losses=row[0],
+                session_pnl=row[1],
+                tripped=row[2],
+                trip_reason=trip_reason,
+                tripped_at=row[4],
+            )
+        except Exception as e:
+            logging.error(f"Failed to load circuit breaker state for {symbol}: {e}")
+            return None
+
+    def close(self) -> None:
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None

@@ -124,6 +124,44 @@ async def get_signal_metrics(
             db_service.close()
 
 
+@router.get("/circuit-breaker")
+async def get_circuit_breaker_status(
+    symbol: str = Query(
+        "BTCUSDT",
+        description="Trading pair symbol",
+        pattern="^[A-Z]{6,12}$",
+    ),
+):
+    """Get circuit breaker status for a symbol."""
+    from src.liquidationheatmap.signals.circuit_breaker import CircuitBreakerStore
+
+    store = None
+    try:
+        store = CircuitBreakerStore(read_only=True)
+        state = store.load_state(symbol)
+        if state is None:
+            return {
+                "symbol": symbol,
+                "tripped": False,
+                "trip_reason": None,
+                "consecutive_losses": 0,
+                "session_pnl": 0.0,
+            }
+        return {
+            "symbol": state.symbol,
+            "tripped": state.tripped,
+            "trip_reason": state.trip_reason.value if state.trip_reason else None,
+            "consecutive_losses": state.consecutive_losses,
+            "session_pnl": state.session_pnl,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching circuit breaker state for {symbol}: {e}")
+        return {"symbol": symbol, "tripped": False, "error": str(e)}
+    finally:
+        if store is not None:
+            store.close()
+
+
 @router.get("/health")
 async def signal_health():
     """Health check for signal subsystem.
