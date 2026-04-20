@@ -832,6 +832,29 @@ Redis signal → consumer (shadow mode)
 - `src/liquidationheatmap/signals/shadow.py` (tracker + calibration)
 - `scripts/continuous_consumer.py` (--shadow-mode, --report-interval-secs)
 
+### Shadow Pipeline (spec-039)
+
+Three Docker services added to the rektslug compose stack:
+
+- **rektslug-shadow-producer**: Runs `precompute_hl_sidecar.py` every 5 minutes
+  (wall-clock scheduled) to produce risk surface snapshots, then publishes
+  liquidation signals to Redis (`liquidation:signals:{symbol}`).
+  Uses the local Hyperliquid node (:3001) for HTTP Info API.
+
+- **rektslug-shadow-consumer**: Long-running process that subscribes to Redis
+  for snapshot signals and (Phase 3) WebSocket streams for real-time liquidation
+  events. Tracks shadow PnL, gates signals through circuit breaker, produces
+  periodic validation reports.
+
+- **redis**: Lightweight Redis 7 Alpine instance for pub/sub only (no persistence).
+
+**Data Flow**:
+```
+HL node :3001 → precompute_hl_sidecar.py → data/cache/hl_sidecar_*.json
+  → publish_signals_from_snapshot.py → Redis liquidation:signals:{symbol}
+  → continuous_consumer.py (shadow mode) → shadow_report.json + DuckDB
+```
+
 ---
 
 **Maintained by**: Claude Code architecture-validator
