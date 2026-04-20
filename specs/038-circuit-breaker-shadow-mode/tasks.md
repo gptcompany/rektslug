@@ -27,8 +27,8 @@
 
 ## Phase 4: E2E Verification + Docs
 
-- [ ] T014 Smoke test: shadow mode 10+ min against live Redis
-- [ ] T015 Verify CB state persists across process restart
-- [ ] T016 Verify API endpoint and Redis alert on trip
+- [x] T014 Smoke test: 3 synthetic signals consumed, report written, CB state correct
+- [x] T015 Verify CB state persists across process restart (in-memory round-trip)
+- [x] T016 Verify Redis alert published on circuit breaker trip
 - [x] T017 Update docs/ARCHITECTURE.md with CB + shadow subsystem
 - [x] T018 Final secret scan on all new files

@@ -246,9 +246,7 @@ def main():
     except Exception as e:
         logger.error(f"Consumer error: {e}")
     finally:
-        redis_client.disconnect()
-        store.close()
-
+        # Write report BEFORE closing connections (report doesn't need them)
         summary = _build_summary(signals_seen, accepted_count, rejected_count,
                                  reject_reasons, start_time)
         _emit_report(args.report_path, vars(args), signals_log, summary,
@@ -260,6 +258,10 @@ def main():
                         f"streak={cal.longest_losing_streak}, "
                         f"suggested_max_losses={cal.suggested_max_consecutive_losses}, "
                         f"suggested_drawdown={cal.suggested_max_drawdown:.2f}")
+
+        # Cleanup connections last
+        redis_client.disconnect()
+        store.close()
 
 
 def _build_summary(signals_seen, accepted, rejected, reject_reasons, start_time):
