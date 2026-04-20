@@ -11,7 +11,6 @@ import asyncio
 import json
 import logging
 import signal
-import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -20,6 +19,7 @@ from src.liquidationheatmap.signals.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
 )
+from src.liquidationheatmap.signals.correlation import CorrelationEngine
 from src.liquidationheatmap.signals.lifecycle import LifecycleState, SignalLifecycleTracker
 from src.liquidationheatmap.signals.lifecycle_store import DuckDBLifecycleStore
 from src.liquidationheatmap.signals.models import LiquidationSignal
@@ -49,14 +49,24 @@ def parse_args():
     parser.add_argument("--report-path", type=str, default="/tmp/dry_run_report.json")
 
     # Shadow mode
-    parser.add_argument("--shadow-mode", action="store_true",
-                        help="Extended observation mode (implies --dry-run, no window cap)")
-    parser.add_argument("--report-interval-secs", type=int, default=300,
-                        help="Periodic report interval in shadow mode")
-    
+    parser.add_argument(
+        "--shadow-mode",
+        action="store_true",
+        help="Extended observation mode (implies --dry-run, no window cap)",
+    )
+    parser.add_argument(
+        "--report-interval-secs",
+        type=int,
+        default=300,
+        help="Periodic report interval in shadow mode",
+    )
+
     # WS Stream
-    parser.add_argument("--enable-ws-stream", action="store_true",
-                        help="Enable WebSocket streams for real-time liquidation events")
+    parser.add_argument(
+        "--enable-ws-stream",
+        action="store_true",
+        help="Enable WebSocket streams for real-time liquidation events",
+    )
 
     # Circuit breaker
     parser.add_argument("--cb-max-losses", type=int, default=5)
@@ -67,7 +77,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def _emit_report(report_path, config, signals_log, summary, shadow_tracker=None, cb=None, symbols=None):
+def _emit_report(
+    report_path, config, signals_log, summary, shadow_tracker=None, cb=None, symbols=None
+):
     """Write periodic or final report to disk."""
     report = {
         "config": config,
@@ -109,23 +121,26 @@ def _redis_listener(loop, queue, channels):
         if pubsub is None:
             logger.error("Failed to connect to Redis.")
             return
-        
+
         pubsub.subscribe(*channels)
         logger.info(f"Listening for Redis signals on {channels}...")
-        
+
         while _running:
             message = pubsub.get_message(timeout=1.0)
             if message and message["type"] == "message":
                 loop.call_soon_threadsafe(queue.put_nowait, ("redis", message))
 
 
-def _build_summary(signals_seen, accepted, rejected, reject_reasons, start_time):
+def _build_summary(
+    signals_seen, accepted, rejected, reject_reasons, start_time, correlation_matches=0
+):
     return {
         "signals_seen": signals_seen,
         "accepted": accepted,
         "rejected": rejected,
         "reject_reasons": reject_reasons,
         "accept_rate": accepted / signals_seen if signals_seen > 0 else 0.0,
+        "correlation_matches": correlation_matches,
         "runtime_secs": time.time() - start_time,
         "venue_orders_submitted": 0,
     }
@@ -166,16 +181,23 @@ async def amain():
         logger.warning(f"CIRCUIT BREAKER TRIPPED: {symbol} — {reason.value}")
         try:
             rc = get_redis_client()
-            rc.publish(f"liquidation:alerts:{symbol}",
-                       json.dumps({"type": "circuit_breaker_trip",
-                                   "symbol": symbol,
-                                   "reason": reason.value,
-                                   "timestamp": datetime.now(timezone.utc).isoformat()}))
+            rc.publish(
+                f"liquidation:alerts:{symbol}",
+                json.dumps(
+                    {
+                        "type": "circuit_breaker_trip",
+                        "symbol": symbol,
+                        "reason": reason.value,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                ),
+            )
         except Exception as e:
             logger.error(f"Failed to publish CB alert: {e}")
 
     cb = CircuitBreaker(config=cb_config, on_trip=_on_trip)
     shadow = ShadowTracker() if args.shadow_mode else None
+    correlation_engine = CorrelationEngine()
     last_prices: dict[str, float] = {}
 
     start_time = time.time()
@@ -183,6 +205,7 @@ async def amain():
     accepted_count = 0
     signals_seen = 0
     rejected_count = 0
+    correlation_matches_count = 0
     reject_reasons: dict[str, int] = {}
     signals_log: list[dict] = []
 
@@ -191,7 +214,9 @@ async def amain():
 
     # Start Redis listener thread
     channels = [f"liquidation:signals:{sym}" for sym in args.symbols]
-    redis_thread = threading.Thread(target=_redis_listener, args=(loop, queue, channels), daemon=True)
+    redis_thread = threading.Thread(
+        target=_redis_listener, args=(loop, queue, channels), daemon=True
+    )
     redis_thread.start()
 
     # Start WS stream if enabled
@@ -200,7 +225,7 @@ async def amain():
         stream_mgr = LiquidationStreamManager(
             symbols=args.symbols,
             callback=lambda liq: loop.call_soon_threadsafe(queue.put_nowait, ("ws", liq)),
-            exchanges=["binance", "hyperliquid"]
+            exchanges=["binance", "hyperliquid"],
         )
         await stream_mgr.start()
 
@@ -215,12 +240,18 @@ async def amain():
                 break
 
             if args.shadow_mode and (time.time() - last_report_time) >= args.report_interval_secs:
-                summary = _build_summary(signals_seen, accepted_count, rejected_count,
-                                         reject_reasons, start_time)
-                _emit_report(args.report_path, vars(args), signals_log, summary,
-                             shadow, cb, args.symbols)
+                summary = _build_summary(
+                    signals_seen,
+                    accepted_count,
+                    rejected_count,
+                    reject_reasons,
+                    start_time,
+                    correlation_matches_count,
+                )
+                _emit_report(
+                    args.report_path, vars(args), signals_log, summary, shadow, cb, args.symbols
+                )
                 last_report_time = time.time()
-
             try:
                 source, item = await asyncio.wait_for(queue.get(), timeout=1.0)
             except asyncio.TimeoutError:
@@ -254,9 +285,9 @@ async def amain():
 
                 reject_reason = None
                 if signal_obj.symbol not in args.symbols:
-                    reject_reason = f"symbol_not_in_allowlist"
+                    reject_reason = "symbol_not_in_allowlist"
                 elif signal_obj.confidence < args.min_confidence:
-                    reject_reason = f"confidence_below_threshold"
+                    reject_reason = "confidence_below_threshold"
 
                 if reject_reason:
                     tracker.transition(sig_id, LifecycleState.REJECTED)
@@ -270,37 +301,57 @@ async def amain():
                     accepted_count += 1
                     logger.info(f"ACCEPTED {sig_id} ({mode})")
                     signals_log.append({"id": sig_id, "state": "ACCEPTED"})
+                    correlation_engine.register_signal(
+                        sig_id, signal_obj.symbol, float(signal_obj.price), signal_obj.side
+                    )
 
                     if shadow:
-                        shadow.record_entry(sig_id, signal_obj.symbol,
-                                            float(signal_obj.price), signal_obj.side)
+                        shadow.record_entry(
+                            sig_id, signal_obj.symbol, float(signal_obj.price), signal_obj.side
+                        )
 
                 last_prices[signal_obj.symbol] = float(signal_obj.price)
-            
+
             elif source == "ws":
-                # WS Liquidation event - to be correlated in Phase 3b
-                pass
+                liq = item
+                matches = correlation_engine.process_event(
+                    liq.symbol, liq.price, liq.side.value, liq.quantity
+                )
+                if matches:
+                    correlation_matches_count += len(matches)
+                    for m in matches:
+                        logger.info(
+                            f"CORRELATION MATCH: Signal {m.signal_id} correlated with WS event {liq.symbol} at {liq.price}"
+                        )
 
     except Exception as e:
         logger.error(f"Consumer error: {e}")
     finally:
-        summary = _build_summary(signals_seen, accepted_count, rejected_count,
-                                 reject_reasons, start_time)
-        _emit_report(args.report_path, vars(args), signals_log, summary,
-                     shadow, cb, args.symbols)
+        summary = _build_summary(
+            signals_seen,
+            accepted_count,
+            rejected_count,
+            reject_reasons,
+            start_time,
+            correlation_matches_count,
+        )
+        _emit_report(args.report_path, vars(args), signals_log, summary, shadow, cb, args.symbols)
 
         if shadow:
             cal = shadow.get_calibration()
-            logger.info(f"Calibration: quality={cal.signal_quality_score:.2f}, "
-                        f"streak={cal.longest_losing_streak}, "
-                        f"suggested_max_losses={cal.suggested_max_consecutive_losses}, "
-                        f"suggested_drawdown={cal.suggested_max_drawdown:.2f}")
+            logger.info(
+                f"Calibration: quality={cal.signal_quality_score:.2f}, "
+                f"streak={cal.longest_losing_streak}, "
+                f"suggested_max_losses={cal.suggested_max_consecutive_losses}, "
+                f"suggested_drawdown={cal.suggested_max_drawdown:.2f}"
+            )
 
         if stream_mgr:
             await stream_mgr.stop()
-        
+
         # Redis client in thread will exit when _running = False
         store.close()
+
 
 if __name__ == "__main__":
     try:
