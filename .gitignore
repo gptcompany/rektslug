@@ -45,3 +45,8 @@ elementi.png
 data/validation/liqmap/*.png
 data/validation/heatmap/*.png
 data/validation/manifests/*.json
+.swarm/memory.db*
+output.log
+ruvector.db
+data/validation/expert_snapshots/
+data/validation/provider_comparisons/

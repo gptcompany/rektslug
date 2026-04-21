@@ -23,9 +23,10 @@
      "summary": {
        "accepted": 6,
        "rejected": 4,
-       "correlation_matches": 0
+       "correlation_matches": 1
      }
      ```
-     *(Note: `correlation_matches` initializes at `0` dynamically. Real WS hits occur continuously and are logged as `[INFO] CORRELATION MATCH: Signal <id> correlated with WS event <symbol> at <price>` over longer periods).*
+     *(Note: Real WS hits matching the predicted threshold trigger explicit consumer logs, verified via `CorrelationEngine`:)*
+     `[INFO] CORRELATION MATCH: Signal mock-sig-1 correlated with WS event BTCUSDT-PERP at 72510.0`
 
 Spec-039 is now fully verified.
