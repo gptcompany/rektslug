@@ -16,7 +16,7 @@ Calculate and visualize cryptocurrency liquidation levels from Binance futures d
 
 Primary runtime configuration is now centralized in `src/liquidationheatmap/settings.py`, with shell wrappers loading the same environment contract through `scripts/lib/runtime_env.sh`. Environment overrides are documented in `.env.example`.
 
-`rektslug` is the core production service: it owns the dashboard endpoints and the feature API surface that downstream trading systems (including NT Trader) should consume. The upstream `ccxt-data-pipeline` remains an external collector; `rektslug` is responsible for syncing that upstream data into its local runtime stores and serving stable API contracts.
+`rektslug` is the core production service: it owns the dashboard endpoints, signal-production path, shadow-validation loop, and feature API surface that downstream trading systems (including NT Trader) should consume. The upstream `ccxt-data-pipeline` remains an external collector; `rektslug` is responsible for syncing that upstream data into its local runtime stores and serving stable API contracts.
 
 ## Production Core Runtime
 
@@ -24,6 +24,15 @@ The production baseline now lives in this repo:
 
 - `rektslug-api`: FastAPI core service
 - `rektslug-sync`: near-real-time Parquet -> QuestDB gap-fill worker (5 minute loop by default, using DuckDB in-process for Parquet reads where needed)
+- `redis`: internal pub/sub bus for signal transport
+- `rektslug-shadow-producer`: Hyperliquid snapshot producer and Redis signal publisher
+- `rektslug-shadow-consumer`: shadow-mode signal consumer with WebSocket liquidation correlation, circuit breaker checks, and report persistence
+
+Host systemd timers are part of the production runtime:
+
+- `lh-ingestion.timer`: daily ingestion
+- `lh-ccxt-gap-fill.timer`: near-real-time ccxt gap fill
+- `lh-hl-backfill-monitor.timer`: hourly Hyperliquid backfill batch monitor
 
 Start the core runtime:
 
@@ -33,6 +42,13 @@ docker compose up -d --build
 docker compose ps
 ```
 
+Install or refresh production host timers:
+
+```bash
+sudo ./scripts/systemd/install.sh
+systemctl list-timers lh-ingestion.timer lh-ccxt-gap-fill.timer lh-hl-backfill-monitor.timer --no-pager
+```
+
 Refresh or deploy an existing checkout:
 
 ```bash
@@ -40,6 +56,9 @@ bash scripts/deploy-core.sh
 ```
 
 The `Core Deploy` GitHub Action builds and publishes the core image automatically whenever core code changes on `master`. If the deployment secrets are configured, the same workflow also performs a remote `docker compose pull && up -d` for the production stack.
+
+Current production evidence and operational checks are documented in
+[`docs/PRODUCTION_E2E_STATUS.md`](docs/PRODUCTION_E2E_STATUS.md).
 
 ## Quick Start
 

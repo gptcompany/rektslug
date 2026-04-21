@@ -2,7 +2,57 @@
 
 ## Overview
 
-Before running aggTrades ingestion in production (especially with n8n workflows), run these checks to prevent common failure modes.
+`rektslug` is production-enabled as an end-to-end service for API serving,
+market-data sync, Hyperliquid shadow validation, historical snapshot backfill,
+and automated monitoring. This checklist keeps the production state concrete:
+green means backed by Docker, systemd, tests, or persisted reports.
+
+For the current production evidence package, see
+[`PRODUCTION_E2E_STATUS.md`](PRODUCTION_E2E_STATUS.md).
+
+Before running aggTrades ingestion in production (especially with n8n workflows),
+run these checks to prevent common failure modes.
+
+## Current Production Services
+
+### Docker
+
+```bash
+docker compose ps
+docker logs rektslug-shadow-producer --tail 50
+docker logs rektslug-shadow-consumer --tail 80
+```
+
+Expected active production services:
+
+- `rektslug-api`
+- `rektslug-sync`
+- `redis`
+- `rektslug-shadow-producer`
+- `rektslug-shadow-consumer`
+
+### Systemd
+
+```bash
+systemctl list-timers lh-ingestion.timer lh-ccxt-gap-fill.timer lh-hl-backfill-monitor.timer --no-pager
+systemctl status lh-hl-backfill-monitor.timer --no-pager
+journalctl -u lh-hl-backfill-monitor.service -n 80 --no-pager
+```
+
+Expected enabled timers:
+
+- `lh-ingestion.timer`
+- `lh-ccxt-gap-fill.timer`
+- `lh-hl-backfill-monitor.timer`
+
+Manual monitor smoke:
+
+```bash
+scripts/run-hl-backfill-monitor.sh
+```
+
+Expected monitor output includes `"ok": true`, `"status": "completed"`, and a
+non-zero `results_count`.
 
 ## Pre-Flight Checks
 

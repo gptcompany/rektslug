@@ -855,8 +855,25 @@ HL node :3001 → precompute_hl_sidecar.py → data/cache/hl_sidecar_*.json
   → continuous_consumer.py (shadow mode) → shadow_report.json + DuckDB
 ```
 
+### Historical Backfill Monitor
+
+Hyperliquid historical backfill is a bounded bootstrap/recovery job, not a
+continuous daemon. Production monitoring is handled by host systemd:
+
+- `lh-hl-backfill-monitor.timer`: hourly trigger.
+- `lh-hl-backfill-monitor.service`: oneshot wrapper around
+  `scripts/run-hl-backfill-monitor.sh`.
+- `scripts/check_hl_backfill_batch.py`: validates batch completion, freshness,
+  coverage, and missing-anchor counts.
+
+The monitor fails closed for ambiguous legacy records where
+`anchor_resolution_failures` may be truncated at 100 and
+`anchor_resolution_failures_total` is missing.
+
+Current operational status is tracked in `docs/PRODUCTION_E2E_STATUS.md`.
+
 ---
 
 **Maintained by**: Claude Code architecture-validator
-**Last Updated**: 2026-04-20
-**Version**: 1.3 (circuit breaker, shadow mode)
+**Last Updated**: 2026-04-21
+**Version**: 1.4 (production e2e runtime, shadow pipeline, backfill monitor)

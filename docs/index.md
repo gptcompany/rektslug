@@ -12,6 +12,13 @@ for installation instructions.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
 
+## Production
+
+See [Production E2E Status](PRODUCTION_E2E_STATUS.md) for the current enabled
+runtime, systemd timers, validation evidence, and production boundary.
+
+See [Production Checklist](PRODUCTION_CHECKLIST.md) for operational checks.
+
 ## API Reference
 
 See [API Reference](api/index.md) for API documentation.
