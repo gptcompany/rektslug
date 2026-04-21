@@ -1,0 +1,21 @@
+[Unit]
+Description=LiquidationHeatmap Hyperliquid Backfill Batch Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sam
+Group=sam
+WorkingDirectory=/media/sam/1TB/rektslug
+EnvironmentFile=-/media/sam/1TB/rektslug/.env
+Environment=PATH=/home/sam/.local/bin:/home/sam/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/media/sam/1TB/monitoring-stack/scripts/cron-wrapper.sh lh-hl-backfill-monitor /media/sam/1TB/rektslug/scripts/run-hl-backfill-monitor.sh
+TimeoutStartSec=120
+Restart=no
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lh-hl-backfill-monitor
+
+[Install]
+WantedBy=multi-user.target

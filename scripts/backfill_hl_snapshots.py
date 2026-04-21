@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import tempfile
 from bisect import bisect_right
@@ -99,11 +100,32 @@ def resolve_anchor(anchor_index: list[tuple[float, Path]], snapshot_ts: datetime
 
 def classify_manifest_status(manifest) -> str:
     statuses = [entry.availability_status for entry in manifest.experts.values()]
+    return classify_expert_statuses(statuses)
+
+
+def classify_expert_statuses(statuses: list[str]) -> str:
     if any(status == "available" for status in statuses):
         return "success" if all(status == "available" for status in statuses) else "partial"
     if any(status == "failed_decode" for status in statuses):
         return "failure"
     return "gap"
+
+
+def _classify_existing_manifest(output_dir: Path, symbol: str, snapshot_ts: str) -> str:
+    manifest_path = _manifest_path(output_dir, symbol, snapshot_ts)
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    experts = payload.get("experts", {})
+    if not isinstance(experts, dict):
+        return "failure"
+
+    statuses = []
+    for entry in experts.values():
+        if not isinstance(entry, dict):
+            return "failure"
+        statuses.append(str(entry.get("availability_status", "missing")))
+    return classify_expert_statuses(statuses)
 
 
 def _write_cache_payloads(cache_dir: Path, contexts: list[precompute.SymbolBuildContext]) -> None:
@@ -147,11 +169,15 @@ def _run_snapshot_job(job: SnapshotJob) -> dict:
         symbol for symbol in job.symbols if job.skip_existing and _manifest_path(output_dir, symbol, job.snapshot_ts).exists()
     }
     symbols_to_process = [symbol for symbol in job.symbols if symbol not in existing_symbols]
+    statuses = {
+        symbol: _classify_existing_manifest(output_dir, symbol, job.snapshot_ts)
+        for symbol in existing_symbols
+    }
     if not symbols_to_process:
         return {
             "snapshot_ts": job.snapshot_ts,
             "anchor_path": job.anchor_path,
-            "statuses": {symbol: "skipped" for symbol in job.symbols},
+            "statuses": statuses,
         }
 
     with tempfile.TemporaryDirectory(prefix="hl-backfill-cache-") as tmp_dir:
@@ -165,7 +191,6 @@ def _run_snapshot_job(job: SnapshotJob) -> dict:
         _write_cache_payloads(cache_dir, contexts)
 
         context_by_symbol = {f"{context.symbol}USDT": context for context in contexts}
-        statuses = {symbol: "skipped" for symbol in existing_symbols}
         for symbol in symbols_to_process:
             if symbol not in context_by_symbol:
                 statuses[symbol] = "gap"

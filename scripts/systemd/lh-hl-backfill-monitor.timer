@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly LiquidationHeatmap Hyperliquid Backfill Batch Monitor
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=120
+Unit=lh-hl-backfill-monitor.service
+
+[Install]
+WantedBy=timers.target

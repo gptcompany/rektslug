@@ -11,6 +11,7 @@ from scripts.backfill_hl_snapshots import (
     _build_jobs,
     _run_snapshot_job,
     build_anchor_index,
+    classify_expert_statuses,
     resolve_anchor,
 )
 
@@ -66,7 +67,20 @@ def test_run_snapshot_job_skips_existing_manifests(tmp_path: Path) -> None:
     for symbol in ("BTCUSDT", "ETHUSDT"):
         manifest_dir = output_dir / "manifests" / symbol
         manifest_dir.mkdir(parents=True, exist_ok=True)
-        (manifest_dir / "2026-04-20T10:00:00Z.json").write_text("{}", encoding="utf-8")
+        (manifest_dir / "2026-04-20T10:00:00Z.json").write_text(
+            """
+            {
+              "experts": {
+                "v1": {"availability_status": "available"},
+                "v2": {"availability_status": "available"},
+                "v3": {"availability_status": "available"},
+                "v4": {"availability_status": "available"},
+                "v5": {"availability_status": "available"}
+              }
+            }
+            """,
+            encoding="utf-8",
+        )
 
     result = _run_snapshot_job(
         SnapshotJob(
@@ -79,7 +93,14 @@ def test_run_snapshot_job_skips_existing_manifests(tmp_path: Path) -> None:
         )
     )
 
-    assert result["statuses"] == {"BTCUSDT": "skipped", "ETHUSDT": "skipped"}
+    assert result["statuses"] == {"BTCUSDT": "success", "ETHUSDT": "success"}
+
+
+def test_classify_expert_statuses_preserves_partial_and_failure_semantics() -> None:
+    assert classify_expert_statuses(["available", "available"]) == "success"
+    assert classify_expert_statuses(["available", "missing"]) == "partial"
+    assert classify_expert_statuses(["failed_decode", "missing"]) == "failure"
+    assert classify_expert_statuses(["missing", "missing"]) == "gap"
 
 
 def test_run_snapshot_job_writes_snapshots_and_classifies_partial(

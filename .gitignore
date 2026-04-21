@@ -12,6 +12,7 @@ __pycache__/
 venv/
 *.egg-info/
 node_modules/
+.uv-cache/
 
 # Data
 *.duckdb

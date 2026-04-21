@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -49,11 +50,13 @@ def _coverage_total(coverage: dict[str, Any], status: str) -> int:
 def evaluate_batch(
     payload: dict[str, Any],
     *,
+    batch_path: Path | None = None,
     min_results: int,
     max_failures: int,
     max_partials: int,
     max_gaps: int,
     max_anchor_resolution_failures: int | None,
+    max_age_hours: float | None = None,
     require_completed: bool,
 ) -> list[str]:
     """Return a list of health violations for a backfill batch record."""
@@ -70,6 +73,16 @@ def evaluate_batch(
     results_count = int(metadata.get("results_count", 0) or 0)
     if results_count < min_results:
         errors.append(f"results_count={results_count} below min_results={min_results}")
+
+    if max_age_hours is not None:
+        age_seconds = _batch_age_seconds(payload, batch_path=batch_path)
+        max_age_seconds = max_age_hours * 3600
+        if age_seconds is None:
+            errors.append("batch age cannot be determined")
+        elif age_seconds > max_age_seconds:
+            errors.append(
+                f"batch age={age_seconds / 3600:.2f}h exceeds max_age_hours={max_age_hours:g}"
+            )
 
     coverage = payload.get("coverage", {})
     if not isinstance(coverage, dict) or not coverage:
@@ -120,6 +133,31 @@ def evaluate_batch(
     return errors
 
 
+def _parse_iso8601_z_epoch(value: Any) -> float | None:
+    if not isinstance(value, str) or not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        from datetime import datetime
+
+        return datetime.fromisoformat(normalized).timestamp()
+    except ValueError:
+        return None
+
+
+def _batch_age_seconds(payload: dict[str, Any], *, batch_path: Path | None) -> float | None:
+    metadata = payload.get("generation_metadata", {})
+    if isinstance(metadata, dict):
+        for key in ("run_completed_at", "generated_at"):
+            epoch = _parse_iso8601_z_epoch(metadata.get(key))
+            if epoch is not None:
+                return max(0.0, time.time() - epoch)
+
+    if batch_path is not None and batch_path.exists():
+        return max(0.0, time.time() - batch_path.stat().st_mtime)
+    return None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Check Hyperliquid backfill batch health")
     parser.add_argument("--batch-path", type=Path, help="Specific batch JSON path")
@@ -130,6 +168,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-partials", type=int, default=0)
     parser.add_argument("--max-gaps", type=int, default=0)
     parser.add_argument("--max-anchor-resolution-failures", type=int)
+    parser.add_argument("--max-age-hours", type=float)
     parser.add_argument(
         "--allow-running",
         action="store_true",
@@ -149,11 +188,13 @@ def main() -> int:
     payload = _load_json(batch_path)
     errors = evaluate_batch(
         payload,
+        batch_path=batch_path,
         min_results=args.min_results,
         max_failures=args.max_failures,
         max_partials=args.max_partials,
         max_gaps=args.max_gaps,
         max_anchor_resolution_failures=args.max_anchor_resolution_failures,
+        max_age_hours=args.max_age_hours,
         require_completed=not args.allow_running,
     )
     metadata = payload.get("generation_metadata", {})

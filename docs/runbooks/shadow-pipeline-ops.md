@@ -52,6 +52,32 @@ docker exec rektslug-shadow-consumer cat /var/lib/rektslug-db/shadow_report.json
    - If `0` for over 24h, check if `--enable-ws-stream` is active and WS stream is healthy.
 2. Verify shadow PnL generation: `docker exec rektslug-shadow-consumer jq .calibration.total_pnl /var/lib/rektslug-db/shadow_report.json`
 
+### Historical Backfill Batch Monitoring
+Backfill is a bounded bootstrap/recovery job, not an always-on service. The lightweight monitor is a systemd oneshot timer that checks the latest batch record for completion, coverage failures, and freshness.
+
+```bash
+# Manual check
+scripts/run-hl-backfill-monitor.sh
+
+# Installed timer check
+systemctl status lh-hl-backfill-monitor.timer --no-pager
+journalctl -u lh-hl-backfill-monitor.service -n 50 --no-pager
+```
+
+Defaults:
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `REKTSLUG_HL_BACKFILL_MIN_RESULTS` | 1 | Minimum processed anchor slots |
+| `REKTSLUG_HL_BACKFILL_MAX_FAILURES` | 0 | Maximum manifest decode failures |
+| `REKTSLUG_HL_BACKFILL_MAX_PARTIALS` | 0 | Maximum partial manifests |
+| `REKTSLUG_HL_BACKFILL_MAX_GAPS` | 0 | Maximum manifest gaps after anchor resolution |
+| `REKTSLUG_HL_BACKFILL_MAX_AGE_HOURS` | 26 | Maximum age of latest completed batch |
+| `REKTSLUG_HL_BACKFILL_MAX_ANCHOR_FAILURES` | unset | Optional max missing-anchor slots |
+| `REKTSLUG_HL_BACKFILL_BATCH_ID` | latest | Optional fixed batch id to monitor |
+
+If `anchor_resolution_failures` is truncated at 100 and the batch lacks `anchor_resolution_failures_total`, the monitor fails closed. Regenerate the batch record with current `scripts/backfill_hl_snapshots.py` to get the total count without rebuilding existing manifests.
+
 ### Stale Stream / Alerting Thresholds
 - **Report Freshness**: If `/var/lib/rektslug-db/shadow_report.json` is older than `REKTSLUG_SHADOW_INTERVAL_SECONDS` + 60s, the consumer might be stalled. Use `find` to check: `find /var/lib/rektslug-db -name 'shadow_report.json' -mmin -10`.
 - **Alerting**: The circuit breaker automatically publishes alerts to `liquidation:alerts:{symbol}` on Redis when drawdown limits (`cb-max-drawdown`) are breached. Monitor this channel for automated trip notifications.

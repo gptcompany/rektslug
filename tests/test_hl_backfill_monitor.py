@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
+import scripts.check_hl_backfill_batch as monitor
 from scripts.check_hl_backfill_batch import (
     _resolve_batch_path,
     evaluate_batch,
@@ -45,6 +47,7 @@ def _batch_payload(
         "generation_metadata": {
             "status": status,
             "results_count": results_count,
+            "run_completed_at": "2026-04-21T10:00:00Z",
         },
     }
 
@@ -136,6 +139,24 @@ def test_evaluate_batch_rejects_legacy_truncated_anchor_failures_without_total()
     assert any("may be truncated at 100" in error for error in errors)
 
 
+def test_evaluate_batch_rejects_stale_batch(monkeypatch) -> None:
+    now = datetime(2026, 4, 21, 14, 0, tzinfo=timezone.utc).timestamp()
+    monkeypatch.setattr(monitor.time, "time", lambda: now)
+
+    errors = evaluate_batch(
+        _batch_payload(),
+        min_results=1,
+        max_failures=0,
+        max_partials=0,
+        max_gaps=0,
+        max_anchor_resolution_failures=None,
+        max_age_hours=2,
+        require_completed=True,
+    )
+
+    assert any("batch age=4.00h exceeds max_age_hours=2" in error for error in errors)
+
+
 def test_resolve_batch_path_picks_latest_batch(tmp_path: Path) -> None:
     batch_dir = tmp_path / "batches"
     batch_dir.mkdir()
@@ -147,3 +168,26 @@ def test_resolve_batch_path_picks_latest_batch(tmp_path: Path) -> None:
     os.utime(newer, (2, 2))
 
     assert _resolve_batch_path(batch_path=None, output_dir=tmp_path, batch_id=None) == newer
+
+
+def test_backfill_monitor_shell_entrypoint_exists_and_is_executable() -> None:
+    script = Path("scripts/run-hl-backfill-monitor.sh")
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
+
+
+def test_backfill_monitor_systemd_timer_wires_oneshot_service() -> None:
+    service = Path("scripts/systemd/lh-hl-backfill-monitor.service").read_text(
+        encoding="utf-8"
+    )
+    timer = Path("scripts/systemd/lh-hl-backfill-monitor.timer").read_text(
+        encoding="utf-8"
+    )
+    installer = Path("scripts/systemd/install.sh").read_text(encoding="utf-8")
+
+    assert "Type=oneshot" in service
+    assert "run-hl-backfill-monitor.sh" in service
+    assert "OnCalendar=hourly" in timer
+    assert "Unit=lh-hl-backfill-monitor.service" in timer
+    assert "lh-hl-backfill-monitor.timer" in installer
