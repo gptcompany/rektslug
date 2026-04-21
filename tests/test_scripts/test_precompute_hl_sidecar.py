@@ -238,6 +238,8 @@ def test_extend_context_live_overrides_for_selected_users_merges_missing_users(
         symbol="BTC",
         request=SimpleNamespace(),
         plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=True,
         state=_sidecar_state(["0xbase", "0xextra"]),
         reconstructor=precompute.SidecarPositionReconstructor(),
         bin_size=10.0,
@@ -284,6 +286,42 @@ def test_extend_context_live_overrides_for_selected_users_merges_missing_users(
     assert updated.live_enrichment_stats.fetched_users == 1
     assert updated.live_enrichment_stats.applied_users == 2
     assert updated.live_enrichment_stats.api_liq_users == 2
+
+
+def test_extend_context_live_overrides_for_selected_users_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=False,
+        state=_sidecar_state(["0xbase", "0xextra"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(),
+    )
+
+    async def fail_build_live_overrides_for_users(*args, **kwargs):
+        raise AssertionError("live enrichment must stay disabled for historical backfill")
+
+    monkeypatch.setattr(
+        precompute,
+        "_build_live_overrides_for_users",
+        fail_build_live_overrides_for_users,
+    )
+
+    updated = precompute._extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users={"0xbase", "0xextra"},
+    )
+
+    assert updated is context
 
 
 def test_select_top_target_users_global_mode_ranks_by_notional() -> None:
@@ -673,6 +711,8 @@ def test_build_v3_payload_band_synthesis_uses_full_universe_seed(
         symbol="BTC",
         request=SimpleNamespace(target_coin="BTC"),
         plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=True,
         state=_sidecar_state(["0x1"]),
         reconstructor=precompute.SidecarPositionReconstructor(),
         bin_size=10.0,
@@ -755,6 +795,128 @@ def test_build_v3_payload_band_synthesis_uses_full_universe_seed(
     assert payload["projection"]["retained_bucket_count"] == 2
 
 
+def test_build_v4_payload_emits_position_first_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=True,
+        state=_sidecar_state(["0x1", "0x2"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(),
+    )
+
+    monkeypatch.setattr(precompute, "POSITION_FIRST_TOP_N", 250)
+    monkeypatch.setattr(
+        precompute,
+        "_select_top_target_users",
+        lambda *args, **kwargs: ["0x1", "0x2"],
+    )
+    monkeypatch.setattr(
+        precompute,
+        "_extend_context_live_overrides_for_selected_users",
+        lambda context, *, selected_users: context,
+    )
+
+    def fake_build_public_payload(**kwargs):
+        return {
+            "source": kwargs["source"],
+            "projection": {
+                "mode": kwargs["projection_mode"],
+                "selection_strategy": kwargs["projection_selection_strategy"],
+                "score_mode": kwargs["projection_score_mode"],
+                "objective": kwargs["projection_objective"],
+                "target_count": kwargs["projection_target_count"],
+                "selected_users": sorted(kwargs["selected_users"]),
+            },
+        }
+
+    monkeypatch.setattr(precompute, "_build_public_payload", fake_build_public_payload)
+
+    payload = precompute._build_v4_payload(context)
+
+    assert payload == {
+        "source": "hyperliquid-sidecar-position-first",
+        "projection": {
+            "mode": "position_first_local",
+            "selection_strategy": "global",
+            "score_mode": "target_notional",
+            "objective": "position_first",
+            "target_count": 250,
+            "selected_users": ["0x1", "0x2"],
+        },
+    }
+
+
+def test_build_v5_payload_emits_risk_first_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = precompute.SymbolBuildContext(
+        symbol="BTC",
+        request=SimpleNamespace(),
+        plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=True,
+        state=_sidecar_state(["0x1", "0x2"]),
+        reconstructor=precompute.SidecarPositionReconstructor(),
+        bin_size=10.0,
+        target_coin="BTC",
+        mark_price=60000.0,
+        current_price=60000.0,
+        live_overrides={},
+        live_enrichment_stats=precompute.LiveEnrichmentStats(),
+    )
+
+    monkeypatch.setattr(precompute, "RISK_FIRST_TOP_N", 250)
+    monkeypatch.setattr(
+        precompute,
+        "_select_v5_target_users",
+        lambda context: (context, ["0x2", "0x1"]),
+    )
+    monkeypatch.setattr(
+        precompute,
+        "_extend_context_live_overrides_for_selected_users",
+        lambda context, *, selected_users: context,
+    )
+
+    def fake_build_public_payload(**kwargs):
+        return {
+            "source": kwargs["source"],
+            "projection": {
+                "mode": kwargs["projection_mode"],
+                "selection_strategy": kwargs["projection_selection_strategy"],
+                "score_mode": kwargs["projection_score_mode"],
+                "objective": kwargs["projection_objective"],
+                "target_count": kwargs["projection_target_count"],
+                "selected_users": sorted(kwargs["selected_users"]),
+            },
+        }
+
+    monkeypatch.setattr(precompute, "_build_public_payload", fake_build_public_payload)
+
+    payload = precompute._build_v5_payload(context)
+
+    assert payload == {
+        "source": "hyperliquid-sidecar-risk-first",
+        "projection": {
+            "mode": "risk_first_local",
+            "selection_strategy": "global",
+            "score_mode": "risk_score",
+            "objective": "risk_first",
+            "target_count": 250,
+            "selected_users": ["0x1", "0x2"],
+        },
+    }
+
+
 def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -762,6 +924,8 @@ def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallb
         symbol="BTC",
         request=SimpleNamespace(),
         plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+        source_anchor="anchor",
+        enable_live_enrichment=True,
         state=_sidecar_state(["0x1", "0x2", "0x3", "0x4"]),
         reconstructor=precompute.SidecarPositionReconstructor(),
         bin_size=10.0,
@@ -812,6 +976,8 @@ def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallb
             symbol=context.symbol,
             request=context.request,
             plan=context.plan,
+            source_anchor=context.source_anchor,
+            enable_live_enrichment=context.enable_live_enrichment,
             state=context.state,
             reconstructor=context.reconstructor,
             bin_size=context.bin_size,
@@ -837,6 +1003,45 @@ def test_select_v3_target_users_live_liq_intensity_uses_candidate_pool_and_fallb
         ("notional", ()),
         ("live_liq_intensity", ("0x1", "0x2", "0x3", "0x4")),
     ]
+
+
+def test_prepare_symbol_contexts_reuses_shared_anchor_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    shared_state = _sidecar_state(["0x1"], coin="BTC", mark_price=60000.0)
+    load_calls: list[tuple[str, str | None]] = []
+
+    def fake_load(self, path, *, target_coin=None):
+        load_calls.append((str(path), target_coin))
+        return shared_state
+
+    def fake_prepare(symbol, **kwargs):
+        assert kwargs["shared_state"] is shared_state
+        return precompute.SymbolBuildContext(
+            symbol=symbol,
+            request=SimpleNamespace(),
+            plan=SimpleNamespace(anchor_coverage=SimpleNamespace(latest_anchor_in_window="anchor")),
+            source_anchor=str(kwargs["anchor_path"]),
+            enable_live_enrichment=kwargs["enable_live_enrichment"],
+            state=shared_state,
+            reconstructor=precompute.SidecarPositionReconstructor(),
+            bin_size=10.0,
+            target_coin=symbol,
+            mark_price=60000.0,
+            current_price=60000.0,
+            live_overrides={},
+            live_enrichment_stats=precompute.LiveEnrichmentStats(),
+        )
+
+    monkeypatch.setattr(precompute.SidecarPositionReconstructor, "load_abci_anchor", fake_load)
+    monkeypatch.setattr(precompute, "_prepare_symbol_context", fake_prepare)
+
+    contexts = precompute.prepare_symbol_contexts(
+        ["BTC", "ETH"],
+        anchor_path="/tmp/anchor.rmp",
+        enable_live_enrichment=False,
+    )
+
+    assert [context.symbol for context in contexts] == ["BTC", "ETH"]
+    assert load_calls == [("/tmp/anchor.rmp", None)]
 
 
 def test_asset_meta_tables_use_mark_price_overrides_when_contexts_missing() -> None:
@@ -939,36 +1144,39 @@ async def test_build_live_overrides_fetches_in_configured_batches_and_saves_cach
             self.base_urls = ["http://localhost:3001/info"]
 
         async def get_asset_meta(self, *, include_asset_contexts: bool = True):
-            class _Meta:
-                universe = [
-                    type(
-                        "AssetMetaStub",
-                        (),
-                        {
-                            "name": "BTC",
-                            "maxLeverage": 50,
-                            "marginTableId": 1,
-                        },
-                    )()
-                ]
-                assetContexts = [
-                    type("AssetCtxStub", (), {"markPx": 60000.0})()
-                ]
-                margin_tables = {
-                    1: [
+            return type(
+                "_Meta",
+                (),
+                {
+                    "universe": [
                         type(
-                            "TierStub",
+                            "AssetMetaStub",
                             (),
                             {
-                                "lower_bound": 0.0,
-                                "mmr_rate": 0.01,
-                                "maintenance_deduction": 0.0,
+                                "name": "BTC",
+                                "maxLeverage": 50,
+                                "marginTableId": 1,
                             },
                         )()
-                    ]
-                }
-
-            return _Meta()
+                    ],
+                    "assetContexts": [
+                        type("AssetCtxStub", (), {"markPx": 60000.0})()
+                    ],
+                    "margin_tables": {
+                        1: [
+                            type(
+                                "TierStub",
+                                (),
+                                {
+                                    "lower_bound": 0.0,
+                                    "mmr_rate": 0.01,
+                                    "maintenance_deduction": 0.0,
+                                },
+                            )()
+                        ]
+                    },
+                },
+            )()
 
         async def get_all_borrow_lend_reserve_states(self):
             return {}

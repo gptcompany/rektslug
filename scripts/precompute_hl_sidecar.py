@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import gc
 import json
@@ -77,6 +78,22 @@ LIVE_ENRICH_CACHE_FILE = Path(
         "HEATMAP_HL_LIVE_ENRICH_CACHE_FILE",
         str(CACHE_DIR / "hl_live_enrichment_cache.json"),
     )
+)
+POSITION_FIRST_TOP_N = max(
+    1,
+    int(os.getenv("HEATMAP_HL_POSITION_FIRST_TOP_N", "250")),
+)
+RISK_FIRST_TOP_N = max(
+    1,
+    int(os.getenv("HEATMAP_HL_RISK_FIRST_TOP_N", "250")),
+)
+RISK_FIRST_CANDIDATE_POOL_TOP_N = max(
+    RISK_FIRST_TOP_N,
+    int(os.getenv("HEATMAP_HL_RISK_FIRST_CANDIDATE_POOL_TOP_N", "1000")),
+)
+RISK_FIRST_DISTANCE_FLOOR_BPS = max(
+    1,
+    int(os.getenv("HEATMAP_HL_RISK_FIRST_DISTANCE_FLOOR_BPS", "25")),
 )
 
 
@@ -189,6 +206,8 @@ class SymbolBuildContext:
     symbol: str
     request: SidecarBuildRequest
     plan: object
+    source_anchor: str
+    enable_live_enrichment: bool
     state: SidecarState
     reconstructor: SidecarPositionReconstructor
     bin_size: float
@@ -541,6 +560,17 @@ def _resolve_top_position_selector_config(symbol: str) -> TopPositionSelectorCon
             else None
         ),
     )
+
+
+def _resolve_symbol_int_override(base_name: str, symbol: str, default: int) -> int:
+    raw = _get_symbol_env_raw(base_name, symbol.upper())
+    if raw in (None, ""):
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(1, value)
 
 
 def _merge_live_enrichment_stats(
@@ -958,30 +988,103 @@ def _score_target_concentration(
     return profile.target_notional * share_component / position_penalty
 
 
-def _prepare_symbol_context(symbol: str) -> SymbolBuildContext | None:
+def _target_position_for_user(
+    user_state: UserState,
+    *,
+    target_coin: str,
+) -> UserPosition | None:
+    return next(
+        (
+            position
+            for position in user_state.positions
+            if position.coin == target_coin and position.size != 0
+        ),
+        None,
+    )
+
+
+def _risk_score_user(
+    *,
+    context: SymbolBuildContext,
+    user: str,
+    user_state: UserState,
+) -> float | None:
+    target_pos = _target_position_for_user(user_state, target_coin=context.target_coin)
+    if target_pos is None:
+        return None
+
+    exposure_profile = _build_target_exposure_profile(
+        user_state,
+        target_coin=context.target_coin,
+        mark_prices=context.state.mark_prices,
+    )
+    if exposure_profile.target_notional <= 0:
+        return None
+
+    liq_px: float | None = None
+    override = context.live_overrides.get(user)
+    if override is not None:
+        liq_px = override.liq_px
+    if liq_px is None or liq_px <= 0:
+        liq_px = context.reconstructor.solve_liquidation_price(
+            user_state=user_state,
+            target_coin=context.target_coin,
+            mark_prices=context.state.mark_prices,
+            asset_margin_tiers=context.state.asset_margin_tiers,
+        )
+    if liq_px is None or liq_px <= 0:
+        return None
+
+    distance_floor_ratio = RISK_FIRST_DISTANCE_FLOOR_BPS / 10_000.0
+    distance_ratio = abs(context.mark_price - liq_px) / max(context.mark_price, 1.0)
+    distance_component = exposure_profile.target_notional / max(
+        distance_ratio,
+        distance_floor_ratio,
+    )
+    off_target_ratio = exposure_profile.off_target_notional / max(
+        exposure_profile.target_notional,
+        1.0,
+    )
+    complexity_multiplier = 1.0 + 0.05 * max(exposure_profile.position_count - 1, 0)
+    return distance_component * (1.0 + off_target_ratio) * complexity_multiplier
+
+
+def _prepare_symbol_context(
+    symbol: str,
+    *,
+    analysis_end: datetime | None = None,
+    anchor_path: Path | str | None = None,
+    enable_live_enrichment: bool = True,
+    shared_state: SidecarState | None = None,
+) -> SymbolBuildContext | None:
     """Load the sidecar anchor and live-enrichment context for one symbol."""
     logger.info("Starting %s 7d generation...", symbol)
     request = SidecarBuildRequest(
         symbol=symbol,
         timeframe_days=TIMEFRAME_DAYS,
-        analysis_end=datetime.now(timezone.utc),
+        analysis_end=analysis_end or datetime.now(timezone.utc),
     )
 
     builder = HyperliquidSidecarPrototypeBuilder()
     plan = builder.build(request)
 
-    if not plan.anchor_coverage.latest_anchor_in_window:
+    effective_anchor = Path(anchor_path) if anchor_path else plan.anchor_coverage.latest_anchor_in_window
+    if not effective_anchor:
         logger.warning("No ABCI anchor for %s, skipping", symbol)
         return None
 
-    state: SidecarState = builder.reconstruct(request)
+    reconstructor = SidecarPositionReconstructor()
+    state = (
+        shared_state
+        if shared_state is not None
+        else reconstructor.load_abci_anchor(Path(effective_anchor), target_coin=None)
+    )
     logger.info(
         "%s: %d accounts, reconstructing liquidation prices...",
         symbol,
         len(state.users),
     )
 
-    reconstructor = SidecarPositionReconstructor()
     bin_size = plan.bin_size
     target_coin = request.target_coin
 
@@ -1010,7 +1113,7 @@ def _prepare_symbol_context(symbol: str) -> SymbolBuildContext | None:
 
     live_overrides: dict[str, LiveUserOverride | None] = {}
     live_enrichment_stats = LiveEnrichmentStats()
-    if LIVE_ENRICH_TOP_N > 0:
+    if enable_live_enrichment and LIVE_ENRICH_TOP_N > 0:
         try:
             live_overrides, live_enrichment_stats = asyncio.run(
                 _build_live_overrides(
@@ -1038,6 +1141,8 @@ def _prepare_symbol_context(symbol: str) -> SymbolBuildContext | None:
         symbol=symbol,
         request=request,
         plan=plan,
+        source_anchor=str(effective_anchor),
+        enable_live_enrichment=enable_live_enrichment,
         state=state,
         reconstructor=reconstructor,
         bin_size=bin_size,
@@ -1047,6 +1152,35 @@ def _prepare_symbol_context(symbol: str) -> SymbolBuildContext | None:
         live_overrides=live_overrides,
         live_enrichment_stats=live_enrichment_stats,
     )
+
+
+def prepare_symbol_contexts(
+    symbols: list[str],
+    *,
+    analysis_end: datetime | None = None,
+    anchor_path: Path | str | None = None,
+    enable_live_enrichment: bool = True,
+) -> list[SymbolBuildContext]:
+    """Prepare per-symbol contexts, reusing one parsed anchor when explicit."""
+    shared_state = None
+    if anchor_path:
+        shared_state = SidecarPositionReconstructor().load_abci_anchor(
+            Path(anchor_path),
+            target_coin=None,
+        )
+
+    contexts: list[SymbolBuildContext] = []
+    for symbol in symbols:
+        context = _prepare_symbol_context(
+            symbol,
+            analysis_end=analysis_end,
+            anchor_path=anchor_path,
+            enable_live_enrichment=enable_live_enrichment,
+            shared_state=shared_state,
+        )
+        if context is not None:
+            contexts.append(context)
+    return contexts
 
 
 def _build_public_payload(
@@ -1203,7 +1337,7 @@ def _build_public_payload(
             "long": round(oor_long, 2),
             "short": round(oor_short, 2),
         },
-        "source_anchor": str(context.plan.anchor_coverage.latest_anchor_in_window),
+        "source_anchor": context.source_anchor,
         "bin_size": bin_size,
         "live_enrichment": context.live_enrichment_stats.to_dict(),
         "projection": {
@@ -1668,6 +1802,13 @@ def _extend_context_live_overrides_for_selected_users(
     *,
     selected_users: set[str],
 ) -> SymbolBuildContext:
+    if not context.enable_live_enrichment:
+        logger.info(
+            "%s: skipping selected-user live enrichment because it is disabled",
+            context.symbol,
+        )
+        return context
+
     additional_users = sorted(
         user for user in selected_users if user not in context.live_overrides
     )
@@ -1825,6 +1966,121 @@ def _build_v3_payload(
     )
 
 
+def _build_v4_payload(
+    context: SymbolBuildContext,
+) -> dict | None:
+    top_n = _resolve_symbol_int_override(
+        "HEATMAP_HL_POSITION_FIRST_TOP_N",
+        context.symbol,
+        POSITION_FIRST_TOP_N,
+    )
+    selected_users = _select_top_target_users(
+        context.state,
+        target_coin=context.target_coin,
+        mark_price=context.mark_price,
+        top_n=top_n,
+        selection_mode="global",
+        score_mode="notional",
+    )
+    if not selected_users:
+        logger.warning("%s: no position-first users selected, skipping v4", context.symbol)
+        return None
+
+    selected_user_set = set(selected_users)
+    context = _extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users=selected_user_set,
+    )
+    return _build_public_payload(
+        context=context,
+        source="hyperliquid-sidecar-position-first",
+        selected_users=selected_user_set,
+        projection_mode="position_first_local",
+        projection_target_count=top_n,
+        projection_selection_strategy="global",
+        projection_score_mode="target_notional",
+        projection_objective="position_first",
+    )
+
+
+def _select_v5_target_users(
+    context: SymbolBuildContext,
+) -> tuple[SymbolBuildContext, list[str]]:
+    top_n = _resolve_symbol_int_override(
+        "HEATMAP_HL_RISK_FIRST_TOP_N",
+        context.symbol,
+        RISK_FIRST_TOP_N,
+    )
+    candidate_pool_top_n = _resolve_symbol_int_override(
+        "HEATMAP_HL_RISK_FIRST_CANDIDATE_POOL_TOP_N",
+        context.symbol,
+        RISK_FIRST_CANDIDATE_POOL_TOP_N,
+    )
+    candidate_users = _select_top_target_users(
+        context.state,
+        target_coin=context.target_coin,
+        mark_price=context.mark_price,
+        top_n=max(top_n, candidate_pool_top_n),
+        selection_mode="global",
+        score_mode="notional",
+    )
+    if not candidate_users:
+        return context, []
+
+    context = _extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users=set(candidate_users),
+    )
+
+    ranked: list[tuple[float, str]] = []
+    for user in candidate_users:
+        user_state = context.state.users.get(user)
+        if user_state is None:
+            continue
+        score = _risk_score_user(
+            context=context,
+            user=user,
+            user_state=user_state,
+        )
+        if score is None:
+            continue
+        ranked.append((score, user))
+
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    selected_users = [user for _, user in ranked[:top_n]]
+    return context, selected_users
+
+
+def _build_v5_payload(
+    context: SymbolBuildContext,
+) -> dict | None:
+    top_n = _resolve_symbol_int_override(
+        "HEATMAP_HL_RISK_FIRST_TOP_N",
+        context.symbol,
+        RISK_FIRST_TOP_N,
+    )
+    context, selected_users = _select_v5_target_users(context)
+    if not selected_users:
+        logger.warning("%s: no risk-first users selected, skipping v5", context.symbol)
+        return None
+
+    selected_user_set = set(selected_users)
+    context = _extend_context_live_overrides_for_selected_users(
+        context,
+        selected_users=selected_user_set,
+    )
+    return _build_public_payload(
+        context=context,
+        source="hyperliquid-sidecar-risk-first",
+        selected_users=selected_user_set,
+        projection_mode="risk_first_local",
+        projection_target_count=top_n,
+        projection_selection_strategy="global",
+        projection_score_mode="risk_score",
+        projection_objective="risk_first",
+    )
+
+
 def generate_symbol(symbol: str) -> dict | None:
     """Generate the liq-map payload for one symbol. Returns None on failure."""
     context = _prepare_symbol_context(symbol)
@@ -1846,6 +2102,16 @@ def generate_symbol_v3(symbol: str) -> dict | None:
     return _build_v3_payload(context)
 
 
+def _parse_analysis_end(raw_value: str | None) -> datetime | None:
+    if raw_value is None:
+        return None
+    normalized = raw_value.replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def atomic_write_json(payload: dict, dest: Path) -> None:
     """Write JSON atomically via tmp + rename."""
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -1865,32 +2131,76 @@ def atomic_write_json(payload: dict, dest: Path) -> None:
 
 
 def main() -> int:
-    symbols = _resolve_symbols()
+    parser = argparse.ArgumentParser(description="Precompute Hyperliquid sidecar caches")
+    parser.add_argument("--symbols", nargs="+", help="Optional BTC/ETH symbol subset")
+    parser.add_argument("--analysis-end", help="Optional ISO8601 timestamp for historical generation")
+    parser.add_argument("--anchor-path", help="Optional explicit ABCI anchor path override")
+    parser.add_argument(
+        "--disable-live-enrichment",
+        action="store_true",
+        help="Disable live Info API enrichment and rely on anchor state only",
+    )
+    args = parser.parse_args()
+
+    symbols = (
+        [token.upper().removesuffix("USDT") for token in args.symbols]
+        if args.symbols
+        else _resolve_symbols()
+    )
+    analysis_end = _parse_analysis_end(args.analysis_end)
+    contexts = prepare_symbol_contexts(
+        symbols,
+        analysis_end=analysis_end,
+        anchor_path=args.anchor_path,
+        enable_live_enrichment=not args.disable_live_enrichment,
+    )
     logger.info("Resolved precompute symbols: %s", ",".join(symbols))
-    for symbol in symbols:
+    for context in contexts:
         try:
-            context = _prepare_symbol_context(symbol)
-            if context is None:
-                continue
             payload = _build_public_payload(
                 context=context,
                 source="hyperliquid-sidecar",
                 projection_mode="full_universe",
                 reported_account_count=len(context.state.users),
             )
-            dest_v1 = CACHE_DIR / f"hl_sidecar_{symbol.lower()}usdt.json"
+            dest_v1 = CACHE_DIR / f"hl_sidecar_{context.symbol.lower()}usdt.json"
             atomic_write_json(payload, dest_v1)
             logger.info("Written %s", dest_v1)
 
             payload_v3 = _build_v3_payload(context)
             if payload_v3 is not None:
-                dest_v3 = CACHE_DIR / f"hl_sidecar_v3_{symbol.lower()}usdt.json"
+                dest_v3 = CACHE_DIR / f"hl_sidecar_v3_{context.symbol.lower()}usdt.json"
                 atomic_write_json(payload_v3, dest_v3)
                 logger.info("Written %s", dest_v3)
             else:
-                logger.warning("%s: no top-position-like users selected, v3 not written", symbol)
+                logger.warning(
+                    "%s: no top-position-like users selected, v3 not written",
+                    context.symbol,
+                )
+
+            payload_v4 = _build_v4_payload(context)
+            if payload_v4 is not None:
+                dest_v4 = CACHE_DIR / f"hl_sidecar_v4_{context.symbol.lower()}usdt.json"
+                atomic_write_json(payload_v4, dest_v4)
+                logger.info("Written %s", dest_v4)
+            else:
+                logger.warning(
+                    "%s: no position-first users selected, v4 not written",
+                    context.symbol,
+                )
+
+            payload_v5 = _build_v5_payload(context)
+            if payload_v5 is not None:
+                dest_v5 = CACHE_DIR / f"hl_sidecar_v5_{context.symbol.lower()}usdt.json"
+                atomic_write_json(payload_v5, dest_v5)
+                logger.info("Written %s", dest_v5)
+            else:
+                logger.warning(
+                    "%s: no risk-first users selected, v5 not written",
+                    context.symbol,
+                )
         except Exception:
-            logger.exception("Failed to generate %s", symbol)
+            logger.exception("Failed to generate %s", context.symbol)
         finally:
             gc.collect()
 

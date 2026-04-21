@@ -16,16 +16,20 @@ ENV REKTSLUG_BUILD_AT=${BUILD_AT}
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock README.md /app/
+COPY package.json package-lock.json /app/
 COPY src /app/src
 COPY scripts /app/scripts
 COPY frontend /app/frontend
 
 RUN uv sync --frozen --no-dev
+RUN npm ci --omit=dev
 
 EXPOSE 8002
 
