@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
+import pandas as pd
 
 from src.liquidationheatmap.api.main import app
 
@@ -66,6 +67,23 @@ class TestMarketRouter:
 
         assert response.status_code == 200
         assert response.json()["data"] == [{"open_time": "2024-01-01"}]
+        assert response.headers["X-Data-Backend"] == "duckdb"
+
+    @patch("src.liquidationheatmap.api.routers.market.DuckDBService")
+    @patch("src.liquidationheatmap.api.routers.market.QuestDBService")
+    def test_get_klines_duckdb_serializes_timestamps(self, mock_qdb_cls, mock_db_cls):
+        mock_qdb_cls.return_value.get_recent_klines.return_value = []
+        mock_db = MagicMock()
+        mock_db_cls.return_value.__enter__.return_value = mock_db
+        mock_db._table_exists.return_value = True
+        mock_db.conn.execute.return_value.df.return_value.to_dict.return_value = [
+            {"open_time": pd.Timestamp("2024-01-01T00:00:00Z")}
+        ]
+
+        response = client.get("/prices/klines?symbol=BTCUSDT&interval=15m&limit=10")
+
+        assert response.status_code == 200
+        assert response.json()["data"] == [{"open_time": "2024-01-01T00:00:00+00:00"}]
         assert response.headers["X-Data-Backend"] == "duckdb"
 
     @patch("src.liquidationheatmap.api.routers.market.DuckDBService")

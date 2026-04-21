@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Liquidation Heatmap</title>
-    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -73,6 +72,17 @@
         #heatmap {
             width: 100%;
             height: 100%;
+        }
+        .plotly-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: #787b86;
+            font-size: 14px;
+            text-align: center;
+            padding: 24px;
         }
         /* Minimal status bar at bottom */
         .status {
@@ -315,8 +325,58 @@
     </div>
 
     <script>
-        // Use current host so it works from any device on the network
-        const API_BASE = window.location.origin;
+        const IS_FILE_PREVIEW = window.location.protocol === 'file:';
+        const API_BASE = IS_FILE_PREVIEW ? 'http://127.0.0.1:8002' : window.location.origin;
+        let ws;
+        let wsFailures = 0;
+        let plotlyReadyResolve;
+        const plotlyReady = new Promise(resolve => {
+            plotlyReadyResolve = resolve;
+        });
+
+        function installPlotlyFallback() {
+            if (typeof window.Plotly !== 'undefined') {
+                plotlyReadyResolve();
+                return;
+            }
+
+            const renderFallback = (target) => {
+                const node = typeof target === 'string' ? document.getElementById(target) : target;
+                if (!node) return;
+                node.innerHTML = '<div class="plotly-fallback">Plotly unavailable in local preview. Start the API UI to render the live chart.</div>';
+            };
+
+            window.Plotly = {
+                newPlot: async (target, traces, layout, config) => {
+                    renderFallback(target);
+                    window.__lastPlotlyRender = { traces, layout, config };
+                },
+                react: async (target, traces, layout, config) => {
+                    renderFallback(target);
+                    window.__lastPlotlyRender = { traces, layout, config };
+                },
+                purge: () => {},
+                Fx: {
+                    hover: () => {},
+                    unhover: () => {},
+                },
+            };
+
+            plotlyReadyResolve();
+        }
+
+        if (IS_FILE_PREVIEW) {
+            installPlotlyFallback();
+        } else {
+            const plotlyScript = document.createElement('script');
+            plotlyScript.src = 'https://cdn.plot.ly/plotly-2.26.0.min.js';
+            plotlyScript.onload = () => plotlyReadyResolve();
+            plotlyScript.onerror = () => {
+                console.warn('Plotly CDN load failed, falling back to preview renderer.');
+                installPlotlyFallback();
+            };
+            document.head.appendChild(plotlyScript);
+        }
 
         // Toggle help panel visibility
         function toggleHelp() {
@@ -369,6 +429,7 @@
             const timeWindow = document.getElementById('timeWindow').value;
             const priceBinSize = document.getElementById('priceBinSize').value;
 
+            await plotlyReady;
             updateHeader(symbol, timeWindow);
 
             setLoading(true);
@@ -683,6 +744,58 @@
             }
         }
 
+        function getWebSocketInterval() {
+            const timeWindow = document.getElementById('timeWindow').value;
+            return ['24h', '48h'].includes(timeWindow) ? '15m' : '1h';
+        }
+
+        function connectWebSocket() {
+            if (IS_FILE_PREVIEW) {
+                return;
+            }
+
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            const symbol = document.getElementById('symbolSelect').value;
+            const interval = getWebSocketInterval();
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/heatmap/${symbol}/${interval}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                wsFailures = 0;
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'heartbeat' || data.type === 'pong') {
+                    if (data.type === 'heartbeat') {
+                        ws.send('ping');
+                    }
+                    return;
+                }
+
+                // Full reload keeps the client-side aggregation path deterministic.
+                loadHeatmap().catch(console.error);
+            };
+
+            ws.onclose = () => {
+                wsFailures++;
+                if (wsFailures < 3) {
+                    setTimeout(connectWebSocket, 5000);
+                }
+            };
+
+            ws.onerror = () => {
+                if (ws) {
+                    ws.close();
+                }
+            };
+        }
+
         // T52: Auto-load on page ready with error handling
         // Support URL parameters for testing: ?window=7d&bin=500
         document.addEventListener('DOMContentLoaded', () => {
@@ -708,6 +821,11 @@
 
             // Give the server time to be ready
             setTimeout(() => {
+                if (IS_FILE_PREVIEW) {
+                    setStatus('Local preview ready. Start the API and click Load.', 'success');
+                    return;
+                }
+
                 loadHeatmap().catch(err => {
                     console.error('Initial load failed:', err);
                     setStatus('Initial load failed. Click "Load Heatmap" to retry.', 'error');
@@ -724,54 +842,6 @@
                 wsFailures = 0;
                 connectWebSocket();
             });
-        });
-    </script>
-</body>
-</html>
-;
-                // In a perfect world we would append the new snapshot, but to avoid 
-                // client-side calculation bugs, we just trigger a data reload
-                loadHeatmap().catch(console.error);
-            };
-            
-            ws.onclose = () => {
-                wsFailures++;
-                setTimeout(connectWebSocket, 5000);
-            };
-            
-            ws.onerror = () => {
-                ws.close();
-            };
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            if (params.has('symbol')) {
-                document.getElementById('symbolSelect').value = params.get('symbol').toUpperCase();
-            }
-            if (params.has('window')) {
-                document.getElementById('timeWindow').value = params.get('window');
-            }
-            if (params.has('bin')) {
-                document.getElementById('priceBinSize').value = params.get('bin');
-            }
-            if (params.get('ui') === 'minimal') {
-                document.querySelector('.controls').style.display = 'none';
-                document.getElementById('helpToggle').style.display = 'none';
-            }
-
-            updateHeader(
-                document.getElementById('symbolSelect').value,
-                document.getElementById('timeWindow').value
-            );
-
-            // Give the server time to be ready
-            setTimeout(() => {
-                loadHeatmap().catch(err => {
-                    console.error('Initial load failed:', err);
-                    setStatus('Initial load failed. Click "Load Heatmap" to retry.', 'error');
-                });
-            }, 500);
         });
     </script>
 </body>

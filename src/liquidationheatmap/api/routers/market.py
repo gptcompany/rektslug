@@ -1,5 +1,6 @@
 import logging
 
+from fastapi.encoders import jsonable_encoder
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -52,7 +53,7 @@ async def get_klines(
         qdb_rows = QuestDBService().get_recent_klines(symbol=symbol, interval=interval, limit=limit)
         if qdb_rows:
             return JSONResponse(
-                content={"symbol": symbol, "interval": interval, "data": qdb_rows},
+                content=jsonable_encoder({"symbol": symbol, "interval": interval, "data": qdb_rows}),
                 headers={"X-Data-Backend": "questdb"},
             )
 
@@ -73,7 +74,9 @@ async def get_klines(
             query = f"SELECT * FROM {table_name} WHERE symbol = ? ORDER BY open_time DESC LIMIT ?"
             df = db.conn.execute(query, [symbol, limit]).df()
             return JSONResponse(
-                content={"symbol": symbol, "interval": interval, "data": df.to_dict(orient="records")},
+                content=jsonable_encoder(
+                    {"symbol": symbol, "interval": interval, "data": df.to_dict(orient="records")}
+                ),
                 headers={"X-Data-Backend": "duckdb"},
             )
     except (HTTPException, IngestionLockError):
