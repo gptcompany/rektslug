@@ -42,6 +42,20 @@ docker exec rektslug-shadow-consumer cat /var/lib/rektslug-db/shadow_report.json
 1. Check Redis: `docker exec rektslug-redis redis-cli PUBSUB CHANNELS`
 2. Check REDIS_HOST env: `docker exec rektslug-shadow-consumer env | grep REDIS`
 
+### WebSocket Stream Issues
+1. Verify WS connection logs: `docker logs rektslug-shadow-consumer | grep -i "connected to"`
+2. Verify WS message processing: `docker logs rektslug-shadow-consumer | grep -i "event"`
+3. Check for disconnection errors: `docker logs rektslug-shadow-consumer | grep -i "error"`
+
+### Correlation / Validation Monitoring
+1. Check correlation matches count: `docker exec rektslug-shadow-consumer jq .summary.correlation_matches /var/lib/rektslug-db/shadow_report.json`
+   - If `0` for over 24h, check if `--enable-ws-stream` is active and WS stream is healthy.
+2. Verify shadow PnL generation: `docker exec rektslug-shadow-consumer jq .calibration.total_pnl /var/lib/rektslug-db/shadow_report.json`
+
+### Stale Stream / Alerting Thresholds
+- **Report Freshness**: If `/var/lib/rektslug-db/shadow_report.json` is older than `REKTSLUG_SHADOW_INTERVAL_SECONDS` + 60s, the consumer might be stalled. Use `find` to check: `find /var/lib/rektslug-db -name 'shadow_report.json' -mmin -10`.
+- **Alerting**: The circuit breaker automatically publishes alerts to `liquidation:alerts:{symbol}` on Redis when drawdown limits (`cb-max-drawdown`) are breached. Monitor this channel for automated trip notifications.
+
 ### Change interval
 ```bash
 # In .env:
