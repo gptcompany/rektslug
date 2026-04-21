@@ -22,11 +22,14 @@ x-core-service: &default-core-service
   env_file: .env
   environment:
     HEATMAP_PROJECT_ROOT: /app
+    HEATMAP_CONTAINER_PROJECT_ROOT: /app
     HEATMAP_HOST: 0.0.0.0
     HEATMAP_PORT: 8002
     HEATMAP_API_URL: http://rektslug-api:8002
     HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+    HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
     HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
+    HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
     REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
     QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
     QUESTDB_PORT: ${QUESTDB_PORT:-9009}
@@ -132,11 +135,14 @@ services:
         condition: service_healthy
     environment:
       HEATMAP_PROJECT_ROOT: /app
+      HEATMAP_CONTAINER_PROJECT_ROOT: /app
       HEATMAP_HOST: 0.0.0.0
       HEATMAP_PORT: 8002
       HEATMAP_API_URL: http://rektslug-api:8002
       HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
+      HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
       REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
       QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
       QUESTDB_PORT: ${QUESTDB_PORT:-9009}
@@ -180,17 +186,22 @@ services:
         condition: service_healthy
     environment:
       HEATMAP_PROJECT_ROOT: /app
+      HEATMAP_CONTAINER_PROJECT_ROOT: /app
       HEATMAP_HOST: 0.0.0.0
       HEATMAP_PORT: 8002
       HEATMAP_API_URL: http://rektslug-api:8002
       HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
+      HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
       REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
       QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
       QUESTDB_PORT: ${QUESTDB_PORT:-9009}
       QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+    volumes:
+      - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     healthcheck:
       test: ["CMD-SHELL", "find /var/lib/rektslug-db -name 'shadow_report.json' -mmin -10 | grep -q ."]
       interval: 60s

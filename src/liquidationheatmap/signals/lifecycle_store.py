@@ -1,16 +1,18 @@
-import json
 import logging
-import os
-import duckdb
 from datetime import datetime, timezone
-from typing import Any
+
+import duckdb
 
 from src.liquidationheatmap.signals.lifecycle import LifecycleState
 
 
+import os
+
 class DuckDBLifecycleStore:
-    def __init__(self, db_path: str = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"):
-        self.db_path = db_path
+    def __init__(
+        self, db_path: str = None
+    ):
+        self.db_path = db_path or os.getenv("HEATMAP_DB_PATH", "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb")
         self._conn = None
 
     @property
@@ -32,21 +34,23 @@ class DuckDBLifecycleStore:
     def save_state(self, signal_id: str, state: LifecycleState):
         try:
             now = datetime.now(timezone.utc)
-            self.conn.execute("""
+            self.conn.execute(
+                """
                 INSERT INTO signal_lifecycle (signal_id, state, updated_at)
                 VALUES (?, ?, ?)
                 ON CONFLICT (signal_id) DO UPDATE SET
                     state = EXCLUDED.state,
                     updated_at = EXCLUDED.updated_at
-            """, [signal_id, state.name, now])
+            """,
+                [signal_id, state.name, now],
+            )
         except Exception as e:
             logging.error(f"Failed to save lifecycle state for {signal_id}: {e}")
 
     def get_state(self, signal_id: str) -> LifecycleState | None:
         try:
             row = self.conn.execute(
-                "SELECT state FROM signal_lifecycle WHERE signal_id = ?",
-                [signal_id]
+                "SELECT state FROM signal_lifecycle WHERE signal_id = ?", [signal_id]
             ).fetchone()
             if row:
                 return LifecycleState[row[0]]
