@@ -339,6 +339,22 @@ class FeedbackConsumer:
             self._db_service.close()
 
 
+def run_healthcheck() -> bool:
+    """Validate the feedback service dependencies without taking write locks."""
+    redis_client = get_redis_client()
+    db_service = FeedbackDBService(read_only=True)
+    try:
+        redis_ok = redis_client.is_connected
+        if not redis_ok:
+            logger.error("Feedback Redis healthcheck failed: Redis not connected")
+
+        db_ok = db_service.healthcheck()
+        return redis_ok and db_ok
+    finally:
+        db_service.close()
+        redis_client.disconnect()
+
+
 def main():
     """CLI entry point for feedback consumer."""
     parser = argparse.ArgumentParser(description="Consume P&L feedback from Redis")
@@ -360,11 +376,13 @@ def main():
 
     consumer = FeedbackConsumer()
     if args.healthcheck:
-        sys.exit(0 if consumer.db_service.healthcheck() else 1)
+        sys.exit(0 if run_healthcheck() else 1)
 
     symbols = args.symbols if args.symbols else args.symbol
     logger.info(f"Starting feedback consumer for {symbols}")
     try:
+        if hasattr(consumer.db_service, "ensure_schema"):
+            consumer.db_service.ensure_schema()
         consumer.subscribe_feedback(symbols)
     except KeyboardInterrupt:
         logger.info("Shutting down feedback consumer")

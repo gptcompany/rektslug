@@ -354,3 +354,44 @@ class TestFeedbackDBPathResolution:
         db_service._conn.execute.side_effect = RuntimeError("missing table")
 
         assert db_service.healthcheck() is False
+
+    def test_run_healthcheck_checks_redis_and_read_only_db(self):
+        """Service healthcheck should require both Redis and DuckDB readiness."""
+        from src.liquidationheatmap.signals.feedback import run_healthcheck
+
+        mock_redis_client = MagicMock()
+        mock_redis_client.is_connected = True
+        mock_db_service = MagicMock()
+        mock_db_service.healthcheck.return_value = True
+
+        with patch(
+            "src.liquidationheatmap.signals.feedback.get_redis_client",
+            return_value=mock_redis_client,
+        ), patch(
+            "src.liquidationheatmap.signals.feedback.FeedbackDBService",
+            return_value=mock_db_service,
+        ) as mock_db_cls:
+            assert run_healthcheck() is True
+
+        mock_db_cls.assert_called_once_with(read_only=True)
+        mock_db_service.healthcheck.assert_called_once_with()
+        mock_db_service.close.assert_called_once_with()
+        mock_redis_client.disconnect.assert_called_once_with()
+
+    def test_run_healthcheck_fails_when_redis_unavailable(self):
+        """Service healthcheck must fail if Redis is unavailable."""
+        from src.liquidationheatmap.signals.feedback import run_healthcheck
+
+        mock_redis_client = MagicMock()
+        mock_redis_client.is_connected = False
+        mock_db_service = MagicMock()
+        mock_db_service.healthcheck.return_value = True
+
+        with patch(
+            "src.liquidationheatmap.signals.feedback.get_redis_client",
+            return_value=mock_redis_client,
+        ), patch(
+            "src.liquidationheatmap.signals.feedback.FeedbackDBService",
+            return_value=mock_db_service,
+        ):
+            assert run_healthcheck() is False
