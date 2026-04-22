@@ -280,6 +280,14 @@ class FeedbackDBService:
                 "continuous runtime report unavailable: could not count persisted feedback"
             ) from e
 
+        feedback_published = int(runtime_snapshot["feedback_published"])
+        blocking_issues: list[str] = []
+        if feedback_published != feedback_persisted:
+            blocking_issues.append(
+                "feedback_publish_persist_mismatch:"
+                f" published={feedback_published} persisted={feedback_persisted}"
+            )
+
         return ContinuousReport(
             session_started_at=session_started_at,
             timestamp=report_timestamp,
@@ -292,8 +300,11 @@ class FeedbackDBService:
             orders_filled=int(runtime_snapshot["orders_filled"]),
             positions_opened=int(runtime_snapshot["positions_opened"]),
             positions_closed=int(runtime_snapshot["positions_closed"]),
-            feedback_published=int(runtime_snapshot["feedback_published"]),
+            feedback_published=feedback_published,
             feedback_persisted=feedback_persisted,
+            persistence_consistent=feedback_published == feedback_persisted,
+            report_status="blocked" if blocking_issues else "ok",
+            blocking_issues=blocking_issues,
             residual_open_positions=int(runtime_snapshot["residual_open_positions"]),
             residual_open_orders=int(runtime_snapshot["residual_open_orders"]),
         )

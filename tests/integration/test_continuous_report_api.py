@@ -51,7 +51,7 @@ def test_continuous_report_returns_session_scoped_measured_values(
             "\"orders_filled\":9,"
             "\"positions_opened\":9,"
             "\"positions_closed\":8,"
-            "\"feedback_published\":8,"
+            "\"feedback_published\":1,"
             "\"residual_open_positions\":1,"
             "\"residual_open_orders\":0"
             "}"
@@ -99,8 +99,11 @@ def test_continuous_report_returns_session_scoped_measured_values(
     assert data["session_started_at"] == session_started_at.isoformat().replace("+00:00", "Z")
     assert data["signals_seen"] == 12
     assert data["orders_submitted"] == 10
-    assert data["feedback_published"] == 8
+    assert data["feedback_published"] == 1
     assert data["feedback_persisted"] == 1
+    assert data["persistence_consistent"] is True
+    assert data["report_status"] == "ok"
+    assert data["blocking_issues"] == []
 
 
 def test_continuous_report_returns_503_when_runtime_snapshot_missing(
@@ -214,4 +217,6 @@ def test_continuous_report_surfaces_publish_persist_mismatch(
     data = response.json()
     assert data["feedback_published"] == 10
     assert data["feedback_persisted"] == 8
-    # The discrepancy is clearly visible in the payload and will fail evidence validation
+    assert data["persistence_consistent"] is False
+    assert data["report_status"] == "blocked"
+    assert any("feedback_publish_persist_mismatch" in item for item in data["blocking_issues"])

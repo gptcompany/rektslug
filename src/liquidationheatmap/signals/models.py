@@ -228,5 +228,17 @@ class ContinuousReport(BaseModel):
     positions_closed: int = Field(0, description="Positions successfully closed")
     feedback_published: int = Field(0, description="Feedback messages sent to Redis")
     feedback_persisted: int = Field(0, description="Feedback messages saved to DuckDB")
+    persistence_consistent: bool = Field(
+        True,
+        description="Whether feedback_published matches feedback_persisted for the session",
+    )
+    report_status: Literal["ok", "blocked"] = Field(
+        "ok",
+        description="Whether the report is acceptable for green evidence gating",
+    )
+    blocking_issues: list[str] = Field(
+        default_factory=list,
+        description="Blocking issues which prevent a green evidence result",
+    )
     residual_open_positions: int = Field(0, description="Open positions remaining at shutdown")
     residual_open_orders: int = Field(0, description="Open orders remaining at shutdown")
