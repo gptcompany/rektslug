@@ -6,6 +6,10 @@ This document defines the public interfaces and contracts required for the `rekt
 
 The `rektslug-feedback-consumer` service listens for real-time P&L feedback from Nautilus over Redis pub/sub.
 
+- **Dedicated feedback DB path:** `FEEDBACK_DB_PATH`
+  - runtime default in compose: `/var/lib/rektslug-db/signal_feedback.duckdb`
+  - kept separate from `/var/lib/rektslug-db/liquidations.duckdb` to avoid DuckDB writer lock contention with the shadow/runtime store
+
 - **Channel Format:** `liquidation:feedback:{symbol}` (e.g., `liquidation:feedback:BTCUSDT`)
 - **Message Format:** JSON
 - **Schema:**
@@ -57,6 +61,9 @@ If the runtime snapshot is missing or incomplete, the endpoint fails closed with
 - **Runtime snapshot source:**
   - Path from `HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH` or `CONTINUOUS_RUNTIME_REPORT_PATH`
   - Default fallback: `$(dirname HEATMAP_DB_PATH)/continuous_runtime_report.json`
+- **Feedback persistence source:**
+  - Path from `FEEDBACK_DB_PATH`
+  - runtime default in compose: `/var/lib/rektslug-db/signal_feedback.duckdb`
 - **Failure semantics:**
   - `503 Service Unavailable` if the runtime snapshot file is missing, unreadable, or missing required fields
 
@@ -88,6 +95,7 @@ The Nautilus continuous execution service (`nautilus-liquidation-paper-testnet`)
 The `rektslug-feedback-consumer` is also designed to fail closed.
 - **Redis Disconnect:** The consumer attempts to reconnect indefinitely (with backoff) rather than crashing, ensuring it is always ready to receive feedback once the broker recovers.
 - **DuckDB Unavailable:** If the `FeedbackDBService` cannot acquire a write lock on the DuckDB file, the consumer logs the failure and rejects the write path rather than blocking the Nautilus runtime. The report API returns `503` if it cannot measure `feedback_persisted`.
+- **Retention/Reconciliation:** For bounded G3 evidence generation, the feedback consumer may be stopped briefly after a session closes so the reconciliation builder can read the feedback DuckDB without a writer lock. The service is then restarted immediately.
 - **API Failure:** The `/signals/continuous-report` API will fail closed with a `503 Service Unavailable` if the DuckDB connection fails or if the `feedback_persisted` counter cannot be accurately measured.
 
 ## 5. Mismatch Visibility and NFR-002 (Async Boundary)

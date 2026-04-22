@@ -124,6 +124,43 @@ class TestRedisPubSub:
         finally:
             client.disconnect()
 
+    def test_blocking_pubsub_does_not_drop_subscription_on_socket_timeout(self):
+        """Blocking pubsub should stay subscribed past the default socket timeout."""
+        from src.liquidationheatmap.signals.config import RedisConfig
+        from src.liquidationheatmap.signals.redis_client import RedisClient
+
+        config = RedisConfig(host="localhost", port=6379, db=0, socket_timeout=0.2)
+        client = RedisClient(config=config)
+        publisher = RedisClient(config=config)
+        received_messages = []
+
+        def subscriber():
+            with client.pubsub(blocking=True) as ps:
+                if ps is None:
+                    return
+                ps.subscribe("test:pubsub:blocking")
+                for msg in ps.listen():
+                    if msg["type"] == "subscribe":
+                        continue
+                    if msg["type"] == "message":
+                        received_messages.append(msg["data"])
+                        break
+
+        try:
+            thread = Thread(target=subscriber, daemon=True)
+            thread.start()
+
+            # Publish well after the standard socket_timeout window.
+            time.sleep(0.6)
+            publisher.publish("test:pubsub:blocking", "delayed_message")
+
+            thread.join(timeout=2.0)
+
+            assert received_messages == ["delayed_message"]
+        finally:
+            client.disconnect()
+            publisher.disconnect()
+
 
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Redis not available")
 class TestSignalPublisherIntegration:

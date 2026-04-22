@@ -41,7 +41,7 @@ The repo is not yet fully execution-complete because the following gaps remain:
 | `spec-035` | Follow-on | Execution-grade Nautilus event-driven backtest harness | Implemented with retained replay bundles |
 | `spec-036` | Follow-on | Paper/live trading runtime hardening and operational controls | Implemented with evidence package |
 | `spec-037` | Follow-on | Nautilus liquidation bridge operational closeout | Implemented with multi-repo evidence |
-| `spec-040` | Follow-on | Continuous paper/testnet runtime, report contract, and reconciliation package | Implemented in code; G3 runtime evidence remains operational |
+| `spec-040` | Follow-on | Continuous paper/testnet runtime, report contract, and reconciliation package | Implemented with retained G3 runtime evidence |
 
 ## Delivered Sequence
 
@@ -96,4 +96,4 @@ The repo is not yet fully execution-complete because the following gaps remain:
 
 - the default implementation target is still public `liq-map`
 - this roadmap records the next-stage execution work that has now been implemented in follow-on tracks
-- remaining backlog after these follow-ons is mainly `spec-027`, `spec-015` external integration, `spec-011`/`spec-025` delivery scope, and the operational G3 run retention for `spec-040`
+- remaining backlog after these follow-ons is mainly `spec-027`, `spec-015` external integration, and `spec-011`/`spec-025` delivery scope

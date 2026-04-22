@@ -1,0 +1,8 @@
+{
+  "flatten_scope": "flatten_all",
+  "flatten_target": "liquidation_bridge",
+  "generated_at": "2026-04-22T21:29:47.487136Z",
+  "reduce_only": true,
+  "sequence": 1,
+  "status": "FLATTENING"
+}

@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import socket
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -163,6 +164,10 @@ class FeedbackDBService:
         if self._read_only:
             self._schema_ready = True
             return
+
+        if self._conn is None:
+            db_path = resolve_feedback_db_path()
+            self._conn = duckdb.connect(db_path, read_only=False)
 
         migration_sql = SIGNAL_FEEDBACK_MIGRATION_PATH.read_text()
         self._conn.execute(migration_sql)
@@ -432,7 +437,7 @@ class FeedbackConsumer:
 
         while True:
             try:
-                with self.redis_client.pubsub() as ps:
+                with self.redis_client.pubsub(blocking=True) as ps:
                     if ps is None:
                         logger.warning("Redis not available for feedback subscription")
                         time.sleep(5)
@@ -478,19 +483,23 @@ class FeedbackConsumer:
 
 
 def run_healthcheck() -> bool:
-    """Validate the feedback service dependencies without taking write locks."""
-    redis_client = get_redis_client()
-    db_service = FeedbackDBService(read_only=True)
-    try:
-        redis_ok = redis_client.is_connected
-        if not redis_ok:
-            logger.error("Feedback Redis healthcheck failed: Redis not connected")
+    """Validate feedback service reachability without contending on the writer lock."""
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    db_path = Path(resolve_feedback_db_path())
 
-        db_ok = db_service.healthcheck()
-        return redis_ok and db_ok
-    finally:
-        db_service.close()
-        redis_client.disconnect()
+    try:
+        with socket.create_connection((redis_host, redis_port), timeout=1.0):
+            redis_ok = True
+    except OSError as exc:
+        logger.error(f"Feedback Redis healthcheck failed: {exc}")
+        redis_ok = False
+
+    db_ok = db_path.exists()
+    if not db_ok:
+        logger.error(f"Feedback DB healthcheck failed: missing file {db_path}")
+
+    return redis_ok and db_ok
 
 
 def main():

@@ -1,0 +1,48 @@
+{
+  "feedback_published": 1,
+  "generated_at": "2026-04-22T21:29:54.492028Z",
+  "heartbeat_at": "2026-04-22T21:29:54.492028Z",
+  "mode": "testnet",
+  "node_id": "TRADER-LIQ-BRIDGE-CONTINUOUS",
+  "node_status": "STOPPED",
+  "open_orders": [],
+  "orders_filled": 2,
+  "orders_rejected": 0,
+  "orders_submitted": 1,
+  "pnl": {
+    "account_value": null,
+    "realized": null,
+    "scope": "venue_account",
+    "unrealized": "0"
+  },
+  "positions": [],
+  "positions_closed": 1,
+  "positions_opened": 1,
+  "residual_open_orders": 0,
+  "residual_open_positions": 0,
+  "risk": {
+    "active_stop_count": 0,
+    "circuit_breaker": "ACTIVE",
+    "entries_enabled": false,
+    "max_position_size": "0.01",
+    "redis_connected": false,
+    "stop_loss_pct": "0.02"
+  },
+  "runtime_seconds": 22.466773,
+  "session_started_at": "2026-04-22T21:29:32.025255Z",
+  "signals_accepted": 1,
+  "signals_rejected": 0,
+  "signals_seen": 1,
+  "source": "liquidation_bridge",
+  "strategies": [
+    {
+      "entries_enabled": false,
+      "instrument_id": "BTC-USD-PERP.HYPERLIQUID",
+      "redis_connected": false,
+      "signal_symbol": "BTCUSDT",
+      "state": "STOPPED",
+      "strategy_id": "liquidation_bridge"
+    }
+  ],
+  "timestamp": "2026-04-22T21:29:54.492028Z"
+}

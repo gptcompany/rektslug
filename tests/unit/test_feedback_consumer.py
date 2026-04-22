@@ -356,42 +356,38 @@ class TestFeedbackDBPathResolution:
         assert db_service.healthcheck() is False
 
     def test_run_healthcheck_checks_redis_and_read_only_db(self):
-        """Service healthcheck should require both Redis and DuckDB readiness."""
+        """Service healthcheck should require Redis reachability and feedback DB file."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
         from src.liquidationheatmap.signals.feedback import run_healthcheck
 
-        mock_redis_client = MagicMock()
-        mock_redis_client.is_connected = True
-        mock_db_service = MagicMock()
-        mock_db_service.healthcheck.return_value = True
+        with TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "signal_feedback.duckdb"
+            db_path.touch()
+            with patch(
+                "src.liquidationheatmap.signals.feedback.resolve_feedback_db_path",
+                return_value=str(db_path),
+            ), patch("src.liquidationheatmap.signals.feedback.socket.create_connection") as mock_conn:
+                assert run_healthcheck() is True
 
-        with patch(
-            "src.liquidationheatmap.signals.feedback.get_redis_client",
-            return_value=mock_redis_client,
-        ), patch(
-            "src.liquidationheatmap.signals.feedback.FeedbackDBService",
-            return_value=mock_db_service,
-        ) as mock_db_cls:
-            assert run_healthcheck() is True
-
-        mock_db_cls.assert_called_once_with(read_only=True)
-        mock_db_service.healthcheck.assert_called_once_with()
-        mock_db_service.close.assert_called_once_with()
-        mock_redis_client.disconnect.assert_called_once_with()
+        mock_conn.assert_called_once_with(("localhost", 6379), timeout=1.0)
 
     def test_run_healthcheck_fails_when_redis_unavailable(self):
         """Service healthcheck must fail if Redis is unavailable."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
         from src.liquidationheatmap.signals.feedback import run_healthcheck
 
-        mock_redis_client = MagicMock()
-        mock_redis_client.is_connected = False
-        mock_db_service = MagicMock()
-        mock_db_service.healthcheck.return_value = True
-
-        with patch(
-            "src.liquidationheatmap.signals.feedback.get_redis_client",
-            return_value=mock_redis_client,
-        ), patch(
-            "src.liquidationheatmap.signals.feedback.FeedbackDBService",
-            return_value=mock_db_service,
-        ):
-            assert run_healthcheck() is False
+        with TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "signal_feedback.duckdb"
+            db_path.touch()
+            with patch(
+                "src.liquidationheatmap.signals.feedback.resolve_feedback_db_path",
+                return_value=str(db_path),
+            ), patch(
+                "src.liquidationheatmap.signals.feedback.socket.create_connection",
+                side_effect=OSError("redis down"),
+            ):
+                assert run_healthcheck() is False

@@ -1,0 +1,27 @@
+{
+  "details": {
+    "bridges": {
+      "liquidation_bridge": "STOPPED"
+    },
+    "last_heartbeat_at": "2026-04-22T21:29:54.279437Z",
+    "message_bus": {
+      "status": "STOPPED"
+    },
+    "reconnect_count": 1,
+    "redis": {
+      "status": "DOWN"
+    },
+    "venues": {
+      "hyperliquid": {
+        "status": "STOPPED",
+        "ws": "STOPPED"
+      }
+    }
+  },
+  "freshness_sla_secs": 30,
+  "generated_at": "2026-04-22T21:29:54.492964Z",
+  "last_error": null,
+  "layer": "L1_L2",
+  "source": "liquidation_bridge",
+  "status": "STOPPED"
+}

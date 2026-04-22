@@ -14,6 +14,7 @@ from redis.exceptions import ConnectionError, TimeoutError
 from src.liquidationheatmap.signals.config import RedisConfig, get_redis_config
 
 logger = logging.getLogger(__name__)
+_UNSET = object()
 
 
 class RedisConnectionError(Exception):
@@ -54,14 +55,15 @@ class RedisClient:
         self._lock = Lock()
         self._connected = False
 
-    def _create_pool(self) -> redis.ConnectionPool:
+    def _create_pool(self, socket_timeout: float | None | object = _UNSET) -> redis.ConnectionPool:
         """Create Redis connection pool."""
+        timeout = self.config.socket_timeout if socket_timeout is _UNSET else socket_timeout
         return redis.ConnectionPool(
             host=self.config.host,
             port=self.config.port,
             db=self.config.db,
             password=self.config.password,
-            socket_timeout=self.config.socket_timeout,
+            socket_timeout=timeout,
             decode_responses=self.config.decode_responses,
             max_connections=10,
         )
@@ -142,7 +144,7 @@ class RedisClient:
             return None
 
     @contextmanager
-    def pubsub(self) -> Generator[redis.client.PubSub | None, None, None]:
+    def pubsub(self, *, blocking: bool = False) -> Generator[redis.client.PubSub | None, None, None]:
         """Context manager for pub/sub operations.
 
         Yields:
@@ -155,16 +157,39 @@ class RedisClient:
                     for msg in ps.listen():
                         handle(msg)
         """
-        client = self.connect()
-        if client is None:
-            yield None
-            return
+        pool: redis.ConnectionPool | None = None
+        client: redis.Redis | None
+        if blocking:
+            try:
+                pool = self._create_pool(socket_timeout=None)
+                client = redis.Redis(connection_pool=pool)
+                client.ping()
+            except (ConnectionError, TimeoutError, OSError) as e:
+                logger.warning(
+                    f"Redis blocking pubsub connection failed: {e}. "
+                    "Signals will not be consumed until Redis is available."
+                )
+                if pool is not None:
+                    pool.disconnect()
+                yield None
+                return
+        else:
+            client = self.connect()
+            if client is None:
+                yield None
+                return
 
         ps = client.pubsub()
         try:
             yield ps
         finally:
             ps.close()
+            if pool is not None:
+                try:
+                    client.close()
+                except redis.RedisError:
+                    pass
+                pool.disconnect()
 
     def subscribe(self, channel: str, callback: Callable[[dict[str, Any]], None]) -> None:
         """Subscribe to channel with callback.

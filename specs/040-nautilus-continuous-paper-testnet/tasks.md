@@ -80,8 +80,8 @@ Phase-3 intent:
 
 ## Phase 6: Evidence and Review
 
-- [ ] T027 Run a continuous paper/testnet session with real `rektslug` signals
-- [ ] T028 Retain a report showing non-placeholder counters:
+- [x] T027 Run a continuous paper/testnet session with real `rektslug` signals
+- [x] T028 Retain a report showing non-placeholder counters:
   `signals_seen`, `accepted`, `orders_submitted`, `positions_opened`,
   `positions_closed`, `feedback_published`, `feedback_persisted`
 - [x] T029 Reconcile the continuous report against DuckDB `signal_feedback` rows
@@ -92,9 +92,10 @@ Phase-3 intent:
 - [x] T031B Document public interfaces: feedback consumer Redis contract,
   continuous report JSON schema, and healthcheck endpoints in
   `docs/ARCHITECTURE.md` or dedicated doc
-- [ ] T032 Final review: confirm no secrets leak into logs, runbooks, reports,
+- [x] T032 Final review: confirm no secrets leak into logs, runbooks, reports,
   or committed artifacts
 
 Phase-6 note:
-- T027 and T028 remain operational gates and require a retained real session.
-- T029-T031 can be implemented and reviewed before the real G3 session exists.
+- retained real G3 session: `g3_session/20260422T212929Z/`
+- retained evidence summary/report: `g3_session/20260422T212929Z/evidence/`
+- secret scan completed with no key matches in retained artifacts

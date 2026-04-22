@@ -292,3 +292,24 @@ class TestFeedbackDBService:
                 conn.close()
 
             assert row == ("ETHUSDT", "bootstrap_001")
+
+    def test_ensure_schema_bootstraps_lazy_connection(self, monkeypatch):
+        """ensure_schema should initialize the connection before running migration."""
+        from src.liquidationheatmap.signals.feedback import FeedbackDBService
+
+        with TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "runtime_feedback_lazy_schema.duckdb"
+            monkeypatch.delenv("FEEDBACK_DB_PATH", raising=False)
+            monkeypatch.setenv("HEATMAP_DB_PATH", str(db_path))
+
+            db_service = FeedbackDBService()
+            db_service.ensure_schema()
+            db_service.close()
+
+            conn = duckdb.connect(str(db_path), read_only=True)
+            try:
+                tables = {row[0] for row in conn.execute("SHOW TABLES").fetchall()}
+            finally:
+                conn.close()
+
+            assert "signal_feedback" in tables

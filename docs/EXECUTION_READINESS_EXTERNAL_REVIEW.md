@@ -35,7 +35,6 @@ public `liq-map` and artifact serving into:
 - `spec-027`: Hyperliquid reserved-margin and portfolio-margin hardening
 - `spec-015`: signal-loop downstream integration beyond the current bridge
 - `spec-025` / `spec-011`: broader event distribution backlog
-- `spec-040`: real retained G3 session artifact still needs an operational run with non-zero lifecycle closure
 
 ## Main Design Decisions Preserved
 
@@ -59,7 +58,8 @@ public `liq-map` and artifact serving into:
 Native `nautilus_trader` execution still requires Python 3.12+ for real engine runs.
 That is now an environment prerequisite, not an unfinished spec task in this repo.
 
-For `spec-040`, reviewers should distinguish between:
+For `spec-040`, reviewers should inspect both:
 
 - implemented runtime/reporting code and reconciliation tooling, which are in-repo and test-covered
-- the retained G3 runtime session, which is an operational artifact and must come from a real continuous run
+- the retained real G3 runtime session at
+  `specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/`

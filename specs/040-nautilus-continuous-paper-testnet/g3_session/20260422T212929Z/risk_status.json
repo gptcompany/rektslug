@@ -1,0 +1,22 @@
+{
+  "details": {
+    "active_limits": {
+      "current_drawdown": "0",
+      "current_equity": "0",
+      "max_position_size": "0.01",
+      "peak_equity": "0",
+      "position_size_multiplier": "1.0",
+      "stop_loss_pct": "0.02"
+    },
+    "circuit_breaker": "ACTIVE",
+    "entries_enabled": false,
+    "open_alerts": [],
+    "reduce_only": true
+  },
+  "freshness_sla_secs": 5,
+  "generated_at": "2026-04-22T21:29:54.493381Z",
+  "last_error": null,
+  "layer": "L2",
+  "source": "liquidation_bridge",
+  "status": "DEGRADED"
+}

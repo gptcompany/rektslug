@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import duckdb
+
 from src.liquidationheatmap.signals.feedback import (
     ContinuousReportUnavailableError,
     FeedbackDBService,
@@ -156,19 +158,35 @@ def build_summary(args: argparse.Namespace) -> dict[str, Any]:
         os.environ["HEATMAP_DB_PATH"] = db_path
 
     runtime_snapshot = load_continuous_runtime_snapshot()
-    db_service = FeedbackDBService()
-    try:
-        report = db_service.get_continuous_report(runtime_snapshot)
-        session_started_at = datetime.fromisoformat(
-            str(runtime_snapshot["session_started_at"]).replace("Z", "+00:00")
+    db_path = os.environ["FEEDBACK_DB_PATH"]
+    last_error: Exception | None = None
+    for read_only in (True, False):
+        db_service = FeedbackDBService(
+            duckdb.connect(db_path, read_only=read_only),
+            read_only=read_only,
         )
-        total_rows, recent_rows = _load_session_rows(
-            db_service,
-            session_started_at=session_started_at,
-            row_limit=args.row_limit,
-        )
-    finally:
-        db_service.close()
+        try:
+            report = db_service.get_continuous_report(runtime_snapshot)
+            session_started_at = datetime.fromisoformat(
+                str(runtime_snapshot["session_started_at"]).replace("Z", "+00:00")
+            )
+            total_rows, recent_rows = _load_session_rows(
+                db_service,
+                session_started_at=session_started_at,
+                row_limit=args.row_limit,
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+            db_service.close()
+    else:
+        if isinstance(last_error, ContinuousReportUnavailableError):
+            raise last_error
+        raise ContinuousReportUnavailableError(
+            f"continuous runtime report unavailable: could not open feedback db {db_path}"
+        ) from last_error
+
+    db_service.close()
 
     report_payload = report.model_dump(mode="json")
     blocking_issues = list(report_payload["blocking_issues"])

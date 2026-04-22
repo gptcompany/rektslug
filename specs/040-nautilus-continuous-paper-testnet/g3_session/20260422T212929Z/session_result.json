@@ -1,0 +1,212 @@
+{
+  "closed_snapshot": {
+    "feedback_published": 1,
+    "generated_at": "2026-04-22T21:29:54.279580Z",
+    "heartbeat_at": "2026-04-22T21:29:54.279580Z",
+    "mode": "testnet",
+    "node_id": "TRADER-LIQ-BRIDGE-CONTINUOUS",
+    "node_status": "RUNNING",
+    "open_orders": [],
+    "orders_filled": 2,
+    "orders_rejected": 0,
+    "orders_submitted": 1,
+    "pnl": {
+      "account_value": null,
+      "realized": null,
+      "scope": "venue_account",
+      "unrealized": "0"
+    },
+    "positions": [],
+    "positions_closed": 1,
+    "positions_opened": 1,
+    "residual_open_orders": 0,
+    "residual_open_positions": 0,
+    "risk": {
+      "active_stop_count": 0,
+      "circuit_breaker": "ACTIVE",
+      "entries_enabled": false,
+      "max_position_size": "0.01",
+      "redis_connected": true,
+      "stop_loss_pct": "0.02"
+    },
+    "runtime_seconds": 22.254325,
+    "session_started_at": "2026-04-22T21:29:32.025255Z",
+    "signals_accepted": 1,
+    "signals_rejected": 0,
+    "signals_seen": 1,
+    "source": "liquidation_bridge",
+    "strategies": [
+      {
+        "entries_enabled": false,
+        "instrument_id": "BTC-USD-PERP.HYPERLIQUID",
+        "redis_connected": true,
+        "signal_symbol": "BTCUSDT",
+        "state": "RUNNING",
+        "strategy_id": "liquidation_bridge"
+      }
+    ],
+    "timestamp": "2026-04-22T21:29:54.279580Z"
+  },
+  "command": [
+    "/media/sam/1TB/nautilus_dev/.venv/bin/python",
+    "/media/sam/1TB/nautilus_dev/scripts/hyperliquid/run_continuous.py",
+    "--mode",
+    "testnet",
+    "--symbol",
+    "BTCUSDT",
+    "--instrument",
+    "BTC-USD-PERP.HYPERLIQUID",
+    "--max-size",
+    "0.001",
+    "--max-exposure",
+    "0.01",
+    "--window-secs",
+    "180",
+    "--redis-host",
+    "127.0.0.1",
+    "--redis-port",
+    "6379",
+    "--redis-db",
+    "0",
+    "--log-level",
+    "INFO",
+    "--control-state-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/operator_control_state.json",
+    "--runtime-snapshot-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/continuous_runtime_report.json",
+    "--runtime-ledger-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/runtime_ledger.jsonl",
+    "--connectivity-status-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/connectivity_status.json",
+    "--risk-status-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/risk_status.json",
+    "--error-registry-path",
+    "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/error_registry.jsonl"
+  ],
+  "continuous_log_path": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/continuous_stdout.log",
+  "control_state_path": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/operator_control_state.json",
+  "ended_at": "2026-04-22T21:30:07.714174Z",
+  "evidence_dir": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/evidence",
+  "feedback_db_path": "/media/sam/2TB-NVMe/liquidationheatmap_db/signal_feedback.duckdb",
+  "feedback_rows": [
+    {
+      "created_at": "2026-04-22 21:29:56.664872",
+      "entry_price": "78481.00000000",
+      "exit_price": "78466.00000000",
+      "pnl": "-0.08562500",
+      "signal_id": "spec040-g3-1776893370",
+      "source": "nautilus",
+      "symbol": "BTCUSDT"
+    }
+  ],
+  "final_snapshot": {
+    "feedback_published": 1,
+    "generated_at": "2026-04-22T21:29:54.492028Z",
+    "heartbeat_at": "2026-04-22T21:29:54.492028Z",
+    "mode": "testnet",
+    "node_id": "TRADER-LIQ-BRIDGE-CONTINUOUS",
+    "node_status": "STOPPED",
+    "open_orders": [],
+    "orders_filled": 2,
+    "orders_rejected": 0,
+    "orders_submitted": 1,
+    "pnl": {
+      "account_value": null,
+      "realized": null,
+      "scope": "venue_account",
+      "unrealized": "0"
+    },
+    "positions": [],
+    "positions_closed": 1,
+    "positions_opened": 1,
+    "residual_open_orders": 0,
+    "residual_open_positions": 0,
+    "risk": {
+      "active_stop_count": 0,
+      "circuit_breaker": "ACTIVE",
+      "entries_enabled": false,
+      "max_position_size": "0.01",
+      "redis_connected": false,
+      "stop_loss_pct": "0.02"
+    },
+    "runtime_seconds": 22.466773,
+    "session_started_at": "2026-04-22T21:29:32.025255Z",
+    "signals_accepted": 1,
+    "signals_rejected": 0,
+    "signals_seen": 1,
+    "source": "liquidation_bridge",
+    "strategies": [
+      {
+        "entries_enabled": false,
+        "instrument_id": "BTC-USD-PERP.HYPERLIQUID",
+        "redis_connected": false,
+        "signal_symbol": "BTCUSDT",
+        "state": "STOPPED",
+        "strategy_id": "liquidation_bridge"
+      }
+    ],
+    "timestamp": "2026-04-22T21:29:54.492028Z"
+  },
+  "opened_snapshot": {
+    "feedback_published": 0,
+    "generated_at": "2026-04-22T21:29:47.199417Z",
+    "heartbeat_at": "2026-04-22T21:29:47.199417Z",
+    "mode": "testnet",
+    "node_id": "TRADER-LIQ-BRIDGE-CONTINUOUS",
+    "node_status": "RUNNING",
+    "open_orders": [],
+    "orders_filled": 1,
+    "orders_rejected": 0,
+    "orders_submitted": 1,
+    "pnl": {
+      "account_value": null,
+      "realized": null,
+      "scope": "venue_account",
+      "unrealized": "0"
+    },
+    "positions": [
+      {
+        "avg_px_open": 78481.0,
+        "instrument_id": "BTC-USD-PERP.HYPERLIQUID",
+        "position_id": "BTC-USD-PERP.HYPERLIQUID-LiquidationRedisSignalStrategy-000",
+        "quantity": "0.001",
+        "side": 2
+      }
+    ],
+    "positions_closed": 0,
+    "positions_opened": 1,
+    "residual_open_orders": 0,
+    "residual_open_positions": 1,
+    "risk": {
+      "active_stop_count": 1,
+      "circuit_breaker": "ACTIVE",
+      "entries_enabled": true,
+      "max_position_size": "0.01",
+      "redis_connected": true,
+      "stop_loss_pct": "0.02"
+    },
+    "runtime_seconds": 15.174162,
+    "session_started_at": "2026-04-22T21:29:32.025255Z",
+    "signals_accepted": 1,
+    "signals_rejected": 0,
+    "signals_seen": 1,
+    "source": "liquidation_bridge",
+    "strategies": [
+      {
+        "entries_enabled": true,
+        "instrument_id": "BTC-USD-PERP.HYPERLIQUID",
+        "redis_connected": true,
+        "signal_symbol": "BTCUSDT",
+        "state": "RUNNING",
+        "strategy_id": "liquidation_bridge"
+      }
+    ],
+    "timestamp": "2026-04-22T21:29:47.199417Z"
+  },
+  "runtime_ledger_path": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/runtime_ledger.jsonl",
+  "runtime_snapshot_path": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/continuous_runtime_report.json",
+  "session_dir": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z",
+  "signal_id": "spec040-g3-1776893370",
+  "started_at": "2026-04-22T21:29:30.341447Z",
+  "status": "ok"
+}

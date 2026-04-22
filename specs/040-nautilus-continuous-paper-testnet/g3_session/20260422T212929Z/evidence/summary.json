@@ -1,0 +1,45 @@
+{
+  "spec_id": "040",
+  "name": "Nautilus Continuous Paper/Testnet Runtime",
+  "generated_at": "2026-04-22T21:30:07.568099Z",
+  "runtime_snapshot_path": "/media/sam/1TB/rektslug/specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/continuous_runtime_report.json",
+  "feedback_db_path": "/media/sam/2TB-NVMe/liquidationheatmap_db/signal_feedback.duckdb",
+  "gate_status": "READY_FOR_REVIEW",
+  "continuous_report": {
+    "session_started_at": "2026-04-22T21:29:32.025255Z",
+    "timestamp": "2026-04-22T21:29:54.492028Z",
+    "runtime_seconds": 22.466773,
+    "signals_seen": 1,
+    "signals_rejected": 0,
+    "signals_accepted": 1,
+    "orders_submitted": 1,
+    "orders_rejected": 0,
+    "orders_filled": 2,
+    "positions_opened": 1,
+    "positions_closed": 1,
+    "feedback_published": 1,
+    "feedback_persisted": 1,
+    "persistence_consistent": true,
+    "report_status": "ok",
+    "blocking_issues": [],
+    "residual_open_positions": 0,
+    "residual_open_orders": 0
+  },
+  "reconciliation": {
+    "persisted_rows_in_session": 1,
+    "report_matches_duckdb": true,
+    "recent_feedback_rows": [
+      {
+        "symbol": "BTCUSDT",
+        "signal_id": "spec040-g3-1776893370",
+        "entry_price": "78481.00000000",
+        "exit_price": "78466.00000000",
+        "pnl": "-0.08562500",
+        "timestamp": "2026-04-22T21:29:53.360000Z",
+        "source": "nautilus",
+        "created_at": "2026-04-22T21:29:56.664872Z"
+      }
+    ],
+    "blocking_issues": []
+  }
+}

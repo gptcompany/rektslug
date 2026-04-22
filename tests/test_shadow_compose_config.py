@@ -73,7 +73,7 @@ def test_feedback_consumer_uses_redis_hostname(compose_config):
     consumer = compose_config["services"]["rektslug-feedback-consumer"]
     env = consumer.get("environment", {})
     assert env.get("REDIS_HOST") == "redis"
-    assert env.get("FEEDBACK_DB_PATH") == "/var/lib/rektslug-db/liquidations.duckdb"
+    assert env.get("FEEDBACK_DB_PATH") == "/var/lib/rektslug-db/signal_feedback.duckdb"
 
 def test_feedback_consumer_script_exists():
     script = Path("scripts/run-feedback-consumer.sh")
