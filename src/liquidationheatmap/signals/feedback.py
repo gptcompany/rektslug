@@ -7,6 +7,7 @@ and stores in DuckDB for rolling metric calculations.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -27,6 +28,27 @@ DEFAULT_FEEDBACK_DB_PATH = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidatio
 SIGNAL_FEEDBACK_MIGRATION_PATH = (
     Path(__file__).resolve().parents[3] / "scripts" / "migrations" / "add_signal_feedback_table.sql"
 )
+DEFAULT_CONTINUOUS_RUNTIME_REPORT_NAME = "continuous_runtime_report.json"
+CONTINUOUS_REPORT_RUNTIME_FIELDS = (
+    "session_started_at",
+    "timestamp",
+    "runtime_seconds",
+    "signals_seen",
+    "signals_rejected",
+    "signals_accepted",
+    "orders_submitted",
+    "orders_rejected",
+    "orders_filled",
+    "positions_opened",
+    "positions_closed",
+    "feedback_published",
+    "residual_open_positions",
+    "residual_open_orders",
+)
+
+
+class ContinuousReportUnavailableError(RuntimeError):
+    """Raised when the continuous runtime report cannot be produced safely."""
 
 
 def resolve_feedback_db_path() -> str:
@@ -41,6 +63,60 @@ def resolve_feedback_db_path() -> str:
         or os.getenv("HEATMAP_CONTAINER_DB_PATH")
         or DEFAULT_FEEDBACK_DB_PATH
     )
+
+
+def resolve_continuous_runtime_report_path() -> Path:
+    """Resolve the runtime snapshot used to build the continuous report."""
+    configured = (
+        os.getenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH")
+        or os.getenv("CONTINUOUS_RUNTIME_REPORT_PATH")
+    )
+    if configured:
+        return Path(configured)
+    return Path(resolve_feedback_db_path()).resolve().parent / DEFAULT_CONTINUOUS_RUNTIME_REPORT_NAME
+
+
+def _parse_iso8601(value: str, field_name: str) -> datetime:
+    """Parse an ISO8601 timestamp into a UTC-aware datetime."""
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ContinuousReportUnavailableError(
+            f"continuous runtime report has invalid {field_name}: {value}"
+        ) from exc
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def load_continuous_runtime_snapshot() -> dict[str, Any]:
+    """Load and validate the continuous runtime snapshot from disk."""
+    report_path = resolve_continuous_runtime_report_path()
+    if not report_path.exists():
+        raise ContinuousReportUnavailableError(
+            f"continuous runtime report missing: {report_path}"
+        )
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ContinuousReportUnavailableError(
+            f"continuous runtime report unreadable: {report_path}"
+        ) from exc
+
+    missing_fields = [
+        field_name
+        for field_name in CONTINUOUS_REPORT_RUNTIME_FIELDS
+        if payload.get(field_name) is None
+    ]
+    if missing_fields:
+        raise ContinuousReportUnavailableError(
+            "continuous runtime report missing required fields: "
+            + ", ".join(sorted(missing_fields))
+        )
+
+    return payload
 
 
 class DBServiceProtocol(Protocol):
@@ -171,25 +247,55 @@ class FeedbackDBService:
                 "avg_pnl": 0.0,
             }
 
-    def get_continuous_report(self) -> Any:
+    def get_continuous_report(self, runtime_snapshot: dict[str, Any]) -> Any:
         """Get machine-readable continuous report with measured runtime counters.
-        
+
         Returns:
             ContinuousReport containing non-null lifecycle counters.
         """
         from src.liquidationheatmap.signals.models import ContinuousReport
-        
+
+        session_started_at = _parse_iso8601(
+            str(runtime_snapshot["session_started_at"]),
+            "session_started_at",
+        )
+        report_timestamp = _parse_iso8601(
+            str(runtime_snapshot["timestamp"]),
+            "timestamp",
+        )
+
         try:
-            # Count actual feedback persisted in DuckDB
-            result = self.conn.execute("SELECT COUNT(*) FROM signal_feedback").fetchone()
+            result = self.conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM signal_feedback
+                WHERE created_at >= ?
+                """,
+                [session_started_at.replace(tzinfo=None)],
+            ).fetchone()
             feedback_persisted = result[0] if result else 0
         except Exception as e:
             logger.warning(f"Could not count persisted feedback: {e}")
-            feedback_persisted = 0
+            raise ContinuousReportUnavailableError(
+                "continuous runtime report unavailable: could not count persisted feedback"
+            ) from e
 
-        # Replace placeholders with measured value from actual runtime counter (DuckDB)
         return ContinuousReport(
+            session_started_at=session_started_at,
+            timestamp=report_timestamp,
+            runtime_seconds=float(runtime_snapshot["runtime_seconds"]),
+            signals_seen=int(runtime_snapshot["signals_seen"]),
+            signals_rejected=int(runtime_snapshot["signals_rejected"]),
+            signals_accepted=int(runtime_snapshot["signals_accepted"]),
+            orders_submitted=int(runtime_snapshot["orders_submitted"]),
+            orders_rejected=int(runtime_snapshot["orders_rejected"]),
+            orders_filled=int(runtime_snapshot["orders_filled"]),
+            positions_opened=int(runtime_snapshot["positions_opened"]),
+            positions_closed=int(runtime_snapshot["positions_closed"]),
+            feedback_published=int(runtime_snapshot["feedback_published"]),
             feedback_persisted=feedback_persisted,
+            residual_open_positions=int(runtime_snapshot["residual_open_positions"]),
+            residual_open_orders=int(runtime_snapshot["residual_open_orders"]),
         )
 
     def healthcheck(self) -> bool:

@@ -25,12 +25,14 @@ The `rektslug-feedback-consumer` service listens for real-time P&L feedback from
 ## 2. Continuous Report JSON Schema
 
 The `GET /signals/continuous-report` API returns a machine-readable report containing exact runtime lifecycle counters.
-It replaces placeholder metrics by counting actual database writes (`feedback_persisted`).
+It merges a runtime-generated execution snapshot with actual DuckDB writes (`feedback_persisted`).
+If the runtime snapshot is missing or incomplete, the endpoint fails closed with `503` instead of returning placeholder zeros.
 
 - **Endpoint:** `GET /signals/continuous-report`
 - **Schema (ContinuousReport):**
   ```json
   {
+    "session_started_at": "2026-03-01T11:00:00Z",
     "timestamp": "2026-03-01T12:00:00Z",
     "runtime_seconds": 3600.0,
     "signals_seen": 150,
@@ -47,7 +49,13 @@ It replaces placeholder metrics by counting actual database writes (`feedback_pe
     "residual_open_orders": 0
   }
   ```
-  *(Note: `feedback_persisted` is derived directly from DuckDB records written during the session. Nautilus must fetch this report and combine it with its own internal execution metrics to produce the final comprehensive evidence package.)*
+  *(Note: `feedback_persisted` is derived directly from DuckDB rows whose `created_at` falls within the current session. The runtime snapshot must provide the remaining lifecycle counters and the `session_started_at` boundary.)*
+
+- **Runtime snapshot source:**
+  - Path from `HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH` or `CONTINUOUS_RUNTIME_REPORT_PATH`
+  - Default fallback: `$(dirname HEATMAP_DB_PATH)/continuous_runtime_report.json`
+- **Failure semantics:**
+  - `503 Service Unavailable` if the runtime snapshot file is missing, unreadable, or missing required fields
 
 ## 3. Healthcheck Endpoints / Health Semantics
 

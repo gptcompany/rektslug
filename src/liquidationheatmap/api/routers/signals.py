@@ -4,16 +4,19 @@ User Story 4: API Integration for signal monitoring.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from src.liquidationheatmap.signals import (
+    ContinuousReport,
+    ContinuousReportUnavailableError,
     FeedbackDBService,
     SignalMetrics,
     SignalStatus,
     get_redis_client,
+    load_continuous_runtime_snapshot,
 )
 from src.liquidationheatmap.signals.status_store import load_signal_status_metrics
 
@@ -68,22 +71,21 @@ async def get_signal_status():
     )
 
 
-@router.get("/continuous-report")
+@router.get("/continuous-report", response_model=ContinuousReport)
 async def get_continuous_report():
     """Get machine-readable continuous report required by G3 acceptance.
 
     Returns non-null lifecycle counters with feedback_persisted measured
     from actual DuckDB writes.
     """
-    from src.liquidationheatmap.signals.models import ContinuousReport
-
     db_service = None
     try:
+        runtime_snapshot = load_continuous_runtime_snapshot()
         db_service = FeedbackDBService(read_only=True)
-        return db_service.get_continuous_report()
-    except Exception as e:
-        logger.error(f"Error fetching continuous report: {e}")
-        return ContinuousReport()
+        return db_service.get_continuous_report(runtime_snapshot)
+    except ContinuousReportUnavailableError as e:
+        logger.error(f"Continuous report unavailable: {e}")
+        raise HTTPException(status_code=503, detail=str(e)) from e
     finally:
         if db_service is not None:
             db_service.close()

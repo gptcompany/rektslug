@@ -22,10 +22,13 @@ from src.liquidationheatmap.signals.config import (
     get_signal_config,
 )
 from src.liquidationheatmap.signals.feedback import (
+    ContinuousReportUnavailableError,
     FeedbackConsumer,
     FeedbackDBService,
+    load_continuous_runtime_snapshot,
 )
 from src.liquidationheatmap.signals.models import (
+    ContinuousReport,
     LiquidationSignal,
     SignalMetrics,
     SignalStatus,
@@ -48,6 +51,7 @@ __all__ = [
     "TradeFeedback",
     "SignalMetrics",
     "SignalStatus",
+    "ContinuousReport",
     # Config
     "RedisConfig",
     "SignalConfig",
@@ -65,6 +69,8 @@ __all__ = [
     # Feedback
     "FeedbackConsumer",
     "FeedbackDBService",
+    "ContinuousReportUnavailableError",
+    "load_continuous_runtime_snapshot",
     # Adaptive
     "AdaptiveEngine",
     "calculate_ema",

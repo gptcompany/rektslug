@@ -117,18 +117,23 @@ class TestFeedbackStorage:
         from actual runtime counters.
         T014 Ensure feedback_persisted is counted from actual DuckDB writes.
         """
-        from datetime import timezone
+        from datetime import timedelta, timezone
+
         from src.liquidationheatmap.signals.feedback import FeedbackDBService
         from src.liquidationheatmap.signals.models import ContinuousReport
 
         db_service = FeedbackDBService(temp_db)
-        
-        # Initial call should return empty counters for feedback_persisted
-        report = db_service.get_continuous_report()
-        assert isinstance(report, ContinuousReport)
-        assert report.feedback_persisted == 0
-        
-        # Insert feedback
+        session_started_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+        before_session = TradeFeedback(
+            symbol="BTCUSDT",
+            signal_id="before_session",
+            entry_price=Decimal("94000"),
+            exit_price=Decimal("94100"),
+            pnl=Decimal("100"),
+            timestamp=session_started_at - timedelta(hours=1),
+            source="nautilus",
+        )
         feedback = TradeFeedback(
             symbol="BTCUSDT",
             signal_id="continuous_1",
@@ -137,10 +142,38 @@ class TestFeedbackStorage:
             pnl=Decimal("500"),
             source="nautilus",
         )
+        db_service.store_feedback(before_session)
         db_service.store_feedback(feedback)
-        
-        # Call should return 1
-        report = db_service.get_continuous_report()
+        temp_db.execute(
+            """
+            UPDATE signal_feedback
+            SET created_at = ?
+            WHERE signal_id = 'before_session'
+            """,
+            [(session_started_at - timedelta(hours=1)).replace(tzinfo=None)],
+        )
+
+        runtime_snapshot = {
+            "session_started_at": session_started_at.isoformat().replace("+00:00", "Z"),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "runtime_seconds": 600.0,
+            "signals_seen": 4,
+            "signals_rejected": 1,
+            "signals_accepted": 3,
+            "orders_submitted": 3,
+            "orders_rejected": 0,
+            "orders_filled": 3,
+            "positions_opened": 3,
+            "positions_closed": 2,
+            "feedback_published": 2,
+            "residual_open_positions": 1,
+            "residual_open_orders": 0,
+        }
+
+        report = db_service.get_continuous_report(runtime_snapshot)
+        assert isinstance(report, ContinuousReport)
+        assert report.signals_seen == 4
+        assert report.feedback_published == 2
         assert report.feedback_persisted == 1
 
 class TestFeedbackDBService:
