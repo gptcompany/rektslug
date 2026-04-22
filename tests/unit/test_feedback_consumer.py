@@ -250,7 +250,85 @@ class TestFeedbackConsumer:
             return_value=mock_redis_client,
         ):
             consumer = FeedbackConsumer()
-            consumer.subscribe_feedback("BTCUSDT", timeout=0.1)
+            consumer.subscribe_feedback("BTCUSDT", timeout=0.0)
 
             # Verify subscribe was called with correct channel
             mock_pubsub.subscribe.assert_called_once_with("liquidation:feedback:BTCUSDT")
+
+    def test_subscribe_multiple_symbols(self, mock_redis_client):
+        """always-on consumer should support multiple symbols."""
+        from src.liquidationheatmap.signals.feedback import FeedbackConsumer
+
+        mock_pubsub = MagicMock()
+        mock_redis_client.pubsub.return_value.__enter__ = MagicMock(return_value=mock_pubsub)
+        mock_redis_client.pubsub.return_value.__exit__ = MagicMock(return_value=None)
+        mock_pubsub.listen.return_value = iter([])
+
+        with patch(
+            "src.liquidationheatmap.signals.feedback.get_redis_client",
+            return_value=mock_redis_client,
+        ):
+            consumer = FeedbackConsumer()
+            consumer.subscribe_feedback(["BTCUSDT", "ETHUSDT"], timeout=0.0)
+
+            # Verify subscribe was called with multiple channels
+            mock_pubsub.subscribe.assert_called_once_with(
+                "liquidation:feedback:BTCUSDT",
+                "liquidation:feedback:ETHUSDT"
+            )
+
+    def test_subscribe_handles_connection_error(self, mock_redis_client):
+        """always-on consumer should handle redis connection errors and continue/reconnect."""
+        from src.liquidationheatmap.signals.feedback import FeedbackConsumer
+        from redis.exceptions import ConnectionError
+
+        mock_pubsub = MagicMock()
+        mock_redis_client.pubsub.return_value.__enter__ = MagicMock(return_value=mock_pubsub)
+        mock_redis_client.pubsub.return_value.__exit__ = MagicMock(return_value=None)
+        
+        # Make listen raise a connection error on first call, then KeyboardInterrupt on second to exit gracefully
+        mock_pubsub.listen.side_effect = [ConnectionError("Redis down"), KeyboardInterrupt("Stop test")]
+
+        with patch(
+            "src.liquidationheatmap.signals.feedback.get_redis_client",
+            return_value=mock_redis_client,
+        ) as mock_get_client, patch("time.sleep") as mock_sleep:
+            consumer = FeedbackConsumer()
+            # Should not raise exception
+            consumer.subscribe_feedback("BTCUSDT")
+            
+            # Should have called listen twice (reconnected and then interrupted)
+            assert mock_pubsub.listen.call_count == 2
+            # Should have slept before reconnecting
+            mock_sleep.assert_called_once_with(5)
+
+    def test_consumer_persistence_accounting(self, mock_redis_client, mock_db_service):
+        """Consumer should track the number of successfully persisted feedback messages."""
+        from src.liquidationheatmap.signals.feedback import FeedbackConsumer
+
+        with patch(
+            "src.liquidationheatmap.signals.feedback.get_redis_client",
+            return_value=mock_redis_client,
+        ):
+            consumer = FeedbackConsumer(db_service=mock_db_service)
+            
+            # Initial count should be 0
+            assert consumer.persisted_count == 0
+            
+            # Successful storage should increment count
+            mock_db_service.store_feedback.return_value = True
+            consumer.process_message({
+                "type": "message",
+                "channel": "liquidation:feedback:BTCUSDT",
+                "data": '{"symbol":"BTCUSDT","signal_id":"1","entry_price":"1","exit_price":"2","pnl":"1","timestamp":"2025-12-28T11:00:00","source":"nautilus"}'
+            })
+            assert consumer.persisted_count == 1
+            
+            # Failed storage should not increment count
+            mock_db_service.store_feedback.return_value = False
+            consumer.process_message({
+                "type": "message",
+                "channel": "liquidation:feedback:BTCUSDT",
+                "data": '{"symbol":"BTCUSDT","signal_id":"2","entry_price":"1","exit_price":"2","pnl":"1","timestamp":"2025-12-28T11:00:00","source":"nautilus"}'
+            })
+            assert consumer.persisted_count == 1

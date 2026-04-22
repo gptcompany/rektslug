@@ -209,5 +209,30 @@ services:
       retries: 3
       start_period: 60s
 
+  rektslug-feedback-consumer:
+    <<: *default-core-service
+    container_name: rektslug-feedback-consumer
+    command:
+      - /bin/bash
+      - /app/scripts/run-feedback-consumer.sh
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      HEATMAP_PROJECT_ROOT: /app
+      HEATMAP_CONTAINER_PROJECT_ROOT: /app
+      HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    volumes:
+      - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep feedback.py || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 volumes:
   questdb-data:

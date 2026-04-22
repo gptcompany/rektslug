@@ -151,10 +151,11 @@ class FeedbackConsumer:
     Attributes:
         redis_client: Redis client for pub/sub
         db_service: Database service for storage
+        persisted_count: Number of successfully stored feedback records
 
     Usage:
         consumer = FeedbackConsumer()
-        consumer.subscribe_feedback("BTCUSDT")  # Blocking
+        consumer.subscribe_feedback(["BTCUSDT", "ETHUSDT"])  # Blocking
     """
 
     def __init__(
@@ -170,6 +171,7 @@ class FeedbackConsumer:
         """
         self._redis_client = redis_client
         self._db_service = db_service
+        self.persisted_count = 0
 
     @property
     def redis_client(self) -> RedisClient:
@@ -217,59 +219,78 @@ class FeedbackConsumer:
             return False
 
         try:
-            return self.store_feedback(feedback)
+            success = self.store_feedback(feedback)
+            if success:
+                self.persisted_count += 1
+            return success
         except Exception as e:
             logger.error(f"Failed to store feedback: {e}")
             return False
 
     def subscribe_feedback(
         self,
-        symbol: str,
+        symbol: str | list[str],
         callback: Any | None = None,
         timeout: float | None = None,
     ) -> None:
-        """Subscribe to feedback channel for a symbol.
+        """Subscribe to feedback channel for one or more symbols.
 
         Args:
-            symbol: Trading pair symbol
+            symbol: Trading pair symbol or list of symbols
             callback: Optional callback for each message (default: store in DB)
             timeout: Optional timeout in seconds (None = run forever)
 
         Note:
             This is a blocking operation. Run in a separate thread for async.
         """
-        channel = get_signal_channel(symbol, "feedback")
+        import time
+        from redis.exceptions import ConnectionError
 
-        with self.redis_client.pubsub() as ps:
-            if ps is None:
-                logger.warning("Redis not available for feedback subscription")
-                return
+        if isinstance(symbol, str):
+            channels = [get_signal_channel(symbol, "feedback")]
+        else:
+            channels = [get_signal_channel(s, "feedback") for s in symbol]
 
-            ps.subscribe(channel)
-            logger.info(f"Subscribed to feedback channel: {channel}")
+        start_time = time.time()
 
-            import time
-
-            start_time = time.time()
-
+        while True:
             try:
-                for message in ps.listen():
-                    # Check timeout
-                    if timeout is not None:
-                        if time.time() - start_time > timeout:
-                            logger.debug("Subscription timeout reached")
-                            break
-
-                    if message["type"] == "subscribe":
+                with self.redis_client.pubsub() as ps:
+                    if ps is None:
+                        logger.warning("Redis not available for feedback subscription")
+                        time.sleep(5)
                         continue
 
-                    if message["type"] == "message":
-                        if callback:
-                            callback(message)
-                        else:
-                            self.process_message(message)
+                    ps.subscribe(*channels)
+                    logger.info(f"Subscribed to feedback channels: {channels}")
+
+                    for message in ps.listen():
+                        # Check timeout
+                        if timeout is not None:
+                            if time.time() - start_time > timeout:
+                                logger.debug("Subscription timeout reached")
+                                return
+
+                        if message["type"] == "subscribe":
+                            continue
+
+                        if message["type"] == "message":
+                            if callback:
+                                callback(message)
+                            else:
+                                self.process_message(message)
+            except ConnectionError as e:
+                logger.error(f"Redis connection error: {e}. Reconnecting in 5 seconds...")
+                time.sleep(5)
             except KeyboardInterrupt:
                 logger.info("Feedback subscription interrupted")
+                break
+            except Exception as e:
+                logger.error(f"Unexpected error in feedback subscription: {e}")
+                time.sleep(5)
+            
+            if timeout is not None and time.time() - start_time > timeout:
+                break
 
     def close(self) -> None:
         """Close Redis and database connections."""
@@ -283,15 +304,22 @@ def main():
     """CLI entry point for feedback consumer."""
     parser = argparse.ArgumentParser(description="Consume P&L feedback from Redis")
     parser.add_argument("--symbol", default="BTCUSDT", help="Trading pair symbol")
+    parser.add_argument(
+        "--symbols", 
+        nargs="+", 
+        help="List of symbols to subscribe to (overrides --symbol)",
+    )
 
     args = parser.parse_args()
+    
+    symbols = args.symbols if args.symbols else args.symbol
 
     logging.basicConfig(level=logging.INFO)
-    logger.info(f"Starting feedback consumer for {args.symbol}")
+    logger.info(f"Starting feedback consumer for {symbols}")
 
     consumer = FeedbackConsumer()
     try:
-        consumer.subscribe_feedback(args.symbol)
+        consumer.subscribe_feedback(symbols)
     except KeyboardInterrupt:
         logger.info("Shutting down feedback consumer")
     finally:

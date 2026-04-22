@@ -64,3 +64,17 @@ def test_shadow_consumer_enables_ws_stream(compose_config):
     command = consumer.get("command", [])
     assert "--enable-ws-stream" in command
 
+def test_feedback_consumer_depends_on_redis(compose_config):
+    consumer = compose_config["services"]["rektslug-feedback-consumer"]
+    assert "redis" in consumer.get("depends_on", {})
+
+def test_feedback_consumer_uses_redis_hostname(compose_config):
+    consumer = compose_config["services"]["rektslug-feedback-consumer"]
+    env = consumer.get("environment", {})
+    assert env.get("REDIS_HOST") == "redis"
+
+def test_feedback_consumer_script_exists():
+    script = Path("scripts/run-feedback-consumer.sh")
+    assert script.exists(), "run-feedback-consumer.sh not found"
+    assert os.access(script, os.X_OK), "run-feedback-consumer.sh not executable"
+

@@ -32,9 +32,9 @@ Phase-2 note:
 
 ## Phase 3: Feedback Persistence and Metrics
 
-- [ ] T011R RED: write failing tests for always-on feedback consumption and
+- [x] T011R RED: write failing tests for always-on feedback consumption and
   persistence accounting in `rektslug`
-- [ ] T012 Wire the feedback consumer into the production runtime as a service,
+- [x] T012 Wire the feedback consumer into the production runtime as a service,
   not just a module/CLI
 - [ ] T013R RED: write failing test asserting continuous metrics return measured
   values (not placeholders) from actual runtime counters
