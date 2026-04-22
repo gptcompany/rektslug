@@ -41,6 +41,7 @@ The repo is not yet fully execution-complete because the following gaps remain:
 | `spec-035` | Follow-on | Execution-grade Nautilus event-driven backtest harness | Implemented with retained replay bundles |
 | `spec-036` | Follow-on | Paper/live trading runtime hardening and operational controls | Implemented with evidence package |
 | `spec-037` | Follow-on | Nautilus liquidation bridge operational closeout | Implemented with multi-repo evidence |
+| `spec-040` | Follow-on | Continuous paper/testnet runtime, report contract, and reconciliation package | Implemented in code; G3 runtime evidence remains operational |
 
 ## Delivered Sequence
 
@@ -59,6 +60,7 @@ The repo is not yet fully execution-complete because the following gaps remain:
 
 6. Implement `spec-036` runtime persistence, measured signal status counters, and rollout/evidence docs.
 7. Implement `spec-037` operational closeout for the Nautilus liquidation bridge with guarded soak evidence.
+8. Implement `spec-040` continuous runtime wiring, fail-closed reporting, and evidence reconciliation tooling.
 
 ## Exit Criteria By Stage
 
@@ -79,12 +81,14 @@ The repo is not yet fully execution-complete because the following gaps remain:
 - signal emission, consumer ingestion, and order decisions are observable.
 - order lifecycle, rejects, cancels, stale-signal handling, and kill-switch semantics are defined.
 - runtime metrics reflect measured counts, not estimated placeholders.
+- continuous runtime evidence can be reconciled against DuckDB session rows and explicit blocking gates.
 
 ### Stage D - Live Trading Readiness
 
 - hard risk limits exist at strategy, venue, and runtime layers.
 - all execution actions are auditable and recoverable after restart.
 - rollout policy supports dry-run -> paper -> limited live -> full live progression.
+- continuous paper/testnet remains a distinct gate from limited live and requires retained G3 evidence.
 
 ## Relationship To Current Scope
 
@@ -92,4 +96,4 @@ The repo is not yet fully execution-complete because the following gaps remain:
 
 - the default implementation target is still public `liq-map`
 - this roadmap records the next-stage execution work that has now been implemented in follow-on tracks
-- remaining backlog after these follow-ons is mainly `spec-027`, `spec-015` external integration, and `spec-011`/`spec-025` delivery scope
+- remaining backlog after these follow-ons is mainly `spec-027`, `spec-015` external integration, `spec-011`/`spec-025` delivery scope, and the operational G3 run retention for `spec-040`

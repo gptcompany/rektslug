@@ -25,12 +25,17 @@ public `liq-map` and artifact serving into:
   `specs/036-paper-live-trading-runtime-hardening/EVIDENCE_PACKAGE.md`
 - `spec-037` operational evidence package:
   `specs/037-nautilus-liquidation-bridge-operational-closeout/EVIDENCE_PACKAGE.md`
+- `spec-040` continuous runtime evidence package:
+  `specs/040-nautilus-continuous-paper-testnet/EVIDENCE_PACKAGE.md`
+- `spec-040` reconciliation builder:
+  `scripts/build_spec040_evidence.py`
 
 ## Existing Tracks Still Open
 
 - `spec-027`: Hyperliquid reserved-margin and portfolio-margin hardening
 - `spec-015`: signal-loop downstream integration beyond the current bridge
 - `spec-025` / `spec-011`: broader event distribution backlog
+- `spec-040`: real retained G3 session artifact still needs an operational run with non-zero lifecycle closure
 
 ## Main Design Decisions Preserved
 
@@ -46,8 +51,15 @@ public `liq-map` and artifact serving into:
 3. `src/liquidationheatmap/runtime/executor.py`, `src/liquidationheatmap/signals/status_store.py`, and the signal/runtime tests.
 4. `specs/036-paper-live-trading-runtime-hardening/rollout.md` and `EVIDENCE_PACKAGE.md`.
 5. `specs/037-nautilus-liquidation-bridge-operational-closeout/evidence_summary.json` and the multi-repo recovery logs.
+6. `specs/040-nautilus-continuous-paper-testnet/EVIDENCE_PACKAGE.md`,
+   `scripts/build_spec040_evidence.py`, and `tests/integration/test_build_spec040_evidence.py`.
 
 ## Residual Environment Note
 
 Native `nautilus_trader` execution still requires Python 3.12+ for real engine runs.
 That is now an environment prerequisite, not an unfinished spec task in this repo.
+
+For `spec-040`, reviewers should distinguish between:
+
+- implemented runtime/reporting code and reconciliation tooling, which are in-repo and test-covered
+- the retained G3 runtime session, which is an operational artifact and must come from a real continuous run
