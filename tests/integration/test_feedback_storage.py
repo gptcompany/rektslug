@@ -111,6 +111,37 @@ class TestFeedbackStorage:
         assert metrics["profitable"] == 5
         assert metrics["hit_rate"] == 0.5
 
+    def test_continuous_metrics_return_measured_values(self, temp_db):
+        """
+        T013R RED: assert continuous metrics return measured values (not placeholders)
+        from actual runtime counters.
+        T014 Ensure feedback_persisted is counted from actual DuckDB writes.
+        """
+        from datetime import timezone
+        from src.liquidationheatmap.signals.feedback import FeedbackDBService
+        from src.liquidationheatmap.signals.models import ContinuousReport
+
+        db_service = FeedbackDBService(temp_db)
+        
+        # Initial call should return empty counters for feedback_persisted
+        report = db_service.get_continuous_report()
+        assert isinstance(report, ContinuousReport)
+        assert report.feedback_persisted == 0
+        
+        # Insert feedback
+        feedback = TradeFeedback(
+            symbol="BTCUSDT",
+            signal_id="continuous_1",
+            entry_price=Decimal("95000"),
+            exit_price=Decimal("95500"),
+            pnl=Decimal("500"),
+            source="nautilus",
+        )
+        db_service.store_feedback(feedback)
+        
+        # Call should return 1
+        report = db_service.get_continuous_report()
+        assert report.feedback_persisted == 1
 
 class TestFeedbackDBService:
     """Unit tests for FeedbackDBService."""

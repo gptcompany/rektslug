@@ -127,6 +127,7 @@ LiquidationHeatmap/
 │   ├── mathematical_foundation.md   # Margin math proofs
 │   ├── model_accuracy.md            # Model validation
 │   ├── api_guide.md                 # API reference
+│   ├── CONTINUOUS_RUNTIME.md        # Continuous feedback/report contracts
 │   └── troubleshooting.md           # Common issues
 ├── .claude/                         # Claude Code configuration
 │   ├── agents/                      # Specialized subagents

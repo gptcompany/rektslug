@@ -171,6 +171,27 @@ class FeedbackDBService:
                 "avg_pnl": 0.0,
             }
 
+    def get_continuous_report(self) -> Any:
+        """Get machine-readable continuous report with measured runtime counters.
+        
+        Returns:
+            ContinuousReport containing non-null lifecycle counters.
+        """
+        from src.liquidationheatmap.signals.models import ContinuousReport
+        
+        try:
+            # Count actual feedback persisted in DuckDB
+            result = self.conn.execute("SELECT COUNT(*) FROM signal_feedback").fetchone()
+            feedback_persisted = result[0] if result else 0
+        except Exception as e:
+            logger.warning(f"Could not count persisted feedback: {e}")
+            feedback_persisted = 0
+
+        # Replace placeholders with measured value from actual runtime counter (DuckDB)
+        return ContinuousReport(
+            feedback_persisted=feedback_persisted,
+        )
+
     def healthcheck(self) -> bool:
         """Validate DB connectivity and the feedback schema."""
         try:

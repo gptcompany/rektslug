@@ -207,3 +207,26 @@ class SignalStatus(BaseModel):
             ]
         }
     }
+
+
+class ContinuousReport(BaseModel):
+    """Machine-readable report contract for continuous paper/testnet runs.
+    
+    Spec-040 requires these non-null lifecycle counters.
+    """
+
+    timestamp: datetime = Field(default_factory=_utc_now, description="Report generation time")
+    runtime_seconds: float = Field(0.0, description="Total runtime in seconds")
+    signals_seen: int = Field(0, description="Total signals observed by the runtime")
+    signals_rejected: int = Field(0, description="Signals rejected by constraints")
+    signals_accepted: int = Field(0, description="Signals accepted for execution")
+    orders_submitted: int = Field(0, description="Orders sent to venue")
+    orders_rejected: int = Field(0, description="Orders rejected by venue")
+    orders_filled: int = Field(0, description="Orders successfully filled")
+    positions_opened: int = Field(0, description="Positions successfully opened")
+    positions_closed: int = Field(0, description="Positions successfully closed")
+    feedback_published: int = Field(0, description="Feedback messages sent to Redis")
+    feedback_persisted: int = Field(0, description="Feedback messages saved to DuckDB")
+    residual_open_positions: int = Field(0, description="Open positions remaining at shutdown")
+    residual_open_orders: int = Field(0, description="Open orders remaining at shutdown")
+
