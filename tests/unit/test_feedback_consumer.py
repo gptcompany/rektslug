@@ -8,6 +8,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from redis.exceptions import ConnectionError
 
 from src.liquidationheatmap.signals.models import TradeFeedback
 
@@ -280,23 +281,22 @@ class TestFeedbackConsumer:
     def test_subscribe_handles_connection_error(self, mock_redis_client):
         """always-on consumer should handle redis connection errors and continue/reconnect."""
         from src.liquidationheatmap.signals.feedback import FeedbackConsumer
-        from redis.exceptions import ConnectionError
 
         mock_pubsub = MagicMock()
         mock_redis_client.pubsub.return_value.__enter__ = MagicMock(return_value=mock_pubsub)
         mock_redis_client.pubsub.return_value.__exit__ = MagicMock(return_value=None)
-        
+
         # Make listen raise a connection error on first call, then KeyboardInterrupt on second to exit gracefully
         mock_pubsub.listen.side_effect = [ConnectionError("Redis down"), KeyboardInterrupt("Stop test")]
 
         with patch(
             "src.liquidationheatmap.signals.feedback.get_redis_client",
             return_value=mock_redis_client,
-        ) as mock_get_client, patch("time.sleep") as mock_sleep:
+        ), patch("time.sleep") as mock_sleep:
             consumer = FeedbackConsumer()
             # Should not raise exception
             consumer.subscribe_feedback("BTCUSDT")
-            
+
             # Should have called listen twice (reconnected and then interrupted)
             assert mock_pubsub.listen.call_count == 2
             # Should have slept before reconnecting
@@ -311,10 +311,10 @@ class TestFeedbackConsumer:
             return_value=mock_redis_client,
         ):
             consumer = FeedbackConsumer(db_service=mock_db_service)
-            
+
             # Initial count should be 0
             assert consumer.persisted_count == 0
-            
+
             # Successful storage should increment count
             mock_db_service.store_feedback.return_value = True
             consumer.process_message({
@@ -323,7 +323,7 @@ class TestFeedbackConsumer:
                 "data": '{"symbol":"BTCUSDT","signal_id":"1","entry_price":"1","exit_price":"2","pnl":"1","timestamp":"2025-12-28T11:00:00","source":"nautilus"}'
             })
             assert consumer.persisted_count == 1
-            
+
             # Failed storage should not increment count
             mock_db_service.store_feedback.return_value = False
             consumer.process_message({
@@ -332,3 +332,25 @@ class TestFeedbackConsumer:
                 "data": '{"symbol":"BTCUSDT","signal_id":"2","entry_price":"1","exit_price":"2","pnl":"1","timestamp":"2025-12-28T11:00:00","source":"nautilus"}'
             })
             assert consumer.persisted_count == 1
+
+
+class TestFeedbackDBPathResolution:
+    """Tests for runtime DB path resolution and health checks."""
+
+    def test_feedback_db_path_falls_back_to_heatmap_db_path(self, monkeypatch):
+        """Container runtime should reuse HEATMAP_DB_PATH when FEEDBACK_DB_PATH is unset."""
+        from src.liquidationheatmap.signals.feedback import resolve_feedback_db_path
+
+        monkeypatch.delenv("FEEDBACK_DB_PATH", raising=False)
+        monkeypatch.setenv("HEATMAP_DB_PATH", "/var/lib/rektslug-db/liquidations.duckdb")
+
+        assert resolve_feedback_db_path() == "/var/lib/rektslug-db/liquidations.duckdb"
+
+    def test_healthcheck_reports_schema_failures(self):
+        """Healthcheck should fail cleanly if the feedback table is unavailable."""
+        from src.liquidationheatmap.signals.feedback import FeedbackDBService
+
+        db_service = FeedbackDBService(conn=MagicMock(), read_only=True)
+        db_service._conn.execute.side_effect = RuntimeError("missing table")
+
+        assert db_service.healthcheck() is False

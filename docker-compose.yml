@@ -223,12 +223,22 @@ services:
       HEATMAP_CONTAINER_PROJECT_ROOT: /app
       HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      FEEDBACK_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       REDIS_HOST: redis
       REDIS_PORT: "6379"
     volumes:
       - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -v grep | grep feedback.py || exit 1"]
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "python",
+          "-m",
+          "src.liquidationheatmap.signals.feedback",
+          "--healthcheck",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

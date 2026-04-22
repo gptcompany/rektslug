@@ -196,3 +196,35 @@ class TestFeedbackDBService:
         assert metrics["avg_pnl"] == 0.0
 
         conn.close()
+
+    def test_store_feedback_bootstraps_schema_from_heatmap_db_path(self, monkeypatch):
+        """Runtime storage should create the feedback schema on first write."""
+        from src.liquidationheatmap.signals.feedback import FeedbackDBService
+
+        with TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "runtime_feedback.duckdb"
+            monkeypatch.delenv("FEEDBACK_DB_PATH", raising=False)
+            monkeypatch.setenv("HEATMAP_DB_PATH", str(db_path))
+
+            db_service = FeedbackDBService()
+            feedback = TradeFeedback(
+                symbol="ETHUSDT",
+                signal_id="bootstrap_001",
+                entry_price=Decimal("1800"),
+                exit_price=Decimal("1810"),
+                pnl=Decimal("10"),
+                source="nautilus",
+            )
+
+            assert db_service.store_feedback(feedback) is True
+            db_service.close()
+
+            conn = duckdb.connect(str(db_path), read_only=True)
+            try:
+                row = conn.execute(
+                    "SELECT symbol, signal_id FROM signal_feedback WHERE signal_id = 'bootstrap_001'"
+                ).fetchone()
+            finally:
+                conn.close()
+
+            assert row == ("ETHUSDT", "bootstrap_001")

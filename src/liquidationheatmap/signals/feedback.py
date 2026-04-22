@@ -8,16 +8,39 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import sys
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Protocol
 
 import duckdb
+from redis.exceptions import ConnectionError
 
 from src.liquidationheatmap.signals.config import get_signal_channel
 from src.liquidationheatmap.signals.models import TradeFeedback
 from src.liquidationheatmap.signals.redis_client import RedisClient, get_redis_client
 
 logger = logging.getLogger(__name__)
+DEFAULT_FEEDBACK_DB_PATH = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
+SIGNAL_FEEDBACK_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3] / "scripts" / "migrations" / "add_signal_feedback_table.sql"
+)
+
+
+def resolve_feedback_db_path() -> str:
+    """Resolve the DuckDB path for feedback persistence.
+
+    Prefer the explicit feedback path if present, otherwise reuse the standard
+    heatmap DB path already wired through the runtime.
+    """
+    return (
+        os.getenv("FEEDBACK_DB_PATH")
+        or os.getenv("HEATMAP_DB_PATH")
+        or os.getenv("HEATMAP_CONTAINER_DB_PATH")
+        or DEFAULT_FEEDBACK_DB_PATH
+    )
 
 
 class DBServiceProtocol(Protocol):
@@ -45,19 +68,29 @@ class FeedbackDBService:
         """
         self._conn = conn
         self._read_only = read_only
+        self._schema_ready = False
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         """Get DuckDB connection (lazy initialization)."""
         if self._conn is None:
-            # Use default path or create in-memory for tests
-            import os
-
-            db_path = os.getenv(
-                "FEEDBACK_DB_PATH", "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
-            )
+            db_path = resolve_feedback_db_path()
             self._conn = duckdb.connect(db_path, read_only=self._read_only)
+        if not self._schema_ready:
+            self.ensure_schema()
         return self._conn
+
+    def ensure_schema(self) -> None:
+        """Ensure the feedback table exists for write-capable connections."""
+        if self._schema_ready:
+            return
+        if self._read_only:
+            self._schema_ready = True
+            return
+
+        migration_sql = SIGNAL_FEEDBACK_MIGRATION_PATH.read_text()
+        self._conn.execute(migration_sql)
+        self._schema_ready = True
 
     def store_feedback(self, feedback: TradeFeedback) -> bool:
         """Store feedback record in DuckDB.
@@ -137,6 +170,15 @@ class FeedbackDBService:
                 "hit_rate": 0.0,
                 "avg_pnl": 0.0,
             }
+
+    def healthcheck(self) -> bool:
+        """Validate DB connectivity and the feedback schema."""
+        try:
+            self.conn.execute("SELECT 1 FROM signal_feedback LIMIT 1")
+            return True
+        except Exception as e:
+            logger.error(f"Feedback DB healthcheck failed: {e}")
+            return False
 
     def close(self) -> None:
         """Close database connection."""
@@ -243,9 +285,6 @@ class FeedbackConsumer:
         Note:
             This is a blocking operation. Run in a separate thread for async.
         """
-        import time
-        from redis.exceptions import ConnectionError
-
         if isinstance(symbol, str):
             channels = [get_signal_channel(symbol, "feedback")]
         else:
@@ -288,7 +327,7 @@ class FeedbackConsumer:
             except Exception as e:
                 logger.error(f"Unexpected error in feedback subscription: {e}")
                 time.sleep(5)
-            
+
             if timeout is not None and time.time() - start_time > timeout:
                 break
 
@@ -305,19 +344,26 @@ def main():
     parser = argparse.ArgumentParser(description="Consume P&L feedback from Redis")
     parser.add_argument("--symbol", default="BTCUSDT", help="Trading pair symbol")
     parser.add_argument(
-        "--symbols", 
-        nargs="+", 
+        "--symbols",
+        nargs="+",
         help="List of symbols to subscribe to (overrides --symbol)",
+    )
+    parser.add_argument(
+        "--healthcheck",
+        action="store_true",
+        help="Validate feedback DB connectivity/schema and exit",
     )
 
     args = parser.parse_args()
-    
-    symbols = args.symbols if args.symbols else args.symbol
 
     logging.basicConfig(level=logging.INFO)
-    logger.info(f"Starting feedback consumer for {symbols}")
 
     consumer = FeedbackConsumer()
+    if args.healthcheck:
+        sys.exit(0 if consumer.db_service.healthcheck() else 1)
+
+    symbols = args.symbols if args.symbols else args.symbol
+    logger.info(f"Starting feedback consumer for {symbols}")
     try:
         consumer.subscribe_feedback(symbols)
     except KeyboardInterrupt:

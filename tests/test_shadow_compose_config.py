@@ -1,8 +1,9 @@
 """Tests for shadow pipeline Docker configuration."""
 import os
-import yaml
-import pytest
 from pathlib import Path
+
+import pytest
+import yaml
 
 COMPOSE_FILE = Path("docker-compose.yml")
 
@@ -72,9 +73,16 @@ def test_feedback_consumer_uses_redis_hostname(compose_config):
     consumer = compose_config["services"]["rektslug-feedback-consumer"]
     env = consumer.get("environment", {})
     assert env.get("REDIS_HOST") == "redis"
+    assert env.get("FEEDBACK_DB_PATH") == "/var/lib/rektslug-db/liquidations.duckdb"
 
 def test_feedback_consumer_script_exists():
     script = Path("scripts/run-feedback-consumer.sh")
     assert script.exists(), "run-feedback-consumer.sh not found"
     assert os.access(script, os.X_OK), "run-feedback-consumer.sh not executable"
 
+def test_feedback_consumer_healthcheck_uses_python_probe(compose_config):
+    consumer = compose_config["services"]["rektslug-feedback-consumer"]
+    healthcheck = consumer.get("healthcheck", {})
+    command = healthcheck.get("test", [])
+    assert "--healthcheck" in command
+    assert "src.liquidationheatmap.signals.feedback" in command
