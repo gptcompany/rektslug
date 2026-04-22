@@ -66,15 +66,15 @@ Phase-3 intent:
 
 ## Phase 5: Recovery and Fail-Closed Behavior
 
-- [ ] T021 Define restart/recovery expectations for the Nautilus service
-- [ ] T022 Define restart/recovery expectations for the feedback consumer
-- [ ] T023 Verify Redis-unavailable behavior fails closed
-- [ ] T024 Verify DuckDB-unavailable behavior fails closed
-- [ ] T025 Verify residual open positions/open orders are explicitly checked and
+- [x] T021 Define restart/recovery expectations for the Nautilus service
+- [x] T022 Define restart/recovery expectations for the feedback consumer
+- [x] T023 Verify Redis-unavailable behavior fails closed
+- [x] T024 Verify DuckDB-unavailable behavior fails closed
+- [x] T025 Verify residual open positions/open orders are explicitly checked and
   reported after restart or shutdown
-- [ ] T026 Verify feedback publish/persist mismatches are visible and block a
+- [x] T026 Verify feedback publish/persist mismatches are visible and block a
   green result
-- [ ] T026B Verify feedback consumer and DuckDB writes do not block the
+- [x] T026B Verify feedback consumer and DuckDB writes do not block the
   Nautilus event loop (NFR-002): measure round-trip latency under load,
   confirm async boundary at Redis
 

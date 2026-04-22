@@ -116,3 +116,102 @@ def test_continuous_report_returns_503_when_runtime_snapshot_missing(
 
     assert response.status_code == 503
     assert "continuous runtime report missing" in response.json()["detail"]
+
+
+def test_continuous_report_returns_503_when_duckdb_unavailable(
+    temp_runtime_paths, monkeypatch
+):
+    """T024: DuckDB-unavailable behavior fails closed (returns 503)."""
+    db_path, report_path = temp_runtime_paths
+    monkeypatch.setenv("FEEDBACK_DB_PATH", str(db_path))
+    monkeypatch.setenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH", str(report_path))
+
+    # Write a valid snapshot
+    session_started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    report_path.write_text(
+        (
+            "{"
+            f"\"session_started_at\":\"{session_started_at.isoformat().replace('+00:00', 'Z')}\","
+            "\"timestamp\":\"2026-04-22T15:30:00Z\","
+            "\"runtime_seconds\":300.0,"
+            "\"signals_seen\":12,"
+            "\"signals_rejected\":2,"
+            "\"signals_accepted\":10,"
+            "\"orders_submitted\":10,"
+            "\"orders_rejected\":1,"
+            "\"orders_filled\":9,"
+            "\"positions_opened\":9,"
+            "\"positions_closed\":8,"
+            "\"feedback_published\":8,"
+            "\"residual_open_positions\":1,"
+            "\"residual_open_orders\":0"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+
+    # Corrupt DuckDB file or lock it exclusively
+    db_path.unlink()
+    db_path.write_text("corrupted duckdb file")
+
+    client = TestClient(app)
+    response = client.get("/signals/continuous-report")
+
+    assert response.status_code == 503
+    assert "could not count persisted feedback" in response.json()["detail"]
+
+
+def test_continuous_report_surfaces_publish_persist_mismatch(
+    temp_runtime_paths, monkeypatch
+):
+    """T026: Verify feedback publish/persist mismatches are visible."""
+    db_path, report_path = temp_runtime_paths
+    monkeypatch.setenv("FEEDBACK_DB_PATH", str(db_path))
+    monkeypatch.setenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH", str(report_path))
+
+    session_started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    report_path.write_text(
+        (
+            "{"
+            f"\"session_started_at\":\"{session_started_at.isoformat().replace('+00:00', 'Z')}\","
+            "\"timestamp\":\"2026-04-22T15:30:00Z\","
+            "\"runtime_seconds\":300.0,"
+            "\"signals_seen\":10,"
+            "\"signals_rejected\":0,"
+            "\"signals_accepted\":10,"
+            "\"orders_submitted\":10,"
+            "\"orders_rejected\":0,"
+            "\"orders_filled\":10,"
+            "\"positions_opened\":10,"
+            "\"positions_closed\":10,"
+            "\"feedback_published\":10,"
+            "\"residual_open_positions\":0,"
+            "\"residual_open_orders\":0"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+
+    # Only persist 8 feedbacks in DuckDB, creating a mismatch (10 published vs 8 persisted)
+    db_service = FeedbackDBService()
+    for i in range(8):
+        feedback = TradeFeedback(
+            symbol="BTCUSDT",
+            signal_id=f"sig_{i}",
+            entry_price=Decimal("95000"),
+            exit_price=Decimal("95500"),
+            pnl=Decimal("500"),
+            timestamp=datetime.now(timezone.utc),
+            source="nautilus",
+        )
+        db_service.store_feedback(feedback)
+    db_service.close()
+
+    client = TestClient(app)
+    response = client.get("/signals/continuous-report")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["feedback_published"] == 10
+    assert data["feedback_persisted"] == 8
+    # The discrepancy is clearly visible in the payload and will fail evidence validation

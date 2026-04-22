@@ -73,8 +73,21 @@ The main API provides a health endpoint for the signal/feedback system:
   }
   ```
 
-### Compose Service Healthcheck
-The `rektslug-feedback-consumer` container runs an internal healthcheck that validates:
-1. The consumer process is running.
-2. (Via `--healthcheck` flag) The DuckDB persistence layer has the required tables and write locks are correctly configured.
-3. The Redis pub/sub connection is alive.
+## 4. Restart and Recovery Expectations (Fail-Closed Behavior)
+
+### Nautilus Execution Service
+The Nautilus continuous execution service (`nautilus-liquidation-paper-testnet`) is designed to fail closed.
+- **Startup:** If the target environment (e.g., testnet) does not match the configuration, or if required secrets (`HYPERLIQUID_TESTNET_PK`) are missing, the service will refuse to start.
+- **Redis Disconnect:** If the Redis connection drops, the service will halt entries (`fail_closed_on_redis_error=True`) and gracefully stop, writing a `HALTED` or `DEGRADED` runtime snapshot.
+- **Restart/Recovery:** Upon restart, Nautilus queries the venue (e.g., Hyperliquid) for open positions and open orders. These residual positions/orders are tracked and appended to the new runtime snapshot under `residual_open_positions` and `residual_open_orders`. The service does NOT automatically close them; it relies on manual operator intervention or an explicit cleanup script to prevent unsafe automated unwinding.
+
+### Feedback Consumer and DuckDB Persistence
+The `rektslug-feedback-consumer` is also designed to fail closed.
+- **Redis Disconnect:** The consumer attempts to reconnect indefinitely (with backoff) rather than crashing, ensuring it is always ready to receive feedback once the broker recovers.
+- **DuckDB Unavailable:** If the `FeedbackDBService` cannot acquire a write lock on the DuckDB file, the consumer logs errors and increments failure metrics, dropping the feedback in memory to avoid blocking.
+- **API Failure:** The `/signals/continuous-report` API will fail closed with a `503 Service Unavailable` if the DuckDB connection fails or if the `feedback_persisted` counter cannot be accurately measured.
+
+## 5. Mismatch Visibility and NFR-002 (Async Boundary)
+
+- **Publish/Persist Mismatches:** The continuous report exposes both `feedback_published` (from Nautilus) and `feedback_persisted` (from DuckDB). Any discrepancy (`feedback_published != feedback_persisted`) is immediately visible in the report payload and will cause automated acceptance checks (evidence packages) to fail, blocking a "green" result.
+- **NFR-002 (Non-blocking):** Nautilus writes feedback to Redis using a strict `socket_timeout`. The DuckDB persistence layer operates asynchronously on the `rektslug` side. This explicit async boundary at Redis guarantees that slow disk I/O on the DuckDB file never blocks the critical path of the Nautilus event loop.
