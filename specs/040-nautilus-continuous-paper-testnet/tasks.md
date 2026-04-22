@@ -19,7 +19,7 @@ Phase-1 note:
 - [x] T007 Define the `rektslug-feedback-consumer` service contract in `rektslug`
 - [ ] T008 Freeze secret handling for `HYPERLIQUID_TESTNET_PK` using dotenvx/env
 - [ ] T009 Freeze restart policy, shutdown behavior, and healthcheck semantics
-- [ ] T009B Implement and test paper/testnet mode separation: service must
+- [x] T009B Implement and test paper/testnet mode separation: service must
   fail-closed if configured mode is inconsistent with venue/environment
   (covers FR-006)
 - [ ] T010 Document the final runtime topology in runbook form
@@ -50,18 +50,18 @@ Phase-3 intent:
 
 ## Phase 4: Continuous Runtime Wiring
 
-- [ ] T016 Define the continuous Nautilus runtime config:
+- [x] T016 Define the continuous Nautilus runtime config:
   mode, symbol allowlist, confidence floor, max size, max concurrent exposure,
   max runtime window, Redis endpoint, feedback contract
-- [ ] T017R RED: write failing tests or acceptance checks for real runtime
+- [x] T017R RED: write failing tests or acceptance checks for real runtime
   counters replacing the current placeholder values
-- [ ] T018R RED: write integration test asserting the continuous service
+- [x] T018R RED: write integration test asserting the continuous service
   consumes a signal from Redis and publishes feedback within timeout
-- [ ] T018 Implement or wire the long-running paper/testnet service in
+- [x] T018 Implement or wire the long-running paper/testnet service in
   `nautilus_dev`
-- [ ] T019 Verify that real `rektslug` signals are consumed without manual
+- [x] T019 Verify that real `rektslug` signals are consumed without manual
   injection
-- [ ] T020 Verify that every accepted execution path can publish feedback back
+- [x] T020 Verify that every accepted execution path can publish feedback back
   into `rektslug`
 
 ## Phase 5: Recovery and Fail-Closed Behavior
