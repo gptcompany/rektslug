@@ -135,14 +135,16 @@ placeholder counters:
 
 ## Inter-Phase Dependencies
 
-- Phase 2 depends on Phase 1 because service ownership and deployment shape must
-  be frozen before wiring runtime code or ops.
+- Phase 2 depends on Phase 1 because deployment shape must be frozen before
+  wiring runtime code or ops.
 - Phase 3 depends on Phase 2 because the feedback consumer must be defined
-  before the G3 report can be trusted.
-- Phase 4 depends on Phase 2 and Phase 3 because restart/recovery tests need the
-  final service topology and persistence boundaries.
-- Phase 5 depends on Phase 3 and Phase 4 because evidence is only meaningful
-  after real continuous runtime and recovery behavior are frozen.
+  before persistence and reporting can be trusted.
+- Phase 4 depends on Phase 2 and Phase 3 because runtime wiring needs service
+  topology and persistence boundaries.
+- Phase 5 depends on Phase 4 because recovery tests need the final service
+  topology.
+- Phase 6 depends on Phase 4 and Phase 5 because evidence needs real runtime and
+  recovery behavior.
 
 ## Phase 1: Contract Freeze
 
@@ -158,14 +160,20 @@ placeholder counters:
 3. Freeze secret injection and environment separation for paper/testnet.
 4. Freeze healthcheck, restart policy, and shutdown expectations.
 
-## Phase 3: Runtime Metrics and Reporting
+## Phase 3: Feedback Persistence and Metrics
 
-1. Replace placeholder continuous counters with real runtime counters.
-2. Define the unified continuous report schema and evidence locations.
-3. Ensure feedback persistence is counted from actual DuckDB writes.
-4. Ensure the report is reconcilable against Redis, logs, and DuckDB.
+1. Wire the feedback consumer into the production runtime as a service.
+2. Ensure feedback persistence is counted from actual DuckDB writes.
+3. Produce a machine-readable continuous report contract with non-null
+   lifecycle counters.
 
-## Phase 4: Recovery and Fail-Closed Behavior
+## Phase 4: Continuous Runtime Wiring
+
+1. Define the continuous Nautilus runtime config in `nautilus_dev`.
+2. Replace placeholder continuous counters with real runtime counters.
+3. Verify real `rektslug` signals are consumed and feedback is published.
+
+## Phase 5: Recovery and Fail-Closed Behavior
 
 1. Define restart-safe expectations for the Nautilus service.
 2. Define restart-safe expectations for the feedback consumer.
@@ -173,7 +181,7 @@ placeholder counters:
 4. Verify degraded paths fail closed: Redis unavailable, DuckDB unavailable,
    venue/API unavailable, feedback publish/persist mismatch.
 
-## Phase 5: G3 Evidence and Review Package
+## Phase 6: G3 Evidence and Review Package
 
 1. Produce a real continuous paper/testnet run with non-placeholder counters.
 2. Produce a machine-readable summary that proves lifecycle closure.

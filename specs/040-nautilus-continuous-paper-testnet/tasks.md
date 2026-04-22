@@ -19,6 +19,9 @@ Phase-1 note:
 - [x] T007 Define the `rektslug-feedback-consumer` service contract in `rektslug`
 - [ ] T008 Freeze secret handling for `HYPERLIQUID_TESTNET_PK` using dotenvx/env
 - [ ] T009 Freeze restart policy, shutdown behavior, and healthcheck semantics
+- [ ] T009B Implement and test paper/testnet mode separation: service must
+  fail-closed if configured mode is inconsistent with venue/environment
+  (covers FR-006)
 - [ ] T010 Document the final runtime topology in runbook form
 
 Phase-2 note:
@@ -33,6 +36,8 @@ Phase-2 note:
   persistence accounting in `rektslug`
 - [ ] T012 Wire the feedback consumer into the production runtime as a service,
   not just a module/CLI
+- [ ] T013R RED: write failing test asserting continuous metrics return measured
+  values (not placeholders) from actual runtime counters
 - [ ] T013 Replace placeholder continuous metrics with measured runtime counters
 - [ ] T014 Ensure `feedback_persisted` is counted from actual DuckDB writes, not
   inferred from logs
@@ -50,6 +55,8 @@ Phase-3 intent:
   max runtime window, Redis endpoint, feedback contract
 - [ ] T017R RED: write failing tests or acceptance checks for real runtime
   counters replacing the current placeholder values
+- [ ] T018R RED: write integration test asserting the continuous service
+  consumes a signal from Redis and publishes feedback within timeout
 - [ ] T018 Implement or wire the long-running paper/testnet service in
   `nautilus_dev`
 - [ ] T019 Verify that real `rektslug` signals are consumed without manual
@@ -67,6 +74,9 @@ Phase-3 intent:
   reported after restart or shutdown
 - [ ] T026 Verify feedback publish/persist mismatches are visible and block a
   green result
+- [ ] T026B Verify feedback consumer and DuckDB writes do not block the
+  Nautilus event loop (NFR-002): measure round-trip latency under load,
+  confirm async boundary at Redis
 
 ## Phase 6: Evidence and Review
 
@@ -79,5 +89,8 @@ Phase-3 intent:
 - [ ] T030 Update `docs/EXECUTION_READINESS_ROADMAP.md` with the spec-040 result
 - [ ] T031 Update `docs/EXECUTION_READINESS_EXTERNAL_REVIEW.md` with reviewer
   entry points for the continuous runtime
+- [ ] T031B Document public interfaces: feedback consumer Redis contract,
+  continuous report JSON schema, and healthcheck endpoints in
+  `docs/ARCHITECTURE.md` or dedicated doc
 - [ ] T032 Final review: confirm no secrets leak into logs, runbooks, reports,
   or committed artifacts

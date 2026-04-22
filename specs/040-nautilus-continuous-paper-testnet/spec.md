@@ -286,13 +286,17 @@ This spec does not claim any of the following:
 - systemd/compose/runbook decisions for how the two runtimes coexist
 - an evidence package template for continuous paper/testnet runs
 
+## Resolved Questions
+
+1. Should the feedback consumer live in compose or systemd?
+   **RESOLVED**: compose-managed service in `rektslug` Docker Compose
+   (frozen).
+
 ## Open Questions
 
-1. Should the feedback consumer live in compose or systemd on the `rektslug`
-   side?
-2. What is the minimum accepted runtime window for G3: time-based,
+1. What is the minimum accepted runtime window for G3: time-based,
    signal-count-based, or both?
-3. Is the first production-usable downstream mode `paper`, `testnet`, or a
+2. Is the first production-usable downstream mode `paper`, `testnet`, or a
    documented split where both exist but only one is promoted?
-4. Which metrics are mandatory for promotion review beyond lifecycle counts:
+3. Which metrics are mandatory for promotion review beyond lifecycle counts:
    latency, PnL, residual exposure, recovery count, venue errors?
