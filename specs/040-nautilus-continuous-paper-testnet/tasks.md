@@ -2,27 +2,29 @@
 
 ## Phase 1: Contract Freeze
 
-- [ ] T001 Freeze multi-repo ownership boundaries for `rektslug` and `nautilus_dev`
+- [x] T001 Freeze multi-repo ownership boundaries for `rektslug` and `nautilus_dev`
 - [x] T002 Freeze the first deployment shape:
   `systemd-separated Nautilus service` or `cross-repo compose service`
-- [ ] T003 Freeze required lifecycle states and mandatory counters for G3
-- [ ] T004 Freeze fail-closed conditions for execution, feedback, and cleanup
-- [ ] T005 Freeze continuous-mode evidence schema and report locations
+- [x] T003 Freeze required lifecycle states and mandatory counters for G3
+- [x] T004 Freeze fail-closed conditions for execution, feedback, and cleanup
+- [x] T005 Freeze continuous-mode evidence schema and report locations
 
 Phase-1 note:
-- T003-T005 are the remaining analysis tasks before implementation should start.
+- ownership, lifecycle, fail-closed, and evidence contracts are frozen in
+  `spec.md`, `plan.md`, `docs/CONTINUOUS_RUNTIME.md`, and the retained G3
+  evidence package.
 
 ## Phase 2: Service Topology
 
-- [ ] T006 Define the `nautilus-liquidation-paper-testnet` service contract in
+- [x] T006 Define the `nautilus-liquidation-paper-testnet` service contract in
   `nautilus_dev`
 - [x] T007 Define the `rektslug-feedback-consumer` service contract in `rektslug`
-- [ ] T008 Freeze secret handling for `HYPERLIQUID_TESTNET_PK` using dotenvx/env
-- [ ] T009 Freeze restart policy, shutdown behavior, and healthcheck semantics
+- [x] T008 Freeze secret handling for `HYPERLIQUID_TESTNET_PK` using dotenvx/env
+- [x] T009 Freeze restart policy, shutdown behavior, and healthcheck semantics
 - [x] T009B Implement and test paper/testnet mode separation: service must
   fail-closed if configured mode is inconsistent with venue/environment
   (covers FR-006)
-- [ ] T010 Document the final runtime topology in runbook form
+- [x] T010 Document the final runtime topology in runbook form
 
 Phase-2 note:
 - `rektslug-feedback-consumer` is frozen as a separate service, not an

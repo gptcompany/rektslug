@@ -27,6 +27,18 @@ The production baseline now lives in this repo:
 - `redis`: internal pub/sub bus for signal transport
 - `rektslug-shadow-producer`: Hyperliquid snapshot producer and Redis signal publisher
 - `rektslug-shadow-consumer`: shadow-mode signal consumer with WebSocket liquidation correlation, circuit breaker checks, and report persistence
+- `rektslug-feedback-consumer`: continuous execution-feedback persistence service writing to dedicated `signal_feedback.duckdb`
+
+The continuous paper/testnet execution lane is now also closed through
+`spec-040`, but it remains intentionally split across repositories:
+
+- `rektslug`: signals, Redis contracts, feedback persistence, reporting, evidence
+- `nautilus_dev`: Nautilus continuous execution runtime and venue lifecycle
+
+Retained real G3 evidence lives in:
+
+- `specs/040-nautilus-continuous-paper-testnet/EVIDENCE_PACKAGE.md`
+- `specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/`
 
 Host systemd timers are part of the production runtime:
 

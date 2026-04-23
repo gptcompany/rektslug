@@ -19,6 +19,13 @@ runtime, systemd timers, validation evidence, and production boundary.
 
 See [Production Checklist](PRODUCTION_CHECKLIST.md) for operational checks.
 
+See [Continuous Runtime Contracts](CONTINUOUS_RUNTIME.md) for the spec-040
+feedback/report contract and cross-repo runtime boundary.
+
+See
+[spec-040 Evidence Package](../specs/040-nautilus-continuous-paper-testnet/EVIDENCE_PACKAGE.md)
+for the retained real G3 session and reconciliation outputs.
+
 ## API Reference
 
 See [API Reference](api/index.md) for API documentation.

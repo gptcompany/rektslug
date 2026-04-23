@@ -1,10 +1,11 @@
 # rektslug Production E2E Status
 
-Last verified: 2026-04-21
+Last verified: 2026-04-23
 
 `rektslug` is an enabled end-to-end production service. Treat this repository as
 the production owner for data sync, API serving, Hyperliquid shadow validation,
-historical snapshot backfill, and automated health monitoring.
+historical snapshot backfill, automated health monitoring, and execution
+feedback persistence/reporting for the continuous paper/testnet runtime.
 
 ## Enabled Runtime
 
@@ -17,6 +18,9 @@ The production runtime is split across Docker services and host systemd timers.
 - `redis`: internal pub/sub bus for signal transport.
 - `rektslug-shadow-producer`: Hyperliquid snapshot producer and Redis signal publisher.
 - `rektslug-shadow-consumer`: shadow-mode signal consumer with WebSocket liquidation stream correlation, circuit breaker checks, and report persistence.
+- `rektslug-feedback-consumer`: execution feedback persistence service consuming
+  `liquidation:feedback:{symbol}` and writing to dedicated
+  `signal_feedback.duckdb`.
 
 Start or refresh the Docker runtime:
 
@@ -39,6 +43,36 @@ systemctl list-timers lh-ingestion.timer lh-ccxt-gap-fill.timer lh-hl-backfill-m
 ```
 
 ## Verified Evidence
+
+### Continuous Paper/Testnet Runtime
+
+`spec-040` is now closed with retained real G3 evidence.
+
+Retained session:
+
+- `specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/`
+
+Observed retained counters:
+
+```json
+{
+  "signals_seen": 1,
+  "signals_accepted": 1,
+  "positions_opened": 1,
+  "positions_closed": 1,
+  "feedback_published": 1,
+  "feedback_persisted": 1,
+  "report_status": "ok",
+  "gate_status": "READY_FOR_REVIEW"
+}
+```
+
+Runtime boundary for this lane remains explicit:
+
+- `rektslug`: signal production, Redis contracts, feedback persistence, reporting
+- `nautilus_dev`: continuous Nautilus execution runtime on testnet
+
+### Hyperliquid Backfill Monitor
 
 The Hyperliquid backfill monitor was installed and validated through real
 systemd, not only through local script execution.
@@ -89,12 +123,20 @@ docker logs rektslug-shadow-consumer --tail 80
 docker exec rektslug-shadow-consumer jq .summary /var/lib/rektslug-db/shadow_report.json
 ```
 
+For the continuous paper/testnet runtime evidence:
+
+```bash
+cat specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/session_result.json
+cat specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/evidence/summary.json
+```
+
 ## Production Boundary
 
 `rektslug` is production-enabled for signal production, API serving, shadow
-validation, and monitoring. Downstream execution systems such as NT Trader or
-Nautilus must consume `rektslug` APIs/signals and provide their own execution
-evidence before any live trading claim is made.
+validation, backfill, monitoring, and execution-feedback persistence/reporting.
+Downstream execution systems such as NT Trader or Nautilus must still provide
+their own execution runtime and venue evidence before any live trading claim is
+made.
 
 Do not describe partial wiring as complete. A production-green state must be
 backed by concrete output from Docker, systemd, tests, or persisted reports.

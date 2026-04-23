@@ -1,7 +1,8 @@
 # LiquidationHeatmap Architecture
 
-> **Note**: Canonical architecture source. Auto-updated by architecture-validator.
-> Last generated: 2026-03-03
+> **Note**: Canonical architecture source. Updated to reflect the production
+> runtime and spec-040 continuous paper/testnet closeout.
+> Last updated: 2026-04-23
 
 ## Overview
 
@@ -19,6 +20,86 @@ LiquidationHeatmap is a cryptocurrency liquidation analysis system that calculat
 - **YAGNI** (You Ain't Gonna Need It): Build for today's problems, not hypothetical futures
 - **Code Reuse First**: Leverage py-liquidation-map formulas instead of reinventing algorithms
 - **Test-Driven Development**: Red-Green-Refactor discipline enforced by TDD guard
+
+## Current Runtime Topology
+
+The current production-oriented runtime is broader than the original
+Binance-first heatmap server. The system now has four concrete runtime lanes:
+
+1. Public/API lane in `rektslug`
+2. Signal/shadow lane in `rektslug`
+3. Historical backfill/monitoring lane in `rektslug`
+4. Continuous paper/testnet execution lane split across `rektslug` and
+   `nautilus_dev`
+
+### rektslug Docker Runtime
+
+The active Docker services are:
+
+- `rektslug-api`: FastAPI/API surface and dashboard endpoints
+- `rektslug-sync`: gap-fill/runtime sync worker
+- `redis`: internal pub/sub bus
+- `rektslug-shadow-producer`: Hyperliquid snapshot producer and Redis signal publisher
+- `rektslug-shadow-consumer`: shadow-mode consumer with WS liquidation correlation
+- `rektslug-feedback-consumer`: always-on feedback persistence service for execution feedback
+
+### Host Timers
+
+The host runtime also includes:
+
+- `lh-ingestion.timer`
+- `lh-ccxt-gap-fill.timer`
+- `lh-hl-backfill-monitor.timer`
+
+### Continuous Execution Boundary
+
+`spec-040` deliberately preserves a multi-repo boundary:
+
+- `rektslug` owns signal production, Redis contracts, feedback persistence,
+  reporting, monitoring, and retained evidence
+- `nautilus_dev` owns the continuous Nautilus execution runtime, venue
+  connectivity, reconciliation, and order lifecycle
+
+The accepted topology is:
+
+```text
+rektslug signal
+  -> Redis liquidation:signals:{symbol}
+  -> nautilus_dev continuous testnet runtime
+  -> Redis liquidation:feedback:{symbol}
+  -> rektslug-feedback-consumer
+  -> signal_feedback.duckdb
+  -> /signals/continuous-report + retained evidence package
+```
+
+### Current Persistent Stores
+
+- `liquidations.duckdb`: analytical/history/runtime store used by the core
+  heatmap and shadow runtime
+- `signal_feedback.duckdb`: dedicated execution-feedback DuckDB for
+  `rektslug-feedback-consumer`
+- Redis: async boundary between signal production, execution, and feedback
+
+The dedicated `signal_feedback.duckdb` split is intentional. It prevents
+DuckDB writer lock contention between the shadow runtime and the always-on
+feedback writer.
+
+### Retained Continuous Runtime Evidence
+
+`spec-040` is not only code-complete; it has retained real G3 evidence:
+
+- evidence package:
+  `specs/040-nautilus-continuous-paper-testnet/EVIDENCE_PACKAGE.md`
+- retained session:
+  `specs/040-nautilus-continuous-paper-testnet/g3_session/20260422T212929Z/`
+
+That retained session proves:
+
+- real `rektslug` signal consumed by Nautilus
+- position opened and closed on testnet
+- feedback published to Redis
+- feedback persisted to DuckDB
+- reconciled review summary with `gate_status=READY_FOR_REVIEW`
 
 ## Tech Stack
 

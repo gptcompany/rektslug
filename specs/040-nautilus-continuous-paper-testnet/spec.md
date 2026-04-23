@@ -2,7 +2,7 @@
 
 **Feature Branch**: `040-nautilus-continuous-paper-testnet`
 **Created**: 2026-04-21
-**Status**: Draft (deployment decision frozen)
+**Status**: Implemented with retained G3 evidence
 **Input**: Close the remaining execution gap after the production `rektslug`
 signal/shadow/backfill runtime by defining a continuous paper/testnet runtime
 that can consume real `rektslug` signals, execute through Nautilus, persist
