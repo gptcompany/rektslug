@@ -21,8 +21,18 @@ while true; do
     if ! uv run python scripts/precompute_hl_sidecar.py 2>&1; then
         echo "[$(date -u)] WARNING: precompute_hl_sidecar.py failed, skipping publish"
     else
-        # Publish signals for each tracked symbol
+        snapshot_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
         for symbol in BTCUSDT ETHUSDT; do
+            if ! uv run python -m src.liquidationheatmap.hyperliquid.producer \
+                --snapshot-ts "$snapshot_ts" \
+                --run-kind extra \
+                --symbol "$symbol" 2>&1; then
+                echo "[$(date -u)] WARNING: expert snapshot export failed for $symbol"
+                continue
+            fi
+
+        # Publish signals for each tracked symbol
             if ! uv run python scripts/publish_signals_from_snapshot.py --symbol "$symbol" --top-n 5 2>&1; then
                 echo "[$(date -u)] WARNING: publish failed for $symbol"
             fi

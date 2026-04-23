@@ -1044,6 +1044,36 @@ def test_prepare_symbol_contexts_reuses_shared_anchor_state(monkeypatch: pytest.
     assert load_calls == [("/tmp/anchor.rmp", None)]
 
 
+def test_prepare_symbol_context_filters_anchor_load_by_target_coin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    load_calls: list[tuple[str, str | None]] = []
+    shared_state = _sidecar_state(["0x1"], coin="BTC", mark_price=60000.0)
+
+    def fake_load(self, path, *, target_coin=None):
+        load_calls.append((str(path), target_coin))
+        return shared_state
+
+    class FakeBuilder:
+        def build(self, request):
+            return SimpleNamespace(
+                bin_size=10.0,
+                anchor_coverage=SimpleNamespace(
+                    latest_anchor_in_window=Path("/tmp/latest-anchor.rmp")
+                ),
+            )
+
+    monkeypatch.setattr(precompute, "HyperliquidSidecarPrototypeBuilder", FakeBuilder)
+    monkeypatch.setattr(precompute.SidecarPositionReconstructor, "load_abci_anchor", fake_load)
+    monkeypatch.setattr(precompute, "LIVE_ENRICH_TOP_N", 0)
+
+    context = precompute._prepare_symbol_context("BTC", enable_live_enrichment=False)
+
+    assert context is not None
+    assert context.target_coin == "BTC"
+    assert load_calls == [("/tmp/latest-anchor.rmp", "BTC")]
+
+
 def test_asset_meta_tables_use_mark_price_overrides_when_contexts_missing() -> None:
     meta = AssetMetaSnapshot.from_api(
         {

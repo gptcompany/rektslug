@@ -158,6 +158,10 @@ services:
       - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
       - ${HL_ABCI_DIR:-/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data}:/var/lib/rektslug-hl:ro
       - ./data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 6g
     healthcheck:
       test: ["CMD-SHELL", "find /app/data/cache -name 'hl_sidecar_btcusdt.json' -mmin -10 | grep -q ."]
       interval: 60s

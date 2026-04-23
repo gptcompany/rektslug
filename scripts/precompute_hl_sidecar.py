@@ -1073,11 +1073,15 @@ def _prepare_symbol_context(
         logger.warning("No ABCI anchor for %s, skipping", symbol)
         return None
 
+    target_coin = request.target_coin
     reconstructor = SidecarPositionReconstructor()
     state = (
         shared_state
         if shared_state is not None
-        else reconstructor.load_abci_anchor(Path(effective_anchor), target_coin=None)
+        else reconstructor.load_abci_anchor(
+            Path(effective_anchor),
+            target_coin=target_coin,
+        )
     )
     logger.info(
         "%s: %d accounts, reconstructing liquidation prices...",
@@ -1086,8 +1090,6 @@ def _prepare_symbol_context(
     )
 
     bin_size = plan.bin_size
-    target_coin = request.target_coin
-
     target_asset_idx = None
     for pos_list in state.users.values():
         for position in pos_list.positions:
