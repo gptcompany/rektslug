@@ -1068,51 +1068,9 @@ class DuckDBService:
             expected_per_day=96,
             min_ratio=0.50,
         )
-
-        if requested == "1m":
-            if has_1m:
-                return table_1m, "1m"
-            if has_5m:
-                logger.warning(
-                    "Requested 1m klines for %s but coverage is insufficient; falling back to 5m",
-                    symbol,
-                )
-                return table_5m, "5m"
-            if has_15m:
-                return table_15m, "15m"
-            raise ValueError(f"No usable kline data for symbol={symbol}")
-
-        if requested == "5m":
-            if has_5m:
-                return table_5m, "5m"
-            if has_1m:
-                logger.warning(
-                    "Requested 5m klines for %s but coverage is insufficient; falling back to 1m",
-                    symbol,
-                )
-                return table_1m, "1m"
-            if has_15m:
-                return table_15m, "15m"
-            raise ValueError(f"No usable kline data for symbol={symbol}")
-
-        if requested == "15m":
-            if has_15m:
-                return table_15m, "15m"
-            if has_5m:
-                return table_5m, "5m"
-            if has_1m:
-                return table_1m, "1m"
-            raise ValueError(f"No usable kline data for symbol={symbol}")
-
-        # auto policy: prefer 1m only for short windows where higher granularity matters.
-        if lookback_days <= 7 and has_1m:
-            return table_1m, "1m"
-        if has_5m:
-            return table_5m, "5m"
-        if has_15m:
-            return table_15m, "15m"
-        if has_1m:
-            return table_1m, "1m"
+        has_1m_stale = False
+        has_5m_stale = False
+        has_15m_stale = False
         if allow_stale_fallback:
             has_1m_stale = self._has_kline_coverage(
                 table_1m,
@@ -1138,6 +1096,73 @@ class DuckDBService:
                 min_ratio=0.50,
                 freshness_minutes=None,
             )
+
+        if requested == "1m":
+            if has_1m:
+                return table_1m, "1m"
+            if has_5m:
+                logger.warning(
+                    "Requested 1m klines for %s but coverage is insufficient; falling back to 5m",
+                    symbol,
+                )
+                return table_5m, "5m"
+            if has_15m:
+                return table_15m, "15m"
+            if allow_stale_fallback:
+                if has_5m_stale:
+                    return table_5m, "5m"
+                if has_15m_stale:
+                    return table_15m, "15m"
+                if has_1m_stale:
+                    return table_1m, "1m"
+            raise ValueError(f"No usable kline data for symbol={symbol}")
+
+        if requested == "5m":
+            if has_5m:
+                return table_5m, "5m"
+            if has_1m:
+                logger.warning(
+                    "Requested 5m klines for %s but coverage is insufficient; falling back to 1m",
+                    symbol,
+                )
+                return table_1m, "1m"
+            if has_15m:
+                return table_15m, "15m"
+            if allow_stale_fallback:
+                if has_1m_stale:
+                    return table_1m, "1m"
+                if has_15m_stale:
+                    return table_15m, "15m"
+                if has_5m_stale:
+                    return table_5m, "5m"
+            raise ValueError(f"No usable kline data for symbol={symbol}")
+
+        if requested == "15m":
+            if has_15m:
+                return table_15m, "15m"
+            if has_5m:
+                return table_5m, "5m"
+            if has_1m:
+                return table_1m, "1m"
+            if allow_stale_fallback:
+                if has_5m_stale:
+                    return table_5m, "5m"
+                if has_15m_stale:
+                    return table_15m, "15m"
+                if has_1m_stale:
+                    return table_1m, "1m"
+            raise ValueError(f"No usable kline data for symbol={symbol}")
+
+        # auto policy: prefer 1m only for short windows where higher granularity matters.
+        if lookback_days <= 7 and has_1m:
+            return table_1m, "1m"
+        if has_5m:
+            return table_5m, "5m"
+        if has_15m:
+            return table_15m, "15m"
+        if has_1m:
+            return table_1m, "1m"
+        if allow_stale_fallback:
             if has_1m_stale or has_5m_stale or has_15m_stale:
                 logger.warning(
                     "No fresh kline source for %s (%sd); using stale fallback data for legacy liq-map",
@@ -1724,6 +1749,7 @@ class DuckDBService:
         interval: str = "15m",
         price_bin_size: float = 100.0,
         leverage_weights: Optional[dict[int, float]] = None,
+        allow_stale_kline_fallback: bool = False,
     ) -> list[Any]:
         """Fetch data and calculate time-evolving heatmap snapshots.
 
@@ -1747,11 +1773,18 @@ class DuckDBService:
         if start_time:
             try:
                 dt_start = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                if dt_start.tzinfo is None:
+                    dt_start = dt_start.replace(tzinfo=timezone.utc)
                 lookback_days = (datetime.now(timezone.utc) - dt_start).days
-            except:
+            except ValueError:
                 pass
 
-        table_name, source_interval = self._resolve_oi_kline_source(symbol, lookback_days, interval)
+        table_name, source_interval = self._resolve_oi_kline_source(
+            symbol,
+            lookback_days,
+            interval,
+            allow_stale_fallback=allow_stale_kline_fallback,
+        )
 
         # 1. Fetch Candles
         candle_query = f"""

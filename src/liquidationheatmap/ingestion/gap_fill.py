@@ -7,7 +7,7 @@ Venue: BINANCE only (consistent with CSV pipeline).
 
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -90,7 +90,6 @@ def _fill_klines_interval(
     dry_run: bool,
 ) -> dict:
     """Fill klines gap for a single interval from OHLCV Parquet files to QuestDB."""
-    minutes = _kline_minutes(interval)
     glob_path = parquet_glob(catalog, "ohlcv", symbol)
 
     # Use QuestDB watermark instead of DuckDB
@@ -337,7 +336,7 @@ def validate_gaps(qdb: QuestDBService, symbol: str, watermark_ts: datetime | Non
         return
 
     # QuestDB query for gaps
-    # timestamp subtraction in QuestDB returns microseconds. 
+    # timestamp subtraction in QuestDB returns microseconds.
     # 300s * 1.5 = 450s = 450,000,000 micros.
     query = """
         SELECT count(*) FROM (
@@ -395,7 +394,15 @@ def run_gap_fill(
         return {"symbols": {}, "total_inserted": 0, "error": "questdb_unavailable"}
 
     if db.exists():
-        con = duckdb.connect(str(db), read_only=True)
+        try:
+            con = duckdb.connect(str(db), read_only=True)
+        except Exception as exc:
+            logger.warning(
+                "Gap fill: historical DuckDB %s unavailable for read-only open (%s), using in-memory DuckDB for Parquet reads",
+                db,
+                exc,
+            )
+            con = duckdb.connect(":memory:")
     else:
         logger.info(
             "Gap fill: historical DuckDB %s not found, using in-memory DuckDB for Parquet reads",

@@ -1,9 +1,6 @@
 """Tests for heatmap timeseries pre-computation script (spec-024 Phase 2)."""
-import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestPrecomputeSingle:
@@ -13,7 +10,7 @@ class TestPrecomputeSingle:
         """When last cached timestamp is very recent, nothing to compute."""
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-        with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as MockDB:
+        with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as mock_db:
             mock_rw = MagicMock()
             mock_rw.__enter__ = MagicMock(return_value=mock_rw)
             mock_rw.__exit__ = MagicMock(return_value=False)
@@ -24,7 +21,7 @@ class TestPrecomputeSingle:
             mock_ro.__exit__ = MagicMock(return_value=False)
 
             # Flow: rw(bootstrap) → ro(last_cached) → early return
-            MockDB.side_effect = [mock_rw, mock_ro]
+            mock_db.side_effect = [mock_rw, mock_ro]
 
             from scripts.precompute_heatmap_timeseries import precompute_single
             result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
@@ -41,7 +38,7 @@ class TestPrecomputeSingle:
         }
         mock_snapshot.timestamp = datetime(2026, 3, 19, 12, 0, tzinfo=timezone.utc)
 
-        with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as MockDB:
+        with patch("src.liquidationheatmap.ingestion.db_service.DuckDBService") as mock_db:
             mock_rw = MagicMock()
             mock_rw.put_cached_ts_snapshots.return_value = 1
             mock_rw.__enter__ = MagicMock(return_value=mock_rw)
@@ -54,13 +51,15 @@ class TestPrecomputeSingle:
             mock_ro.__exit__ = MagicMock(return_value=False)
 
             # Flow: rw(bootstrap) → ro(last_cached) → ro(compute) → rw(insert)
-            MockDB.side_effect = [mock_rw, mock_ro, mock_ro, mock_rw]
+            mock_db.side_effect = [mock_rw, mock_ro, mock_ro, mock_rw]
 
             from scripts.precompute_heatmap_timeseries import precompute_single
             # Pass explicit price_bin_size to skip profile resolution
             result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
             assert result == 1
             mock_rw.put_cached_ts_snapshots.assert_called_once()
+            kwargs = mock_ro.get_heatmap_timeseries.call_args.kwargs
+            assert kwargs["allow_stale_kline_fallback"] is True
 
 
 class TestCheckIngestionLock:

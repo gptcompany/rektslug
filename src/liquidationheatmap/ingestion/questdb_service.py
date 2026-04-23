@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import psycopg2
@@ -464,7 +464,7 @@ class QuestDBService:
         """Bulk ingest a Pandas DataFrame into QuestDB via ILP."""
         if not self._sender:
             self._record_ingest(table_name, "unavailable")
-            return
+            raise RuntimeError(f"QuestDB sender unavailable for {table_name}")
         if df.empty:
             return
 
@@ -472,15 +472,40 @@ class QuestDBService:
 
         try:
             with self._open_sender() as sender:
-                sender.dataframe(
-                    df,
-                    table_name=table_name,
-                    symbols=symbol_cols,
-                    at=timestamp_col,
-                )
+                try:
+                    sender.dataframe(
+                        df,
+                        table_name=table_name,
+                        symbols=symbol_cols,
+                        at=timestamp_col,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "QuestDB dataframe ingest unavailable for %s, falling back to row mode: %s",
+                        table_name,
+                        exc,
+                    )
+                    for row in df.itertuples(index=False):
+                        row_dict = row._asdict()
+                        raw_ts = row_dict.pop(timestamp_col)
+                        if hasattr(raw_ts, "to_pydatetime"):
+                            raw_ts = raw_ts.to_pydatetime()
+                        if isinstance(raw_ts, datetime):
+                            if raw_ts.tzinfo is None:
+                                raw_ts = raw_ts.replace(tzinfo=timezone.utc)
+                        else:
+                            at = datetime.fromtimestamp(int(raw_ts) / 1_000_000_000, tz=timezone.utc)
+                        symbols = {col: row_dict.pop(col) for col in symbol_cols if col in row_dict}
+                        sender.row(
+                            table_name,
+                            symbols=symbols,
+                            columns=row_dict,
+                            at=raw_ts if isinstance(raw_ts, datetime) else at,
+                        )
                 sender.flush()
             self._record_ingest(table_name, "success")
             logger.info("Ingested %s rows into QuestDB table %s", len(df), table_name)
         except Exception as exc:
             self._record_ingest(table_name, "error")
             logger.error("QuestDB bulk ingestion failed for %s: %s", table_name, exc)
+            raise
