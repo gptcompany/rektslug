@@ -10,6 +10,7 @@ Usage:
 
 import argparse
 import logging
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,6 +23,25 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+def ensure_oi_table(conn: duckdb.DuckDBPyConnection):
+    """Ensure open_interest_history has the uniqueness contract required by INSERT OR IGNORE."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS open_interest_history (
+            id BIGINT,
+            timestamp TIMESTAMP,
+            symbol VARCHAR,
+            open_interest_value DECIMAL(20, 8),
+            open_interest_contracts DECIMAL(18, 8),
+            source VARCHAR DEFAULT 'binance_csv'
+        )
+    """)
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_open_interest_ts_sym
+        ON open_interest_history(timestamp, symbol)
+    """)
+    logger.info("Table open_interest_history ensured")
 
 
 def get_oi_files(data_dir, symbol, start_date, end_date):
@@ -84,7 +104,10 @@ def load_oi_streaming(conn, data_dir, symbol, start_date, end_date, throttle_ms=
 
     if not files:
         logger.warning(f"No OI files found for {symbol}")
+        load_oi_streaming.last_failed = 0
         return 0
+
+    ensure_oi_table(conn)
 
     # Get initial count for reporting
     initial_count = conn.execute("SELECT COUNT(*) FROM open_interest_history").fetchone()[0]
@@ -143,6 +166,7 @@ def load_oi_streaming(conn, data_dir, symbol, start_date, end_date, throttle_ms=
     logger.info(f"\n✅ Completed: {success_count} files processed, {skip_count} failed")
     logger.info(f"📊 Total rows inserted: {total_rows:,}")
 
+    load_oi_streaming.last_failed = skip_count
     return total_rows
 
 
@@ -177,7 +201,11 @@ def main():
             throttle_ms=args.throttle_ms,
         )
 
+        failed = getattr(load_oi_streaming, "last_failed", 0)
+        failed = failed if isinstance(failed, int) else 0
         console.print(f"\n✅ [bold green]Complete![/bold green] Inserted {total:,} rows")
+        if failed:
+            console.print(f"[bold yellow]Warning:[/bold yellow] {failed} file(s) failed")
 
         # Verify
         count = conn.execute("SELECT COUNT(*) FROM open_interest_history").fetchone()[0]
@@ -193,6 +221,9 @@ def main():
         raise
     finally:
         conn.close()
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

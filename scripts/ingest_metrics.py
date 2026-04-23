@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import logging
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -130,7 +131,7 @@ def main():
     parser.add_argument("--db", default=DB_PATH)
     args = parser.parse_args()
 
-    console.print(f"\nMetrics Streaming Ingestion")
+    console.print("\nMetrics Streaming Ingestion")
     console.print(f"Symbol: {args.symbol}")
     console.print(f"Date range: {args.start_date} to {args.end_date}")
     console.print(f"Database: {args.db}\n")
@@ -174,11 +175,16 @@ def main():
         FROM metrics_history WHERE symbol='{args.symbol}'
     """).fetchone()
     console.print(f"\n✅ Complete! Inserted {total_inserted:,} rows")
-    console.print(f"\nDatabase stats:")
+    if failed:
+        console.print(f"[bold yellow]Warning:[/bold yellow] {failed} file(s) failed")
+    console.print("\nDatabase stats:")
     console.print(f"  Total rows: {stats[0]:,}")
     console.print(f"  Date range: {stats[1]} → {stats[2]}")
 
     conn.close()
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

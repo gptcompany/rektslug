@@ -80,6 +80,9 @@ def main():
     except FileNotFoundError as e:
         log.error("%s", e)
         return 1
+    if result.get("error"):
+        log.error("Gap fill failed: %s", result["error"])
+        return 1
 
     # Print summary
     log.info("")

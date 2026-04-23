@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import logging
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -119,6 +120,7 @@ def load_klines_streaming(
 
     if not files:
         logger.warning(f"No klines files found for {symbol}")
+        load_klines_streaming.last_failed = 0
         return 0
 
     # Get initial count for reporting
@@ -217,6 +219,7 @@ def load_klines_streaming(
     logger.info(f"\n✅ Completed: {success_count} files processed, {skip_count} failed")
     logger.info(f"📊 Total rows inserted: {total_rows:,}")
 
+    load_klines_streaming.last_failed = skip_count
     return total_rows
 
 
@@ -258,7 +261,11 @@ def main():
             throttle_ms=args.throttle_ms,
         )
 
+        failed = getattr(load_klines_streaming, "last_failed", 0)
+        failed = failed if isinstance(failed, int) else 0
         console.print(f"\n✅ [bold green]Complete![/bold green] Inserted {total:,} rows")
+        if failed:
+            console.print(f"[bold yellow]Warning:[/bold yellow] {failed} file(s) failed")
 
         # Verify
         count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
@@ -274,6 +281,9 @@ def main():
         raise
     finally:
         conn.close()
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

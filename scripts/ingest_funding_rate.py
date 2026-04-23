@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import logging
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,24 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+def ensure_funding_table(conn: duckdb.DuckDBPyConnection):
+    """Ensure funding_rate_history has the uniqueness contract required by INSERT OR IGNORE."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS funding_rate_history (
+            id BIGINT,
+            timestamp TIMESTAMP,
+            symbol VARCHAR,
+            funding_rate DECIMAL(10, 8),
+            funding_interval_hours INTEGER
+        )
+    """)
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_funding_rate_ts_sym
+        ON funding_rate_history(timestamp, symbol)
+    """)
+    logger.info("Table funding_rate_history ensured")
 
 
 def get_funding_files(data_dir: Path, symbol: str, start_month: str, end_month: str) -> list[Path]:
@@ -98,7 +117,10 @@ def load_funding_streaming(
 
     if not files:
         logger.warning(f"No funding rate files found for {symbol}")
+        load_funding_streaming.last_failed = 0
         return 0
+
+    ensure_funding_table(conn)
 
     # Get initial count for reporting
     initial_count = conn.execute("SELECT COUNT(*) FROM funding_rate_history").fetchone()[0]
@@ -157,6 +179,7 @@ def load_funding_streaming(
     logger.info(f"\nCompleted: {success_count} files processed, {skip_count} failed")
     logger.info(f"Total rows inserted: {total_rows:,}")
 
+    load_funding_streaming.last_failed = skip_count
     return total_rows
 
 
@@ -195,7 +218,11 @@ def main():
             throttle_ms=args.throttle_ms,
         )
 
+        failed = getattr(load_funding_streaming, "last_failed", 0)
+        failed = failed if isinstance(failed, int) else 0
         console.print(f"\n[bold green]Complete![/bold green] Inserted {total:,} rows")
+        if failed:
+            console.print(f"[bold yellow]Warning:[/bold yellow] {failed} file(s) failed")
 
         # Verify
         count = conn.execute("SELECT COUNT(*) FROM funding_rate_history").fetchone()[0]
@@ -212,6 +239,9 @@ def main():
         raise
     finally:
         conn.close()
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

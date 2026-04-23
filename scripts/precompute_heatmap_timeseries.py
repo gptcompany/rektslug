@@ -183,6 +183,7 @@ def main():
 
     start_time = time.time()
     total_inserted = 0
+    failed = 0
 
     if args.all:
         configs = DEFAULT_CONFIGS
@@ -204,10 +205,13 @@ def main():
             inserted = precompute_single(**cfg)
             total_inserted += inserted
         except Exception as e:
+            failed += 1
             logger.error(f"[{cfg['symbol']}/{cfg['interval']}] Failed: {e}", exc_info=True)
 
     duration = time.time() - start_time
     logger.info(f"Pre-computation complete: {total_inserted} total snapshots in {duration:.1f}s")
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
