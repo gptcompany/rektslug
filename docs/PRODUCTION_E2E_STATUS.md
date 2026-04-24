@@ -102,6 +102,40 @@ Observed post-fix shadow summary:
 }
 ```
 
+### Residual Debt: Hyperliquid ABCI Decoder Memory
+
+This is not a current blocker, but it is still open technical debt.
+
+Current state:
+
+- the producer is operational again
+- the old `2 GiB` limit was not sufficient
+- the producer currently runs with a `6 GiB` container memory limit
+
+What remains inefficient:
+
+- the ABCI anchor decode/reconstruction path still carries a large working set
+- the current mitigation restores service health, but it does so with RAM headroom
+  rather than a fully optimized decoder path
+
+Why this is not a spec-sized item right now:
+
+- no public contract changed
+- no runtime boundary changed
+- no product scope changed
+- the service is already restored and verified
+
+What would make it spec-worthy later:
+
+- a redesign of the Hyperliquid anchor decode path
+- a change in sidecar/export contracts
+- a broader replay/reconstruction architecture change
+
+Current optimization target:
+
+- reduce peak memory enough to bring `rektslug-shadow-producer` back toward a
+  smaller runtime envelope without regressing correctness
+
 ### Continuous Paper/Testnet Runtime
 
 `spec-040` is now closed with retained real G3 evidence.

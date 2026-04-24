@@ -47,6 +47,12 @@ As of 2026-04-24, this Docker runtime is operationally healthy. The remaining
 uncertainty is not internal topology but upstream vendor freshness for some
 feeds, especially `funding_rate`.
 
+One residual runtime debt remains in this lane: the Hyperliquid ABCI decoder
+for the shadow producer still requires a larger memory envelope than desired.
+The current production mitigation is a `6 GiB` limit for the producer
+container. This is acceptable for runtime stability, but it is technical debt,
+not the desired steady-state memory profile.
+
 ### Host Timers
 
 The host runtime also includes:
