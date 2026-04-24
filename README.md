@@ -72,6 +72,12 @@ The `Core Deploy` GitHub Action builds and publishes the core image automaticall
 Current production evidence and operational checks are documented in
 [`docs/PRODUCTION_E2E_STATUS.md`](docs/PRODUCTION_E2E_STATUS.md).
 
+Operational shorthand as of 2026-04-24:
+
+- `rektslug` runtime and internal Docker wiring: `green`
+- external-vendor-dependent freshness: `yellow`
+- `funding_rate` quality/freshness: `red/yellow` when upstream `ccxt-data-pipeline` is stale
+
 ## Quick Start
 
 ```bash

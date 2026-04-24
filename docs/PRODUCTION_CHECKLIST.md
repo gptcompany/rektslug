@@ -10,6 +10,23 @@ green means backed by Docker, systemd, tests, or persisted reports.
 For the current production evidence package, see
 [`PRODUCTION_E2E_STATUS.md`](PRODUCTION_E2E_STATUS.md).
 
+## Current Status Classification
+
+Use this shorthand before claiming the stack is green:
+
+- `green`: internal runtime/service wiring is healthy and recently verified
+- `yellow`: runtime is healthy, but freshness or coverage still depends on an
+  external vendor feed
+- `red`: current lane should not be treated as reliable
+
+Current 2026-04-24 classification:
+
+- `green`: `aggTrades`, `klines`, `metrics`, `rektslug-shadow-producer`,
+  `rektslug-shadow-consumer`, `rektslug-feedback-consumer`
+- `yellow`: `open_interest`, `ccxt -> QuestDB gap fill`, overall continuous
+  quality/readiness
+- `red/yellow`: `funding_rate` when upstream `ccxt-data-pipeline` is stale
+
 Before running aggTrades ingestion in production (especially with n8n workflows),
 run these checks to prevent common failure modes.
 
@@ -30,6 +47,14 @@ Expected active production services:
 - `redis`
 - `rektslug-shadow-producer`
 - `rektslug-shadow-consumer`
+- `rektslug-feedback-consumer`
+
+Expected current producer/runtime state:
+
+- `rektslug-shadow-producer` reports `healthy`
+- no repeated `precompute_hl_sidecar.py failed, skipping publish`
+- fresh Hyperliquid manifests are produced for both `BTCUSDT` and `ETHUSDT`
+- `shadow_report.json` moves away from zeroed counters over time
 
 ### Systemd
 

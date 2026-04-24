@@ -2,7 +2,7 @@
 
 > **Note**: Canonical architecture source. Updated to reflect the production
 > runtime and spec-040 continuous paper/testnet closeout.
-> Last updated: 2026-04-23
+> Last updated: 2026-04-24
 
 ## Overview
 
@@ -42,6 +42,10 @@ The active Docker services are:
 - `rektslug-shadow-producer`: Hyperliquid snapshot producer and Redis signal publisher
 - `rektslug-shadow-consumer`: shadow-mode consumer with WS liquidation correlation
 - `rektslug-feedback-consumer`: always-on feedback persistence service for execution feedback
+
+As of 2026-04-24, this Docker runtime is operationally healthy. The remaining
+uncertainty is not internal topology but upstream vendor freshness for some
+feeds, especially `funding_rate`.
 
 ### Host Timers
 

@@ -1,6 +1,6 @@
 # rektslug Production E2E Status
 
-Last verified: 2026-04-23
+Last verified: 2026-04-24
 
 `rektslug` is an enabled end-to-end production service. Treat this repository as
 the production owner for data sync, API serving, Hyperliquid shadow validation,
@@ -43,6 +43,64 @@ systemctl list-timers lh-ingestion.timer lh-ccxt-gap-fill.timer lh-hl-backfill-m
 ```
 
 ## Verified Evidence
+
+## Current Operational Status
+
+The runtime is currently healthy on the `rektslug` side. The remaining risk is
+data freshness from external vendor-fed inputs, not internal Docker/service
+wiring.
+
+### Green
+
+- `rektslug-api`
+- `rektslug-sync`
+- `redis`
+- `rektslug-shadow-producer`
+- `rektslug-shadow-consumer`
+- `rektslug-feedback-consumer`
+- `aggTrades`
+- `klines`
+- `metrics`
+
+### Yellow
+
+- `open_interest`
+- `ccxt -> QuestDB gap fill`
+- continuous signal/execution/feedback quality as a whole
+
+These lanes are structurally healthy on the `rektslug` side, but their final
+freshness still depends on upstream vendor feeds.
+
+### Red / Yellow
+
+- `funding_rate`
+
+This lane is correct structurally, but should be treated as degraded whenever
+the upstream `ccxt-data-pipeline` source is stale.
+
+### Hyperliquid Shadow Producer Recovery
+
+The Hyperliquid producer was restored on 2026-04-24 after repeated OOM-driven
+failures under the old 2 GiB limit.
+
+Observed recovered state:
+
+- container `healthy`
+- `OOMKilled=false`
+- `RestartCount=0`
+- fresh manifests for `BTCUSDT` and `ETHUSDT`
+- successful Redis publish for both symbols
+
+Observed post-fix shadow summary:
+
+```json
+{
+  "signals_seen": 20,
+  "accepted": 10,
+  "rejected": 10,
+  "accept_rate": 0.5
+}
+```
 
 ### Continuous Paper/Testnet Runtime
 
