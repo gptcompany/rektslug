@@ -72,6 +72,7 @@ def test_ops_summary_success(mock_evidence):
                 assert data["details"]["signals_status"]["connected"] is True
                 assert data["details"]["signals_status_level"] == "HEALTHY"
                 assert data["details"]["continuous_report_status"] == "HEALTHY"
+                assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
                 assert "ownership_note" in data["details"]
 
 
@@ -102,6 +103,7 @@ def test_ops_summary_degraded_when_no_continuous_report(mock_evidence):
                 data = response.json()
                 assert data["status"] != "HEALTHY"
                 assert data["details"]["continuous_report_status"] == "UNAVAILABLE"
+                assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
 
 
 def test_ops_summary_degraded_when_no_evidence():
@@ -138,8 +140,9 @@ def test_ops_summary_degraded_when_no_evidence():
                 response = client.get("/ops/summary")
                 assert response.status_code == 200
                 data = response.json()
-                assert data["status"] == "HEALTHY"
+                assert data["status"] == "DEGRADED"
                 assert data["details"]["latest_evidence_spec040"] is None
+                assert data["details"]["evidence_spec_040_latest_status"] == "UNAVAILABLE"
 
 
 def test_ops_shadow_report_fail_closed():
@@ -296,3 +299,4 @@ def test_ops_summary_degraded_when_redis_disconnected(mock_evidence):
                 assert data["status"] == "DEGRADED"
                 assert data["details"]["redis"] == "UNAVAILABLE"
                 assert data["details"]["signals_status_level"] == "DEGRADED"
+                assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"

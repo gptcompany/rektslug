@@ -120,6 +120,7 @@ async def ops_summary() -> OpsEnvelope:
         "shadow_consumer": "UNAVAILABLE",
         "feedback_consumer": "UNAVAILABLE",
         "continuous_report_status": "UNAVAILABLE",
+        "evidence_spec_040_latest_status": "UNAVAILABLE",
         "shadow_report_status": "UNAVAILABLE",
         "ownership_note": "rektslug does not own execution controls or final readiness.",
         "latest_evidence_spec040": None,
@@ -157,9 +158,23 @@ async def ops_summary() -> OpsEnvelope:
     if evidence:
         try:
             details["latest_evidence_spec040"] = _format_evidence_payload(evidence)
+            evidence_status = _map_gate_status_to_envelope_status(
+                evidence.get("gate_status", "UNKNOWN")
+            )
+            details["evidence_spec_040_latest_status"] = evidence_status
+            if evidence_status == "BLOCKED":
+                status = "BLOCKED"
+            elif evidence_status in ("DEGRADED", "UNAVAILABLE"):
+                if status != "BLOCKED":
+                    status = "DEGRADED"
         except Exception as exc:
             logger.warning(f"Failed to format latest spec-040 evidence: {exc}")
             details["latest_evidence_spec040"] = None
+            if status != "BLOCKED":
+                status = "DEGRADED"
+    else:
+        if status != "BLOCKED":
+            status = "DEGRADED"
 
     return OpsEnvelope(
         status=status,
