@@ -1,15 +1,15 @@
 import asyncio
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.liquidationheatmap.settings import get_settings
+from src.liquidationheatmap.api.routers import admin, liquidations, market, ops, signals
 from src.liquidationheatmap.api.shared import (
     SUPPORTED_EXCHANGES,
     SUPPORTED_SYMBOLS,
@@ -17,7 +17,6 @@ from src.liquidationheatmap.api.shared import (
     _warmup_read_connection,
     get_cors_origins,
 )
-from src.liquidationheatmap.api.routers import admin, market, liquidations, signals
 
 # Configure logging
 logging.basicConfig(
@@ -36,17 +35,18 @@ HEATMAP_TIMEFRAME_ALIASES = {
     "1w": "7d",
 }
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle events: cleanup stale locks and init QuestDB schema."""
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
     from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
-    
+
     # Cleanup DuckDB locks
     if DuckDBService.is_ingestion_locked():
         logger.info("Lifespan: Stale ingestion lock detected, cleaning up...")
         DuckDBService.release_ingestion_lock()
-    
+
     # Initialize QuestDB Schema
     try:
         qdb = QuestDBService()
@@ -54,12 +54,13 @@ async def lifespan(app: FastAPI):
         logger.info("Lifespan: QuestDB schema initialized")
     except Exception as e:
         logger.warning(f"Lifespan: QuestDB schema initialization failed (is QuestDB running?): {e}")
-    
+
     # Optional: warm up connections
     asyncio.create_task(_warmup_read_connection())
 
     # Start WebSocket heartbeat monitoring
     from src.liquidationheatmap.api.websocket import manager
+
     manager.start_heartbeat(interval_seconds=30)
     logger.info("Lifespan: WebSocket heartbeat monitoring started")
 
@@ -70,11 +71,12 @@ async def lifespan(app: FastAPI):
         manager._heartbeat_task.cancel()
         logger.info("Lifespan: WebSocket heartbeat monitoring stopped")
 
+
 app = FastAPI(
     title="Liquidation Heatmap API",
     description="API for accessing liquidation heatmap data and ingestion control.",
     version=os.environ.get("REKTSLUG_VERSION", "0.1.0"),
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
@@ -98,6 +100,8 @@ app.include_router(admin.router)
 app.include_router(market.router)
 app.include_router(liquidations.router)
 app.include_router(signals.router)
+app.include_router(ops.router)
+
 
 @app.get("/health", tags=["System"])
 async def health():
@@ -107,13 +111,15 @@ async def health():
         "service": "liquidation-heatmap",
         "version": os.environ.get("REKTSLUG_VERSION", "0.1.0"),
         "commit_sha": os.environ.get("REKTSLUG_COMMIT_SHA", "unknown"),
-        "build_at": os.environ.get("REKTSLUG_BUILD_AT", "unknown")
+        "build_at": os.environ.get("REKTSLUG_BUILD_AT", "unknown"),
     }
+
 
 # Exception handler: return 503 when ingestion lock is active
 @app.exception_handler(IngestionLockError)
 async def ingestion_lock_handler(request: Request, exc: IngestionLockError):
     from src.liquidationheatmap.api.metrics import DB_LOCK_CONTENTION_TOTAL
+
     DB_LOCK_CONTENTION_TOTAL.inc()
     return JSONResponse(
         status_code=503,
@@ -123,6 +129,7 @@ async def ingestion_lock_handler(request: Request, exc: IngestionLockError):
         },
         headers={"Retry-After": "10"},
     )
+
 
 @app.get("/metrics", tags=["System"])
 async def metrics():
@@ -138,6 +145,7 @@ async def metrics():
     ACTIVE_DB_CONNECTIONS.set(len(DuckDBService._instances))
     QUESTDB_AVAILABLE.set(1 if QuestDBService().is_available() else 0)
     return get_metrics_response()
+
 
 @app.get("/coinglass", tags=["UI"])
 async def coinglass_style_ui():
@@ -258,8 +266,11 @@ async def heatmap_coinank_style(symbol: str, timeframe: str):
         )
     )
 
+
 from fastapi import WebSocket, WebSocketDisconnect
+
 from src.liquidationheatmap.api.websocket import manager
+
 
 @app.websocket("/ws/heatmap/{symbol}/{interval}")
 async def websocket_heatmap(websocket: WebSocket, symbol: str, interval: str):
@@ -270,12 +281,12 @@ async def websocket_heatmap(websocket: WebSocket, symbol: str, interval: str):
     if interval not in ["15m", "1h"]:
         await websocket.close(code=1008, reason="Invalid interval")
         return
-        
+
     key = f"heatmap:{symbol}:{interval}"
     connected = await manager.connect(key, websocket)
     if not connected:
         return
-        
+
     try:
         while True:
             # We just hold the connection and wait for disconnect or ping responses
@@ -284,6 +295,7 @@ async def websocket_heatmap(websocket: WebSocket, symbol: str, interval: str):
                 await websocket.send_json({"type": "pong"})
     except WebSocketDisconnect:
         manager.disconnect(key, websocket)
+
 
 @app.websocket("/ws/liqmap/{symbol}/{timeframe}")
 async def websocket_liqmap(websocket: WebSocket, symbol: str, timeframe: str):
@@ -294,12 +306,12 @@ async def websocket_liqmap(websocket: WebSocket, symbol: str, timeframe: str):
     if timeframe not in ["1d", "1w"]:
         await websocket.close(code=1008, reason="Invalid timeframe")
         return
-        
+
     key = f"liqmap:{symbol}:{timeframe}"
     connected = await manager.connect(key, websocket)
     if not connected:
         return
-        
+
     try:
         while True:
             data = await websocket.receive_text()

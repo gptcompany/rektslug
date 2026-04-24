@@ -86,3 +86,16 @@ def test_feedback_consumer_healthcheck_uses_python_probe(compose_config):
     command = healthcheck.get("test", [])
     assert "--healthcheck" in command
     assert "src.liquidationheatmap.signals.feedback" in command
+
+
+def test_core_services_mount_nautilus_runtime_snapshot(compose_config):
+    api = compose_config["services"]["rektslug-api"]
+    env = api.get("environment", {})
+    volumes = api.get("volumes", [])
+    assert (
+        env.get("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH")
+        == "/var/lib/nautilus-runtime/portfolio-runtime-snapshot.json"
+    )
+    assert any("/var/lib/nautilus-runtime:ro" in volume for volume in volumes)
+    assert env.get("REDIS_HOST") == "${REDIS_HOST:-redis}"
+    assert env.get("REDIS_PORT") == "${REDIS_PORT:-6379}"

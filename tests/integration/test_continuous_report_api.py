@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
+from src.liquidationheatmap.signals import feedback as feedback_module
 from src.liquidationheatmap.signals.feedback import FeedbackDBService
 from src.liquidationheatmap.signals.models import TradeFeedback
 
@@ -52,7 +53,7 @@ def test_continuous_report_returns_session_scoped_measured_values(
             "\"positions_opened\":9,"
             "\"positions_closed\":8,"
             "\"feedback_published\":1,"
-            "\"residual_open_positions\":1,"
+            "\"residual_open_positions\":0,"
             "\"residual_open_orders\":0"
             "}"
         ),
@@ -119,6 +120,68 @@ def test_continuous_report_returns_503_when_runtime_snapshot_missing(
 
     assert response.status_code == 503
     assert "continuous runtime report missing" in response.json()["detail"]
+
+
+def test_continuous_report_uses_nautilus_runtime_snapshot_fallback(
+    temp_runtime_paths, monkeypatch
+):
+    """The API should use the active nautilus_dev runtime snapshot when local path is absent."""
+    db_path, report_path = temp_runtime_paths
+    fallback_path = report_path.parent / "portfolio-runtime-snapshot.json"
+
+    monkeypatch.setenv("FEEDBACK_DB_PATH", str(db_path))
+    monkeypatch.delenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH", raising=False)
+    monkeypatch.delenv("CONTINUOUS_RUNTIME_REPORT_PATH", raising=False)
+    monkeypatch.setattr(
+        feedback_module,
+        "DEFAULT_NAUTILUS_RUNTIME_SNAPSHOT_PATH",
+        fallback_path,
+    )
+
+    session_started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    fallback_path.write_text(
+        (
+            "{"
+            f"\"session_started_at\":\"{session_started_at.isoformat().replace('+00:00', 'Z')}\","
+            "\"timestamp\":\"2026-04-24T00:19:45.553404Z\","
+            "\"runtime_seconds\":200.0,"
+            "\"signals_seen\":3,"
+            "\"signals_rejected\":1,"
+            "\"signals_accepted\":2,"
+            "\"orders_submitted\":2,"
+            "\"orders_rejected\":0,"
+            "\"orders_filled\":2,"
+            "\"positions_opened\":1,"
+            "\"positions_closed\":1,"
+            "\"feedback_published\":1,"
+            "\"residual_open_positions\":0,"
+            "\"residual_open_orders\":0"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+
+    db_service = FeedbackDBService()
+    feedback = TradeFeedback(
+        symbol="BTCUSDT",
+        signal_id="during_session",
+        entry_price=Decimal("95000"),
+        exit_price=Decimal("95500"),
+        pnl=Decimal("500"),
+        source="nautilus",
+    )
+    assert db_service.store_feedback(feedback) is True
+    db_service.close()
+
+    client = TestClient(app)
+    response = client.get("/signals/continuous-report")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["signals_seen"] == 3
+    assert data["feedback_published"] == 1
+    assert data["feedback_persisted"] == 1
+    assert data["report_status"] == "ok"
 
 
 def test_continuous_report_returns_503_when_duckdb_unavailable(
@@ -220,3 +283,97 @@ def test_continuous_report_surfaces_publish_persist_mismatch(
     assert data["persistence_consistent"] is False
     assert data["report_status"] == "blocked"
     assert any("feedback_publish_persist_mismatch" in item for item in data["blocking_issues"])
+
+
+def test_continuous_report_blocks_on_residual_exposure(temp_runtime_paths, monkeypatch):
+    """Residual open positions/orders must be surfaced as blocking issues."""
+    db_path, report_path = temp_runtime_paths
+    monkeypatch.setenv("FEEDBACK_DB_PATH", str(db_path))
+    monkeypatch.setenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH", str(report_path))
+
+    session_started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    report_path.write_text(
+        (
+            "{"
+            f"\"session_started_at\":\"{session_started_at.isoformat().replace('+00:00', 'Z')}\","
+            "\"timestamp\":\"2026-04-24T12:00:00Z\","
+            "\"runtime_seconds\":300.0,"
+            "\"signals_seen\":4,"
+            "\"signals_rejected\":0,"
+            "\"signals_accepted\":4,"
+            "\"orders_submitted\":4,"
+            "\"orders_rejected\":0,"
+            "\"orders_filled\":4,"
+            "\"positions_opened\":2,"
+            "\"positions_closed\":1,"
+            "\"feedback_published\":0,"
+            "\"residual_open_positions\":1,"
+            "\"residual_open_orders\":2"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+
+    client = TestClient(app)
+    response = client.get("/signals/continuous-report")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["report_status"] == "blocked"
+    assert data["residual_open_positions"] == 1
+    assert data["residual_open_orders"] == 2
+    assert "residual_open_positions:1" in data["blocking_issues"]
+    assert "residual_open_orders:2" in data["blocking_issues"]
+
+
+def test_continuous_report_uses_snapshot_copy_when_feedback_writer_holds_lock(
+    temp_runtime_paths, monkeypatch
+):
+    """Read-only report generation must not fail when the writer keeps the DB open."""
+    db_path, report_path = temp_runtime_paths
+    monkeypatch.setenv("FEEDBACK_DB_PATH", str(db_path))
+    monkeypatch.setenv("HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH", str(report_path))
+
+    session_started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    report_path.write_text(
+        (
+            "{"
+            f"\"session_started_at\":\"{session_started_at.isoformat().replace('+00:00', 'Z')}\","
+            "\"timestamp\":\"2026-04-24T12:10:00Z\","
+            "\"runtime_seconds\":300.0,"
+            "\"signals_seen\":1,"
+            "\"signals_rejected\":0,"
+            "\"signals_accepted\":1,"
+            "\"orders_submitted\":1,"
+            "\"orders_rejected\":0,"
+            "\"orders_filled\":1,"
+            "\"positions_opened\":1,"
+            "\"positions_closed\":1,"
+            "\"feedback_published\":1,"
+            "\"residual_open_positions\":0,"
+            "\"residual_open_orders\":0"
+            "}"
+        ),
+        encoding="utf-8",
+    )
+
+    writer_service = FeedbackDBService()
+    feedback = TradeFeedback(
+        symbol="BTCUSDT",
+        signal_id="locked_writer",
+        entry_price=Decimal("95000"),
+        exit_price=Decimal("95500"),
+        pnl=Decimal("500"),
+        source="nautilus",
+    )
+    assert writer_service.store_feedback(feedback) is True
+
+    client = TestClient(app)
+    response = client.get("/signals/continuous-report")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["feedback_persisted"] == 1
+    assert data["report_status"] == "ok"
+
+    writer_service.close()

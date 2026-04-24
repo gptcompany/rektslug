@@ -10,8 +10,10 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import socket
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -26,10 +28,14 @@ from src.liquidationheatmap.signals.redis_client import RedisClient, get_redis_c
 
 logger = logging.getLogger(__name__)
 DEFAULT_FEEDBACK_DB_PATH = "/media/sam/2TB-NVMe/liquidationheatmap_db/liquidations.duckdb"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SIGNAL_FEEDBACK_MIGRATION_PATH = (
-    Path(__file__).resolve().parents[3] / "scripts" / "migrations" / "add_signal_feedback_table.sql"
+    PROJECT_ROOT / "scripts" / "migrations" / "add_signal_feedback_table.sql"
 )
 DEFAULT_CONTINUOUS_RUNTIME_REPORT_NAME = "continuous_runtime_report.json"
+DEFAULT_NAUTILUS_RUNTIME_SNAPSHOT_PATH = (
+    PROJECT_ROOT.parent / "nautilus_dev" / "runtime" / "portfolio-runtime-snapshot.json"
+)
 CONTINUOUS_REPORT_RUNTIME_FIELDS = (
     "session_started_at",
     "timestamp",
@@ -74,7 +80,17 @@ def resolve_continuous_runtime_report_path() -> Path:
     )
     if configured:
         return Path(configured)
-    return Path(resolve_feedback_db_path()).resolve().parent / DEFAULT_CONTINUOUS_RUNTIME_REPORT_NAME
+
+    default_local_path = (
+        Path(resolve_feedback_db_path()).resolve().parent / DEFAULT_CONTINUOUS_RUNTIME_REPORT_NAME
+    )
+    if default_local_path.exists():
+        return default_local_path
+
+    if DEFAULT_NAUTILUS_RUNTIME_SNAPSHOT_PATH.exists():
+        return DEFAULT_NAUTILUS_RUNTIME_SNAPSHOT_PATH
+
+    return default_local_path
 
 
 def _parse_iso8601(value: str, field_name: str) -> datetime:
@@ -146,13 +162,30 @@ class FeedbackDBService:
         self._conn = conn
         self._read_only = read_only
         self._schema_ready = False
+        self._snapshot_dir: tempfile.TemporaryDirectory[str] | None = None
+
+    def _open_read_only_snapshot(self, db_path: Path) -> duckdb.DuckDBPyConnection:
+        """Open a point-in-time copy of the feedback DB to avoid writer lock contention."""
+        self._snapshot_dir = tempfile.TemporaryDirectory(prefix="feedback-db-snapshot-")
+        snapshot_dir = Path(self._snapshot_dir.name)
+        snapshot_db_path = snapshot_dir / db_path.name
+        shutil.copy2(db_path, snapshot_db_path)
+
+        wal_path = db_path.with_suffix(f"{db_path.suffix}.wal")
+        if wal_path.exists():
+            shutil.copy2(wal_path, snapshot_dir / wal_path.name)
+
+        return duckdb.connect(str(snapshot_db_path), read_only=False)
 
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         """Get DuckDB connection (lazy initialization)."""
         if self._conn is None:
             db_path = resolve_feedback_db_path()
-            self._conn = duckdb.connect(db_path, read_only=self._read_only)
+            if self._read_only:
+                self._conn = self._open_read_only_snapshot(Path(db_path))
+            else:
+                self._conn = duckdb.connect(db_path, read_only=False)
         if not self._schema_ready:
             self.ensure_schema()
         return self._conn
@@ -292,6 +325,12 @@ class FeedbackDBService:
                 "feedback_publish_persist_mismatch:"
                 f" published={feedback_published} persisted={feedback_persisted}"
             )
+        residual_open_positions = int(runtime_snapshot["residual_open_positions"])
+        residual_open_orders = int(runtime_snapshot["residual_open_orders"])
+        if residual_open_positions > 0:
+            blocking_issues.append(f"residual_open_positions:{residual_open_positions}")
+        if residual_open_orders > 0:
+            blocking_issues.append(f"residual_open_orders:{residual_open_orders}")
 
         return ContinuousReport(
             session_started_at=session_started_at,
@@ -310,8 +349,8 @@ class FeedbackDBService:
             persistence_consistent=feedback_published == feedback_persisted,
             report_status="blocked" if blocking_issues else "ok",
             blocking_issues=blocking_issues,
-            residual_open_positions=int(runtime_snapshot["residual_open_positions"]),
-            residual_open_orders=int(runtime_snapshot["residual_open_orders"]),
+            residual_open_positions=residual_open_positions,
+            residual_open_orders=residual_open_orders,
         )
 
     def healthcheck(self) -> bool:
@@ -328,6 +367,9 @@ class FeedbackDBService:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+        if self._snapshot_dir is not None:
+            self._snapshot_dir.cleanup()
+            self._snapshot_dir = None
 
 
 class FeedbackConsumer:

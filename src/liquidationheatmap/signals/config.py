@@ -5,14 +5,22 @@ Redis connection settings and signal parameters loaded from environment variable
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
+
+
+def _default_redis_host() -> str:
+    configured = os.getenv("REDIS_HOST")
+    if configured:
+        return configured
+    return "redis" if Path("/.dockerenv").exists() else "localhost"
 
 
 @dataclass(frozen=True)
 class RedisConfig:
     """Redis connection configuration."""
 
-    host: str = field(default_factory=lambda: os.getenv("REDIS_HOST", "localhost"))
+    host: str = field(default_factory=_default_redis_host)
     port: int = field(default_factory=lambda: int(os.getenv("REDIS_PORT", "6379")))
     db: int = field(default_factory=lambda: int(os.getenv("REDIS_DB", "0")))
     password: str | None = field(default_factory=lambda: os.getenv("REDIS_PASSWORD"))

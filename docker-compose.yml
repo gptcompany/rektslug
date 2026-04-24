@@ -29,15 +29,19 @@ x-core-service: &default-core-service
     HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
     HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
     FEEDBACK_DB_PATH: /var/lib/rektslug-db/signal_feedback.duckdb
+    HEATMAP_CONTINUOUS_RUNTIME_REPORT_PATH: /var/lib/nautilus-runtime/portfolio-runtime-snapshot.json
     HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
     HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
     REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
     QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
     QUESTDB_PORT: ${QUESTDB_PORT:-9009}
     QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
+    REDIS_HOST: ${REDIS_HOST:-redis}
+    REDIS_PORT: ${REDIS_PORT:-6379}
   volumes:
     - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
+    - ${NAUTILUS_RUNTIME_DIR:-/media/sam/1TB/nautilus_dev/runtime}:/var/lib/nautilus-runtime:ro
   restart: unless-stopped
   logging: *default-logging
   deploy: *default-deploy
