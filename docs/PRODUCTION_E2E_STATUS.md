@@ -164,6 +164,14 @@ Runtime boundary for this lane remains explicit:
 - `rektslug`: signal production, Redis contracts, feedback persistence, reporting
 - `nautilus_dev`: continuous Nautilus execution runtime on testnet
 
+Unified cockpit note:
+
+- `rektslug` is no longer the blocker for unified cockpit readiness
+- the remaining steady-state requirement is persistent L2/L3 runtime ownership in
+  `nautilus_dev`
+- the verified persistence handoff is tracked in:
+  `specs/040-nautilus-continuous-paper-testnet/NAUTILUS_DEV_RUNTIME_PERSISTENCE_HANDOFF.md`
+
 ### Hyperliquid Backfill Monitor
 
 The Hyperliquid backfill monitor was installed and validated through real

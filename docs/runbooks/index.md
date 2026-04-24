@@ -8,6 +8,7 @@ Operational runbooks for LiquidationHeatmap.
 - `parity-thresholds.md`
 - `hyperliquid-liqmap-checkpoint.md`
 - `nautilus-liquidation-bridge-live-smoke.md`
+- `nautilus-dev-unified-cockpit-runtime.md`
 - `shadow-pipeline-ops.md`
 
 ## Production Status
