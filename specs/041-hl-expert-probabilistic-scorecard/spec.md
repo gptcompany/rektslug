@@ -224,6 +224,8 @@ machine-readable.
   - `side`
   - distance-to-price bucket
   - confidence bucket
+  - Default distance-to-price buckets (bps): `[0-25, 25-50, 50-100, 100-200, 200+]`
+  - Default confidence buckets: `[0.0-0.3, 0.3-0.6, 0.6-0.8, 0.8-1.0]` (aligned with expert confidence output range)
 - **FR-008**: The scorecard SHOULD support a volatility-regime slice when regime labels are available.
 - **FR-009**: The scorecard MUST distinguish signal-quality metrics from execution-quality metrics.
 - **FR-010**: Execution-quality metrics, when present, MUST remain clearly optional and downstream-derived.
@@ -232,11 +234,12 @@ machine-readable.
 - **FR-013**: The scorecard MUST record coverage and missing-data metadata so that absent expert artifacts or absent market windows are explicit.
 - **FR-014**: The scorecard MUST support historical backfill from retained expert artifacts.
 - **FR-015**: The scorecard MUST support incremental append for new live/shadow observations.
-- **FR-016**: The scorecard MUST define explicit observation windows for:
-  - touch detection
-  - liquidation confirmation
-  - post-touch path evaluation
-- **FR-017**: The scorecard MUST declare whether touch detection uses exact level touch, tolerance bands, or bucket overlap semantics. MVP target is explicit tolerance-band semantics.
+- **FR-015B**: The scorecard MUST declare a concrete liquidation-confirmation source contract during implementation. MVP MUST use a persisted normalized liquidation-event source and MUST NOT rely on an implicit or ad hoc "WS archive" assumption.
+- **FR-016**: The scorecard MUST define explicit observation windows:
+  - Touch detection window: **4 hours** from `snapshot_ts` (configurable)
+  - Liquidation confirmation window: **15 minutes** after touch (configurable)
+  - Post-touch path evaluation window: **1 hour** after touch (configurable)
+- **FR-017**: Touch detection uses tolerance-band semantics: a level is touched when price enters within **+/-5 bps** of `level_price`. MVP uses this fixed band; future phases may use adaptive bands.
 - **FR-018**: The scorecard MUST keep retained evidence and live runtime state separate; scorecard history is not a substitute for current runtime health.
 - **FR-019**: The scorecard MUST provide comparison outputs that allow dominance analysis across experts per slice.
 - **FR-020**: If one slice is below minimum sample thresholds, the output MUST mark it as insufficient rather than defaulting to zeros or stable-looking probabilities.
@@ -247,6 +250,7 @@ machine-readable.
 - **NFR-002**: The scorecard MUST remain machine-readable first; markdown summaries are secondary.
 - **NFR-003**: The scorecard SHOULD be append-safe and idempotent for reruns on the same observation window.
 - **NFR-004**: MVP should avoid expensive parametric fitting or global optimization loops.
+- **NFR-005**: `MFE` and `MAE` MUST be expressed in basis points (integer bps) to avoid floating-point precision issues. Monetary values, if any, MUST use Decimal128 per constitution principle 1.
 
 ## Key Entities
 
@@ -262,14 +266,14 @@ machine-readable.
 
 Each `ExpertSignalObservation` MUST contain at least:
 
-- `observation_id`
+- `observation_id` (deterministic UUID5 from `expert_id + symbol + snapshot_ts + level_price + side`)
 - `expert_id`
 - `symbol`
 - `snapshot_ts`
 - `level_price`
 - `side`
 - `confidence`
-- `reference_price`
+- `reference_price` (mark price at `snapshot_ts` as reported by the expert artifact; used to compute `distance_bps`)
 - `distance_bps`
 - `touched`
 - `touch_ts`
@@ -294,7 +298,7 @@ Optional downstream execution fields:
 Each `ExpertScorecardSlice` MUST contain at least:
 
 - `expert_id`
-- `slice_id`
+- `slice_id` (deterministic string: `{expert_id}:{symbol}:{side}:{distance_bucket}:{confidence_bucket}:{regime}`)
 - `slice_dimensions`
 - `sample_count`
 - `touch_count`
@@ -323,4 +327,3 @@ The bundle SHOULD also include:
   - touch with liquidation confirmation
   - favorable vs adverse post-touch path
 - The same retained artifact set can be rerun reproducibly.
-
