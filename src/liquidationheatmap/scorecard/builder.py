@@ -6,6 +6,7 @@ from typing import Any
 from src.liquidationheatmap.models.scorecard import (
     TOUCH_TOLERANCE_BPS,
     TOUCH_WINDOW_HOURS,
+    LIQ_CONFIRM_WINDOW_MINUTES,
     ExpertSignalObservation,
 )
 
@@ -120,3 +121,89 @@ class ScorecardBuilder:
             updated_observations.append(new_obs)
 
         return updated_observations
+
+    def apply_liquidation_confirmation(
+        self,
+        observations: list[ExpertSignalObservation],
+        liquidation_events: list[dict[str, Any]],
+    ) -> list[ExpertSignalObservation]:
+        """Apply liquidation confirmation matching inside the configured time window post-touch."""
+        updated_observations: list[ExpertSignalObservation] = []
+        confirm_window = timedelta(minutes=LIQ_CONFIRM_WINDOW_MINUTES)
+        
+        normalized_events = sorted(
+            (
+                {
+                    "timestamp": _coerce_timestamp(event["timestamp"]),
+                    "price": float(event["price"]),
+                    "side": event.get("side"),
+                }
+                for event in liquidation_events
+            ),
+            key=lambda event: event["timestamp"],
+        )
+
+        for obs in observations:
+            new_obs = obs.model_copy()
+            if not new_obs.touched or new_obs.touch_ts is None:
+                new_obs.liquidation_confirmed = False
+                updated_observations.append(new_obs)
+                continue
+
+            tolerance = new_obs.level_price * TOUCH_TOLERANCE_BPS / 10000.0
+            lower_bound = new_obs.level_price - tolerance
+            upper_bound = new_obs.level_price + tolerance
+            confirmed = False
+
+            for event in normalized_events:
+                event_ts = event["timestamp"]
+                event_price = event["price"]
+                
+                if event_ts > new_obs.touch_ts + confirm_window:
+                    break
+                if event_ts < new_obs.touch_ts:
+                    continue
+                    
+                if lower_bound <= event_price <= upper_bound:
+                    confirmed = True
+                    new_obs.liquidation_confirmed = True
+                    new_obs.liquidation_confirm_ts = event_ts
+                    new_obs.time_to_liquidation_confirm_secs = int((event_ts - new_obs.touch_ts).total_seconds())
+                    break
+
+            if not confirmed:
+                new_obs.liquidation_confirmed = False
+
+            updated_observations.append(new_obs)
+
+        return updated_observations
+
+    def build_coverage_metadata(
+        self,
+        expected_experts: list[str],
+        available_artifacts: list[dict[str, Any]],
+        liquidation_stream_available: bool,
+    ) -> dict[str, Any]:
+        """Build coverage metadata for missing artifacts and missing streams."""
+        available_set = set(
+            (artifact["expert_id"], _coerce_timestamp(artifact["timestamp"]))
+            for artifact in available_artifacts
+        )
+        
+        unique_timestamps = sorted(list(set(ts for _, ts in available_set)))
+        
+        missing_artifacts = []
+        for ts in unique_timestamps:
+            for expert in expected_experts:
+                if (expert, ts) not in available_set:
+                    missing_artifacts.append(
+                        {
+                            "expert_id": expert,
+                            "timestamp": int(ts.timestamp()),
+                        }
+                    )
+                    
+        return {
+            "missing_artifacts": missing_artifacts,
+            "liquidation_stream_available": liquidation_stream_available,
+        }
