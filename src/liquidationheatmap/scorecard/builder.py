@@ -1,7 +1,7 @@
 """Observation extraction and touch detection for expert scorecards."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 from src.liquidationheatmap.models.scorecard import (
     LIQ_CONFIRM_WINDOW_MINUTES,
@@ -28,9 +28,7 @@ def _coerce_timestamp(value: Any) -> datetime:
 class ScorecardBuilder:
     """Build scorecard observations from retained expert artifacts."""
 
-    def extract_observations(
-        self, artifact: dict[str, Any]
-    ) -> list[ExpertSignalObservation]:
+    def extract_observations(self, artifact: dict[str, Any]) -> list[ExpertSignalObservation]:
         """Extract one observation per price level from the retained artifact contract."""
         observations: list[ExpertSignalObservation] = []
         expert_id = artifact["expert_id"]
@@ -51,9 +49,7 @@ class ScorecardBuilder:
             for price_str, volume in distribution.items():
                 level_price = float(price_str)
                 confidence = round(min(max(float(volume) / max_volume, 0.0), 1.0), 6)
-                distance_bps = round(
-                    abs(level_price - reference_price) / reference_price * 10000
-                )
+                distance_bps = round(abs(level_price - reference_price) / reference_price * 10000)
 
                 obs_id = ExpertSignalObservation.generate_id(
                     expert_id=expert_id,
@@ -83,6 +79,7 @@ class ScorecardBuilder:
         self,
         observations: list[ExpertSignalObservation],
         price_path: list[dict[str, Any]],
+        adaptive_band_fn: Callable[[list[dict[str, Any]], datetime, str], int] | None = None,
     ) -> list[ExpertSignalObservation]:
         """Apply first-touch semantics inside the configured time window."""
         updated_observations: list[ExpertSignalObservation] = []
@@ -100,7 +97,13 @@ class ScorecardBuilder:
 
         for obs in observations:
             new_obs = obs.model_copy()
-            tolerance = new_obs.level_price * TOUCH_TOLERANCE_BPS / 10000.0
+            if adaptive_band_fn is not None:
+                band_bps = adaptive_band_fn(price_path, new_obs.snapshot_ts, new_obs.symbol)
+                new_obs.adaptive_touch_band_bps = band_bps
+                tolerance = new_obs.level_price * band_bps / 10000.0
+            else:
+                tolerance = new_obs.level_price * TOUCH_TOLERANCE_BPS / 10000.0
+
             lower_bound = new_obs.level_price - tolerance
             upper_bound = new_obs.level_price + tolerance
 
@@ -116,7 +119,9 @@ class ScorecardBuilder:
                 if lower_bound <= tick_price <= upper_bound:
                     new_obs.touched = True
                     new_obs.touch_ts = tick_ts
-                    new_obs.time_to_touch_secs = int((tick_ts - new_obs.snapshot_ts).total_seconds())
+                    new_obs.time_to_touch_secs = int(
+                        (tick_ts - new_obs.snapshot_ts).total_seconds()
+                    )
                     break
 
             updated_observations.append(new_obs)
@@ -254,9 +259,7 @@ class ScorecardBuilder:
             (
                 artifact["expert_id"],
                 _coerce_timestamp(
-                    artifact["snapshot_ts"]
-                    if "snapshot_ts" in artifact
-                    else artifact["timestamp"]
+                    artifact["snapshot_ts"] if "snapshot_ts" in artifact else artifact["timestamp"]
                 ),
             )
             for artifact in available_artifacts

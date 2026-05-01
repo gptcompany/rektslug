@@ -39,9 +39,7 @@ def compute_realized_volatility(
         ),
         key=lambda tick: tick["timestamp"],
     )
-    valid_ticks = [
-        tick for tick in normalized_ticks if tick["timestamp"] <= normalized_timestamp
-    ]
+    valid_ticks = [tick for tick in normalized_ticks if tick["timestamp"] <= normalized_timestamp]
     valid_ticks = valid_ticks[-lookback_ticks:]
 
     if len(valid_ticks) < 2:
@@ -65,13 +63,48 @@ def compute_realized_volatility(
 def compute_adaptive_touch_band(
     price_path: list[dict[str, Any]], snapshot_ts: datetime, symbol: str
 ) -> int:
-    """Compute volatility-derived touch band."""
-    raise NotImplementedError
+    """Compute volatility-derived touch band in bps.
+
+    Uses `compute_realized_volatility` to find local volatility.
+    If sufficient history is missing, falls back to a price spread proxy.
+    """
+    # 60 ticks assuming 1m resolution (1 hour lookback)
+    lookback_ticks = 60
+
+    vol_bps = compute_realized_volatility(price_path, snapshot_ts, lookback_ticks)
+
+    if vol_bps > 0:
+        # Simple heuristic: touch band is a fraction of annualized vol.
+        # We can map something like: 100% vol (10000 bps) -> ~20 bps band
+        # So we divide vol_bps by 500. This is just a scaling factor.
+        # We ensure a minimum of 1 bps.
+        # The exact math doesn't matter as long as it scales with vol and differentiates symbols.
+
+        # A more rigorous way: use daily vol. Daily vol = annualized / sqrt(365).
+        # Daily vol of 10000 bps = 10000 / 19.1 = 523 bps.
+        # If we want a band that is ~1/20th of daily vol, that's 523/20 = 26 bps.
+        # Let's just do: vol_bps / 500 for simplicity.
+        band = max(1, int(vol_bps / 500))
+        return band
+
+    # Fallback: price spread proxy
+    valid_ticks = [t for t in price_path if t["timestamp"] <= snapshot_ts]
+    if not valid_ticks:
+        return 5  # ultimate fallback if no data at all
+
+    prices = [t["price"] for t in valid_ticks]
+    min_price = min(prices)
+    max_price = max(prices)
+    mean_price = sum(prices) / len(prices)
+
+    if mean_price > 0:
+        spread_bps = int(((max_price - min_price) / mean_price) * 10000)
+        # band can be a fraction of the full spread
+        return max(1, int(spread_bps / 2))
+    return 1
 
 
-def compute_volume_threshold(
-    price_path: list[dict[str, Any]], snapshot_ts: datetime
-) -> float:
+def compute_volume_threshold(price_path: list[dict[str, Any]], snapshot_ts: datetime) -> float:
     """Compute cumulative volume threshold for window closure."""
     raise NotImplementedError
 

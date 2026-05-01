@@ -159,3 +159,42 @@ def test_post_touch_path_untouched_remains_null(sample_expert_artifact):
         assert obs.touched is False
         assert obs.mfe_bps is None
         assert obs.mae_bps is None
+
+
+def test_touch_detection_adaptive_band(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # Base snapshot TS is 1700000000
+    # Let's say long_obs level is 59000.0.
+    # A price of 59020.0 is ~3.39 bps away from 59000.0, so 5bps fixed band would touch it.
+    # A price of 59050.0 is ~8.47 bps away from 59000.0.
+    # With a narrow band (e.g. 5 bps), it should NOT be touched.
+    # With a wide band (e.g. 15 bps), it SHOULD be touched.
+
+    price_path = [
+        {"timestamp": 1700000100, "price": 59050.0},
+    ]
+
+    def narrow_band_fn(path, ts, sym):
+        return 5
+
+    def wide_band_fn(path, ts, sym):
+        return 15
+
+    updated_obs_narrow = builder.apply_touch_detection(
+        [obs.model_copy() for obs in observations], price_path, adaptive_band_fn=narrow_band_fn
+    )
+    long_obs_narrow = next(
+        o for o in updated_obs_narrow if o.side == "long" and o.level_price == 59000.0
+    )
+    assert long_obs_narrow.touched is False
+
+    updated_obs_wide = builder.apply_touch_detection(
+        [obs.model_copy() for obs in observations], price_path, adaptive_band_fn=wide_band_fn
+    )
+    long_obs_wide = next(
+        o for o in updated_obs_wide if o.side == "long" and o.level_price == 59000.0
+    )
+    assert long_obs_wide.touched is True
+    assert long_obs_wide.adaptive_touch_band_bps == 15
