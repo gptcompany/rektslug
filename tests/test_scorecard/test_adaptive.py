@@ -157,3 +157,22 @@ def test_compute_adaptive_touch_band_fallback_proxy() -> None:
     # Let's just assert it is greater than 0 and not the fixed 5 bps fallback.
     assert band > 0
     assert band != 5
+
+
+def test_compute_adaptive_touch_band_fallback_accepts_iso_timestamps() -> None:
+    path = [
+        {"timestamp": "2023-01-01T00:00:00Z", "price": 100.0},
+        {"timestamp": "2023-01-01T00:01:00Z", "price": 105.0},
+    ]
+    snapshot_ts = datetime(2023, 1, 1, 0, 1, tzinfo=timezone.utc)
+
+    band = compute_adaptive_touch_band(path, snapshot_ts, "BTC")
+
+    assert band > 0
+    assert band != 5
+
+
+def test_compute_adaptive_touch_band_zero_history_uses_non_fixed_floor() -> None:
+    band = compute_adaptive_touch_band([], datetime(2023, 1, 1, tzinfo=timezone.utc), "BTC")
+
+    assert band == 1

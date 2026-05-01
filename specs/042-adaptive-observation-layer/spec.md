@@ -273,6 +273,12 @@ observations before and after the transition without manual input.
   computational method parameter, not a market parameter. It defines the maximum
   lookback for touch detection and MAY remain fixed. This is an explicit exception
   to the foundational rule, documented here to avoid ambiguity.
+- **FR-017b**: Adaptive touch-band scaling heuristics MAY use documented
+  computation-method constants, provided they are not symbol-specific market
+  thresholds. MVP freeze:
+  `adaptive_band_bps = max(1, floor(local_volatility_bps / 500))`; when realized
+  volatility is unavailable, the fallback proxy is
+  `max(1, floor(spread_bps / 2))` over the effective normalized pre-snapshot path.
 
 ### Key Entities
 

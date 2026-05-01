@@ -116,6 +116,9 @@ Foundational volatility primitive rules:
 - normalize tick timestamps through the same accepted shapes as the scorecard builder
 - sort the input path by timestamp before lookback slicing
 - accept ISO timestamps and epoch values, not only pre-normalized datetimes
+- freeze adaptive touch-band MVP heuristics explicitly:
+  - `max(1, floor(local_volatility_bps / 500))` for volatility-derived bands
+  - `max(1, floor(spread_bps / 2))` for spread-proxy fallback
 
 ## Phase Breakdown
 

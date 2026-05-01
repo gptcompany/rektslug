@@ -74,32 +74,36 @@ def compute_adaptive_touch_band(
     vol_bps = compute_realized_volatility(price_path, snapshot_ts, lookback_ticks)
 
     if vol_bps > 0:
-        # Simple heuristic: touch band is a fraction of annualized vol.
-        # We can map something like: 100% vol (10000 bps) -> ~20 bps band
-        # So we divide vol_bps by 500. This is just a scaling factor.
-        # We ensure a minimum of 1 bps.
-        # The exact math doesn't matter as long as it scales with vol and differentiates symbols.
+        # MVP heuristic: map annualized vol to a small operational tolerance band.
+        # This is a documented computation-method constant, not a market threshold.
+        return max(1, int(vol_bps / 500))
 
-        # A more rigorous way: use daily vol. Daily vol = annualized / sqrt(365).
-        # Daily vol of 10000 bps = 10000 / 19.1 = 523 bps.
-        # If we want a band that is ~1/20th of daily vol, that's 523/20 = 26 bps.
-        # Let's just do: vol_bps / 500 for simplicity.
-        band = max(1, int(vol_bps / 500))
-        return band
-
-    # Fallback: price spread proxy
-    valid_ticks = [t for t in price_path if t["timestamp"] <= snapshot_ts]
+    # Fallback: normalized price-spread proxy over the same effective path.
+    normalized_snapshot_ts = _coerce_timestamp(snapshot_ts)
+    normalized_ticks = sorted(
+        (
+            {
+                "timestamp": _coerce_timestamp(tick["timestamp"]),
+                "price": float(tick["price"]),
+            }
+            for tick in price_path
+        ),
+        key=lambda tick: tick["timestamp"],
+    )
+    valid_ticks = [
+        tick for tick in normalized_ticks if tick["timestamp"] <= normalized_snapshot_ts
+    ]
     if not valid_ticks:
-        return 5  # ultimate fallback if no data at all
+        return 1
 
-    prices = [t["price"] for t in valid_ticks]
+    prices = [tick["price"] for tick in valid_ticks]
     min_price = min(prices)
     max_price = max(prices)
     mean_price = sum(prices) / len(prices)
 
     if mean_price > 0:
         spread_bps = int(((max_price - min_price) / mean_price) * 10000)
-        # band can be a fraction of the full spread
+        # MVP heuristic: half-spread proxy with a 1 bps floor.
         return max(1, int(spread_bps / 2))
     return 1
 
