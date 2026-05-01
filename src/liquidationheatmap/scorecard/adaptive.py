@@ -157,11 +157,87 @@ def compute_quantile_buckets(
     values: list[float], metric_name: str, min_per_bucket: int
 ) -> QuantileBucketSet:
     """Compute data-derived bucket boundaries from empirical quantiles."""
-    raise NotImplementedError
+    n_obs = len(values)
+
+    if n_obs < min_per_bucket * 2:
+        # Not enough data for even 2 buckets
+        return QuantileBucketSet(
+            metric_name=metric_name,
+            n_buckets=1,
+            boundaries=[min(values) if values else 0.0, max(values) if values else 1.0],
+            labels=["all"],
+            observation_count=n_obs,
+        )
+
+    # Let's target up to 5 buckets by default
+    n_buckets = min(5, n_obs // min_per_bucket)
+
+    # Calculate quantiles
+    try:
+        import statistics
+
+        quantiles = statistics.quantiles(values, n=n_buckets)
+    except Exception:
+        # Fallback if statistics.quantiles fails (e.g. all values identical or python version issue)
+        return QuantileBucketSet(
+            metric_name=metric_name,
+            n_buckets=1,
+            boundaries=[min(values), max(values)],
+            labels=["all"],
+            observation_count=n_obs,
+        )
+
+    boundaries = [min(values)] + quantiles + [max(values)]
+    labels = [f"q{i + 1}" for i in range(n_buckets)]
+
+    return QuantileBucketSet(
+        metric_name=metric_name,
+        n_buckets=n_buckets,
+        boundaries=boundaries,
+        labels=labels,
+        observation_count=n_obs,
+    )
 
 
 def infer_regime_map(
     observations: list[Any], price_path: list[dict[str, Any]]
 ) -> dict[datetime, str]:
     """Infer regime labels from volatility quantiles."""
-    raise NotImplementedError
+    if not price_path or not observations:
+        return {obs.snapshot_ts: "unknown" for obs in observations}
+
+    # Compute volatility for each observation's snapshot_ts
+    vols = []
+    ts_to_vol = {}
+    for obs in observations:
+        ts = _coerce_timestamp(obs.snapshot_ts)
+        # Using 60 ticks lookback as default for vol regime
+        vol = compute_realized_volatility(price_path, ts, 60)
+        vols.append(vol)
+        ts_to_vol[ts] = vol
+
+    if not vols or max(vols) == min(vols):
+        return {obs.snapshot_ts: "stable" for obs in observations}
+
+    # We create 3 regimes: low, medium, high vol
+    try:
+        import statistics
+
+        quantiles = statistics.quantiles(vols, n=3)
+        low_bound = quantiles[0]
+        high_bound = quantiles[1]
+    except Exception:
+        return {obs.snapshot_ts: "stable" for obs in observations}
+
+    regime_map = {}
+    for obs in observations:
+        ts = _coerce_timestamp(obs.snapshot_ts)
+        vol = ts_to_vol[ts]
+        if vol <= low_bound:
+            regime_map[obs.snapshot_ts] = "low_vol"
+        elif vol <= high_bound:
+            regime_map[obs.snapshot_ts] = "med_vol"
+        else:
+            regime_map[obs.snapshot_ts] = "high_vol"
+
+    return regime_map
