@@ -10,7 +10,7 @@ TOUCH_WINDOW_HOURS = 4
 LIQ_CONFIRM_WINDOW_MINUTES = 15
 POST_TOUCH_WINDOW_HOURS = 1
 TOUCH_TOLERANCE_BPS = 5
-LIQUIDATION_CONFIRMATION_SOURCE = "data/validation/liquidations_history"
+LIQUIDATION_CONFIRMATION_SOURCE = "data/validation/liquidation_confirmation_events"
 
 class ExpertSignalObservation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

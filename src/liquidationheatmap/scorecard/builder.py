@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from src.liquidationheatmap.models.scorecard import (
+    LIQ_CONFIRM_WINDOW_MINUTES,
     TOUCH_TOLERANCE_BPS,
     TOUCH_WINDOW_HOURS,
-    LIQ_CONFIRM_WINDOW_MINUTES,
     ExpertSignalObservation,
 )
 
@@ -130,12 +130,13 @@ class ScorecardBuilder:
         """Apply liquidation confirmation matching inside the configured time window post-touch."""
         updated_observations: list[ExpertSignalObservation] = []
         confirm_window = timedelta(minutes=LIQ_CONFIRM_WINDOW_MINUTES)
-        
+
         normalized_events = sorted(
             (
                 {
                     "timestamp": _coerce_timestamp(event["timestamp"]),
                     "price": float(event["price"]),
+                    "symbol": event.get("symbol"),
                     "side": event.get("side"),
                 }
                 for event in liquidation_events
@@ -158,17 +159,25 @@ class ScorecardBuilder:
             for event in normalized_events:
                 event_ts = event["timestamp"]
                 event_price = event["price"]
-                
+                event_symbol = event["symbol"]
+                event_side = event["side"]
+
                 if event_ts > new_obs.touch_ts + confirm_window:
                     break
                 if event_ts < new_obs.touch_ts:
                     continue
-                    
+                if event_symbol != new_obs.symbol:
+                    continue
+                if event_side != new_obs.side:
+                    continue
+
                 if lower_bound <= event_price <= upper_bound:
                     confirmed = True
                     new_obs.liquidation_confirmed = True
                     new_obs.liquidation_confirm_ts = event_ts
-                    new_obs.time_to_liquidation_confirm_secs = int((event_ts - new_obs.touch_ts).total_seconds())
+                    new_obs.time_to_liquidation_confirm_secs = int(
+                        (event_ts - new_obs.touch_ts).total_seconds()
+                    )
                     break
 
             if not confirmed:
@@ -186,12 +195,19 @@ class ScorecardBuilder:
     ) -> dict[str, Any]:
         """Build coverage metadata for missing artifacts and missing streams."""
         available_set = set(
-            (artifact["expert_id"], _coerce_timestamp(artifact["timestamp"]))
+            (
+                artifact["expert_id"],
+                _coerce_timestamp(
+                    artifact["snapshot_ts"]
+                    if "snapshot_ts" in artifact
+                    else artifact["timestamp"]
+                ),
+            )
             for artifact in available_artifacts
         )
-        
+
         unique_timestamps = sorted(list(set(ts for _, ts in available_set)))
-        
+
         missing_artifacts = []
         for ts in unique_timestamps:
             for expert in expected_experts:
@@ -199,10 +215,10 @@ class ScorecardBuilder:
                     missing_artifacts.append(
                         {
                             "expert_id": expert,
-                            "timestamp": int(ts.timestamp()),
+                            "snapshot_ts": ts.isoformat().replace("+00:00", "Z"),
                         }
                     )
-                    
+
         return {
             "missing_artifacts": missing_artifacts,
             "liquidation_stream_available": liquidation_stream_available,
