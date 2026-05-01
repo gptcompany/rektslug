@@ -1,7 +1,7 @@
 # spec-041 Implementation Report
 
 Date: 2026-05-01
-Status: Implemented, pending external review
+Status: Review-closeable, pending narrow follow-up
 
 ## Scope
 
@@ -20,6 +20,11 @@ Covered capabilities:
 - append-safe deduplication by deterministic `observation_id`
 - machine-readable bundle JSON
 - compact markdown summary
+
+Known residual gap:
+
+- post-touch path evaluator is not implemented yet in the real builder/pipeline path
+- `mfe_bps` and `mae_bps` exist in the contract and aggregate correctly when populated, but the live codepath does not yet derive them from realized post-touch price action
 
 ## Files
 
@@ -73,6 +78,12 @@ Retained smoke:
   - `12` dominance rows
   - `0` missing artifacts for the sampled manifest
 
+External review result:
+
+- review-closeable
+- no blocker on contracts, slicing, dominance, backfill, or reproducibility
+- one functional gap remains: `FR-005` post-touch `MFE/MAE` are structurally empty in the real pipeline because there is no `apply_post_touch_path()` stage yet
+
 ## Review Notes
 
 Important contract decisions:
@@ -84,6 +95,28 @@ Important contract decisions:
 - touch semantics are first-touch only
 - liquidation confirmation source is retained and explicit, not inferred from WS
 - scorecard stays non-linear and distributional; no mandatory global scalar winner
+
+## Residual Functional Gap
+
+External review identified one real gap:
+
+- `src/liquidationheatmap/scorecard/builder.py` does not yet compute post-touch path outcomes from the realized price path after a touch
+- `POST_TOUCH_WINDOW_HOURS` is defined in the contract but not yet used in code
+- `mfe_bps` and `mae_bps` therefore remain `None` in the real pipeline path unless injected by tests/fixtures
+- aggregator and bundle contract already support these fields correctly once populated
+
+Effect on current output:
+
+- bundle JSON is structurally valid
+- `MFE/MAE` quantiles in real runs are currently empty/zero rather than empirically populated
+- this does not break the scorecard contract, but it means `FR-005` is only partially realized operationally
+
+Recommended follow-up:
+
+- implement `apply_post_touch_path()` in the scorecard builder
+- use `POST_TOUCH_WINDOW_HOURS`
+- derive `mfe_bps` and `mae_bps` from the realized price path after first touch
+- add one end-to-end test that proves non-zero path metrics are populated from real pipeline inputs rather than fixture-only construction
 
 ## Residual Notes
 
