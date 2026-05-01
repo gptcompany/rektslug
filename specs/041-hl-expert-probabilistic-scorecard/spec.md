@@ -2,7 +2,7 @@
 
 **Feature Branch**: `041-hl-expert-probabilistic-scorecard`
 **Created**: 2026-04-30
-**Status**: Draft
+**Status**: Implemented
 **Input**: Empirical evaluation framework for the four live Hyperliquid expert variants in `rektslug` (`v1`, `v3`, `v4`, `v5`)
 **Dependencies**: spec-029 (expert snapshot producer contract), spec-038 (shadow mode), spec-039 (shadow pipeline runtime), spec-040 (continuous paper/testnet runtime)
 

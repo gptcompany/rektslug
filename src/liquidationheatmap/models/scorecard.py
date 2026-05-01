@@ -98,6 +98,7 @@ class ExpertScorecardSlice(BaseModel):
     mfe_quantiles: Dict[str, int]
     mae_quantiles: Dict[str, int]
     time_to_touch_quantiles: Dict[str, int]
+    time_to_liquidation_confirm_quantiles: Dict[str, int]
     low_sample_flag: bool
 
     @classmethod
@@ -135,7 +136,12 @@ class ExpertScorecardSlice(BaseModel):
             raise ValueError("touch_count cannot exceed sample_count")
         if self.liquidation_match_count > self.touch_count:
             raise ValueError("liquidation_match_count cannot exceed touch_count")
-        for quantile_map_name in ("mfe_quantiles", "mae_quantiles", "time_to_touch_quantiles"):
+        for quantile_map_name in (
+            "mfe_quantiles",
+            "mae_quantiles",
+            "time_to_touch_quantiles",
+            "time_to_liquidation_confirm_quantiles",
+        ):
             quantile_map = getattr(self, quantile_map_name)
             if any(value < 0 for value in quantile_map.values()):
                 raise ValueError(f"{quantile_map_name} cannot contain negative values")

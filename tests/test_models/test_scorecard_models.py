@@ -124,6 +124,7 @@ def test_slice_model_validation():
         mfe_quantiles={"p50": 10},
         mae_quantiles={"p50": 5},
         time_to_touch_quantiles={"p50": 300},
+        time_to_liquidation_confirm_quantiles={"p50": 120},
         low_sample_flag=False,
     )
     assert slc.sample_count == 100
@@ -149,6 +150,7 @@ def test_slice_model_rejects_mismatched_slice_id():
             mfe_quantiles={"p50": 10},
             mae_quantiles={"p50": 5},
             time_to_touch_quantiles={"p50": 300},
+            time_to_liquidation_confirm_quantiles={"p50": 120},
             low_sample_flag=False,
         )
 
@@ -180,6 +182,7 @@ def test_bundle_serialization():
         mfe_quantiles={"p50": 10},
         mae_quantiles={"p50": 5},
         time_to_touch_quantiles={"p50": 300},
+        time_to_liquidation_confirm_quantiles={"p50": 120},
         low_sample_flag=False,
     )
     bundle = ExpertScorecardBundle(slices=[slc])

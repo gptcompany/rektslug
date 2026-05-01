@@ -1,83 +1,140 @@
 import json
-import pytest
-from datetime import datetime, timezone
+from pathlib import Path
+
 from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
 from src.liquidationheatmap.scorecard.pipeline import ScorecardPipeline
 
-def test_pipeline_idempotency_and_validation():
-    # T022R: append-safe incremental updates
-    # T026b: validation against Pydantic schema
-    # T026c: reproducibility test (byte-identical)
+
+def _artifact(
+    expert_id: str,
+    snapshot_ts: str,
+    symbol: str,
+    reference_price: float,
+    long_distribution: dict[str, float],
+) -> dict[str, object]:
+    return {
+        "expert_id": expert_id,
+        "symbol": symbol,
+        "snapshot_ts": snapshot_ts,
+        "reference_price": reference_price,
+        "long_distribution": long_distribution,
+        "short_distribution": {},
+    }
+
+
+def test_pipeline_idempotency_validation_and_dominance() -> None:
     pipeline = ScorecardPipeline()
-    
-    # Mock some basic raw artifacts and price paths
-    artifact1 = {
-        "expert_id": "v1",
-        "symbol": "BTC-USD",
-        "snapshot_ts": 1700000000,
-        "reference_price": 60000.0,
-        "long_distribution": {"59000.0": 800.0}
-    }
-    artifact2 = {
-        "expert_id": "v1",
-        "symbol": "BTC-USD",
-        "snapshot_ts": 1700003600, # 1 hour later
-        "reference_price": 61000.0,
-        "long_distribution": {"60000.0": 800.0}
-    }
-    
+    artifact1 = _artifact(
+        "v1",
+        "2026-05-01T00:00:00Z",
+        "BTCUSDT",
+        60000.0,
+        {"59000.0": 800.0},
+    )
+    artifact2 = _artifact(
+        "v3",
+        "2026-05-01T00:00:00Z",
+        "BTCUSDT",
+        60000.0,
+        {"59000.0": 600.0},
+    )
+    artifact3 = _artifact(
+        "v1",
+        "2026-05-01T01:00:00Z",
+        "BTCUSDT",
+        61000.0,
+        {"60000.0": 800.0},
+    )
+
     price_path = [
-        {"timestamp": 1700000100, "price": 59005.0},
-        {"timestamp": 1700003700, "price": 60005.0}
+        {"timestamp": "2026-05-01T00:10:00Z", "price": 59002.0},
+        {"timestamp": "2026-05-01T01:10:00Z", "price": 60002.0},
     ]
-    liquidation_events = []
-    
-    # Run 1: Just artifact 1
-    bundle1_json = pipeline.run(
-        artifacts=[artifact1],
+    liquidation_events = [
+        {
+            "timestamp": "2026-05-01T00:12:00Z",
+            "price": 59003.0,
+            "symbol": "BTCUSDT",
+            "side": "long",
+        }
+    ]
+
+    bundle_json = pipeline.run(
+        artifacts=[artifact1, artifact2, artifact3],
         price_path=price_path,
         liquidation_events=liquidation_events,
-        expected_experts=["v1"]
+        expected_experts=["v1", "v3"],
     )
-    
-    # Run 2: Artifact 1 + Artifact 2
-    bundle2_json = pipeline.run(
-        artifacts=[artifact1, artifact2],
+    bundle_json_repeat = pipeline.run(
+        artifacts=[artifact1, artifact2, artifact3],
         price_path=price_path,
         liquidation_events=liquidation_events,
-        expected_experts=["v1"]
+        expected_experts=["v1", "v3"],
     )
-    
-    # Run 3: Same as Run 2
-    bundle3_json = pipeline.run(
-        artifacts=[artifact1, artifact2],
-        price_path=price_path,
-        liquidation_events=liquidation_events,
-        expected_experts=["v1"]
+
+    bundle = ExpertScorecardBundle.model_validate_json(bundle_json)
+    assert bundle_json == bundle_json_repeat
+    assert sum(scorecard_slice.sample_count for scorecard_slice in bundle.slices) == 3
+    assert bundle.dominance_rows
+    assert bundle.artifact_provenance["experts"] == ["v1", "v3"]
+    assert bundle.retained_input_range["snapshot_ts_min"] == "2026-05-01T00:00:00Z"
+    assert any(
+        scorecard_slice.time_to_liquidation_confirm_quantiles["p50"] >= 0
+        for scorecard_slice in bundle.slices
     )
-    
-    # Validate against Pydantic schema
-    bundle2 = ExpertScorecardBundle.model_validate_json(bundle2_json)
-    
-    # Check reproducibility
-    assert bundle2_json == bundle3_json, "Pipeline must be reproducible and produce byte-identical JSON for the same inputs"
-    
-    # Check idempotency/append-safe:
-    # the number of observations should be 2 for run 2
-    total_samples = sum(s.sample_count for s in bundle2.slices)
-    assert total_samples == 2
-    
-def test_markdown_summary_generation():
+
+
+def test_markdown_summary_generation() -> None:
     pipeline = ScorecardPipeline()
-    artifact = {
-        "expert_id": "v4",
-        "symbol": "ETH-USD",
-        "snapshot_ts": 1700000000,
-        "reference_price": 2000.0,
-        "long_distribution": {"1900.0": 900.0}
-    }
+    artifact = _artifact(
+        "v4",
+        "2026-05-01T00:00:00Z",
+        "ETHUSDT",
+        2000.0,
+        {"1900.0": 900.0},
+    )
     bundle_json = pipeline.run([artifact], [], [], ["v4"])
-    
-    md_summary = pipeline.generate_markdown(bundle_json)
-    assert "Expert Scorecard Summary" in md_summary
-    assert "v4" in md_summary
+
+    markdown_summary = pipeline.generate_markdown(bundle_json)
+    assert "Expert Scorecard Summary" in markdown_summary
+    assert "v4" in markdown_summary
+
+
+def test_load_retained_artifacts_from_snapshot_root(tmp_path: Path) -> None:
+    snapshot_root = tmp_path / "expert_snapshots" / "hyperliquid"
+    manifests_root = snapshot_root / "manifests" / "BTCUSDT"
+    artifacts_root = snapshot_root / "artifacts" / "BTCUSDT" / "2026-05-01T00:00:00Z"
+    manifests_root.mkdir(parents=True)
+    artifacts_root.mkdir(parents=True)
+
+    manifest = {
+        "snapshot_ts": "2026-05-01T00:00:00Z",
+        "experts": {
+            "v1": {
+                "expert_id": "v1",
+                "availability_status": "available",
+                "artifact_path": "artifacts/BTCUSDT/2026-05-01T00:00:00Z/v1.json",
+            },
+            "v3": {
+                "expert_id": "v3",
+                "availability_status": "unavailable",
+                "artifact_path": "artifacts/BTCUSDT/2026-05-01T00:00:00Z/v3.json",
+            },
+        },
+    }
+    (manifests_root / "2026-05-01T00:00:00Z.json").write_text(json.dumps(manifest))
+    artifact = _artifact(
+        "v1",
+        "2026-05-01T00:00:00Z",
+        "BTCUSDT",
+        60000.0,
+        {"59000.0": 800.0},
+    )
+    (artifacts_root / "v1.json").write_text(json.dumps(artifact))
+
+    pipeline = ScorecardPipeline(snapshot_root=snapshot_root)
+    loaded_artifacts = pipeline.load_retained_artifacts(
+        symbols=["BTCUSDT"], expert_ids=["v1", "v3"]
+    )
+
+    assert loaded_artifacts == [artifact]
