@@ -211,13 +211,22 @@ def infer_regime_map(
     ts_to_vol = {}
     for obs in observations:
         ts = _coerce_timestamp(obs.snapshot_ts)
-        # Using 60 ticks lookback as default for vol regime
+        # MVP heuristic: 60 one-minute ticks for local volatility regime inference.
         vol = compute_realized_volatility(price_path, ts, 60)
+        if vol <= 0:
+            ts_to_vol[ts] = None
+            continue
         vols.append(vol)
         ts_to_vol[ts] = vol
 
-    if not vols or max(vols) == min(vols):
-        return {obs.snapshot_ts: "stable" for obs in observations}
+    if not vols:
+        return {obs.snapshot_ts: "unknown" for obs in observations}
+
+    if max(vols) == min(vols):
+        return {
+            obs.snapshot_ts: ("stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown")
+            for obs in observations
+        }
 
     # We create 3 regimes: low, medium, high vol
     try:
@@ -227,12 +236,18 @@ def infer_regime_map(
         low_bound = quantiles[0]
         high_bound = quantiles[1]
     except Exception:
-        return {obs.snapshot_ts: "stable" for obs in observations}
+        return {
+            obs.snapshot_ts: ("stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown")
+            for obs in observations
+        }
 
     regime_map = {}
     for obs in observations:
         ts = _coerce_timestamp(obs.snapshot_ts)
         vol = ts_to_vol[ts]
+        if vol is None:
+            regime_map[obs.snapshot_ts] = "unknown"
+            continue
         if vol <= low_bound:
             regime_map[obs.snapshot_ts] = "low_vol"
         elif vol <= high_bound:

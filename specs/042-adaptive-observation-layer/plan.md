@@ -122,6 +122,13 @@ Foundational volatility primitive rules:
 - freeze volume-threshold MVP heuristic explicitly:
   - `max(1.0, avg_quote_volume_per_tick * 60)` from up to the last 1440 eligible
     pre-snapshot ticks
+- freeze quantile-bucket MVP heuristic explicitly:
+  - `n_buckets = min(5, floor(observation_count / min_per_bucket))`
+  - fallback to a single `"all"` bucket when observations are too sparse
+- freeze inferred-regime MVP heuristic explicitly:
+  - realized-vol regime feature uses a 60-tick local volatility lookback
+  - `"unknown"` means no usable market-feature value could be derived
+  - `"stable"` means usable but uniform-volatility data
 
 ## Phase Breakdown
 

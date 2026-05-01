@@ -381,3 +381,7 @@ def test_infer_regime_map_missing_feature_data() -> None:
 
     regime_map = infer_regime_map(observations, path)
     assert set(regime_map.values()) == {"unknown"}
+
+    sparse_path = [{"timestamp": ts1, "price": 100.0}]
+    sparse_regime_map = infer_regime_map(observations, sparse_path)
+    assert set(sparse_regime_map.values()) == {"unknown"}

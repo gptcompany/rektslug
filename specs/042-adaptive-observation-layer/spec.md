@@ -285,6 +285,16 @@ observations before and after the transition without manual input.
   the last 1440 eligible `klines_1m_history` ticks before `snapshot_ts`. This is a
   method constant approximating a one-hour quote-volume session, not a
   symbol-specific market threshold.
+- **FR-017d**: The MVP quantile-bucket heuristic MAY use documented
+  computation-method constants. Freeze:
+  `n_buckets = min(5, floor(observation_count / min_per_bucket))` with fallback to a
+  single `"all"` bucket when fewer than `2 * min_per_bucket` observations exist.
+- **FR-017e**: The MVP inferred-regime heuristic MAY use documented
+  computation-method constants. Freeze:
+  local volatility for regime inference is computed with a 60-tick lookback on the
+  adaptive `price_path`. When no usable market-feature value can be derived for an
+  observation, its regime MUST be `"unknown"`. `"stable"` is reserved for usable,
+  uniform-volatility datasets.
 
 ### Key Entities
 
