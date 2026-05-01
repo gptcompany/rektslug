@@ -176,3 +176,37 @@ def test_compute_adaptive_touch_band_zero_history_uses_non_fixed_floor() -> None
     band = compute_adaptive_touch_band([], datetime(2023, 1, 1, tzinfo=timezone.utc), "BTC")
 
     assert band == 1
+
+
+def test_compute_volume_threshold_with_data() -> None:
+    from src.liquidationheatmap.scorecard.adaptive import compute_volume_threshold
+
+    # Create a path with varying volumes
+    path = [
+        {
+            "timestamp": datetime(2023, 1, 1, 0, i, tzinfo=timezone.utc),
+            "price": 100.0,
+            "volume": 1000.0,
+        }
+        for i in range(60)
+    ]
+    snapshot_ts = datetime(2023, 1, 1, 0, 59, tzinfo=timezone.utc)
+
+    # Threshold should be derived from the data
+    threshold = compute_volume_threshold(path, snapshot_ts)
+    assert threshold is not None
+    assert threshold > 0
+
+
+def test_compute_volume_threshold_missing_volume() -> None:
+    from src.liquidationheatmap.scorecard.adaptive import compute_volume_threshold
+
+    # Create a path missing volume data
+    path = [
+        {"timestamp": datetime(2023, 1, 1, 0, i, tzinfo=timezone.utc), "price": 100.0}
+        for i in range(60)
+    ]
+    snapshot_ts = datetime(2023, 1, 1, 0, 59, tzinfo=timezone.utc)
+
+    threshold = compute_volume_threshold(path, snapshot_ts)
+    assert threshold is None

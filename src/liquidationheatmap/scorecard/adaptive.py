@@ -90,9 +90,7 @@ def compute_adaptive_touch_band(
         ),
         key=lambda tick: tick["timestamp"],
     )
-    valid_ticks = [
-        tick for tick in normalized_ticks if tick["timestamp"] <= normalized_snapshot_ts
-    ]
+    valid_ticks = [tick for tick in normalized_ticks if tick["timestamp"] <= normalized_snapshot_ts]
     if not valid_ticks:
         return 1
 
@@ -108,9 +106,51 @@ def compute_adaptive_touch_band(
     return 1
 
 
-def compute_volume_threshold(price_path: list[dict[str, Any]], snapshot_ts: datetime) -> float:
-    """Compute cumulative volume threshold for window closure."""
-    raise NotImplementedError
+def compute_volume_threshold(
+    price_path: list[dict[str, Any]], snapshot_ts: datetime
+) -> float | None:
+    """Compute cumulative volume threshold for window closure.
+
+    Uses recent volume history (e.g. 24h) to determine an expected volume
+    for a given session, rather than a fixed time window.
+
+    If volume data is missing from the price path, returns None.
+    """
+    normalized_timestamp = _coerce_timestamp(snapshot_ts)
+    normalized_ticks = sorted(
+        (
+            {
+                "timestamp": _coerce_timestamp(tick["timestamp"]),
+                "volume": extract_volume(tick),
+            }
+            for tick in price_path
+        ),
+        key=lambda tick: tick["timestamp"],
+    )
+
+    valid_ticks = [tick for tick in normalized_ticks if tick["timestamp"] <= normalized_timestamp]
+
+    # Check if we have volume data at all
+    volumes = [tick["volume"] for tick in valid_ticks if tick["volume"] is not None]
+    if not volumes:
+        return None
+
+    # We want a volume threshold that represents a "session".
+    # If a fixed window was 1 hour, and we have 60 ticks per hour on average,
+    # we could just take the average volume per tick and multiply by 60.
+    # To be more adaptive to recent history, we look at the last 24 hours of ticks
+    # (or whatever is available) to find the average hourly volume.
+
+    lookback_ticks = min(len(volumes), 24 * 60)  # up to 24h of 1m klines
+    recent_volumes = volumes[-lookback_ticks:]
+
+    avg_tick_volume = sum(recent_volumes) / len(recent_volumes)
+
+    # A standard post-touch window in time was 1 hour (60 ticks).
+    # We use the average hourly volume as the threshold.
+    hourly_volume = avg_tick_volume * 60
+
+    return max(1.0, float(hourly_volume))
 
 
 def compute_quantile_buckets(

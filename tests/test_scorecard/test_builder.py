@@ -193,8 +193,142 @@ def test_touch_detection_adaptive_band(sample_expert_artifact):
     updated_obs_wide = builder.apply_touch_detection(
         [obs.model_copy() for obs in observations], price_path, adaptive_band_fn=wide_band_fn
     )
+
     long_obs_wide = next(
         o for o in updated_obs_wide if o.side == "long" and o.level_price == 59000.0
     )
     assert long_obs_wide.touched is True
     assert long_obs_wide.adaptive_touch_band_bps == 15
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # Base touch at 1700000100 (59000.0 long)
+
+    # Path 1: High volume path. Should close early.
+    # It has a volume threshold of 1000 let's say.
+    price_path_high_vol = [
+        {"timestamp": 1700000100, "price": 59000.0, "volume": 500},  # touch
+        {
+            "timestamp": 1700000200,
+            "price": 59050.0,
+            "volume": 600,
+        },  # reaches 1100 cum vol, window closes! MFE +50
+        {
+            "timestamp": 1700000300,
+            "price": 59100.0,
+            "volume": 200,
+        },  # ignored, outside volume window
+    ]
+
+    # Path 2: Low volume path. Should stay open longer.
+    price_path_low_vol = [
+        {"timestamp": 1700000100, "price": 59000.0, "volume": 100},  # touch
+        {"timestamp": 1700000200, "price": 59050.0, "volume": 100},  # MFE +50
+        {"timestamp": 1700000300, "price": 59100.0, "volume": 100},  # MFE +100
+        {
+            "timestamp": 1700000400,
+            "price": 59000.0,
+            "volume": 1000,
+        },  # reaches 1300 cum vol, window closes
+    ]
+
+    # Pre-touch both
+    touched_high = builder.apply_touch_detection(
+        [obs.model_copy() for obs in observations], price_path_high_vol
+    )
+    touched_low = builder.apply_touch_detection(
+        [obs.model_copy() for obs in observations], price_path_low_vol
+    )
+
+    # We mock the volume threshold here, or we use a fixed volume_threshold in the builder call.
+    # The requirement says `ScorecardBuilder.apply_post_touch_path()` accepts optional volume-clock parameters.
+    # e.g., `volume_threshold=1000.0`
+
+    result_high = builder.apply_post_touch_path(
+        touched_high, price_path_high_vol, volume_threshold=1000.0
+    )
+    result_low = builder.apply_post_touch_path(
+        touched_low, price_path_low_vol, volume_threshold=1000.0
+    )
+
+    long_obs_high = next(o for o in result_high if o.side == "long" and o.level_price == 59000.0)
+    long_obs_low = next(o for o in result_low if o.side == "long" and o.level_price == 59000.0)
+
+    assert long_obs_high.volume_window_complete is True
+    assert long_obs_high.mfe_bps == round(50.0 / 59000.0 * 10000)
+
+    assert long_obs_low.volume_window_complete is True
+    assert long_obs_low.mfe_bps == round(100.0 / 59000.0 * 10000)
+
+
+def test_post_touch_path_insufficient_volume(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    price_path = [
+        {"timestamp": 1700000100, "price": 59000.0, "volume": 100},  # touch
+        {"timestamp": 1700000200, "price": 59050.0, "volume": 100},  # cumulative 200
+        # No more data
+    ]
+
+    touched = builder.apply_touch_detection(observations, price_path)
+    result = builder.apply_post_touch_path(touched, price_path, volume_threshold=1000.0)
+
+    long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
+
+    assert long_obs.volume_window_complete is False
+
+
+def test_post_touch_path_missing_volume_fallback(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # Note: no volume field
+    price_path = [
+        {"timestamp": 1700000100, "price": 59000.0},  # touch
+        {"timestamp": 1700000200, "price": 59050.0},
+    ]
+
+    touched = builder.apply_touch_detection(observations, price_path)
+
+    # Pass volume_threshold but data is missing
+    result = builder.apply_post_touch_path(touched, price_path, volume_threshold=1000.0)
+
+    long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
+
+    # FR-015: Mark as volume_window_complete=None (meaning unavailable), but it still processes time-based
+    assert long_obs.volume_window_complete is None
+    assert long_obs.mfe_bps == round(50.0 / 59000.0 * 10000)
+
+
+def test_liquidation_confirmation_volume_clock(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    price_path = [
+        {"timestamp": 1700000100, "price": 59000.0, "volume": 800},  # touch
+        {
+            "timestamp": 1700000200,
+            "price": 59050.0,
+            "volume": 500,
+        },  # cumulative 1300 (over 1000 threshold)
+    ]
+
+    liq_events = [
+        # Inside volume threshold
+        {"timestamp": 1700000150, "price": 59020.0, "symbol": "BTCUSDT", "side": "long"},
+        # Outside volume threshold but inside time threshold (15m is 900s)
+        {"timestamp": 1700000300, "price": 59030.0, "symbol": "BTCUSDT", "side": "long"},
+    ]
+
+    touched = builder.apply_touch_detection(observations, price_path)
+
+    result = builder.apply_liquidation_confirmation(
+        touched, liq_events, volume_threshold=1000.0, price_path=price_path
+    )
+
+    long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
+
+    assert long_obs.liquidation_confirmed is True
+    # The first liq event matches and is inside the volume-clock window
+    assert int(long_obs.liquidation_confirm_ts.timestamp()) == 1700000150
