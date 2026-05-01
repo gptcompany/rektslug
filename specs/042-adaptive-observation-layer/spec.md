@@ -279,6 +279,12 @@ observations before and after the transition without manual input.
   `adaptive_band_bps = max(1, floor(local_volatility_bps / 500))`; when realized
   volatility is unavailable, the fallback proxy is
   `max(1, floor(spread_bps / 2))` over the effective normalized pre-snapshot path.
+- **FR-017c**: The MVP volume-clock threshold heuristic MAY use documented
+  computation-method constants. Freeze:
+  `volume_threshold = max(1.0, avg_quote_volume_per_tick * 60)` computed from up to
+  the last 1440 eligible `klines_1m_history` ticks before `snapshot_ts`. This is a
+  method constant approximating a one-hour quote-volume session, not a
+  symbol-specific market threshold.
 
 ### Key Entities
 

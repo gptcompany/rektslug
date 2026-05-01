@@ -195,30 +195,29 @@ class ScorecardBuilder:
                         volume_end_ts = tick["timestamp"]
                         break
 
+            if volume_threshold is not None:
+                if missing_volume_encountered:
+                    window_mode = "fallback_time"
+                elif volume_end_ts is not None:
+                    window_mode = "volume_closed"
+                else:
+                    # In adaptive volume-clock mode, an unclosed window is incomplete.
+                    new_obs.liquidation_confirmed = False
+                    updated_observations.append(new_obs)
+                    continue
+            else:
+                window_mode = "legacy_time"
+
             for event in normalized_events:
                 event_ts = event["timestamp"]
                 event_price = event["price"]
                 event_symbol = event["symbol"]
                 event_side = event["side"]
 
-                # Use volume_end_ts if available and no missing volume, else fallback to confirm_window
-                if (
-                    volume_threshold is not None
-                    and not missing_volume_encountered
-                    and volume_end_ts is not None
-                ):
+                if window_mode == "volume_closed":
                     if event_ts > volume_end_ts:
                         break
-                elif (
-                    volume_threshold is not None
-                    and not missing_volume_encountered
-                    and volume_end_ts is None
-                ):
-                    # We ran out of price path without hitting threshold, any event after touch is considered?
-                    # But normally we cap at available data. We'll just continue and check other conditions.
-                    pass
                 else:
-                    # Legacy time-based mode or fallback
                     if event_ts > new_obs.touch_ts + confirm_window:
                         break
 
@@ -343,17 +342,25 @@ class ScorecardBuilder:
                 if adverse > max_adverse:
                     max_adverse = adverse
 
-            new_obs.mfe_bps = round(max_favorable / new_obs.level_price * 10000)
-            new_obs.mae_bps = round(max_adverse / new_obs.level_price * 10000)
-
             if volume_threshold is not None:
                 if missing_volume_encountered:
                     new_obs.volume_window_complete = None
+                    new_obs.post_touch_volume = None
+                    new_obs.mfe_bps = round(max_favorable / new_obs.level_price * 10000)
+                    new_obs.mae_bps = round(max_adverse / new_obs.level_price * 10000)
+                elif window_closed_by_volume:
+                    new_obs.volume_window_complete = True
+                    new_obs.post_touch_volume = cumulative_volume
+                    new_obs.mfe_bps = round(max_favorable / new_obs.level_price * 10000)
+                    new_obs.mae_bps = round(max_adverse / new_obs.level_price * 10000)
                 else:
-                    new_obs.volume_window_complete = window_closed_by_volume
-                new_obs.post_touch_volume = (
-                    cumulative_volume if not missing_volume_encountered else None
-                )
+                    new_obs.volume_window_complete = False
+                    new_obs.post_touch_volume = cumulative_volume
+                    new_obs.mfe_bps = None
+                    new_obs.mae_bps = None
+            else:
+                new_obs.mfe_bps = round(max_favorable / new_obs.level_price * 10000)
+                new_obs.mae_bps = round(max_adverse / new_obs.level_price * 10000)
 
             updated_observations.append(new_obs)
 

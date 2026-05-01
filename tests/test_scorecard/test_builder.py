@@ -277,6 +277,8 @@ def test_post_touch_path_insufficient_volume(sample_expert_artifact):
     long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
 
     assert long_obs.volume_window_complete is False
+    assert long_obs.mfe_bps is None
+    assert long_obs.mae_bps is None
 
 
 def test_post_touch_path_missing_volume_fallback(sample_expert_artifact):
@@ -332,3 +334,27 @@ def test_liquidation_confirmation_volume_clock(sample_expert_artifact):
     assert long_obs.liquidation_confirmed is True
     # The first liq event matches and is inside the volume-clock window
     assert int(long_obs.liquidation_confirm_ts.timestamp()) == 1700000150
+
+
+def test_liquidation_confirmation_volume_clock_incomplete_window_no_match(
+    sample_expert_artifact,
+):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    price_path = [
+        {"timestamp": 1700000100, "price": 59000.0, "volume": 100},
+        {"timestamp": 1700000200, "price": 59020.0, "volume": 100},
+    ]
+    liq_events = [
+        {"timestamp": 1700000300, "price": 59010.0, "symbol": "BTCUSDT", "side": "long"},
+    ]
+
+    touched = builder.apply_touch_detection(observations, price_path)
+    result = builder.apply_liquidation_confirmation(
+        touched, liq_events, volume_threshold=1000.0, price_path=price_path
+    )
+
+    long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
+    assert long_obs.liquidation_confirmed is False
+    assert long_obs.liquidation_confirm_ts is None

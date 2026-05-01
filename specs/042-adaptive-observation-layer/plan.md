@@ -119,6 +119,9 @@ Foundational volatility primitive rules:
 - freeze adaptive touch-band MVP heuristics explicitly:
   - `max(1, floor(local_volatility_bps / 500))` for volatility-derived bands
   - `max(1, floor(spread_bps / 2))` for spread-proxy fallback
+- freeze volume-threshold MVP heuristic explicitly:
+  - `max(1.0, avg_quote_volume_per_tick * 60)` from up to the last 1440 eligible
+    pre-snapshot ticks
 
 ## Phase Breakdown
 
