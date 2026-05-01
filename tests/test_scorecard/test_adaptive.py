@@ -7,18 +7,7 @@ from src.liquidationheatmap.scorecard.adaptive import (
 )
 
 
-def test_compute_realized_volatility_known_returns():
-    # log returns = math.log(P_t / P_{t-1})
-    # Let's say we have prices that give specific log returns.
-    # Prices: 100, 101, 100
-    # R1 = ln(101/100) = 0.00995033
-    # R2 = ln(100/101) = -0.00995033
-    # Mean = 0
-    # Variance = ((0.00995033 - 0)^2 + (-0.00995033 - 0)^2) / 1 = 0.00019802
-    # Std dev = 0.0140719579
-    # Annualized = 0.0140719579 * sqrt(525600) = 10.202
-    # In bps = 102020 (approx)
-
+def test_compute_realized_volatility_known_returns() -> None:
     price_path = [
         {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0},
         {"timestamp": datetime(2023, 1, 1, 0, 1, tzinfo=timezone.utc), "price": 101.0},
@@ -28,44 +17,70 @@ def test_compute_realized_volatility_known_returns():
     vol_bps = compute_realized_volatility(
         price_path=price_path,
         timestamp=datetime(2023, 1, 1, 0, 2, tzinfo=timezone.utc),
-        lookback_ticks=3
+        lookback_ticks=3,
     )
 
-    # We can pre-calculate the exact expected value
-    r1 = math.log(101.0 / 100.0)
-    r2 = math.log(100.0 / 101.0)
-    var = (r1**2 + r2**2) / 1.0
-    std = math.sqrt(var)
-    expected_vol = int(std * math.sqrt(525600) * 10000)
+    first_return = math.log(101.0 / 100.0)
+    second_return = math.log(100.0 / 101.0)
+    variance = (first_return**2 + second_return**2) / 1.0
+    std_dev = math.sqrt(variance)
+    expected_vol = int(std_dev * math.sqrt(525600) * 10000)
 
     assert vol_bps == expected_vol
 
 
-def test_compute_realized_volatility_insufficient_data():
+def test_compute_realized_volatility_insufficient_data() -> None:
     price_path = [
         {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0},
     ]
     vol_bps = compute_realized_volatility(
         price_path=price_path,
         timestamp=datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
-        lookback_ticks=10
+        lookback_ticks=10,
     )
     assert vol_bps == 0
 
 
-def test_extract_volume_contract():
-    # Valid volume
-    tick1 = {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0, "volume": 1500.5}
+def test_compute_realized_volatility_accepts_iso_timestamps_and_unsorted_path() -> None:
+    price_path = [
+        {"timestamp": "2023-01-01T00:02:00Z", "price": 100.0},
+        {"timestamp": "2023-01-01T00:00:00Z", "price": 100.0},
+        {"timestamp": "2023-01-01T00:01:00Z", "price": 101.0},
+    ]
+
+    vol_bps = compute_realized_volatility(
+        price_path=price_path,
+        timestamp=datetime(2023, 1, 1, 0, 2, tzinfo=timezone.utc),
+        lookback_ticks=3,
+    )
+
+    assert vol_bps > 0
+
+
+def test_extract_volume_contract() -> None:
+    tick1 = {
+        "timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "price": 100.0,
+        "volume": 1500.5,
+    }
     assert extract_volume(tick1) == 1500.5
 
-    # String volume (sometimes from APIs)
-    tick2 = {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0, "volume": "2000.1"}
+    tick2 = {
+        "timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "price": 100.0,
+        "volume": "2000.1",
+    }
     assert extract_volume(tick2) == 2000.1
 
-    # No volume
-    tick3 = {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0}
+    tick3 = {
+        "timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "price": 100.0,
+    }
     assert extract_volume(tick3) is None
 
-    # None volume
-    tick4 = {"timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), "price": 100.0, "volume": None}
+    tick4 = {
+        "timestamp": datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "price": 100.0,
+        "volume": None,
+    }
     assert extract_volume(tick4) is None

@@ -159,21 +159,42 @@ class ExpertScorecardSlice(BaseModel):
 
 class QuantileBucketSet(BaseModel):
     metric_name: str
-    n_buckets: int
+    n_buckets: int = Field(gt=0)
     boundaries: List[float]
     labels: List[str]
-    observation_count: int
+    observation_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_contract(self) -> "QuantileBucketSet":
+        if len(self.boundaries) != self.n_buckets + 1:
+            raise ValueError("boundaries must have length n_buckets + 1")
+        if len(self.labels) != self.n_buckets:
+            raise ValueError("labels must have length n_buckets")
+        if any(
+            self.boundaries[index] > self.boundaries[index + 1]
+            for index in range(len(self.boundaries) - 1)
+        ):
+            raise ValueError("boundaries must be monotonically non-decreasing")
+        return self
 
 
 class BootstrapDominanceResult(BaseModel):
     expert_a: str
     expert_b: str
     metric: str
-    p_a_better: float
+    p_a_better: float = Field(ge=0.0, le=1.0)
     significant: bool
-    ci_lower: float
-    ci_upper: float
-    n_bootstrap: int
+    ci_lower: float = Field(ge=0.0, le=1.0)
+    ci_upper: float = Field(ge=0.0, le=1.0)
+    n_bootstrap: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_contract(self) -> "BootstrapDominanceResult":
+        if self.ci_lower > self.ci_upper:
+            raise ValueError("ci_lower cannot exceed ci_upper")
+        if not self.ci_lower <= self.p_a_better <= self.ci_upper:
+            raise ValueError("p_a_better must lie within the confidence interval")
+        return self
 
 
 class ExpertScorecardBundle(BaseModel):
