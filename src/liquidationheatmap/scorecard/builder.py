@@ -5,6 +5,7 @@ from typing import Any
 
 from src.liquidationheatmap.models.scorecard import (
     LIQ_CONFIRM_WINDOW_MINUTES,
+    POST_TOUCH_WINDOW_HOURS,
     TOUCH_TOLERANCE_BPS,
     TOUCH_WINDOW_HOURS,
     ExpertSignalObservation,
@@ -183,6 +184,61 @@ class ScorecardBuilder:
             if not confirmed:
                 new_obs.liquidation_confirmed = False
 
+            updated_observations.append(new_obs)
+
+        return updated_observations
+
+    def apply_post_touch_path(
+        self,
+        observations: list[ExpertSignalObservation],
+        price_path: list[dict[str, Any]],
+    ) -> list[ExpertSignalObservation]:
+        """Compute MFE and MAE from realized price path after first touch."""
+        updated_observations: list[ExpertSignalObservation] = []
+        post_touch_window = timedelta(hours=POST_TOUCH_WINDOW_HOURS)
+        normalized_ticks = sorted(
+            (
+                {
+                    "timestamp": _coerce_timestamp(tick["timestamp"]),
+                    "price": float(tick["price"]),
+                }
+                for tick in price_path
+            ),
+            key=lambda tick: tick["timestamp"],
+        )
+
+        for obs in observations:
+            new_obs = obs.model_copy()
+            if not new_obs.touched or new_obs.touch_ts is None:
+                updated_observations.append(new_obs)
+                continue
+
+            max_favorable = 0.0
+            max_adverse = 0.0
+
+            for tick in normalized_ticks:
+                tick_ts = tick["timestamp"]
+                tick_price = tick["price"]
+
+                if tick_ts < new_obs.touch_ts:
+                    continue
+                if tick_ts > new_obs.touch_ts + post_touch_window:
+                    break
+
+                if new_obs.side == "long":
+                    favorable = tick_price - new_obs.level_price
+                    adverse = new_obs.level_price - tick_price
+                else:
+                    favorable = new_obs.level_price - tick_price
+                    adverse = tick_price - new_obs.level_price
+
+                if favorable > max_favorable:
+                    max_favorable = favorable
+                if adverse > max_adverse:
+                    max_adverse = adverse
+
+            new_obs.mfe_bps = round(max_favorable / new_obs.level_price * 10000)
+            new_obs.mae_bps = round(max_adverse / new_obs.level_price * 10000)
             updated_observations.append(new_obs)
 
         return updated_observations

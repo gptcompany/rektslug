@@ -82,6 +82,10 @@ def test_pipeline_idempotency_validation_and_dominance() -> None:
         scorecard_slice.time_to_liquidation_confirm_quantiles["p50"] >= 0
         for scorecard_slice in bundle.slices
     )
+    assert any(
+        scorecard_slice.mfe_quantiles["p50"] > 0
+        for scorecard_slice in bundle.slices
+    )
 
 
 def test_markdown_summary_generation() -> None:

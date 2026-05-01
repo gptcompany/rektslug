@@ -104,3 +104,58 @@ def test_touch_detection_sorts_unsorted_price_path(sample_expert_artifact):
     assert long_obs.touched is True
     assert int(long_obs.touch_ts.timestamp()) == 1700000300
     assert long_obs.time_to_touch_secs == 300
+
+
+def test_post_touch_path_long_side(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # Touch at 59000.0 long
+    price_path = [
+        {"timestamp": 1700000100, "price": 59000.0},  # touch
+        {"timestamp": 1700000200, "price": 59050.0},  # favorable +50
+        {"timestamp": 1700000300, "price": 58970.0},  # adverse -30
+        {"timestamp": 1700000400, "price": 59080.0},  # favorable +80 (MFE)
+    ]
+
+    touched_obs = builder.apply_touch_detection(observations, price_path)
+    result = builder.apply_post_touch_path(touched_obs, price_path)
+
+    long_obs = next(o for o in result if o.side == "long" and o.level_price == 59000.0)
+    assert long_obs.mfe_bps == round(80.0 / 59000.0 * 10000)  # ~14 bps
+    assert long_obs.mae_bps == round(30.0 / 59000.0 * 10000)  # ~5 bps
+
+
+def test_post_touch_path_short_side(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # Touch at 61000.0 short
+    price_path = [
+        {"timestamp": 1700000100, "price": 61000.0},  # touch
+        {"timestamp": 1700000200, "price": 60900.0},  # favorable -100 (MFE)
+        {"timestamp": 1700000300, "price": 61050.0},  # adverse +50
+    ]
+
+    touched_obs = builder.apply_touch_detection(observations, price_path)
+    result = builder.apply_post_touch_path(touched_obs, price_path)
+
+    short_obs = next(o for o in result if o.side == "short" and o.level_price == 61000.0)
+    assert short_obs.mfe_bps == round(100.0 / 61000.0 * 10000)  # ~16 bps
+    assert short_obs.mae_bps == round(50.0 / 61000.0 * 10000)  # ~8 bps
+
+
+def test_post_touch_path_untouched_remains_null(sample_expert_artifact):
+    builder = ScorecardBuilder()
+    observations = builder.extract_observations(sample_expert_artifact)
+
+    # No price near any level
+    price_path = [{"timestamp": 1700000100, "price": 60000.0}]
+
+    touched_obs = builder.apply_touch_detection(observations, price_path)
+    result = builder.apply_post_touch_path(touched_obs, price_path)
+
+    for obs in result:
+        assert obs.touched is False
+        assert obs.mfe_bps is None
+        assert obs.mae_bps is None

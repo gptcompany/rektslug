@@ -211,6 +211,9 @@ class ScorecardPipeline:
         final_observations = self.builder.apply_liquidation_confirmation(
             touched_observations, liquidation_events
         )
+        final_observations = self.builder.apply_post_touch_path(
+            final_observations, price_path
+        )
         grouped_slices = self.slicer.slice_observations(final_observations)
 
         scorecard_slices: list[ExpertScorecardSlice] = []
