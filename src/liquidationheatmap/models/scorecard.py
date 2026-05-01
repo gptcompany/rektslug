@@ -33,6 +33,14 @@ class ExpertSignalObservation(BaseModel):
     time_to_touch_secs: Optional[int] = Field(default=None, ge=0)
     time_to_liquidation_confirm_secs: Optional[int] = Field(default=None, ge=0)
 
+    # Optional adaptive fields
+    adaptive_touch_band_bps: Optional[int] = None
+    local_volatility_bps: Optional[int] = None
+    volume_at_touch: Optional[float] = None
+    volume_window_complete: Optional[bool] = None
+    post_touch_volume: Optional[float] = None
+    inferred_regime: Optional[str] = None
+
     # Optional downstream execution fields
     signal_accepted: Optional[bool] = None
     order_submitted: Optional[bool] = None
@@ -100,6 +108,7 @@ class ExpertScorecardSlice(BaseModel):
     time_to_touch_quantiles: Dict[str, int]
     time_to_liquidation_confirm_quantiles: Dict[str, int]
     low_sample_flag: bool
+    bucket_boundaries: Optional[Dict[str, Any]] = None
 
     @classmethod
     def generate_slice_id(
@@ -148,9 +157,29 @@ class ExpertScorecardSlice(BaseModel):
         return self
 
 
+class QuantileBucketSet(BaseModel):
+    metric_name: str
+    n_buckets: int
+    boundaries: List[float]
+    labels: List[str]
+    observation_count: int
+
+
+class BootstrapDominanceResult(BaseModel):
+    expert_a: str
+    expert_b: str
+    metric: str
+    p_a_better: float
+    significant: bool
+    ci_lower: float
+    ci_upper: float
+    n_bootstrap: int
+
+
 class ExpertScorecardBundle(BaseModel):
     slices: List[ExpertScorecardSlice]
     coverage_gaps: Optional[Dict[str, Any]] = None
     dominance_rows: Optional[List[Dict[str, Any]]] = None
     retained_input_range: Optional[Dict[str, Any]] = None
     artifact_provenance: Optional[Dict[str, Any]] = None
+    adaptive_parameters: Optional[Dict[str, Any]] = None
