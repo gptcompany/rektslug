@@ -1,7 +1,12 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
-from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
+from src.liquidationheatmap.models.scorecard import (
+    ExpertScorecardBundle,
+    ExpertScorecardSlice,
+    ExpertSignalObservation,
+)
 from src.liquidationheatmap.scorecard.pipeline import ScorecardPipeline
 
 
@@ -183,6 +188,107 @@ def test_pipeline_adaptive_mode() -> None:
         if "p_a_better" in row:
             assert "significant" in row
             assert "ci_lower" in row
+
+    markdown_summary = pipeline.generate_markdown(bundle_json)
+    assert "touch_probability" in markdown_summary
+    assert "p=" in markdown_summary
+
+
+def test_pipeline_adaptive_seed_is_stable() -> None:
+    key = "BTCUSDT:long:all:all:unknown:v1:v3:touch_probability"
+
+    assert ScorecardPipeline._stable_seed(key) == ScorecardPipeline._stable_seed(key)
+    assert ScorecardPipeline._stable_seed(key) != ScorecardPipeline._stable_seed(f"{key}:other")
+
+
+def test_pipeline_adaptive_mae_dominance_uses_lower_is_better() -> None:
+    pipeline = ScorecardPipeline()
+    snapshot_ts = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    def observation(expert_id: str, level_price: float, mae_bps: int) -> ExpertSignalObservation:
+        obs_id = ExpertSignalObservation.generate_id(
+            expert_id,
+            "BTCUSDT",
+            snapshot_ts,
+            level_price,
+            "long",
+        )
+        return ExpertSignalObservation(
+            observation_id=obs_id,
+            expert_id=expert_id,
+            symbol="BTCUSDT",
+            snapshot_ts=snapshot_ts,
+            level_price=level_price,
+            side="long",
+            confidence=1.0,
+            reference_price=60000.0,
+            distance_bps=10,
+            touched=True,
+            touch_ts=snapshot_ts,
+            time_to_touch_secs=0,
+            mfe_bps=10,
+            mae_bps=mae_bps,
+        )
+
+    grouped_observations = {
+        "v1:BTCUSDT:long:all:all:stable": [
+            observation("v1", 59900.0 + index, 1) for index in range(40)
+        ],
+        "v3:BTCUSDT:long:all:all:stable": [
+            observation("v3", 59950.0 + index, 9) for index in range(40)
+        ],
+    }
+    scorecard_slices = [
+        ExpertScorecardSlice(
+            expert_id=expert_id,
+            slice_id=slice_id,
+            slice_dimensions={
+                "symbol": "BTCUSDT",
+                "side": "long",
+                "distance_bucket": "all",
+                "confidence_bucket": "all",
+                "regime": "stable",
+            },
+            sample_count=40,
+            touch_count=40,
+            touch_probability=1.0,
+            liquidation_match_count=0,
+            liquidation_match_probability_given_touch=0.0,
+            mfe_quantiles={"p10": 10, "p25": 10, "p50": 10, "p75": 10, "p90": 10},
+            mae_quantiles={
+                "p10": 1 if expert_id == "v1" else 9,
+                "p25": 1 if expert_id == "v1" else 9,
+                "p50": 1 if expert_id == "v1" else 9,
+                "p75": 1 if expert_id == "v1" else 9,
+                "p90": 1 if expert_id == "v1" else 9,
+            },
+            time_to_touch_quantiles={"p10": 0, "p25": 0, "p50": 0, "p75": 0, "p90": 0},
+            time_to_liquidation_confirm_quantiles={
+                "p10": 0,
+                "p25": 0,
+                "p50": 0,
+                "p75": 0,
+                "p90": 0,
+            },
+            low_sample_flag=False,
+        )
+        for expert_id, slice_id in [
+            ("v1", "v1:BTCUSDT:long:all:all:stable"),
+            ("v3", "v3:BTCUSDT:long:all:all:stable"),
+        ]
+    ]
+
+    dominance_rows = pipeline._create_dominance_rows(
+        scorecard_slices,
+        enable_adaptive=True,
+        grouped_observations=grouped_observations,
+    )
+    mae_row = next(row for row in dominance_rows if row["metric"] == "mae_p50")
+
+    assert mae_row["expert_a"] == "v1"
+    assert mae_row["expert_b"] == "v3"
+    assert mae_row["p_a_better"] > 0.95
+    assert mae_row["significant"] is True
 
 
 def test_pipeline_backward_compatibility() -> None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import statistics
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +35,11 @@ class ScorecardPipeline:
         self.builder = ScorecardBuilder()
         self.slicer = ScorecardSlicer()
         self.aggregator = ScorecardAggregator()
+
+    @staticmethod
+    def _stable_seed(seed_key: str) -> int:
+        """Derive a deterministic 32-bit seed from a stable string key."""
+        return int.from_bytes(hashlib.sha256(seed_key.encode("utf-8")).digest()[:4], "big")
 
     def _create_dominance_rows(
         self,
@@ -130,44 +137,48 @@ class ScorecardPipeline:
                         obs_a = grouped_observations.get(slice_id_a, [])
                         obs_b = grouped_observations.get(slice_id_b, [])
 
-                        # Metrics to compare
                         metrics = {
-                            "touch_probability": lambda data: (
-                                sum(1 for o in data if o.touched) / len(data) if data else 0.0
+                            "touch_probability": (
+                                lambda data: (
+                                    sum(1 for o in data if o.touched) / len(data)
+                                    if data
+                                    else 0.0
+                                ),
+                                True,
                             ),
-                            "liq_match_prob": lambda data: (
-                                sum(1 for o in data if o.touched and o.liquidation_confirmed)
-                                / sum(1 for o in data if o.touched)
-                                if any(o.touched for o in data)
-                                else 0.0
+                            "liq_match_prob": (
+                                lambda data: (
+                                    sum(1 for o in data if o.touched and o.liquidation_confirmed)
+                                    / sum(1 for o in data if o.touched)
+                                    if any(o.touched for o in data)
+                                    else 0.0
+                                ),
+                                True,
                             ),
-                            "mfe_p50": lambda data: (
-                                statistics.median(
-                                    [o.mfe_bps for o in data if o.mfe_bps is not None]
-                                )
-                                if any(o.mfe_bps is not None for o in data)
-                                else 0.0
+                            "mfe_p50": (
+                                lambda data: (
+                                    statistics.median(
+                                        [o.mfe_bps for o in data if o.mfe_bps is not None]
+                                    )
+                                    if any(o.mfe_bps is not None for o in data)
+                                    else 0.0
+                                ),
+                                True,
                             ),
-                            "mae_p50": lambda data: (
-                                statistics.median(
-                                    [o.mae_bps for o in data if o.mae_bps is not None]
-                                )
-                                if any(o.mae_bps is not None for o in data)
-                                else 0.0
+                            "mae_p50": (
+                                lambda data: (
+                                    statistics.median(
+                                        [o.mae_bps for o in data if o.mae_bps is not None]
+                                    )
+                                    if any(o.mae_bps is not None for o in data)
+                                    else 0.0
+                                ),
+                                False,
                             ),
                         }
 
-                        import statistics
-
-                        for metric_name, metric_fn in metrics.items():
-                            # For MAE, lower is better. Our bootstrap_dominance checks if A > B.
-                            # So for MAE we might want to flip it or handle it.
-                            # The spec says p_a_better is "expert_a > expert_b".
-                            # For MAE, "better" means "lower".
-                            # Let's keep it consistent: p_a_better means expert_a > expert_b in terms of VALUE.
-
-                            # Deterministic seed per comparison
-                            seed = hash(f"{group_key}:{exp_a}:{exp_b}:{metric_name}") % (2**32)
+                        for metric_name, (metric_fn, higher_is_better) in metrics.items():
+                            seed_key = f"{group_key}:{exp_a}:{exp_b}:{metric_name}"
 
                             res = bootstrap_dominance(
                                 obs_a=obs_a,
@@ -176,7 +187,8 @@ class ScorecardPipeline:
                                 expert_a=exp_a,
                                 expert_b=exp_b,
                                 metric_name=metric_name,
-                                seed=seed,
+                                seed=self._stable_seed(seed_key),
+                                higher_is_better=higher_is_better,
                             )
 
                             row = res.model_dump()
@@ -463,8 +475,21 @@ class ScorecardPipeline:
         if bundle.dominance_rows:
             lines.extend(["## Dominance", ""])
             for dominance_row in bundle.dominance_rows:
+                if "leaders" in dominance_row:
+                    lines.append(
+                        f"- {dominance_row['comparison_slice_id']}: {dominance_row['leaders']}"
+                    )
+                    continue
+
+                comparison = dominance_row.get("comparison_slice_id", "unknown")
+                expert_a = dominance_row.get("expert_a", "unknown")
+                expert_b = dominance_row.get("expert_b", "unknown")
+                metric = dominance_row.get("metric", "unknown")
+                probability = dominance_row.get("p_a_better", 0.0)
+                significant = dominance_row.get("significant", False)
                 lines.append(
-                    f"- {dominance_row['comparison_slice_id']}: {dominance_row['leaders']}"
+                    f"- {comparison}: {expert_a} vs {expert_b} {metric} "
+                    f"p={probability:.4f} significant={significant}"
                 )
 
         return "\n".join(lines)
