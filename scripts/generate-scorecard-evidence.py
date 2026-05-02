@@ -2,7 +2,6 @@
 """
 CLI entry point for generating scorecard evidence.
 """
-
 import argparse
 import sys
 import logging
@@ -11,6 +10,7 @@ from datetime import datetime, timezone
 
 from src.liquidationheatmap.scorecard.pipeline import ScorecardPipeline
 from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
+from src.liquidationheatmap.scorecard.calibration import extract_calibration_metadata
 from src.liquidationheatmap.scorecard.runtime import (
     ScorecardArtifactWriter,
     ScorecardEvidenceDetails,
@@ -21,12 +21,9 @@ from src.liquidationheatmap.scorecard.runtime import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def main():
     parser = argparse.ArgumentParser(description="Generate scorecard evidence")
-    parser.add_argument(
-        "--snapshot-root", type=str, default="data/validation/expert_snapshots/hyperliquid"
-    )
+    parser.add_argument("--snapshot-root", type=str, default="data/validation/expert_snapshots/hyperliquid")
     parser.add_argument("--output-dir", type=str, default="data/validation/scorecards")
     parser.add_argument("--price-path", type=str, default=None)
     parser.add_argument("--enable-adaptive", action="store_true", default=True)
@@ -40,7 +37,7 @@ def main():
 
     try:
         pipeline = ScorecardPipeline(snapshot_root=snapshot_root)
-
+        
         bundle_json_str = pipeline.run_from_retained_snapshots(
             price_path=args.price_path,
             liquidation_events=None,
@@ -49,15 +46,18 @@ def main():
             limit_manifests=None,
             enable_adaptive=args.enable_adaptive,
         )
-
+        
         bundle = ExpertScorecardBundle.model_validate_json(bundle_json_str)
-
+        
         writer = ScorecardArtifactWriter(base_dir=args.output_dir)
-
+        
         quality, blocking_issues = classify_quality(
-            bundle, artifact_age_secs=0, max_age_secs=86400, hash_val=writer.compute_hash(bundle)
+            bundle, 
+            artifact_age_secs=0, 
+            max_age_secs=86400,
+            hash_val=writer.compute_hash(bundle)
         )
-
+        
         details = ScorecardEvidenceDetails(
             artifact_path=str(Path(args.output_dir) / "latest.json"),
             summary_path=str(Path(args.output_dir) / "latest-summary.json"),
@@ -75,19 +75,13 @@ def main():
             calibration_metadata=extract_calibration_metadata(bundle),
             artifact_links={},
         )
-
+        
         writer.write_latest(bundle, details)
         logger.info("Successfully generated scorecard evidence.")
-
+        
     except Exception as e:
         logger.exception("Failed to generate scorecard evidence")
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
-sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
