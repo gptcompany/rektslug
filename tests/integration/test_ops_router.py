@@ -74,7 +74,39 @@ def test_ops_summary_success(mock_evidence):
                             "HEALTHY",
                             {"summary": {"signals_seen": 10}},
                         )
-                        response = client.get("/ops/summary")
+                        with patch(
+                            "src.liquidationheatmap.api.routers.ops.load_scorecard_details"
+                        ) as mock_sc:
+                            from src.liquidationheatmap.scorecard.runtime import (
+                                ScorecardEvidenceDetails,
+                                ScorecardQualitySummary,
+                            )
+
+                            mock_sc.return_value = ScorecardEvidenceDetails(
+                                artifact_path="test",
+                                summary_path="test",
+                                artifact_generated_at=datetime.now(timezone.utc),
+                                artifact_age_secs=0,
+                                adaptive_mode=True,
+                                experts=["v1"],
+                                symbols=["BTCUSDT"],
+                                slice_count=1,
+                                observation_count=10,
+                                dominance_row_count=0,
+                                coverage_gap_count=0,
+                                blocking_issues=[],
+                                quality=ScorecardQualitySummary(
+                                    snapshot_coverage_status="HEALTHY",
+                                    price_path_coverage_status="HEALTHY",
+                                    volume_coverage_status="HEALTHY",
+                                    liquidation_confirmation_status="HEALTHY",
+                                    schema_validation_status="HEALTHY",
+                                    reproducibility_hash="test",
+                                ),
+                                calibration_metadata={},
+                                artifact_links={},
+                            )
+                            response = client.get("/ops/summary")
                         assert response.status_code == 200
                         data = response.json()
                         assert data["provider_id"] == "rektslug"
