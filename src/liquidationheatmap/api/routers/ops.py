@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.liquidationheatmap.api.routers.signals import get_continuous_report, get_signal_status
@@ -18,6 +19,10 @@ SHADOW_PRODUCER_SYMBOLS = ("BTCUSDT", "ETHUSDT")
 SHADOW_PRODUCER_FRESHNESS_SECS = 600
 SHADOW_REPORT_PATH = Path("/var/lib/rektslug-db/shadow_report.json")
 SHADOW_REPORT_FRESHNESS_SECS = 600
+
+
+def get_scorecard_dir() -> Path:
+    return _repo_root() / "data" / "validation" / "scorecards"
 
 
 def _repo_root() -> Path:
@@ -337,3 +342,52 @@ async def ops_backfill_status() -> OpsEnvelope:
     return OpsEnvelope(
         status="UNAVAILABLE", details={"message": "Backfill not configured or non-applicable"}
     )
+
+
+@router.get("/scorecard/latest", response_model=OpsEnvelope)
+async def ops_scorecard_latest():
+    scorecard_dir = get_scorecard_dir()
+    artifact_path = scorecard_dir / "latest.json"
+    summary_path = scorecard_dir / "latest-summary.json"
+
+    if not artifact_path.exists() or not summary_path.exists():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "provider_id": "rektslug",
+                "schema_version": "1.0.0",
+                "generated_at": _utc_now(),
+                "status": "UNAVAILABLE",
+                "freshness_sla_secs": 86400,
+                "last_error": "scorecard artifact missing",
+                "details": {"blocking_issues": ["scorecard artifact missing"]},
+            },
+        )
+
+    try:
+        import json
+        from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
+
+        with open(artifact_path, "r", encoding="utf-8") as f:
+            bundle_json = f.read()
+        ExpertScorecardBundle.model_validate_json(bundle_json)
+
+        with open(summary_path, "r", encoding="utf-8") as f:
+            summary = json.load(f)
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "provider_id": "rektslug",
+                "schema_version": "1.0.0",
+                "generated_at": _utc_now(),
+                "status": "BLOCKED",
+                "freshness_sla_secs": 86400,
+                "last_error": f"validation error: {e}",
+                "details": {"blocking_issues": [f"validation error: {e}"]},
+            },
+        )
+
+    return OpsEnvelope(status="HEALTHY", details=summary)
+
