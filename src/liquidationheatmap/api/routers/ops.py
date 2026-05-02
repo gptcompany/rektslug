@@ -9,6 +9,14 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.liquidationheatmap.api.routers.signals import get_continuous_report, get_signal_status
+from src.liquidationheatmap.scorecard.runtime import (
+    SCORECARD_FRESHNESS_SLA_SECS,
+    ScorecardErrorDetails,
+    build_scorecard_envelope,
+    compact_scorecard_summary,
+    load_scorecard_details,
+    scorecard_status_from_details,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -287,36 +295,14 @@ async def ops_summary() -> OpsEnvelope:
             status = "DEGRADED"
 
     try:
-        scorecard_dir = get_scorecard_dir()
-        summary_path = scorecard_dir / "latest-summary.json"
-        if summary_path.exists():
-            with open(summary_path, "r", encoding="utf-8") as f:
-                sc_summary = json.load(f)
+        scorecard_details = load_scorecard_details(get_scorecard_dir())
+        sc_status = scorecard_status_from_details(scorecard_details)
+        details["scorecard_status"] = sc_status
+        details["scorecard_summary"] = compact_scorecard_summary(scorecard_details)
 
-            sc_status = sc_summary.get("quality", {}).get("snapshot_coverage_status", "HEALTHY")
-            details["scorecard_status"] = sc_status
-
-            compact_summary = {}
-            for k in [
-                "artifact_generated_at",
-                "adaptive_mode",
-                "experts",
-                "symbols",
-                "observation_count",
-                "slice_count",
-                "coverage_gap_count",
-            ]:
-                if k in sc_summary:
-                    compact_summary[k] = sc_summary[k]
-
-            details["scorecard_summary"] = compact_summary
-
-            if sc_status == "BLOCKED":
-                status = "BLOCKED"
-            elif sc_status in ("DEGRADED", "UNAVAILABLE"):
-                if status != "BLOCKED":
-                    status = "DEGRADED"
-        else:
+        if sc_status == "BLOCKED":
+            status = "BLOCKED"
+        elif sc_status in ("DEGRADED", "UNAVAILABLE"):
             if status != "BLOCKED":
                 status = "DEGRADED"
     except Exception as exc:
@@ -392,42 +378,39 @@ async def ops_scorecard_latest():
     summary_path = scorecard_dir / "latest-summary.json"
 
     if not artifact_path.exists() or not summary_path.exists():
+        envelope = build_scorecard_envelope(
+            status="UNAVAILABLE",
+            last_error="scorecard artifact missing",
+            details=ScorecardErrorDetails(blocking_issues=["scorecard artifact missing"]),
+        )
         return JSONResponse(
             status_code=503,
-            content={
-                "provider_id": "rektslug",
-                "schema_version": "1.0.0",
-                "generated_at": _utc_now(),
-                "status": "UNAVAILABLE",
-                "freshness_sla_secs": 86400,
-                "last_error": "scorecard artifact missing",
-                "details": {"blocking_issues": ["scorecard artifact missing"]},
-            },
+            content=envelope.model_dump(mode="json"),
         )
 
     try:
-        import json
         from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
 
         with open(artifact_path, "r", encoding="utf-8") as f:
             bundle_json = f.read()
         ExpertScorecardBundle.model_validate_json(bundle_json)
 
-        with open(summary_path, "r", encoding="utf-8") as f:
-            summary = json.load(f)
+        details = load_scorecard_details(scorecard_dir)
+        endpoint_status = scorecard_status_from_details(details)
 
     except Exception as e:
+        envelope = build_scorecard_envelope(
+            status="BLOCKED",
+            last_error=f"validation error: {e}",
+            details=ScorecardErrorDetails(blocking_issues=[f"validation error: {e}"]),
+        )
         return JSONResponse(
             status_code=503,
-            content={
-                "provider_id": "rektslug",
-                "schema_version": "1.0.0",
-                "generated_at": _utc_now(),
-                "status": "BLOCKED",
-                "freshness_sla_secs": 86400,
-                "last_error": f"validation error: {e}",
-                "details": {"blocking_issues": [f"validation error: {e}"]},
-            },
+            content=envelope.model_dump(mode="json"),
         )
 
-    return OpsEnvelope(status="HEALTHY", details=summary)
+    return OpsEnvelope(
+        status=endpoint_status,
+        freshness_sla_secs=SCORECARD_FRESHNESS_SLA_SECS,
+        details=details.model_dump(mode="json"),
+    )

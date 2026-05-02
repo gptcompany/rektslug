@@ -1,8 +1,7 @@
-"""
-Calibration metadata extraction and labeling for scorecard.
-"""
+"""Calibration metadata extraction and labeling for scorecard."""
 
 from typing import Any, Dict, Literal, Optional
+
 from pydantic import BaseModel
 
 

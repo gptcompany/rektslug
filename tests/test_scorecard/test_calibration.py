@@ -2,8 +2,8 @@
 Tests for calibration metadata extraction.
 """
 
-from src.liquidationheatmap.scorecard.calibration import extract_calibration_metadata
 from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
+from src.liquidationheatmap.scorecard.calibration import extract_calibration_metadata
 
 
 def test_calibration_metadata_labels_derived_values():
