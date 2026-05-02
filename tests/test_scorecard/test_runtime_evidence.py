@@ -11,6 +11,66 @@ from src.liquidationheatmap.models.scorecard import ExpertScorecardBundle
 import os
 from pathlib import Path
 from src.liquidationheatmap.scorecard.runtime import ScorecardArtifactWriter
+import subprocess
+import sys
+
+
+def test_cli_missing_snapshots_fails(tmp_path):
+    """T016: Test that missing snapshots exits non-zero, no green artifact."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/generate-scorecard-evidence.py",
+            "--snapshot-root",
+            str(tmp_path / "missing"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert not (tmp_path / "latest.json").exists()
+
+
+def test_cli_successful_generation(tmp_path, monkeypatch):
+    """T015: Test successful adaptive evidence generation via CLI."""
+    # We'll mock the pipeline's run_from_retained_snapshots method
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent)
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("generate_scorecard_evidence", "scripts/generate-scorecard-evidence.py")
+    gen_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen_module)
+
+    # Mock pipeline
+    class DummyPipeline:
+        def __init__(self, *args, **kwargs):
+            pass
+        def run_from_retained_snapshots(self, *args, **kwargs):
+            return ExpertScorecardBundle(slices=[]).model_dump_json()
+
+    monkeypatch.setattr(gen_module, "ScorecardPipeline", DummyPipeline)
+
+    # Set up dummy snapshot root
+    snapshot_root = tmp_path / "dummy_snapshots"
+    snapshot_root.mkdir()
+    (snapshot_root / "dummy.json").touch()
+    (snapshot_root / "manifests").mkdir()
+
+    monkeypatch.setattr(sys, "argv", ["generate-scorecard-evidence.py", "--output-dir", str(tmp_path), "--snapshot-root", str(snapshot_root)])
+
+    try:
+        gen_module.main()
+    except SystemExit as e:
+        assert e.code == 0
+
+    assert (tmp_path / "latest.json").exists()
+    assert (tmp_path / "latest-summary.json").exists()
 
 
 def test_artifact_writer_writes_latest_files(tmp_path):
