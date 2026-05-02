@@ -43,9 +43,7 @@ def test_expert_signal_observation_optional_adaptive_fields() -> None:
 
 
 def test_expert_scorecard_slice_optional_bucket_boundaries() -> None:
-    slice_id = ExpertScorecardSlice.generate_slice_id(
-        "exp1", "BTC", "long", "0-25", "high", "none"
-    )
+    slice_id = ExpertScorecardSlice.generate_slice_id("exp1", "BTC", "long", "0-25", "high", "none")
     scorecard_slice = ExpertScorecardSlice(
         expert_id="exp1",
         slice_id=slice_id,

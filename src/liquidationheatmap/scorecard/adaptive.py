@@ -224,7 +224,9 @@ def infer_regime_map(
 
     if max(vols) == min(vols):
         return {
-            obs.snapshot_ts: ("stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown")
+            obs.snapshot_ts: (
+                "stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown"
+            )
             for obs in observations
         }
 
@@ -237,7 +239,9 @@ def infer_regime_map(
         high_bound = quantiles[1]
     except Exception:
         return {
-            obs.snapshot_ts: ("stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown")
+            obs.snapshot_ts: (
+                "stable" if ts_to_vol[_coerce_timestamp(obs.snapshot_ts)] else "unknown"
+            )
             for obs in observations
         }
 
