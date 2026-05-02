@@ -11,9 +11,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - YAGNI (You Ain't Gonna Need It) - Build for today, not hypothetical futures
 - Code Reuse First - Don't reinvent the wheel if >80% exists (py-liquidation-map formulas)
 - Test-Driven Development - Red-Green-Refactor discipline
+- Adaptive Signals, Fixed Safety - expert/signal evidence adapts to data; safety/governance limits stay explicit
 
 **🎯 Development Philosophy**:
 → The best code is no code. The second best is deleted code. The third best is simple code.
+
+## 🔴 Cross-Repo Trading Philosophy: Adaptive Signals, Fixed Safety
+
+`rektslug` must stay aligned with the `nautilus_dev` trading-system philosophy.
+This repository owns signal surfaces, expert-quality evidence, data quality, and
+read-only provider state. It does **not** own execution controls, risk controls,
+operator controls, or final paper/live readiness.
+
+### The Four Pillars
+
+All signal-quality, expert-scorecard, adaptive-observation, and cockpit-provider
+work MUST respect these pillars:
+
+1. **Probabilistico** - Emit probability distributions, empirical frequencies,
+   confidence intervals, and uncertainty; do not collapse evidence into a single
+   mandatory deterministic score.
+2. **Non Lineare** - Prefer non-linear relationships, quantiles, distributions,
+   power-law/sub-linear summaries, and regime-conditioned evidence over linear
+   scaling and fixed grids.
+3. **Non Parametrico** - Derive signal thresholds, bands, buckets, regimes, and
+   observation windows from observed data whenever possible. If a method constant
+   remains, emit it as auditable metadata with a reason.
+4. **Scalare** - Use ratios, bps, volume clocks, quantiles, and data-derived
+   normalization so evidence works across symbols, frequencies, and market regimes.
+
+### Fixed Safety Boundary
+
+Safety and governance parameters are not alpha parameters and MUST NOT be made
+adaptive by `rektslug`:
+
+- freshness SLAs
+- fail-closed behavior
+- retention boundaries
+- circuit breaker semantics
+- risk limits owned by `nautilus_dev`
+- operator pause/resume controls owned by `nautilus_dev`
+- execution readiness gates owned by `nautilus_dev`
+
+### Implementation Rules
+
+- Scorecards and signal evidence MUST remain read-only evidence.
+- `/ops/*` endpoints MUST report state; they MUST NOT mutate execution state.
+- Do not fabricate green status from missing evidence, zero counters, or placeholder
+  artifacts.
+- Any new scorecard or signal-evaluation spec MUST explicitly state how it satisfies
+  the four pillars and which remaining constants are method or governance constants.
+- When reducing parameters, reduce signal/evidence parameters first. Do not weaken
+  safety controls.
 
 **Data Sources**:
 - Binance historical CSV (3TB-WDC): trades, bookDepth, fundingRate, metrics (Open Interest)
