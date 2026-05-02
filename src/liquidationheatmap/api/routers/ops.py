@@ -214,6 +214,8 @@ async def ops_summary() -> OpsEnvelope:
         "continuous_report_status": "UNAVAILABLE",
         "evidence_spec_040_latest_status": "UNAVAILABLE",
         "shadow_report_status": "UNAVAILABLE",
+        "scorecard_status": "UNAVAILABLE",
+        "scorecard_summary": None,
         "ownership_note": "rektslug does not own execution controls or final readiness.",
         "latest_evidence_spec040": None,
     }
@@ -281,6 +283,45 @@ async def ops_summary() -> OpsEnvelope:
             if status != "BLOCKED":
                 status = "DEGRADED"
     else:
+        if status != "BLOCKED":
+            status = "DEGRADED"
+
+    try:
+        scorecard_dir = get_scorecard_dir()
+        summary_path = scorecard_dir / "latest-summary.json"
+        if summary_path.exists():
+            with open(summary_path, "r", encoding="utf-8") as f:
+                sc_summary = json.load(f)
+
+            sc_status = sc_summary.get("quality", {}).get("snapshot_coverage_status", "HEALTHY")
+            details["scorecard_status"] = sc_status
+
+            compact_summary = {}
+            for k in [
+                "artifact_generated_at",
+                "adaptive_mode",
+                "experts",
+                "symbols",
+                "observation_count",
+                "slice_count",
+                "coverage_gap_count",
+            ]:
+                if k in sc_summary:
+                    compact_summary[k] = sc_summary[k]
+
+            details["scorecard_summary"] = compact_summary
+
+            if sc_status == "BLOCKED":
+                status = "BLOCKED"
+            elif sc_status in ("DEGRADED", "UNAVAILABLE"):
+                if status != "BLOCKED":
+                    status = "DEGRADED"
+        else:
+            if status != "BLOCKED":
+                status = "DEGRADED"
+    except Exception as exc:
+        logger.warning(f"Failed to format scorecard evidence: {exc}")
+        details["scorecard_status"] = "UNAVAILABLE"
         if status != "BLOCKED":
             status = "DEGRADED"
 
@@ -390,4 +431,3 @@ async def ops_scorecard_latest():
         )
 
     return OpsEnvelope(status="HEALTHY", details=summary)
-
