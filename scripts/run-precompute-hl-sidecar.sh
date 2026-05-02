@@ -6,8 +6,19 @@ set -euo pipefail
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PROJECT_DIR="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
 
+CALLER_HEATMAP_SYMBOLS_SHELL="${HEATMAP_SYMBOLS_SHELL-}"
+CALLER_HEATMAP_SYMBOLS="${HEATMAP_SYMBOLS-}"
+
 . "$SCRIPT_DIR/lib/runtime_env.sh"
 lh_load_runtime_env host
+
+if [[ -n "$CALLER_HEATMAP_SYMBOLS_SHELL" ]]; then
+    export HEATMAP_SYMBOLS_SHELL="$CALLER_HEATMAP_SYMBOLS_SHELL"
+fi
+
+if [[ -n "$CALLER_HEATMAP_SYMBOLS" ]]; then
+    export HEATMAP_SYMBOLS="$CALLER_HEATMAP_SYMBOLS"
+fi
 
 # Stable defaults for the experimental v3 branch. Any injected env value still
 # wins, so ops can override these without editing the wrapper.
