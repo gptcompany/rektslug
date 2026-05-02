@@ -26,8 +26,8 @@
 - [ ] T006 RED: write model/contract tests for scorecard evidence summary and calibration metadata
 - [ ] T007 Implement scorecard evidence summary helpers in `src/liquidationheatmap/scorecard/runtime.py`
 - [ ] T008 Implement calibration metadata helpers in `src/liquidationheatmap/scorecard/calibration.py`
-- [ ] T009 GREEN: verify runtime evidence model tests pass
-- [ ] T009b RED: write test that existing `ExpertScorecardBundle` from spec-041/042 loads without error in new runtime layer (FR-016 backward compat)
+- [ ] T008b RED: write test that existing `ExpertScorecardBundle` from spec-041/042 loads without error in new runtime layer (FR-016 backward compat)
+- [ ] T009 GREEN: verify runtime evidence model tests pass (including T008b)
 
 ---
 
@@ -120,7 +120,7 @@
 ## Dependency Order
 
 1. T001-T005 setup
-2. T006-T009 models/helpers
+2. T006-T008b-T009 models/helpers (T008b RED before T009 GREEN)
 3. T010-T014 artifact writer
 4. T015-T020 generator
 5. T021-T031 endpoint + summary

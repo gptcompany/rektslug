@@ -27,8 +27,8 @@
 - [x] Calibration metadata RED tests planned
 - [x] Docker/deploy guardrail tests planned
 
-## Open Items
+## Resolved Items
 
-- [ ] Resolve OQ-001 schedule: manual CLI first or scheduled sidecar
-- [ ] Resolve OQ-002 canonical price-path source
-- [ ] Resolve OQ-003 scorecard freshness SLA default
+- [x] OQ-001 schedule: manual CLI first release (spec.md Foundational Rule 7)
+- [x] OQ-002 canonical price-path source: retained files under `data/validation/` (spec.md Foundational Rule 6)
+- [x] OQ-003 scorecard freshness SLA: `86400`s governance constant (spec.md Parameter Policy)

@@ -178,8 +178,8 @@ remains owned by `nautilus_dev`.
 | Operator controls | `nautilus_dev` |
 | Risk controls | `nautilus_dev` |
 
-## Open Implementation Decisions
+## Resolved Implementation Decisions
 
-1. Freshness SLA default: proposed `86400` seconds for retained scorecard evidence.
-2. Generator schedule: first release can be manual CLI; sidecar schedule can follow.
-3. Price-path source: implementation must choose existing local source before coding.
+1. **Freshness SLA default**: `86400` seconds (24h), governance constant (spec.md Parameter Policy).
+2. **Generator schedule**: Manual CLI only for first release; scheduled sidecar deferred (spec.md Foundational Rule 7).
+3. **Price-path source**: Retained price-path files from signal pipeline under `data/validation/` (spec.md Foundational Rule 6).
