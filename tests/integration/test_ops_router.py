@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
+from src.liquidationheatmap.api.routers.ops import _shadow_producer_status
 from src.liquidationheatmap.signals import ContinuousReport, SignalStatus
 
 client = TestClient(app)
@@ -62,18 +63,56 @@ def test_ops_summary_success(mock_evidence):
                 "src.liquidationheatmap.api.routers.ops._find_latest_spec040_evidence"
             ) as mock_find:
                 mock_find.return_value = mock_evidence
-                response = client.get("/ops/summary")
-                assert response.status_code == 200
-                data = response.json()
-                assert data["provider_id"] == "rektslug"
-                assert data["status"] == "HEALTHY"
-                assert data["details"]["redis"] == "HEALTHY"
-                assert isinstance(data["details"]["signals_status"], dict)
-                assert data["details"]["signals_status"]["connected"] is True
-                assert data["details"]["signals_status_level"] == "HEALTHY"
-                assert data["details"]["continuous_report_status"] == "HEALTHY"
-                assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
-                assert "ownership_note" in data["details"]
+                with patch(
+                    "src.liquidationheatmap.api.routers.ops._shadow_producer_status"
+                ) as mock_shadow:
+                    mock_shadow.return_value = "HEALTHY"
+                    response = client.get("/ops/summary")
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["provider_id"] == "rektslug"
+                    assert data["status"] == "HEALTHY"
+                    assert data["details"]["redis"] == "HEALTHY"
+                    assert isinstance(data["details"]["signals_status"], dict)
+                    assert data["details"]["signals_status"]["connected"] is True
+                    assert data["details"]["signals_status_level"] == "HEALTHY"
+                    assert data["details"]["shadow_producer"] == "HEALTHY"
+                    assert data["details"]["continuous_report_status"] == "HEALTHY"
+                    assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
+                    assert "ownership_note" in data["details"]
+
+
+def test_shadow_producer_status_healthy_with_fresh_manifests(tmp_path):
+    for symbol in ("BTCUSDT", "ETHUSDT"):
+        manifest_dir = (
+            tmp_path
+            / "data"
+            / "validation"
+            / "expert_snapshots"
+            / "hyperliquid"
+            / "manifests"
+            / symbol
+        )
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "2026-05-02T09:42:05Z.json").write_text("{}", encoding="utf-8")
+
+    assert _shadow_producer_status(repo_root=tmp_path, max_age_secs=600) == "HEALTHY"
+
+
+def test_shadow_producer_status_unavailable_when_symbol_missing(tmp_path):
+    manifest_dir = (
+        tmp_path
+        / "data"
+        / "validation"
+        / "expert_snapshots"
+        / "hyperliquid"
+        / "manifests"
+        / "BTCUSDT"
+    )
+    manifest_dir.mkdir(parents=True)
+    (manifest_dir / "2026-05-02T09:42:05Z.json").write_text("{}", encoding="utf-8")
+
+    assert _shadow_producer_status(repo_root=tmp_path, max_age_secs=600) == "UNAVAILABLE"
 
 
 def test_ops_summary_degraded_when_no_continuous_report(mock_evidence):

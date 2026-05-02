@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ops", tags=["ops", "cockpit"])
 
+SHADOW_MANIFEST_ROOT = Path("data/validation/expert_snapshots/hyperliquid/manifests")
+SHADOW_PRODUCER_SYMBOLS = ("BTCUSDT", "ETHUSDT")
+SHADOW_PRODUCER_FRESHNESS_SECS = 600
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent.parent.parent
+
 
 def _map_continuous_report_status(
     report_status: str,
@@ -31,6 +39,30 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _shadow_producer_status(
+    *,
+    repo_root: Path | None = None,
+    max_age_secs: int = SHADOW_PRODUCER_FRESHNESS_SECS,
+) -> Literal["HEALTHY", "UNAVAILABLE"]:
+    root = repo_root or _repo_root()
+    manifest_root = root / SHADOW_MANIFEST_ROOT
+    now_ts = datetime.now(timezone.utc).timestamp()
+
+    for symbol in SHADOW_PRODUCER_SYMBOLS:
+        symbol_dir = manifest_root / symbol
+        try:
+            latest_mtime = max(
+                path.stat().st_mtime for path in symbol_dir.glob("*.json") if path.is_file()
+            )
+        except (OSError, ValueError):
+            return "UNAVAILABLE"
+
+        if now_ts - latest_mtime > max_age_secs:
+            return "UNAVAILABLE"
+
+    return "HEALTHY"
+
+
 class OpsEnvelope(BaseModel):
     provider_id: str = "rektslug"
     schema_version: str = "1.0.0"
@@ -43,7 +75,7 @@ class OpsEnvelope(BaseModel):
 
 def _find_latest_spec040_evidence() -> dict[str, Any]:
     # Look for the spec-040 evidence
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+    repo_root = _repo_root()
     evidence_base = repo_root / "specs" / "040-nautilus-continuous-paper-testnet"
     if not evidence_base.exists():
         return {}
@@ -138,6 +170,12 @@ async def ops_summary() -> OpsEnvelope:
     except Exception:
         details["signals_status_level"] = "UNAVAILABLE"
         status = "DEGRADED"
+
+    try:
+        details["shadow_producer"] = _shadow_producer_status()
+    except Exception as exc:
+        logger.warning(f"Failed to inspect shadow producer freshness: {exc}")
+        details["shadow_producer"] = "UNAVAILABLE"
 
     try:
         cont_report = await get_continuous_report()

@@ -168,7 +168,11 @@ services:
         limits:
           memory: 6g
     healthcheck:
-      test: ["CMD-SHELL", "find /app/data/cache -name 'hl_sidecar_btcusdt.json' -mmin -10 | grep -q ."]
+      test:
+        [
+          "CMD-SHELL",
+          "find /app/data/validation/expert_snapshots/hyperliquid/manifests/BTCUSDT -name '*.json' -mmin -10 | grep -q . && find /app/data/validation/expert_snapshots/hyperliquid/manifests/ETHUSDT -name '*.json' -mmin -10 | grep -q .",
+        ]
       interval: 60s
       timeout: 5s
       retries: 3

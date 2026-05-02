@@ -1,4 +1,5 @@
 """Tests for shadow pipeline Docker configuration."""
+
 import os
 from pathlib import Path
 
@@ -60,14 +61,27 @@ def test_shadow_producer_script_exists():
     assert script.exists(), "run-shadow-producer.sh not found"
     assert os.access(script, os.X_OK), "run-shadow-producer.sh not executable"
 
+
+def test_shadow_producer_healthcheck_uses_fresh_expert_manifests(compose_config):
+    producer = compose_config["services"]["rektslug-shadow-producer"]
+    command = " ".join(producer["healthcheck"]["test"])
+
+    assert "data/cache" not in command
+    assert "expert_snapshots/hyperliquid/manifests/BTCUSDT" in command
+    assert "expert_snapshots/hyperliquid/manifests/ETHUSDT" in command
+    assert "-mmin -10" in command
+
+
 def test_shadow_consumer_enables_ws_stream(compose_config):
     consumer = compose_config["services"]["rektslug-shadow-consumer"]
     command = consumer.get("command", [])
     assert "--enable-ws-stream" in command
 
+
 def test_feedback_consumer_depends_on_redis(compose_config):
     consumer = compose_config["services"]["rektslug-feedback-consumer"]
     assert "redis" in consumer.get("depends_on", {})
+
 
 def test_feedback_consumer_uses_redis_hostname(compose_config):
     consumer = compose_config["services"]["rektslug-feedback-consumer"]
@@ -75,10 +89,12 @@ def test_feedback_consumer_uses_redis_hostname(compose_config):
     assert env.get("REDIS_HOST") == "redis"
     assert env.get("FEEDBACK_DB_PATH") == "/var/lib/rektslug-db/signal_feedback.duckdb"
 
+
 def test_feedback_consumer_script_exists():
     script = Path("scripts/run-feedback-consumer.sh")
     assert script.exists(), "run-feedback-consumer.sh not found"
     assert os.access(script, os.X_OK), "run-feedback-consumer.sh not executable"
+
 
 def test_feedback_consumer_healthcheck_uses_python_probe(compose_config):
     consumer = compose_config["services"]["rektslug-feedback-consumer"]
