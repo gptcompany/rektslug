@@ -79,6 +79,23 @@ class TestSignalStatusEndpoint:
         assert data["signals_published_24h"] == 5
         assert data["last_publish"].startswith("2026-04-17T12:00:00")
 
+    def test_status_attempts_redis_connection_before_reporting_connected(self, client):
+        """Status should not report degraded just because the singleton is still lazy."""
+        with patch("src.liquidationheatmap.api.routers.signals.get_redis_client") as mock_redis:
+            mock_redis_instance = MagicMock()
+            mock_redis_instance.is_connected = True
+            raw_backend = MagicMock()
+            raw_backend.get.return_value = None
+            raw_backend.zcount.return_value = 0
+            mock_redis_instance.connect.return_value = raw_backend
+            mock_redis.return_value = mock_redis_instance
+
+            response = client.get("/signals/status")
+
+        assert response.status_code == 200
+        assert response.json()["connected"] is True
+        mock_redis_instance.connect.assert_called()
+
 
 class TestSignalMetricsEndpoint:
     """Contract tests for GET /signals/metrics."""

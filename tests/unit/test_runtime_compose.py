@@ -6,7 +6,6 @@ from pathlib import Path
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -38,7 +37,7 @@ def test_docker_compose_defines_core_services():
 
 
 def test_docker_compose_mounts_db_and_ccxt_catalog():
-    """The core stack should mount the local DB dir and external ccxt catalog."""
+    """The core stack should mount the DB, ccxt catalog, and shared runtime artifacts."""
     compose_path = REPO_ROOT / "docker-compose.yml"
     data = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
 
@@ -46,6 +45,7 @@ def test_docker_compose_mounts_db_and_ccxt_catalog():
 
     assert any("REKTSLUG_DB_DIR" in entry for entry in volumes)
     assert any("HEATMAP_CCXT_CATALOG" in entry for entry in volumes)
+    assert any("./data:/app/data:ro" in entry for entry in volumes)
 
 
 def test_core_deploy_workflow_targets_core_code():
@@ -102,7 +102,10 @@ def test_precompute_wrapper_uses_runtime_env_and_v3_defaults():
     assert "HEATMAP_HL_TOP_POSITION_OBJECTIVE_BTC:=none" in text
     assert "HEATMAP_HL_TOP_POSITION_TOP_N_BTC:=500" in text
     assert "HEATMAP_HL_TOP_POSITION_SCORE_MODE_ETH:=concentration" in text
-    assert 'exec "${PROJECT_DIR}/.venv/bin/python" "${PROJECT_DIR}/scripts/precompute_hl_sidecar.py"' in text
+    assert (
+        'exec "${PROJECT_DIR}/.venv/bin/python" "${PROJECT_DIR}/scripts/precompute_hl_sidecar.py"'
+        in text
+    )
 
 
 def test_run_ingestion_releases_api_lock_before_precompute_without_warmup():
@@ -110,6 +113,6 @@ def test_run_ingestion_releases_api_lock_before_precompute_without_warmup():
     script_path = REPO_ROOT / "scripts" / "run-ingestion.sh"
     text = script_path.read_text(encoding="utf-8")
 
-    assert 'refresh_api_connections false' in text
-    assert 'refresh_api_connections true' in text
-    assert '${API_URL}/api/v1/refresh-connections?warmup=${warmup}' in text
+    assert "refresh_api_connections false" in text
+    assert "refresh_api_connections true" in text
+    assert "${API_URL}/api/v1/refresh-connections?warmup=${warmup}" in text

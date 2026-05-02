@@ -45,6 +45,7 @@ async def get_signal_status():
     """
     # Check Redis connection
     redis_client = get_redis_client()
+    redis_client.connect()
     connected = redis_client.is_connected
 
     # Get feedback count from DuckDB (read_only to avoid lock conflicts with ingestion)
