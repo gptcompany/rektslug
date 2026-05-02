@@ -12,6 +12,7 @@ POST_TOUCH_WINDOW_HOURS = 1
 TOUCH_TOLERANCE_BPS = 5
 LIQUIDATION_CONFIRMATION_SOURCE = "data/validation/liquidation_confirmation_events"
 
+
 class ExpertSignalObservation(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -80,9 +81,7 @@ class ExpertSignalObservation(BaseModel):
         if not self.touched and self.touch_ts is not None:
             raise ValueError("touch_ts must be null when touched=false")
         if self.liquidation_confirmed and self.liquidation_confirm_ts is None:
-            raise ValueError(
-                "liquidation_confirm_ts is required when liquidation_confirmed=true"
-            )
+            raise ValueError("liquidation_confirm_ts is required when liquidation_confirmed=true")
         if self.touch_ts is not None and self.touch_ts < self.snapshot_ts:
             raise ValueError("touch_ts cannot be earlier than snapshot_ts")
         if (

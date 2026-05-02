@@ -23,9 +23,7 @@ def _compute_quantiles(values: list[int]) -> dict[str, int]:
             return sorted_values[lower_index]
         lower_value = sorted_values[lower_index]
         upper_value = sorted_values[upper_index]
-        interpolated = lower_value + (upper_value - lower_value) * (
-            position - lower_index
-        )
+        interpolated = lower_value + (upper_value - lower_value) * (position - lower_index)
         return int(round(interpolated))
 
     return {
@@ -63,9 +61,7 @@ class ScorecardAggregator:
             "touch_count": touch_count,
             "touch_probability": round(touch_probability, 6),
             "liquidation_match_count": liquidation_match_count,
-            "liquidation_match_probability_given_touch": round(
-                liquidation_match_probability, 6
-            ),
+            "liquidation_match_probability_given_touch": round(liquidation_match_probability, 6),
             "low_sample_flag": sample_count < self.min_samples,
         }
 
@@ -75,9 +71,7 @@ class ScorecardAggregator:
         mfe_values = [obs.mfe_bps for obs in observations if obs.mfe_bps is not None]
         mae_values = [obs.mae_bps for obs in observations if obs.mae_bps is not None]
         time_to_touch_values = [
-            obs.time_to_touch_secs
-            for obs in observations
-            if obs.time_to_touch_secs is not None
+            obs.time_to_touch_secs for obs in observations if obs.time_to_touch_secs is not None
         ]
         time_to_liq_values = [
             obs.time_to_liquidation_confirm_secs
@@ -89,7 +83,5 @@ class ScorecardAggregator:
             "mfe_quantiles": _compute_quantiles(mfe_values),
             "mae_quantiles": _compute_quantiles(mae_values),
             "time_to_touch_quantiles": _compute_quantiles(time_to_touch_values),
-            "time_to_liquidation_confirm_quantiles": _compute_quantiles(
-                time_to_liq_values
-            ),
+            "time_to_liquidation_confirm_quantiles": _compute_quantiles(time_to_liq_values),
         }

@@ -11,9 +11,7 @@ def sample_observations() -> list[ExpertSignalObservation]:
     base_time = datetime(2026, 4, 30, 12, 0, tzinfo=timezone.utc)
     observations = []
 
-    obs1_id = ExpertSignalObservation.generate_id(
-        "v1", "BTCUSDT", base_time, 59000.0, "long"
-    )
+    obs1_id = ExpertSignalObservation.generate_id("v1", "BTCUSDT", base_time, 59000.0, "long")
     observations.append(
         ExpertSignalObservation(
             observation_id=obs1_id,
@@ -36,9 +34,7 @@ def sample_observations() -> list[ExpertSignalObservation]:
         )
     )
 
-    obs2_id = ExpertSignalObservation.generate_id(
-        "v1", "BTCUSDT", base_time, 58000.0, "long"
-    )
+    obs2_id = ExpertSignalObservation.generate_id("v1", "BTCUSDT", base_time, 58000.0, "long")
     observations.append(
         ExpertSignalObservation(
             observation_id=obs2_id,
@@ -61,9 +57,7 @@ def sample_observations() -> list[ExpertSignalObservation]:
         )
     )
 
-    obs3_id = ExpertSignalObservation.generate_id(
-        "v1", "BTCUSDT", base_time, 57000.0, "long"
-    )
+    obs3_id = ExpertSignalObservation.generate_id("v1", "BTCUSDT", base_time, 57000.0, "long")
     observations.append(
         ExpertSignalObservation(
             observation_id=obs3_id,
@@ -86,9 +80,7 @@ def sample_observations() -> list[ExpertSignalObservation]:
         )
     )
 
-    obs4_id = ExpertSignalObservation.generate_id(
-        "v1", "BTCUSDT", base_time, 56000.0, "long"
-    )
+    obs4_id = ExpertSignalObservation.generate_id("v1", "BTCUSDT", base_time, 56000.0, "long")
     observations.append(
         ExpertSignalObservation(
             observation_id=obs4_id,
@@ -124,9 +116,7 @@ def test_empirical_probability_aggregation(
     assert result["touch_count"] == 3
     assert result["touch_probability"] == 0.75
     assert result["liquidation_match_count"] == 2
-    assert result["liquidation_match_probability_given_touch"] == pytest.approx(
-        0.6666, 0.001
-    )
+    assert result["liquidation_match_probability_given_touch"] == pytest.approx(0.6666, 0.001)
 
 
 def test_quantile_aggregation(
