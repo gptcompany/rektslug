@@ -34,8 +34,11 @@
     "calibration_metadata": {
       "bootstrap": {
         "kind": "method_constant",
-        "n_bootstrap": 1000,
-        "seed_policy": "sha256(slice_key)[:4]"
+        "name": "bootstrap",
+        "value": {"n_bootstrap": 1000, "seed_policy": "sha256(slice_key)[:4]"},
+        "method": "fixed_default",
+        "input_count": null,
+        "reason": "Standard bootstrap iteration count; computational budget allows 1000"
       }
     },
     "artifact_links": {

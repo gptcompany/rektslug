@@ -58,6 +58,12 @@ fixed or owned by `nautilus_dev`.
    but MUST be labeled as governance controls.
 5. The scorecard is probabilistic evidence, not a trading decision. It MAY inform
    `nautilus_dev`; it MUST NOT place orders or change execution state.
+6. The generator MUST use the retained price-path files already produced by the
+   signal pipeline (under `data/validation/`). If no retained price path exists,
+   the generator MUST fail closed with `UNAVAILABLE`. QuestDB and DuckDB exports
+   are future alternatives and out of scope for this spec.
+7. First release uses manual CLI invocation only. Scheduled generation
+   (cron/systemd/docker sidecar) is deferred to a follow-up spec.
 
 ## Scope
 
@@ -269,6 +275,7 @@ contains detailed evidence.
 | Market thresholds | SHOULD be derived from observed data |
 | Method constants | MAY remain, but MUST be emitted in calibration metadata |
 | Governance constants | MAY remain explicit and MUST be labeled |
+| Freshness SLA | Governance constant, default `86400` seconds (24h). Adjustable per-deployment but not adaptive. |
 | Execution limits | Out of scope; owned by `nautilus_dev` |
 
 ## Success Criteria
@@ -284,9 +291,4 @@ contains detailed evidence.
 
 ## Open Questions
 
-- **OQ-001**: Exact runtime schedule: cron/systemd/docker sidecar versus manual CLI
-  only for first release.
-- **OQ-002**: Canonical price-path source for generation: existing retained path
-  file, QuestDB query, or DuckDB export.
-- **OQ-003**: Freshness SLA value for scorecard artifact. This is governance, not
-  alpha, but needs a concrete default before implementation.
+None. All questions resolved in Foundational Rules and Parameter Policy.

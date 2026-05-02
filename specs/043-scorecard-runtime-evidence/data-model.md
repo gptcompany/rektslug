@@ -43,6 +43,17 @@
 | `schema_validation_status` | `str` | yes | Bundle validation result |
 | `reproducibility_hash` | `str` | yes | Stable hash of canonical JSON |
 
+## Error Envelope
+
+When `status` is `UNAVAILABLE` or `BLOCKED`, `details` is a reduced object:
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `blocking_issues` | `list[str]` | yes | Issues preventing healthy status |
+
+All other `ScorecardEvidenceDetails` fields are omitted. Implementation SHOULD use
+a union type or optional fields to represent both healthy and error payloads.
+
 ## CalibrationMetadataEntry
 
 | Field | Type | Required | Notes |
@@ -53,6 +64,15 @@
 | `method` | `str` | yes | How it was selected |
 | `input_count` | `int | null` | no | Number of observations/ticks used |
 | `reason` | `str` | yes | Why it is acceptable |
+
+### Serialization Note
+
+The `calibration_metadata` field in the artifact and contract is a
+`dict[str, CalibrationMetadataEntry]` keyed by parameter name. The `name` field
+in each entry matches its dict key. Additional domain-specific fields (e.g.,
+`n_bootstrap`, `seed_policy`, `selected_values`) are stored inside `value` and
+are not part of the base schema. See `contracts/ops-scorecard-latest.md` for
+concrete examples.
 
 ## Retained Files
 

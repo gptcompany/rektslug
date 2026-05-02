@@ -121,40 +121,50 @@ No violations.
 
 ## Phase Breakdown
 
-### Phase 1: Contracts and Models
+### Phase 1: Contracts and Test Scaffolding
 
-Define scorecard evidence envelope, summary model, quality model, and calibration
-metadata model. Keep `ExpertScorecardBundle` unchanged.
+Create test files and source file stubs (empty modules). No implementation yet.
 
-### Phase 2: Runtime Evidence Writer
+### Phase 2: Runtime Evidence Models
 
-Build deterministic artifact writer with atomic writes, schema validation,
-summary generation, and input provenance.
+RED tests for models/contracts, then implement summary and calibration helpers.
 
-### Phase 3: CLI Generator
+### Phase 3: Artifact Writer
 
-Add `scripts/generate-scorecard-evidence.py` that runs the adaptive pipeline,
-validates output, writes retained artifacts, and exits non-zero on blocking gaps.
+Deterministic JSON writer with atomic temp-file rename and reproducibility hash.
 
-### Phase 4: Ops Endpoints
+### Phase 4: Generator CLI
 
-Add `GET /ops/scorecard/latest` and wire compact fields into `/ops/summary`.
-Endpoint must fail closed when latest artifact is missing or invalid.
+`scripts/generate-scorecard-evidence.py` — runs adaptive pipeline, validates
+output, writes retained artifacts, exits non-zero on blocking gaps.
 
-### Phase 5: Calibration Metadata
+### Phase 5: Ops Endpoint
 
-Expose remaining method/governance constants and derived values in the artifact.
+`GET /ops/scorecard/latest` with fail-closed semantics.
+
+### Phase 6: Summary Integration
+
+Wire compact scorecard fields into `GET /ops/summary`.
+
+### Phase 7: Data Quality Status
+
+Implement quality classifier: HEALTHY/DEGRADED/BLOCKED/UNAVAILABLE transitions.
+
+### Phase 8: Calibration Metadata
+
+Expose derived/method_constant/governance_constant labels in artifact.
 Do not hide constants in code without metadata.
 
-### Phase 6: Docker and Deploy Guardrails
+### Phase 9: Docker and Deploy Guardrails
 
-Ensure API container can read retained scorecard artifacts and deploy checks catch
-missing mounts.
+Ensure API container can read retained scorecard artifacts. Verify
+`data/validation/scorecards/` is covered by existing `/app/data` volume mount.
 
-### Phase 7: Cross-Repo Smoke
+### Phase 10: Documentation and Cross-Repo Smoke
 
-Verify `nautilus_dev` provider integration can see scorecard status while final
-readiness remains owned by `nautilus_dev`.
+Update docs, run targeted tests, cross-repo smoke with `nautilus_dev` cockpit.
+Verify provider integration can see scorecard status while final readiness
+remains owned by `nautilus_dev`.
 
 ## Ownership
 

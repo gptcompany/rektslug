@@ -13,11 +13,11 @@
 
 ## Phase 1: Contracts and Test Scaffolding
 
-- [ ] T001 Create `tests/test_scorecard/test_runtime_evidence.py`
-- [ ] T002 [P] Create `tests/integration/test_ops_scorecard_endpoint.py`
-- [ ] T003 Create `src/liquidationheatmap/scorecard/runtime.py`
-- [ ] T004 [P] Create `src/liquidationheatmap/scorecard/calibration.py`
-- [ ] T005 [P] Create `scripts/generate-scorecard-evidence.py`
+- [ ] T001 Create `tests/test_scorecard/test_runtime_evidence.py` (empty test module with imports)
+- [ ] T002 [P] Create `tests/integration/test_ops_scorecard_endpoint.py` (empty test module)
+- [ ] T003 Create `src/liquidationheatmap/scorecard/runtime.py` (empty module stub, no logic)
+- [ ] T004 [P] Create `src/liquidationheatmap/scorecard/calibration.py` (empty module stub, no logic)
+- [ ] T005 [P] Create `scripts/generate-scorecard-evidence.py` (argparse skeleton, no pipeline logic)
 
 ---
 
@@ -27,6 +27,7 @@
 - [ ] T007 Implement scorecard evidence summary helpers in `src/liquidationheatmap/scorecard/runtime.py`
 - [ ] T008 Implement calibration metadata helpers in `src/liquidationheatmap/scorecard/calibration.py`
 - [ ] T009 GREEN: verify runtime evidence model tests pass
+- [ ] T009b RED: write test that existing `ExpertScorecardBundle` from spec-041/042 loads without error in new runtime layer (FR-016 backward compat)
 
 ---
 
@@ -45,7 +46,7 @@
 - [ ] T015 RED: write failing CLI test for successful adaptive evidence generation
 - [ ] T016 RED: write failing CLI test that missing retained snapshots exits non-zero and does not write green artifact
 - [ ] T017 Implement `scripts/generate-scorecard-evidence.py`
-- [ ] T018 Wire `ScorecardPipeline.run_from_retained_snapshots(..., enable_adaptive=True)`
+- [ ] T018 Add `ScorecardPipeline.run_from_retained_snapshots(snapshot_root, price_path, enable_adaptive=True)` method if not present in spec-041/042; wire into generator CLI
 - [ ] T019 Persist input provenance and generation command metadata
 - [ ] T020 GREEN: verify generator tests pass
 
@@ -59,6 +60,7 @@
 - [ ] T024 Add `/ops/scorecard/latest` route in `src/liquidationheatmap/api/routers/ops.py`
 - [ ] T025 Validate artifact against `ExpertScorecardBundle` before healthy status
 - [ ] T026 GREEN: verify endpoint tests pass
+- [ ] T026b RED: write test that /ops/scorecard/latest rejects POST/PUT/DELETE with 405 (FR-017 read-only)
 
 ---
 
@@ -67,7 +69,7 @@
 - [ ] T027 [US5] RED: write failing test that `/ops/summary` includes `scorecard_status`
 - [ ] T028 [US5] RED: write failing test that `/ops/summary` includes compact `scorecard_summary`
 - [ ] T029 Wire scorecard status into `/ops/summary`
-- [ ] T030 Ensure summary remains compact and does not embed full scorecard bundle
+- [ ] T030 Assert /ops/summary response does not contain full scorecard bundle fields (NFR-005: slice details, calibration_metadata, artifact_links excluded)
 - [ ] T031 GREEN: verify summary tests pass
 
 ---
@@ -96,9 +98,9 @@
 
 ## Phase 9: Docker and Deploy Guardrails
 
-- [ ] T044 RED: write compose/deploy test that API can read scorecard artifact path through `/app/data`
-- [ ] T045 Update compose/deploy checks if needed
-- [ ] T046 GREEN: verify compose/deploy tests pass
+- [ ] T044 RED: write test that verifies `data/validation/scorecards/` is mounted at `/app/data/validation/scorecards/` in docker-compose.yml volume config (parse YAML, no container needed)
+- [ ] T045 Update docker-compose.yml volumes if scorecard path is not already covered by existing `/app/data` mount
+- [ ] T046 GREEN: verify compose volume test passes
 
 ---
 
@@ -106,6 +108,9 @@
 
 - [ ] T047 Update architecture/runtime docs with scorecard evidence endpoint
 - [ ] T048 Add quickstart command to docs index or runtime docs
+- [ ] T048b Verify endpoint response time <500ms with local artifact (NFR-001, manual benchmark)
+- [ ] T048c Verify generation completes <30s for BTC/ETH retained data (NFR-002, manual benchmark)
+- [ ] T048d Verify no new external ML/statistics dependencies added to pyproject.toml (NFR-006)
 - [ ] T049 Run targeted tests: scorecard runtime, ops endpoint, ops summary, compose config
 - [ ] T050 Run cross-repo smoke against `nautilus_dev` cockpit provider
 - [ ] T051 Record final status in checklist
