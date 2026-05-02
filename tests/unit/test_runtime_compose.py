@@ -45,7 +45,9 @@ def test_docker_compose_mounts_db_and_ccxt_catalog():
 
     assert any("REKTSLUG_DB_DIR" in entry for entry in volumes)
     assert any("HEATMAP_CCXT_CATALOG" in entry for entry in volumes)
-    assert any("./data:/app/data:ro" in entry for entry in volumes)
+    assert any("REKTSLUG_DATA_DIR" in entry for entry in volumes)
+    assert any("/media/sam/1TB/rektslug/data" in entry for entry in volumes)
+    assert any("/app/data:ro" in entry for entry in volumes)
 
 
 def test_core_deploy_workflow_targets_core_code():

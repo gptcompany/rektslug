@@ -72,6 +72,15 @@ def test_shadow_producer_healthcheck_uses_fresh_expert_manifests(compose_config)
     assert "-mmin -10" in command
 
 
+def test_shadow_producer_uses_shared_runtime_data_dir(compose_config):
+    producer = compose_config["services"]["rektslug-shadow-producer"]
+    volumes = producer.get("volumes", [])
+
+    assert any("REKTSLUG_DATA_DIR" in volume for volume in volumes)
+    assert any("/media/sam/1TB/rektslug/data" in volume for volume in volumes)
+    assert any("/app/data" in volume for volume in volumes)
+
+
 def test_shadow_consumer_enables_ws_stream(compose_config):
     consumer = compose_config["services"]["rektslug-shadow-consumer"]
     command = consumer.get("command", [])

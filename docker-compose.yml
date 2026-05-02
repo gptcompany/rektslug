@@ -42,7 +42,7 @@ x-core-service: &default-core-service
     - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
     - ${NAUTILUS_RUNTIME_DIR:-/media/sam/1TB/nautilus_dev/runtime}:/var/lib/nautilus-runtime:ro
-    - ./data:/app/data:ro
+    - ${REKTSLUG_DATA_DIR:-/media/sam/1TB/rektslug/data}:/app/data:ro
     - ./specs:/app/specs:ro
   restart: unless-stopped
   logging: *default-logging
@@ -163,7 +163,7 @@ services:
       - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
       - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
       - ${HL_ABCI_DIR:-/media/sam/4TB-NVMe/docker-volumes/hyperliquid/hl/data}:/var/lib/rektslug-hl:ro
-      - ./data:/app/data
+      - ${REKTSLUG_DATA_DIR:-/media/sam/1TB/rektslug/data}:/app/data
     deploy:
       resources:
         limits:
