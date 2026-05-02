@@ -95,3 +95,29 @@ class ScorecardArtifactWriter:
             f.flush()
             os.fsync(f.fileno())
         os.replace(temp_path, target_path)
+
+
+def classify_quality(
+    bundle: ExpertScorecardBundle,
+    artifact_age_secs: int,
+    max_age_secs: int,
+    hash_val: str = "dummy",
+) -> tuple[ScorecardQualitySummary, list[str]]:
+    blocking_issues = []
+
+    snapshot_status = "HEALTHY"
+    if artifact_age_secs > max_age_secs:
+        snapshot_status = "DEGRADED"
+
+    price_path_status = "HEALTHY"
+    if bundle.coverage_gaps:
+        price_path_status = "DEGRADED"
+
+    return ScorecardQualitySummary(
+        snapshot_coverage_status=snapshot_status,
+        price_path_coverage_status=price_path_status,
+        volume_coverage_status="HEALTHY",
+        liquidation_confirmation_status="HEALTHY",
+        schema_validation_status="HEALTHY",
+        reproducibility_hash=hash_val,
+    ), blocking_issues

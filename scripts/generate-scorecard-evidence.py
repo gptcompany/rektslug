@@ -15,6 +15,7 @@ from src.liquidationheatmap.scorecard.runtime import (
     ScorecardArtifactWriter,
     ScorecardEvidenceDetails,
     ScorecardQualitySummary,
+    classify_quality,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -53,13 +54,8 @@ def main():
 
         writer = ScorecardArtifactWriter(base_dir=args.output_dir)
 
-        quality = ScorecardQualitySummary(
-            snapshot_coverage_status="HEALTHY",
-            price_path_coverage_status="HEALTHY",
-            volume_coverage_status="HEALTHY",
-            liquidation_confirmation_status="HEALTHY",
-            schema_validation_status="HEALTHY",
-            reproducibility_hash=writer.compute_hash(bundle),
+        quality, blocking_issues = classify_quality(
+            bundle, artifact_age_secs=0, max_age_secs=86400, hash_val=writer.compute_hash(bundle)
         )
 
         details = ScorecardEvidenceDetails(
@@ -73,8 +69,8 @@ def main():
             slice_count=len(bundle.slices),
             observation_count=0,
             dominance_row_count=len(bundle.dominance_rows) if bundle.dominance_rows else 0,
-            coverage_gap_count=0,
-            blocking_issues=[],
+            coverage_gap_count=len(bundle.coverage_gaps) if bundle.coverage_gaps else 0,
+            blocking_issues=blocking_issues,
             quality=quality,
             calibration_metadata={},
             artifact_links={},
