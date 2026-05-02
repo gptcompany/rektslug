@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from src.liquidationheatmap.models.scorecard import (
+    BootstrapDominanceResult,
     ExpertScorecardBundle,
     ExpertScorecardSlice,
     ExpertSignalObservation,
@@ -145,6 +146,7 @@ class ScorecardPipeline:
                                     else 0.0
                                 ),
                                 True,
+                                lambda data: [1 if o.touched else 0 for o in data],
                             ),
                             "liq_match_prob": (
                                 lambda data: (
@@ -154,6 +156,9 @@ class ScorecardPipeline:
                                     else 0.0
                                 ),
                                 True,
+                                lambda data: [
+                                    1 if o.liquidation_confirmed else 0 for o in data if o.touched
+                                ],
                             ),
                             "mfe_p50": (
                                 lambda data: (
@@ -164,6 +169,7 @@ class ScorecardPipeline:
                                     else 0.0
                                 ),
                                 True,
+                                lambda data: [o.mfe_bps for o in data if o.mfe_bps is not None],
                             ),
                             "mae_p50": (
                                 lambda data: (
@@ -174,22 +180,45 @@ class ScorecardPipeline:
                                     else 0.0
                                 ),
                                 False,
+                                lambda data: [o.mae_bps for o in data if o.mae_bps is not None],
                             ),
                         }
 
-                        for metric_name, (metric_fn, higher_is_better) in metrics.items():
+                        for metric_name, (
+                            metric_fn,
+                            higher_is_better,
+                            metric_values_fn,
+                        ) in metrics.items():
                             seed_key = f"{group_key}:{exp_a}:{exp_b}:{metric_name}"
+                            values_a = metric_values_fn(obs_a)
+                            values_b = metric_values_fn(obs_b)
 
-                            res = bootstrap_dominance(
-                                obs_a=obs_a,
-                                obs_b=obs_b,
-                                metric_fn=metric_fn,
-                                expert_a=exp_a,
-                                expert_b=exp_b,
-                                metric_name=metric_name,
-                                seed=self._stable_seed(seed_key),
-                                higher_is_better=higher_is_better,
-                            )
+                            if values_a == values_b or (
+                                values_a
+                                and values_b
+                                and len(set(values_a + values_b)) == 1
+                            ):
+                                res = BootstrapDominanceResult(
+                                    expert_a=exp_a,
+                                    expert_b=exp_b,
+                                    metric=metric_name,
+                                    p_a_better=0.5,
+                                    significant=False,
+                                    ci_lower=0.5,
+                                    ci_upper=0.5,
+                                    n_bootstrap=1000,
+                                )
+                            else:
+                                res = bootstrap_dominance(
+                                    obs_a=obs_a,
+                                    obs_b=obs_b,
+                                    metric_fn=metric_fn,
+                                    expert_a=exp_a,
+                                    expert_b=exp_b,
+                                    metric_name=metric_name,
+                                    seed=self._stable_seed(seed_key),
+                                    higher_is_better=higher_is_better,
+                                )
 
                             row = res.model_dump()
                             row["comparison_slice_id"] = group_key

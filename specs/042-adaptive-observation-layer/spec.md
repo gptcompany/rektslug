@@ -2,7 +2,7 @@
 
 **Feature Branch**: `042-adaptive-observation-layer`
 **Created**: 2026-05-01
-**Status**: Draft
+**Status**: Implemented
 **Input**: Replace all hardcoded parameters in spec-041 scorecard with data-derived functions
 **Dependencies**: spec-041 (expert probabilistic scorecard)
 **Pillar Alignment**: Probabilistico, Non Lineare, Non Parametrico, Scalare

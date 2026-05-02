@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -308,3 +309,47 @@ def test_pipeline_backward_compatibility() -> None:
         # but let's check slice dimensions
         assert s["slice_dimensions"]["regime"] == "none"
         assert s["slice_dimensions"]["distance_bucket"] == "0-25"  # default for 16 bps
+
+
+def test_pipeline_adaptive_benchmark_under_budget() -> None:
+    pipeline = ScorecardPipeline()
+    experts = ["v1", "v3", "v4", "v5"]
+    artifacts = []
+    for minute in range(25):
+        snapshot_ts = f"2026-05-01T00:{minute:02d}:00Z"
+        for expert_index, expert_id in enumerate(experts):
+            artifacts.append(
+                _artifact(
+                    expert_id,
+                    snapshot_ts,
+                    "BTCUSDT",
+                    60000.0,
+                    {
+                        str(59900.0 + level): 1000.0 - (level * 10) + expert_index
+                        for level in range(10)
+                    },
+                )
+            )
+
+    price_path = [
+        {
+            "timestamp": f"2026-05-01T00:{minute:02d}:00Z",
+            "price": 60000.0 + (minute % 2) * 20.0,
+            "volume": 1000000.0 + minute,
+        }
+        for minute in range(60)
+    ]
+
+    started = time.perf_counter()
+    bundle_json = pipeline.run(
+        artifacts=artifacts,
+        price_path=price_path,
+        liquidation_events=[],
+        expected_experts=experts,
+        enable_adaptive=True,
+    )
+    elapsed = time.perf_counter() - started
+
+    bundle = ExpertScorecardBundle.model_validate_json(bundle_json)
+    assert sum(scorecard_slice.sample_count for scorecard_slice in bundle.slices) == 1000
+    assert elapsed < 10.0

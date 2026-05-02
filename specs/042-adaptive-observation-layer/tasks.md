@@ -19,16 +19,16 @@
 
 **Purpose**: Create new module files and extend existing models
 
-- [ ] T001 Create `src/liquidationheatmap/scorecard/adaptive.py` with module docstring and imports
-- [ ] T002 [P] Create `src/liquidationheatmap/scorecard/bootstrap.py` with module docstring and imports
-- [ ] T003 [P] Create `tests/test_scorecard/test_adaptive.py` with imports
-- [ ] T004 [P] Create `tests/test_scorecard/test_bootstrap.py` with imports
-- [ ] T005 Extend `ExpertSignalObservation` in `src/liquidationheatmap/models/scorecard.py` with new optional fields: `adaptive_touch_band_bps`, `local_volatility_bps`, `volume_at_touch`, `volume_window_complete`, `post_touch_volume`, `inferred_regime`
-- [ ] T006 Extend `ExpertScorecardBundle` in `src/liquidationheatmap/models/scorecard.py` with optional `adaptive_parameters` field
-- [ ] T006a Extend `ExpertScorecardSlice` in `src/liquidationheatmap/models/scorecard.py` with optional `bucket_boundaries` field
-- [ ] T006b Define `QuantileBucketSet` Pydantic model in `src/liquidationheatmap/models/scorecard.py` with fields: `metric_name`, `n_buckets`, `boundaries`, `labels`, `observation_count`
-- [ ] T006c Define `BootstrapDominanceResult` Pydantic model in `src/liquidationheatmap/models/scorecard.py` with fields: `expert_a`, `expert_b`, `metric`, `p_a_better`, `significant`, `ci_lower`, `ci_upper`, `n_bootstrap`
-- [ ] T007 Update `src/liquidationheatmap/scorecard/__init__.py` to export new modules
+- [x] T001 Create `src/liquidationheatmap/scorecard/adaptive.py` with module docstring and imports
+- [x] T002 [P] Create `src/liquidationheatmap/scorecard/bootstrap.py` with module docstring and imports
+- [x] T003 [P] Create `tests/test_scorecard/test_adaptive.py` with imports
+- [x] T004 [P] Create `tests/test_scorecard/test_bootstrap.py` with imports
+- [x] T005 Extend `ExpertSignalObservation` in `src/liquidationheatmap/models/scorecard.py` with new optional fields: `adaptive_touch_band_bps`, `local_volatility_bps`, `volume_at_touch`, `volume_window_complete`, `post_touch_volume`, `inferred_regime`
+- [x] T006 Extend `ExpertScorecardBundle` in `src/liquidationheatmap/models/scorecard.py` with optional `adaptive_parameters` field
+- [x] T006a Extend `ExpertScorecardSlice` in `src/liquidationheatmap/models/scorecard.py` with optional `bucket_boundaries` field
+- [x] T006b Define `QuantileBucketSet` Pydantic model in `src/liquidationheatmap/models/scorecard.py` with fields: `metric_name`, `n_buckets`, `boundaries`, `labels`, `observation_count`
+- [x] T006c Define `BootstrapDominanceResult` Pydantic model in `src/liquidationheatmap/models/scorecard.py` with fields: `expert_a`, `expert_b`, `metric`, `p_a_better`, `significant`, `ci_lower`, `ci_upper`, `n_bootstrap`
+- [x] T007 Update `src/liquidationheatmap/scorecard/__init__.py` to export new modules
 
 ---
 
@@ -36,12 +36,12 @@
 
 **Purpose**: Core computation primitives that all user stories depend on
 
-- [ ] T008 RED: write failing test for `compute_realized_volatility()` in `tests/test_scorecard/test_adaptive.py` — given a price path with known log-returns, expect correct vol in bps
-- [ ] T009 Implement `compute_realized_volatility(price_path, timestamp, lookback_ticks) -> int` in `src/liquidationheatmap/scorecard/adaptive.py` — rolling std of log-returns from price path close prices
-- [ ] T010 RED: write failing test that `compute_realized_volatility()` returns 0 when price path has fewer than 2 ticks
-- [ ] T011 GREEN: handle edge case in `compute_realized_volatility()` for insufficient data
-- [ ] T011b RED: write failing test in `tests/test_scorecard/test_adaptive.py` that validates the adaptive price path contract — `klines_1m_history`-shaped ticks with quote-currency `volume` are accepted, ticks without `volume` produce `volume=None` gracefully
-- [ ] T011c GREEN: implement price path volume extraction helper in `src/liquidationheatmap/scorecard/adaptive.py`
+- [x] T008 RED: write failing test for `compute_realized_volatility()` in `tests/test_scorecard/test_adaptive.py` — given a price path with known log-returns, expect correct vol in bps
+- [x] T009 Implement `compute_realized_volatility(price_path, timestamp, lookback_ticks) -> int` in `src/liquidationheatmap/scorecard/adaptive.py` — rolling std of log-returns from price path close prices
+- [x] T010 RED: write failing test that `compute_realized_volatility()` returns 0 when price path has fewer than 2 ticks
+- [x] T011 GREEN: handle edge case in `compute_realized_volatility()` for insufficient data
+- [x] T011b RED: write failing test in `tests/test_scorecard/test_adaptive.py` that validates the adaptive price path contract — `klines_1m_history`-shaped ticks with quote-currency `volume` are accepted, ticks without `volume` produce `volume=None` gracefully
+- [x] T011c GREEN: implement price path volume extraction helper in `src/liquidationheatmap/scorecard/adaptive.py`
 
 **Checkpoint**: Volatility primitive and volume contract ready — user stories can begin
 
@@ -55,17 +55,17 @@
 
 ### Tests for US1
 
-- [ ] T012 [US1] RED: write failing test for `compute_adaptive_touch_band()` in `tests/test_scorecard/test_adaptive.py` — given low vol, expect narrow band; given high vol, expect wider band
-- [ ] T013 [US1] RED: write failing test that two symbols with different volatility profiles produce different touch bands
-- [ ] T014 [US1] RED: write failing test in `tests/test_scorecard/test_builder.py` for `apply_touch_detection()` with adaptive band — same level touched with wide band but not with narrow band
+- [x] T012 [US1] RED: write failing test for `compute_adaptive_touch_band()` in `tests/test_scorecard/test_adaptive.py` — given low vol, expect narrow band; given high vol, expect wider band
+- [x] T013 [US1] RED: write failing test that two symbols with different volatility profiles produce different touch bands
+- [x] T014 [US1] RED: write failing test in `tests/test_scorecard/test_builder.py` for `apply_touch_detection()` with adaptive band — same level touched with wide band but not with narrow band
 
 ### Implementation for US1
 
-- [ ] T015 [US1] Implement `compute_adaptive_touch_band(price_path, snapshot_ts, symbol) -> int` in `src/liquidationheatmap/scorecard/adaptive.py` — vol → touch band bps
-- [ ] T016 [US1] Extend `ScorecardBuilder.apply_touch_detection()` in `src/liquidationheatmap/scorecard/builder.py` to accept optional `adaptive_band_fn` parameter; when provided, use it instead of fixed `TOUCH_TOLERANCE_BPS`
-- [ ] T017 [US1] GREEN: verify all US1 tests pass
-- [ ] T018 [US1] RED: write failing test for volatility proxy fallback in `tests/test_scorecard/test_adaptive.py` — when price path lacks sufficient history, use price spread as proxy (never fall back to fixed constant)
-- [ ] T019 [US1] GREEN: implement volatility proxy fallback in `compute_adaptive_touch_band()`
+- [x] T015 [US1] Implement `compute_adaptive_touch_band(price_path, snapshot_ts, symbol) -> int` in `src/liquidationheatmap/scorecard/adaptive.py` — vol → touch band bps
+- [x] T016 [US1] Extend `ScorecardBuilder.apply_touch_detection()` in `src/liquidationheatmap/scorecard/builder.py` to accept optional `adaptive_band_fn` parameter; when provided, use it instead of fixed `TOUCH_TOLERANCE_BPS`
+- [x] T017 [US1] GREEN: verify all US1 tests pass
+- [x] T018 [US1] RED: write failing test for volatility proxy fallback in `tests/test_scorecard/test_adaptive.py` — when price path lacks sufficient history, use price spread as proxy (never fall back to fixed constant)
+- [x] T019 [US1] GREEN: implement volatility proxy fallback in `compute_adaptive_touch_band()`
 
 **Checkpoint**: Adaptive touch detection works independently; fixed-band codepath preserved when adaptive disabled
 
@@ -79,20 +79,20 @@
 
 ### Tests for US2
 
-- [ ] T020 [US2] RED: write failing test for `compute_volume_threshold()` in `tests/test_scorecard/test_adaptive.py` — given price path with volume data, returns a volume threshold derived from the data
-- [ ] T021 [US2] RED: write failing test in `tests/test_scorecard/test_builder.py` for `apply_post_touch_path()` with volume-clock — high-volume path closes window sooner than low-volume path
-- [ ] T022 [US2] RED: write failing test that observations with insufficient post-touch volume are marked incomplete (`volume_window_complete=False`)
+- [x] T020 [US2] RED: write failing test for `compute_volume_threshold()` in `tests/test_scorecard/test_adaptive.py` — given price path with volume data, returns a volume threshold derived from the data
+- [x] T021 [US2] RED: write failing test in `tests/test_scorecard/test_builder.py` for `apply_post_touch_path()` with volume-clock — high-volume path closes window sooner than low-volume path
+- [x] T022 [US2] RED: write failing test that observations with insufficient post-touch volume are marked incomplete (`volume_window_complete=False`)
 
 ### Implementation for US2
 
-- [ ] T023 [US2] Implement `compute_volume_threshold(price_path, snapshot_ts) -> float` in `src/liquidationheatmap/scorecard/adaptive.py` — volume threshold from empirical volume distribution
-- [ ] T024 [US2] Extend `ScorecardBuilder.apply_post_touch_path()` in `src/liquidationheatmap/scorecard/builder.py` to accept optional volume-clock parameters; when provided, close window on volume threshold instead of `POST_TOUCH_WINDOW_HOURS`
-- [ ] T025 [US2] GREEN: verify all US2 tests pass
-- [ ] T026 [US2] RED: write failing test for volume data absent in price path — observations marked with `volume_window_complete=None` (FR-015)
-- [ ] T027 [US2] GREEN: implement missing-volume fallback in `apply_post_touch_path()`
-- [ ] T027b [US2] RED: write failing test that liquidation confirmation window uses volume-clock when adaptive enabled in `tests/test_scorecard/test_builder.py`
-- [ ] T027c [US2] Extend `apply_liquidation_confirmation()` in `src/liquidationheatmap/scorecard/builder.py` to accept volume-clock window; when provided, replace fixed `LIQ_CONFIRM_WINDOW_MINUTES`
-- [ ] T027d [US2] GREEN: verify liquidation confirmation volume-clock test passes
+- [x] T023 [US2] Implement `compute_volume_threshold(price_path, snapshot_ts) -> float` in `src/liquidationheatmap/scorecard/adaptive.py` — volume threshold from empirical volume distribution
+- [x] T024 [US2] Extend `ScorecardBuilder.apply_post_touch_path()` in `src/liquidationheatmap/scorecard/builder.py` to accept optional volume-clock parameters; when provided, close window on volume threshold instead of `POST_TOUCH_WINDOW_HOURS`
+- [x] T025 [US2] GREEN: verify all US2 tests pass
+- [x] T026 [US2] RED: write failing test for volume data absent in price path — observations marked with `volume_window_complete=None` (FR-015)
+- [x] T027 [US2] GREEN: implement missing-volume fallback in `apply_post_touch_path()`
+- [x] T027b [US2] RED: write failing test that liquidation confirmation window uses volume-clock when adaptive enabled in `tests/test_scorecard/test_builder.py`
+- [x] T027c [US2] Extend `apply_liquidation_confirmation()` in `src/liquidationheatmap/scorecard/builder.py` to accept volume-clock window; when provided, replace fixed `LIQ_CONFIRM_WINDOW_MINUTES`
+- [x] T027d [US2] GREEN: verify liquidation confirmation volume-clock test passes
 
 **Checkpoint**: Volume-clock windows work for both post-touch path and liquidation confirmation; time-based codepath preserved as fallback
 
@@ -106,16 +106,16 @@
 
 ### Tests for US3
 
-- [ ] T028 [US3] RED: write failing test for `compute_quantile_buckets()` in `tests/test_scorecard/test_adaptive.py` — given a list of distance_bps values, returns quantile-based boundaries that differ from hardcoded [0-25, 25-50, ...]
-- [ ] T029 [US3] RED: write failing test that quantile buckets produce approximately equal observation counts per bucket
-- [ ] T030 [US3] RED: write failing test that sparse data (<min observations) falls back to single "all" bucket
-- [ ] T031 [US3] RED: write failing test in `tests/test_scorecard/test_slicer.py` for `ScorecardSlicer` with quantile buckets — slice IDs use quantile-derived labels
+- [x] T028 [US3] RED: write failing test for `compute_quantile_buckets()` in `tests/test_scorecard/test_adaptive.py` — given a list of distance_bps values, returns quantile-based boundaries that differ from hardcoded [0-25, 25-50, ...]
+- [x] T029 [US3] RED: write failing test that quantile buckets produce approximately equal observation counts per bucket
+- [x] T030 [US3] RED: write failing test that sparse data (<min observations) falls back to single "all" bucket
+- [x] T031 [US3] RED: write failing test in `tests/test_scorecard/test_slicer.py` for `ScorecardSlicer` with quantile buckets — slice IDs use quantile-derived labels
 
 ### Implementation for US3
 
-- [ ] T032 [US3] Implement `compute_quantile_buckets(values, metric_name, min_per_bucket) -> QuantileBucketSet` in `src/liquidationheatmap/scorecard/adaptive.py`
-- [ ] T033 [US3] Extend `ScorecardSlicer` in `src/liquidationheatmap/scorecard/slicer.py` to accept optional `QuantileBucketSet` for distance and confidence; when provided, use quantile boundaries instead of hardcoded methods
-- [ ] T034 [US3] GREEN: verify all US3 tests pass
+- [x] T032 [US3] Implement `compute_quantile_buckets(values, metric_name, min_per_bucket) -> QuantileBucketSet` in `src/liquidationheatmap/scorecard/adaptive.py`
+- [x] T033 [US3] Extend `ScorecardSlicer` in `src/liquidationheatmap/scorecard/slicer.py` to accept optional `QuantileBucketSet` for distance and confidence; when provided, use quantile boundaries instead of hardcoded methods
+- [x] T034 [US3] GREEN: verify all US3 tests pass
 
 **Checkpoint**: Quantile bucketing works independently; hardcoded bucket codepath preserved when adaptive disabled
 
@@ -129,15 +129,15 @@
 
 ### Tests for US4
 
-- [ ] T035 [US4] RED: write failing test for `bootstrap_dominance()` in `tests/test_scorecard/test_bootstrap.py` — given two clearly different observation sets, returns `significant=True` and `p_a_better` near 1.0
-- [ ] T036 [US4] RED: write failing test that two similar observation sets return `significant=False`
-- [ ] T037 [US4] RED: write failing test for deterministic reproducibility — same inputs + same seed produce identical bootstrap results (FR-013)
-- [ ] T038 [US4] RED: write failing test that very few observations produce wide CI and `significant=False`
+- [x] T035 [US4] RED: write failing test for `bootstrap_dominance()` in `tests/test_scorecard/test_bootstrap.py` — given two clearly different observation sets, returns `significant=True` and `p_a_better` near 1.0
+- [x] T036 [US4] RED: write failing test that two similar observation sets return `significant=False`
+- [x] T037 [US4] RED: write failing test for deterministic reproducibility — same inputs + same seed produce identical bootstrap results (FR-013)
+- [x] T038 [US4] RED: write failing test that very few observations produce wide CI and `significant=False`
 
 ### Implementation for US4
 
-- [ ] T039 [US4] Implement `bootstrap_dominance(obs_a, obs_b, metric_fn, n_bootstrap, seed, higher_is_better=True) -> BootstrapDominanceResult` in `src/liquidationheatmap/scorecard/bootstrap.py` — pairwise resampling with probability, CI, and explicit metric orientation
-- [ ] T040 [US4] GREEN: verify all US4 tests pass
+- [x] T039 [US4] Implement `bootstrap_dominance(obs_a, obs_b, metric_fn, n_bootstrap, seed, higher_is_better=True) -> BootstrapDominanceResult` in `src/liquidationheatmap/scorecard/bootstrap.py` — pairwise resampling with probability, CI, and explicit metric orientation
+- [x] T040 [US4] GREEN: verify all US4 tests pass
 
 **Checkpoint**: Bootstrap dominance works independently; can be tested without adaptive touch or volume-clock
 
@@ -151,15 +151,15 @@
 
 ### Tests for US5
 
-- [ ] T041 [US5] RED: write failing test for `infer_regime_map()` in `tests/test_scorecard/test_adaptive.py` — given observations with varying volatility, returns at least two distinct regime labels
-- [ ] T042 [US5] RED: write failing test that stable low-vol period produces uniform regime label
-- [ ] T043 [US5] RED: write failing test that missing market feature data defaults to "unknown" regime (FR-010)
+- [x] T041 [US5] RED: write failing test for `infer_regime_map()` in `tests/test_scorecard/test_adaptive.py` — given observations with varying volatility, returns at least two distinct regime labels
+- [x] T042 [US5] RED: write failing test that stable low-vol period produces uniform regime label
+- [x] T043 [US5] RED: write failing test that missing market feature data defaults to "unknown" regime (FR-010)
 
 ### Implementation for US5
 
-- [ ] T044 [US5] Implement `infer_regime_map(observations, price_path) -> dict[datetime, str]` in `src/liquidationheatmap/scorecard/adaptive.py` — vol quantile → regime labels
-- [ ] T045 [US5] Extend `ScorecardSlicer.__init__()` in `src/liquidationheatmap/scorecard/slicer.py` to accept inferred regime map (replaces manual `regime_map` when adaptive enabled)
-- [ ] T046 [US5] GREEN: verify all US5 tests pass
+- [x] T044 [US5] Implement `infer_regime_map(observations, price_path) -> dict[datetime, str]` in `src/liquidationheatmap/scorecard/adaptive.py` — vol quantile → regime labels
+- [x] T045 [US5] Extend `ScorecardSlicer.__init__()` in `src/liquidationheatmap/scorecard/slicer.py` to accept inferred regime map (replaces manual `regime_map` when adaptive enabled)
+- [x] T046 [US5] GREEN: verify all US5 tests pass
 
 **Checkpoint**: Regime inference works independently
 
@@ -169,30 +169,30 @@
 
 **Purpose**: Wire all adaptive primitives into the pipeline with `enable_adaptive` flag
 
-- [ ] T047 Add `enable_adaptive` parameter to `ScorecardPipeline.run()` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T048 Wire adaptive touch band into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T049 Wire volume-clock post-touch path into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T050 Wire quantile buckets into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T051 Wire bootstrap dominance into `dominance_rows` when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`, preserving the existing bundle field name
-- [ ] T052 Wire inferred regime into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T053 Include `adaptive_parameters` in bundle output when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T054 Add `enable_adaptive` parameter to `run_from_retained_snapshots()` in `src/liquidationheatmap/scorecard/pipeline.py`
-- [ ] T055 RED: write failing end-to-end test in `tests/test_scorecard/test_pipeline.py` — `enable_adaptive=True` produces different bucket boundaries, bootstrap dominance rows, and non-None adaptive_parameters
-- [ ] T056 GREEN: verify end-to-end test passes
-- [ ] T057 RED: write failing reproducibility test in `tests/test_scorecard/test_pipeline.py` — same inputs with `enable_adaptive=True` produce byte-identical output
-- [ ] T058 GREEN: verify reproducibility test passes
-- [ ] T059 RED: write failing backward compatibility test — `enable_adaptive=False` produces identical output to spec-041 baseline
-- [ ] T060 GREEN: verify backward compatibility
+- [x] T047 Add `enable_adaptive` parameter to `ScorecardPipeline.run()` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T048 Wire adaptive touch band into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T049 Wire volume-clock post-touch path into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T050 Wire quantile buckets into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T051 Wire bootstrap dominance into `dominance_rows` when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`, preserving the existing bundle field name
+- [x] T052 Wire inferred regime into pipeline when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T053 Include `adaptive_parameters` in bundle output when `enable_adaptive=True` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T054 Add `enable_adaptive` parameter to `run_from_retained_snapshots()` in `src/liquidationheatmap/scorecard/pipeline.py`
+- [x] T055 RED: write failing end-to-end test in `tests/test_scorecard/test_pipeline.py` — `enable_adaptive=True` produces different bucket boundaries, bootstrap dominance rows, and non-None adaptive_parameters
+- [x] T056 GREEN: verify end-to-end test passes
+- [x] T057 RED: write failing reproducibility test in `tests/test_scorecard/test_pipeline.py` — same inputs with `enable_adaptive=True` produce byte-identical output
+- [x] T058 GREEN: verify reproducibility test passes
+- [x] T059 RED: write failing backward compatibility test — `enable_adaptive=False` produces identical output to spec-041 baseline
+- [x] T060 GREEN: verify backward compatibility
 
 ---
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T061 Run `uv run ruff check` on all new and modified files
-- [ ] T062 Run full test suite `uv run pytest tests/test_scorecard/ -v` and verify all tests pass
-- [ ] T062b Benchmark `enable_adaptive=True` pipeline on 4 experts, 1 symbol, ~1000 observations — verify completes in <10s in `tests/test_scorecard/test_pipeline.py`
-- [ ] T063 Verify SC-007: grep for hardcoded constants in adaptive codepath — zero fixed market threshold/band/bucket values outside documented computation-method constants
-- [ ] T064 Update `specs/042-adaptive-observation-layer/checklists/requirements.md` with final pass/fail status
+- [x] T061 Run `uv run ruff check` on all new and modified files
+- [x] T062 Run full test suite `uv run pytest tests/test_scorecard/ -v` and verify all tests pass
+- [x] T062b Benchmark `enable_adaptive=True` pipeline on 4 experts, 1 symbol, ~1000 observations — verify completes in <10s in `tests/test_scorecard/test_pipeline.py`
+- [x] T063 Verify SC-007: grep for hardcoded constants in adaptive codepath — zero fixed market threshold/band/bucket values outside documented computation-method constants
+- [x] T064 Update `specs/042-adaptive-observation-layer/checklists/requirements.md` with final pass/fail status
 
 ---
 
