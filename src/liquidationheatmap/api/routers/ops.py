@@ -16,6 +16,8 @@ router = APIRouter(prefix="/ops", tags=["ops", "cockpit"])
 SHADOW_MANIFEST_ROOT = Path("data/validation/expert_snapshots/hyperliquid/manifests")
 SHADOW_PRODUCER_SYMBOLS = ("BTCUSDT", "ETHUSDT")
 SHADOW_PRODUCER_FRESHNESS_SECS = 600
+SHADOW_REPORT_PATH = Path("/var/lib/rektslug-db/shadow_report.json")
+SHADOW_REPORT_FRESHNESS_SECS = 600
 
 
 def _repo_root() -> Path:
@@ -60,6 +62,59 @@ def _shadow_producer_status(
         if now_ts - latest_mtime > max_age_secs:
             return "UNAVAILABLE"
 
+    return "HEALTHY"
+
+
+def _fresh_file_status(
+    path: Path,
+    *,
+    max_age_secs: int,
+) -> Literal["HEALTHY", "DEGRADED", "UNAVAILABLE"]:
+    try:
+        stat = path.stat()
+    except OSError:
+        return "UNAVAILABLE"
+
+    age_secs = datetime.now(timezone.utc).timestamp() - stat.st_mtime
+    return "HEALTHY" if age_secs <= max_age_secs else "DEGRADED"
+
+
+def _load_shadow_report(
+    *,
+    path: Path = SHADOW_REPORT_PATH,
+    max_age_secs: int = SHADOW_REPORT_FRESHNESS_SECS,
+) -> tuple[Literal["HEALTHY", "DEGRADED", "UNAVAILABLE"], dict[str, Any] | None]:
+    freshness_status = _fresh_file_status(path, max_age_secs=max_age_secs)
+    if freshness_status == "UNAVAILABLE":
+        return "UNAVAILABLE", None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "UNAVAILABLE", None
+
+    if not isinstance(payload, dict):
+        return "UNAVAILABLE", None
+
+    return freshness_status, payload
+
+
+def _feedback_consumer_status(
+    report: Any | None,
+) -> Literal["HEALTHY", "DEGRADED", "BLOCKED", "UNAVAILABLE"]:
+    if report is None:
+        return "UNAVAILABLE"
+    if getattr(report, "report_status", None) == "blocked":
+        return "BLOCKED"
+    if getattr(report, "persistence_consistent", None) is False:
+        return "BLOCKED"
+
+    published = getattr(report, "feedback_published", None)
+    persisted = getattr(report, "feedback_persisted", None)
+    if published is None or persisted is None:
+        return "UNAVAILABLE"
+    if persisted < published:
+        return "DEGRADED"
     return "HEALTHY"
 
 
@@ -178,10 +233,20 @@ async def ops_summary() -> OpsEnvelope:
         details["shadow_producer"] = "UNAVAILABLE"
 
     try:
+        shadow_report_status, _shadow_report = _load_shadow_report()
+        details["shadow_report_status"] = shadow_report_status
+        details["shadow_consumer"] = shadow_report_status
+    except Exception as exc:
+        logger.warning(f"Failed to inspect shadow report freshness: {exc}")
+        details["shadow_report_status"] = "UNAVAILABLE"
+        details["shadow_consumer"] = "UNAVAILABLE"
+
+    try:
         cont_report = await get_continuous_report()
         details["continuous_report_status"] = _map_continuous_report_status(
             cont_report.report_status
         )
+        details["feedback_consumer"] = _feedback_consumer_status(cont_report)
         if details["continuous_report_status"] == "BLOCKED":
             status = "BLOCKED"
         elif details["continuous_report_status"] in ("DEGRADED", "UNAVAILABLE"):
@@ -222,7 +287,10 @@ async def ops_summary() -> OpsEnvelope:
 
 @router.get("/shadow-report", response_model=OpsEnvelope)
 async def ops_shadow_report() -> OpsEnvelope:
-    raise HTTPException(status_code=503, detail="Shadow report source cannot be produced safely")
+    status, report = _load_shadow_report()
+    if report is None:
+        raise HTTPException(status_code=503, detail="Shadow report source unavailable")
+    return OpsEnvelope(status=status, details=report)
 
 
 @router.get("/continuous-report", response_model=OpsEnvelope)

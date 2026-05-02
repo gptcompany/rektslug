@@ -78,6 +78,9 @@ def test_deploy_core_uses_shared_env_fallback():
     assert 'ln -sf "${SHARED_ENV_FILE}" .env' in text
     assert 'ln -sf "${PROJECT_DIR}/.env.example" .env' in text
     assert 'rm -f "${PROJECT_DIR}/.env"' in text
+    assert "docker compose up -d --force-recreate rektslug-api rektslug-sync" in text
+    assert "docker inspect rektslug-api" in text
+    assert "grep -qx '/app/data'" in text
 
 
 def test_runtime_env_loader_supports_hyperliquid_knobs():

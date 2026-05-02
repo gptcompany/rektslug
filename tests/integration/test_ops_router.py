@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.liquidationheatmap.api.main import app
-from src.liquidationheatmap.api.routers.ops import _shadow_producer_status
+from src.liquidationheatmap.api.routers.ops import _load_shadow_report, _shadow_producer_status
 from src.liquidationheatmap.signals import ContinuousReport, SignalStatus
 
 client = TestClient(app)
@@ -67,19 +67,29 @@ def test_ops_summary_success(mock_evidence):
                     "src.liquidationheatmap.api.routers.ops._shadow_producer_status"
                 ) as mock_shadow:
                     mock_shadow.return_value = "HEALTHY"
-                    response = client.get("/ops/summary")
-                    assert response.status_code == 200
-                    data = response.json()
-                    assert data["provider_id"] == "rektslug"
-                    assert data["status"] == "HEALTHY"
-                    assert data["details"]["redis"] == "HEALTHY"
-                    assert isinstance(data["details"]["signals_status"], dict)
-                    assert data["details"]["signals_status"]["connected"] is True
-                    assert data["details"]["signals_status_level"] == "HEALTHY"
-                    assert data["details"]["shadow_producer"] == "HEALTHY"
-                    assert data["details"]["continuous_report_status"] == "HEALTHY"
-                    assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
-                    assert "ownership_note" in data["details"]
+                    with patch(
+                        "src.liquidationheatmap.api.routers.ops._load_shadow_report"
+                    ) as mock_shadow_report:
+                        mock_shadow_report.return_value = (
+                            "HEALTHY",
+                            {"summary": {"signals_seen": 10}},
+                        )
+                        response = client.get("/ops/summary")
+                        assert response.status_code == 200
+                        data = response.json()
+                        assert data["provider_id"] == "rektslug"
+                        assert data["status"] == "HEALTHY"
+                        assert data["details"]["redis"] == "HEALTHY"
+                        assert isinstance(data["details"]["signals_status"], dict)
+                        assert data["details"]["signals_status"]["connected"] is True
+                        assert data["details"]["signals_status_level"] == "HEALTHY"
+                        assert data["details"]["shadow_producer"] == "HEALTHY"
+                        assert data["details"]["shadow_consumer"] == "HEALTHY"
+                        assert data["details"]["shadow_report_status"] == "HEALTHY"
+                        assert data["details"]["feedback_consumer"] == "HEALTHY"
+                        assert data["details"]["continuous_report_status"] == "HEALTHY"
+                        assert data["details"]["evidence_spec_040_latest_status"] == "HEALTHY"
+                        assert "ownership_note" in data["details"]
 
 
 def test_shadow_producer_status_healthy_with_fresh_manifests(tmp_path):
@@ -113,6 +123,19 @@ def test_shadow_producer_status_unavailable_when_symbol_missing(tmp_path):
     (manifest_dir / "2026-05-02T09:42:05Z.json").write_text("{}", encoding="utf-8")
 
     assert _shadow_producer_status(repo_root=tmp_path, max_age_secs=600) == "UNAVAILABLE"
+
+
+def test_load_shadow_report_healthy_with_fresh_report(tmp_path):
+    report_path = tmp_path / "shadow_report.json"
+    report_path.write_text(
+        '{"summary": {"signals_seen": 10, "accepted": 2}, "signals": []}',
+        encoding="utf-8",
+    )
+
+    status, payload = _load_shadow_report(path=report_path, max_age_secs=600)
+
+    assert status == "HEALTHY"
+    assert payload["summary"]["signals_seen"] == 10
 
 
 def test_ops_summary_degraded_when_no_continuous_report(mock_evidence):
@@ -185,9 +208,26 @@ def test_ops_summary_degraded_when_no_evidence():
 
 
 def test_ops_shadow_report_fail_closed():
-    response = client.get("/ops/shadow-report")
+    with patch("src.liquidationheatmap.api.routers.ops._load_shadow_report") as mock_report:
+        mock_report.return_value = ("UNAVAILABLE", None)
+        response = client.get("/ops/shadow-report")
+
     assert response.status_code == 503
-    assert "Shadow report source cannot be produced safely" in response.json()["detail"]
+    assert "Shadow report source unavailable" in response.json()["detail"]
+
+
+def test_ops_shadow_report_success():
+    with patch("src.liquidationheatmap.api.routers.ops._load_shadow_report") as mock_report:
+        mock_report.return_value = (
+            "HEALTHY",
+            {"summary": {"signals_seen": 10, "accepted": 2}},
+        )
+        response = client.get("/ops/shadow-report")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "HEALTHY"
+    assert data["details"]["summary"]["accepted"] == 2
 
 
 def test_ops_backfill_status_unavailable():

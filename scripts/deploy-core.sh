@@ -35,5 +35,11 @@ trap cleanup EXIT
 
 docker compose config >/dev/null
 docker compose pull rektslug-api rektslug-sync
-docker compose up -d rektslug-api rektslug-sync
+docker compose up -d --force-recreate rektslug-api rektslug-sync
+
+if ! docker inspect rektslug-api --format '{{range .Mounts}}{{println .Destination}}{{end}}' | grep -qx '/app/data'; then
+    echo "rektslug-api is missing required /app/data runtime mount after deploy." >&2
+    exit 1
+fi
+
 docker compose ps
