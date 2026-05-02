@@ -19,6 +19,7 @@ def bootstrap_dominance(
     metric_name: str,
     n_bootstrap: int = 1000,
     seed: int = 42,
+    higher_is_better: bool = True,
 ) -> BootstrapDominanceResult:
     """Compute probabilistic dominance using bootstrap CI.
 
@@ -26,6 +27,9 @@ def bootstrap_dominance(
     the probability that expert_a outperforms expert_b. The confidence interval
     is derived from the distribution of the binary comparison outcomes.
     """
+    if n_bootstrap <= 0:
+        raise ValueError("n_bootstrap must be greater than zero")
+
     if not obs_a or not obs_b:
         return BootstrapDominanceResult(
             expert_a=expert_a,
@@ -52,9 +56,13 @@ def bootstrap_dominance(
         m_a = metric_fn(sample_a)
         m_b = metric_fn(sample_b)
 
-        if m_a > m_b:
+        if higher_is_better and m_a > m_b:
             outcomes.append(1.0)
-        elif m_a < m_b:
+        elif higher_is_better and m_a < m_b:
+            outcomes.append(0.0)
+        elif not higher_is_better and m_a < m_b:
+            outcomes.append(1.0)
+        elif not higher_is_better and m_a > m_b:
             outcomes.append(0.0)
         else:
             outcomes.append(0.5)

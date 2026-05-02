@@ -143,7 +143,7 @@ Build the foundational computation functions:
 
 ### Phase 2: Bootstrap Dominance (`bootstrap.py`)
 
-1. `bootstrap_dominance()` — pairwise metric comparison with CI
+1. `bootstrap_dominance()` — pairwise metric comparison with CI and explicit metric orientation
 2. Deterministic seeding per slice_id for reproducibility
 
 ### Phase 3: Model Extensions (`models/scorecard.py`)

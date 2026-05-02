@@ -173,6 +173,9 @@ as inconclusive rather than declaring a winner.
 3. **Given** a slice with very few observations, **When** dominance is computed,
    **Then** the confidence interval is wide and the comparison is marked
    inconclusive rather than picking a winner from noise.
+4. **Given** a metric where lower values are better (e.g. `mae_p50`), **When**
+   dominance is computed, **Then** the comparison uses that orientation
+   explicitly rather than assuming larger values always win.
 
 ---
 
@@ -241,6 +244,10 @@ observations before and after the transition without manual input.
   pairwise probability estimates with uncertainty bounds.
 - **FR-008**: Dominance output MUST classify each comparison as significant or
   inconclusive based on the bootstrap distribution, not a point estimate.
+- **FR-008b**: Bootstrap dominance MUST support explicit metric orientation. The
+  dominance primitive MUST either accept a `higher_is_better` flag or require the
+  supplied metric function to be pre-oriented so that larger values always mean
+  better performance. MVP freeze: the primitive accepts `higher_is_better`.
 - **FR-009**: Regime labels MUST be inferred from observed market features (at
   minimum: realized volatility), not manually supplied.
 - **FR-010**: When market feature data is unavailable, regime MUST default to

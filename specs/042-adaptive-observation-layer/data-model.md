@@ -44,7 +44,7 @@ this structured payload:
 | `expert_a` | `str` | First expert in comparison |
 | `expert_b` | `str` | Second expert in comparison |
 | `metric` | `str` | Metric being compared (touch_probability, liq_match_prob, mfe_p50, mae_p50) |
-| `p_a_better` | `float` | Bootstrap probability that expert_a > expert_b |
+| `p_a_better` | `float` | Bootstrap probability that expert_a outperforms expert_b under the configured metric orientation |
 | `significant` | `bool` | Whether CI excludes 0.5 |
 | `ci_lower` | `float` | Lower bound of 95% CI |
 | `ci_upper` | `float` | Upper bound of 95% CI |
@@ -55,6 +55,11 @@ Contract invariants:
 - `0 <= ci_lower <= ci_upper <= 1`
 - `ci_lower <= p_a_better <= ci_upper`
 - `n_bootstrap > 0`
+
+Orientation rule:
+- dominance metrics that are naturally "lower is better" (e.g. `mae_p50`) must be
+  evaluated with explicit orientation metadata at computation time; the MVP
+  bootstrap primitive accepts `higher_is_better: bool`
 
 ## New Entities
 
