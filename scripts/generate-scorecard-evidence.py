@@ -72,7 +72,7 @@ def main():
             coverage_gap_count=len(bundle.coverage_gaps) if bundle.coverage_gaps else 0,
             blocking_issues=blocking_issues,
             quality=quality,
-            calibration_metadata={},
+            calibration_metadata=extract_calibration_metadata(bundle),
             artifact_links={},
         )
 
@@ -82,6 +82,11 @@ def main():
     except Exception as e:
         logger.exception("Failed to generate scorecard evidence")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+sys.exit(1)
 
 
 if __name__ == "__main__":
