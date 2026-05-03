@@ -22,7 +22,7 @@ def extract_calibration_metadata(bundle) -> Dict[str, CalibrationMetadataEntry]:
         kind="method_constant",
         name="bootstrap_iterations",
         value=1000,
-        method="static",
+        method="fixed_default",
         reason="Statistical significance threshold",
     )
 
@@ -31,7 +31,7 @@ def extract_calibration_metadata(bundle) -> Dict[str, CalibrationMetadataEntry]:
         kind="governance_constant",
         name="freshness_sla_secs",
         value=86400,
-        method="static",
+        method="fixed_default",
         reason="Maximum allowed artifact age",
     )
 

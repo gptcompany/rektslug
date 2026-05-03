@@ -25,6 +25,7 @@ def test_calibration_metadata_labels_method_constants():
 
     assert metadata["bootstrap_iterations"].kind == "method_constant"
     assert metadata["bootstrap_iterations"].value == 1000
+    assert metadata["bootstrap_iterations"].method == "fixed_default"
 
 
 def test_calibration_metadata_labels_governance_constants():
@@ -34,3 +35,4 @@ def test_calibration_metadata_labels_governance_constants():
 
     assert metadata["freshness_sla_secs"].kind == "governance_constant"
     assert metadata["freshness_sla_secs"].value == 86400
+    assert metadata["freshness_sla_secs"].method == "fixed_default"
