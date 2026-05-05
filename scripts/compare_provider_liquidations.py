@@ -37,8 +37,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.validation.constants import VALIDATION_DB_PATH
 from src.liquidationheatmap.validation.provider_profiles import get_provider_profile
+from src.validation.constants import VALIDATION_DB_PATH
 
 RAW_CAPTURE_ROOT = Path("data/validation/raw_provider_api")
 DEFAULT_OUTPUT_DIR = Path("data/validation/provider_comparisons")

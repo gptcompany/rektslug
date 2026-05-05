@@ -1,7 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from src.liquidationheatmap.api.main import app
 from src.liquidationheatmap.modeled_snapshots import reader as snapshot_reader
+
 
 @pytest.fixture
 def client():
@@ -12,13 +14,13 @@ def test_bybit_public_map_uses_artifact(client):
     # Ensure there is an artifact for Bybit BTCUSDT 1w
     latest_ts = snapshot_reader.get_latest_snapshot_ts("bybit", "BTCUSDT")
     assert latest_ts is not None, "No Bybit BTCUSDT artifact found in data/validation/modeled_snapshots/"
-    
+
     response = client.get("/liquidations/coinank-public-map", params={
         "exchange": "bybit",
         "symbol": "BTCUSDT",
         "timeframe": "1w"
     })
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["exchange"] == "bybit"
@@ -46,7 +48,7 @@ def test_binance_public_map_legacy_regression(client):
         "symbol": "BTCUSDT",
         "timeframe": "1w"
     })
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["exchange"] == "binance"

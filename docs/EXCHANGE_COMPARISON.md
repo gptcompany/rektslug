@@ -41,9 +41,8 @@ This document compares the exchanges integrated into LiquidationHeatmap, analyzi
 ### Hyperliquid
 
 **Strengths:**
-- True real-time WebSocket streaming
 - On-chain transparency (DEX)
-- No rate limits on WebSocket
+- Direct filtered/node datasets available for realized-event reconstruction
 - Unique DeFi liquidation behavior
 
 **Weaknesses:**
@@ -52,23 +51,10 @@ This document compares the exchanges integrated into LiquidationHeatmap, analyzi
 - Different leverage mechanics
 - Fewer trading pairs
 
-**Data Format:**
-```json
-{
-    "channel": "liquidations",
-    "data": {
-        "coin": "BTC",
-        "side": "A",
-        "px": "43250.00",
-        "sz": "0.156",
-        "time": 1703894400000
-    }
-}
-```
-
-**Side Mapping:**
-- `"A"` (Ask) = Short position liquidated
-- `"B"` (Bid) = Long position liquidated
+**Runtime Note:**
+- Do not treat the public Hyperliquid WebSocket as the canonical realized-liquidation source in `rektslug`
+- Realized Hyperliquid liquidations come from `node_fills_by_block`
+- Public Hyperliquid chart surfaces use `/liquidations/hl-public-map` sidecar caches
 
 ### Bybit (Stub)
 

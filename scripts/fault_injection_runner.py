@@ -9,9 +9,6 @@ import argparse
 import logging
 import os
 import subprocess
-import sys
-import time
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +28,11 @@ def main():
     smoke_script = os.path.join(args.nautilus_path, "scripts/hyperliquid/liquidation_bridge_smoke.py")
 
     logger.info(f"=== FAULT INJECTION TEST: {args.fault} ===")
-    
+
     # 1. Run the script with the FAULT injected via environment variable
     # We will monkeypatch nautilus_dev via a custom launcher that imports it
     # and overrides the strategy methods based on the FAULT_INJECTION_POINT env var.
-    
+
     wrapper_code = f"""
 import os
 import sys
@@ -99,7 +96,7 @@ except SystemExit as e:
 
     env = os.environ.copy()
     env["FAULT_INJECTION_POINT"] = args.fault
-    
+
     # Load PK
     pk_cmd = f"dotenvx get HYPERLIQUID_TESTNET_PK -f {args.nautilus_path}/.env"
     try:
@@ -147,7 +144,7 @@ except SystemExit as e:
         "--timeout-secs", "60",
         "--db-path", "/tmp/fault_test.duckdb"
     ]
-    
+
     try:
         recovery_result = subprocess.run(recovery_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=80)
         recovery_code = recovery_result.returncode
@@ -156,9 +153,9 @@ except SystemExit as e:
         logger.error("Recovery run timed out!")
         recovery_code = -1
         recovery_stdout = e.stdout.decode() if e.stdout else ""
-    
+
     logger.info(f"Recovery run exit code: {recovery_code}")
-    
+
     if "NODE_SMOKE_OK" in recovery_stdout:
         logger.info("Recovery run PASSED (NODE_SMOKE_OK). Account is flat.")
     else:

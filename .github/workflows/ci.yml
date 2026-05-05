@@ -78,6 +78,8 @@ jobs:
 
       - name: Focused runtime suite (Linux with coverage)
         if: runner.os == 'Linux'
+        env:
+          HEATMAP_DB_PATH: ${{ runner.temp }}/rektslug-ci/liquidations.duckdb
         run: |
           uv run pytest -q \
             tests/test_api/test_main.py \
@@ -90,6 +92,8 @@ jobs:
 
       - name: Focused runtime suite (macOS)
         if: runner.os != 'Linux'
+        env:
+          HEATMAP_DB_PATH: ${{ runner.temp }}/rektslug-ci/liquidations.duckdb
         run: |
           uv run pytest -q \
             tests/test_api/test_main.py \

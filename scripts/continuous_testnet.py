@@ -11,7 +11,6 @@ import logging
 import os
 import subprocess
 import time
-from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ def main():
 
     start_time = time.time()
     env = os.environ.copy()
-    
+
     # Needs dotenvx for PK
     pk_cmd = f"dotenvx get HYPERLIQUID_TESTNET_PK -f {args.nautilus_path}/.env"
     try:

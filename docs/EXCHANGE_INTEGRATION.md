@@ -17,7 +17,7 @@ The exchange integration follows an **Adapter Pattern**:
 │Binance │ │Hyperliquid │ │ Bybit  │
 │Adapter │ │  Adapter   │ │Adapter │
 └────────┘ └────────────┘ └────────┘
-   REST       WebSocket      Stub
+   REST       Legacy/Off     Stub
   Polling
 ```
 
@@ -119,7 +119,7 @@ Each exchange uses different symbol formats. Implement normalization:
 def normalize_symbol(self, exchange_symbol: str) -> str:
     """Convert exchange format to standard BTCUSDT format."""
     # Binance: "BTCUSDT" -> "BTCUSDT" (already standard)
-    # Hyperliquid: "BTC" -> "BTCUSDT"
+    # Hyperliquid sidecar/cache paths still normalize "BTC" -> "BTCUSDT"
     # Bybit: "BTCUSD" -> "BTCUSDT"
     return exchange_symbol.replace("USD", "USDT")
 ```
@@ -210,18 +210,16 @@ async def stream_liquidations(self):
         await asyncio.sleep(5)  # 5s poll interval
 ```
 
-### WebSocket Streaming (Hyperliquid)
+### Hyperliquid Runtime Boundary
 
-For exchanges with real-time WebSocket:
+Hyperliquid does not use the public WebSocket as the canonical source of
+realized liquidation events in the active runtime.
 
-```python
-async def stream_liquidations(self):
-    async with websockets.connect(self._ws_url) as ws:
-        await ws.send(json.dumps({"op": "subscribe", "channel": "liquidations"}))
-        async for message in ws:
-            data = json.loads(message)
-            yield self._normalize(data)
-```
+- Realized liquidations: ingest from `node_fills_by_block` via
+  `scripts/ingest_hl_fills.py`
+- Public Hyperliquid liq-map: serve from `/liquidations/hl-public-map`
+- Legacy public-WS liquidation adapters are retained only for backwards
+  compatibility and fail fast as unsupported
 
 ## Deduplication
 
@@ -298,6 +296,6 @@ The aggregator exposes these API endpoints:
 | Exchange | Status | Connection | Notes |
 |----------|--------|------------|-------|
 | Binance | Active | REST 5s | Primary source |
-| Hyperliquid | Active | WebSocket | Real-time |
+| Hyperliquid | Sidecar/Node Fills | Not public WS | Realized liqs from node fills; public map from sidecar |
 | Bybit | Stub | NotImplementedError | Future |
 | OKX | Planned | TBD | Future |

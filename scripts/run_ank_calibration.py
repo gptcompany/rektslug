@@ -18,25 +18,25 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
-import sys
 import math
+import subprocess
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import urlopen
 from urllib.error import URLError
-import subprocess
+from urllib.request import urlopen
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.liquidationheatmap.models.profiles import get_profile, list_profiles
 from scripts.compare_provider_liquidations import (
     decode_coinglass_json_payload,
     load_capture_files,
     median_step,
 )
+from src.liquidationheatmap.models.profiles import get_profile
 
 COINANK_HEALTH_URL = "https://coinank.com"
 COINANK_TIMEOUT = 10
@@ -581,11 +581,11 @@ def main() -> int:
                     local_prices,
                     provider_prices,
                 )
-                print(f"    baseline metrics extracted")
+                print("    baseline metrics extracted")
             else:
-                print(f"    WARNING: could not extract rektslug_vs_coinank metrics")
+                print("    WARNING: could not extract rektslug_vs_coinank metrics")
         else:
-            print(f"    WARNING: comparison failed, skipping")
+            print("    WARNING: comparison failed, skipping")
 
     if len(baseline_metrics) < len(MATRIX):
         print(f"WARNING: only {len(baseline_metrics)}/{len(MATRIX)} baseline entries succeeded")
@@ -625,14 +625,14 @@ def main() -> int:
                     local_prices,
                     coinank_bucket_prices.get((coin, tf), []),
                 )
-                print(f"    calibrated metrics extracted")
+                print("    calibrated metrics extracted")
             else:
-                print(f"    WARNING: could not extract rektslug_vs_coinank metrics")
+                print("    WARNING: could not extract rektslug_vs_coinank metrics")
         else:
-            print(f"    WARNING: comparison failed, skipping")
+            print("    WARNING: comparison failed, skipping")
 
     # Phase 3: Evaluate acceptance
-    print(f"\n--- acceptance evaluation ---")
+    print("\n--- acceptance evaluation ---")
     entry_results = []
     for coin, tf in MATRIX:
         key = (coin, tf)
@@ -675,7 +675,7 @@ def main() -> int:
 
     report_path = write_calibration_report(final_report, args.profile)
 
-    print(f"\n--- result ---")
+    print("\n--- result ---")
     print(f"status: {final_report['status']}")
     print(f"entries passing: {acceptance['entries_passing']}/{len(MATRIX)} (need {ACCEPT_ENTRIES_MIN})")
     print(f"critical regression: {'YES' if acceptance['has_critical_regression'] else 'no'}")

@@ -41,6 +41,7 @@ from tqdm import tqdm
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from liquidationheatmap.settings import get_settings
 from liquidationheatmap.validation import (
     AggregateMetrics,
     OCRExtractor,
@@ -49,7 +50,6 @@ from liquidationheatmap.validation import (
     ZoneComparator,
     calculate_aggregate_metrics,
 )
-from liquidationheatmap.settings import get_settings
 
 # Chunk size for memory management in batch mode
 CHUNK_SIZE = 100

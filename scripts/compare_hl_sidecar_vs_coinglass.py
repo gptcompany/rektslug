@@ -31,7 +31,6 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import ks_2samp, pearsonr, wasserstein_distance
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Default config for --all mode
@@ -495,7 +494,7 @@ def print_report(all_metrics: list[dict]) -> None:
 
         a_s = m.get("a_stats", {})
         b_s = m.get("b_stats", {})
-        print(f"\n  Rektslug Sidecar:")
+        print("\n  Rektslug Sidecar:")
         print(f"    Accounts:     {a_s.get('account_count', '?'):>10,}")
         print(f"    Long volume:  ${a_s.get('long_volume', 0):>15,.0f}")
         print(f"    Short volume: ${a_s.get('short_volume', 0):>15,.0f}")
@@ -503,7 +502,7 @@ def print_report(all_metrics: list[dict]) -> None:
         print(f"    Long buckets: {a_s.get('long_buckets', 0):>10,}")
         print(f"    Short buckets:{a_s.get('short_buckets', 0):>10,}")
 
-        print(f"\n  CoinGlass Hyperliquid:")
+        print("\n  CoinGlass Hyperliquid:")
         print(f"    Positions:    {b_s.get('position_count', '?'):>10,}")
         print(f"    Long volume:  ${b_s.get('long_volume', 0):>15,.0f}")
         print(f"    Short volume: ${b_s.get('short_volume', 0):>15,.0f}")
@@ -511,7 +510,7 @@ def print_report(all_metrics: list[dict]) -> None:
 
         print(f"\n  Volume scale (CG/Sidecar): {m.get('volume_scale_ratio', '?')}")
 
-        print(f"\n  Shape Metrics (combined long+short):")
+        print("\n  Shape Metrics (combined long+short):")
         print(f"    Pearson r:          {m.get('pearson_r', 'n/a'):>10}")
         print(f"    KS statistic:       {m.get('ks_statistic', 'n/a'):>10}")
         print(f"    Wasserstein dist:   {m.get('wasserstein_distance', 'n/a'):>10}")
@@ -520,13 +519,13 @@ def print_report(all_metrics: list[dict]) -> None:
         lr = m.get("long_pearson_r")
         sr = m.get("short_pearson_r")
         if lr is not None or sr is not None:
-            print(f"\n  Per-Side Pearson r:")
+            print("\n  Per-Side Pearson r:")
             if lr is not None:
                 print(f"    Long:  {lr:>10}")
             if sr is not None:
                 print(f"    Short: {sr:>10}")
 
-        print(f"\n  Peak Locations:")
+        print("\n  Peak Locations:")
         print(f"    Sidecar top 5: {m.get('a_peak_prices', [])}")
         print(f"    CoinGlass top 5: {m.get('b_peak_prices', [])}")
         print(f"    Peak mean dist:  {m.get('peak_mean_distance', 'n/a')}")
@@ -564,7 +563,7 @@ def run_comparison(
     # Set sidecar current_price from CoinGlass
     sidecar.current_price = coinglass.current_price
 
-    print(f"  Computing metrics...")
+    print("  Computing metrics...")
     metrics = compute_metrics(sidecar, coinglass)
     metrics["assessment"] = assess(metrics)
 

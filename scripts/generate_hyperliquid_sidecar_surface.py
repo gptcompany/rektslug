@@ -45,27 +45,27 @@ def main() -> int:
         timeframe_days=args.timeframe_days,
         analysis_end=parse_analysis_end(args.analysis_end),
     )
-    
+
     print(f"Building plan for {request.symbol} {request.timeframe_days}d...")
     builder = HyperliquidSidecarPrototypeBuilder()
     plan = builder.build(request)
-    
+
     print(f"Reconstructing state from {plan.anchor_coverage.latest_anchor_in_window}...")
     state = builder.reconstruct(request)
-    
+
     print(f"Processing {len(state.users)} relevant accounts using Cross-Margin Solver...")
-    
+
     reconstructor = SidecarPositionReconstructor()
     long_buckets: dict[float, float] = {}
     short_buckets: dict[float, float] = {}
-    
+
     bin_size = plan.bin_size
-    
+
     for user_state in state.users.values():
         target_pos = next((p for p in user_state.positions if p.coin == request.target_coin), None)
         if not target_pos or target_pos.size == 0:
             continue
-            
+
         # Call the exact cross-margin solver
         liq_px = reconstructor.solve_liquidation_price(
             user_state=user_state,
@@ -73,21 +73,21 @@ def main() -> int:
             mark_prices=state.mark_prices,
             asset_margin_tiers=state.asset_margin_tiers
         )
-        
+
         if liq_px is None or liq_px <= 0:
             # If no liquidation price or price is 0, they don't appear on the visible risk surface
             continue
-            
+
         rounded_bin = round(math.floor(liq_px / bin_size + 1e-9) * bin_size, 10)
         # Volume is current notional: abs(size) * mark
         mark = state.mark_prices.get(target_pos.asset_idx, target_pos.entry_px)
         notional = abs(target_pos.size) * mark
-        
+
         if target_pos.size > 0:
             buckets = long_buckets
         else:
             buckets = short_buckets
-            
+
         buckets[rounded_bin] = buckets.get(rounded_bin, 0) + notional
 
     # Format result
@@ -107,11 +107,11 @@ def main() -> int:
             {"price": p, "volume": v} for p, v in sorted(short_buckets.items())
         ],
     }
-    
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as f:
         json.dump(result, f, indent=2)
-        
+
     print(f"Artifact generated at {args.output}")
     return 0
 

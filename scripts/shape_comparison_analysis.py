@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -23,7 +22,6 @@ from typing import Any
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.stats import ks_2samp, pearsonr, wasserstein_distance
-
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -666,7 +664,7 @@ def main() -> None:
         print(f"  Loading CoinGlass ({cfg['timestamp']})...")
         dists["coinglass"] = load_coinglass(cfg)
 
-        print(f"  Loading Rektslug (API)...")
+        print("  Loading Rektslug (API)...")
         dists["rektslug"] = load_rektslug(cfg)
 
         all_distributions[scenario_name] = dists

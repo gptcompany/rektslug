@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument(
         "--enable-ws-stream",
         action="store_true",
-        help="Enable WebSocket streams for real-time liquidation events",
+        help="Enable Binance WebSocket liquidation stream correlation",
     )
 
     # Circuit breaker
@@ -225,7 +225,7 @@ async def amain():
         stream_mgr = LiquidationStreamManager(
             symbols=args.symbols,
             callback=lambda liq: loop.call_soon_threadsafe(queue.put_nowait, ("ws", liq)),
-            exchanges=["binance", "hyperliquid"],
+            exchanges=["binance"],
         )
         await stream_mgr.start()
 

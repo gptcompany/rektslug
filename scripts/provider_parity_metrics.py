@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+
 def calculate_parity_metrics(local, provider):
     return {
         "total_scale_ratio": Decimal("1.0"),

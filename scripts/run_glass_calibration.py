@@ -23,8 +23,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.run_ank_calibration import (
     ACCEPT_ENTRIES_MIN,
-    apply_acceptance_rule,
     aligned_bucket_overlap,
+    apply_acceptance_rule,
     check_critical_regression,
     compute_metrics_from_provider_metrics,
     evaluate_improvement,
@@ -280,7 +280,7 @@ def main() -> int:
         )
         print("    calibrated metrics extracted")
 
-    print(f"\n--- acceptance evaluation ---")
+    print("\n--- acceptance evaluation ---")
     entry_results = []
     for coin, tf in MATRIX:
         key = (coin, tf)
@@ -328,7 +328,7 @@ def main() -> int:
     }
 
     report_path = write_calibration_report(final_report, args.profile)
-    print(f"\n--- result ---")
+    print("\n--- result ---")
     print(f"status: {final_report['status']}")
     print(f"entries passing: {acceptance['entries_passing']}/{len(MATRIX)} (need {ACCEPT_ENTRIES_MIN})")
     print(f"critical regression: {'YES' if acceptance['has_critical_regression'] else 'no'}")

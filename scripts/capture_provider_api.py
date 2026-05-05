@@ -33,7 +33,6 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-
 from typing import Any
 from urllib.parse import quote, urlparse
 
@@ -41,15 +40,17 @@ try:
     import pyotp
 except ModuleNotFoundError:  # pragma: no cover - exercised in test envs without optional deps
     pyotp = None
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from coinank_screenshot import build_coinank_liqmap_url, coinank_login, dismiss_common_popups
+
 from src.liquidationheatmap.utils.secrets import get_secret
 
 VIEWPORT_WIDTH = 1920
@@ -190,8 +191,8 @@ def coinglass_rest_login(email: str, password: str) -> dict[str, Any]:
     Returns a dict with ``accessToken``, ``refreshToken``, and
     ``accessTokenExpireIn`` on success.  Raises ``RuntimeError`` on failure.
     """
-    import urllib.request
     import urllib.parse
+    import urllib.request
 
     body = urllib.parse.urlencode({"mailAddress": email, "password": password}).encode()
     headers = {

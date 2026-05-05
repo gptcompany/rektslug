@@ -23,7 +23,6 @@ from src.liquidationheatmap.hyperliquid.sidecar import (
     iter_zst_jsonl,
 )
 
-
 DEFAULT_USERS = [
     "0x31dea241d74ebbaedb2d71d3eb2173167b5e40e6",
     "0x57dd78225e36502da2d159a444a5d898dc2287b4",
@@ -328,7 +327,7 @@ async def main():
     args = parser.parse_args()
 
     output_path = _resolve_output_path(args.output, detect_modes=args.detect_modes)
-    
+
     if args.detect_modes:
         users, sources = _resolve_mode_scan_users(
             args.users,
@@ -433,7 +432,7 @@ async def main():
 
     users = _load_users(args.users, args.file)
     print(f"Validating {len(users)} users...")
-    
+
     validator = MarginValidator(
         orders_by_user=_load_orders_by_user(args.file),
         reserved_margin_candidate=args.reserved_margin_candidate,
@@ -444,8 +443,8 @@ async def main():
             _print_validation_progress if len(users) > 1 else None
         ),
     )
-    
-    print(f"\n--- Validation Report ---")
+
+    print("\n--- Validation Report ---")
     print(f"Users analyzed: {report.users_analyzed}")
     print(f"Mean MMR Deviation: {report.mean_mmr_deviation_pct:.4f}%\n")
     cross_summary = report.mode_summaries.get("cross_margin")
@@ -486,7 +485,7 @@ async def main():
                     f"rate={_format_optional_float(summary.liq_px_summary.improvement_rate)}"
                 )
         print()
-    
+
     for r in report.results:
         print(f"User: {r.user[:8]}... Mode: {r.mode.value}")
         print(f"  API MMR: {r.api_cross_maintenance_margin_used:.2f}  |  Sidecar MMR: {r.sidecar_total_mmr:.2f}")
@@ -511,12 +510,12 @@ async def main():
                     print(
                         f"  {position.coin} liqPx deviation: {position.liq_px_deviation_pct:.4f}%"
                     )
-        
+
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as f:
         json.dump(_serialize_report(report), f, indent=2)
-        
+
     print(f"\nDetailed report saved to {output}")
 
 if __name__ == "__main__":

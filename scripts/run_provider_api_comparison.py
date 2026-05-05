@@ -16,8 +16,10 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.capture_provider_api import (
     BITCOINCOUNTERFLOW_DEFAULT_URL,
     DEFAULT_COINGLASS_URL,
-    DEFAULT_OUTPUT_DIR as DEFAULT_CAPTURE_OUTPUT_DIR,
     run_capture,
+)
+from scripts.capture_provider_api import (
+    DEFAULT_OUTPUT_DIR as DEFAULT_CAPTURE_OUTPUT_DIR,
 )
 from scripts.compare_provider_liquidations import generate_report
 

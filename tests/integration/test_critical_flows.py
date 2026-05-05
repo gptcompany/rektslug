@@ -9,9 +9,8 @@ from fastapi.testclient import TestClient
 from src.liquidationheatmap.api.main import app
 from src.liquidationheatmap.api.shared import _gap_fill_lock, _warmup_read_connection
 from src.liquidationheatmap.ingestion.db_service import (
-    DuckDBService,
     INGESTION_LOCK_FILE,
-    IngestionLockError,
+    DuckDBService,
 )
 
 
@@ -112,9 +111,9 @@ class TestCriticalFlows:
         """Verify the API handles DuckDB locking correctly during gap-fill."""
         # 1. Start gap-fill, it sets the ingestion lock
         # 2. Another request comes in, it gets 503
-        
+
         mock_result = {"total_inserted": 10, "symbols": {}}
-        
+
         async def slow_gap_fill(*args, **kwargs):
             await asyncio.sleep(0.5)
             return mock_result
@@ -172,20 +171,20 @@ class TestLifespanStartup:
 
 class TestLockContentionUnit:
     """Unit tests for DuckDBService lock management."""
-    
+
     def test_stale_lock_auto_expiry(self, tmp_path):
         """Locks should auto-expire after INGESTION_LOCK_MAX_AGE_SECONDS."""
         from src.liquidationheatmap.ingestion.db_service import INGESTION_LOCK_FILE
-        
+
         DuckDBService.set_ingestion_lock()
         assert DuckDBService.is_ingestion_locked()
-        
+
         # Manually backdate the lock file's mtime
-        import time
         import os
+        import time
         past_time = time.time() - (40 * 60) # 40 minutes ago
         os.utime(INGESTION_LOCK_FILE, (past_time, past_time))
-        
+
         # Should now be considered not locked
         assert not DuckDBService.is_ingestion_locked()
         assert not INGESTION_LOCK_FILE.exists()

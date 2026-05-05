@@ -60,6 +60,19 @@ class TestHyperliquidAdapter:
             assert adapter._is_connected is False
             mock_ws.close.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_stream_liquidations_is_explicitly_unsupported(self):
+        """Legacy public-WS liquidation path should fail fast as unsupported."""
+        from src.exchanges.hyperliquid import HyperliquidAdapter, UNSUPPORTED_REASON
+
+        adapter = HyperliquidAdapter()
+
+        with pytest.raises(NotImplementedError, match="unsupported"):
+            async for _liq in adapter.stream_liquidations("BTCUSDT"):
+                pass
+
+        assert "node_fills_by_block" in UNSUPPORTED_REASON
+
     def test_normalize_symbol_removes_usdt(self):
         """T016: HyperliquidAdapter.normalize_symbol() converts to HL format."""
         from src.exchanges.hyperliquid import HyperliquidAdapter

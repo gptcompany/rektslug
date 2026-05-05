@@ -13,7 +13,6 @@ from pathlib import Path
 from src.liquidationheatmap.hyperliquid.api_client import HyperliquidInfoClient
 from src.liquidationheatmap.hyperliquid.models import AccountAbstraction
 
-
 DEFAULT_OUTPUT = "data/validation/pm_account_snapshots.json"
 DEFAULT_WATCHLIST_SOURCE = "data/validation/portfolio_margin_accounts_full.json"
 

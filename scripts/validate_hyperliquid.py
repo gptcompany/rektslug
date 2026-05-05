@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""T082-T087: Hyperliquid liquidation data validation script.
+"""Legacy Hyperliquid liquidation validation script.
 
-Collects Hyperliquid liquidation data and compares against predicted zones
-to calculate hit rate (target: >= 60%).
+This script used to assume public Hyperliquid WebSocket trades exposed
+realized liquidation flags. That path is unsupported in the active runtime.
+Use `scripts/ingest_hl_fills.py` over `node_fills_by_block` for realized
+liquidations and compare those outcomes against the sidecar/predicted zones.
 
 Usage:
     python scripts/validate_hyperliquid.py --duration 3600  # 1 hour
@@ -10,20 +12,21 @@ Usage:
 """
 
 import argparse
-import asyncio
 import json
 import logging
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
-from src.exchanges.base import NormalizedLiquidation
-from src.exchanges.hyperliquid import HyperliquidAdapter
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+UNSUPPORTED_REASON = (
+    "Public Hyperliquid liquidation collection is unsupported. Use "
+    "scripts/ingest_hl_fills.py against node_fills_by_block for realized liquidations."
+)
 
 
 class HyperliquidValidator:
@@ -32,38 +35,21 @@ class HyperliquidValidator:
     def __init__(self, output_dir: str = "data/validation"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.adapter = HyperliquidAdapter()
-        self.collected: list[NormalizedLiquidation] = []
+        self.collected: list[object] = []
         self.predicted_zones: list[dict] = []
 
-    async def collect_liquidations(self, duration_seconds: int) -> None:
-        """Collect liquidation events for specified duration.
+    def collect_liquidations(self, duration_seconds: int) -> None:
+        """Fail fast with the supported data-source guidance.
 
         Args:
             duration_seconds: How long to collect data
         """
-        logger.info(f"Starting Hyperliquid data collection for {duration_seconds}s")
-
-        await self.adapter.connect()
-
-        async def _collect():
-            async for liq in self.adapter.stream_liquidations():
-                self.collected.append(liq)
-                # Log progress every 100 events
-                if len(self.collected) % 100 == 0:
-                    logger.info(f"Collected {len(self.collected)} liquidations")
-
-        try:
-            # Use asyncio.wait_for to enforce timeout even with no events
-            await asyncio.wait_for(_collect(), timeout=duration_seconds)
-        except asyncio.TimeoutError:
-            logger.info(f"Collection timeout after {duration_seconds}s")
-        except asyncio.CancelledError:
-            logger.info("Collection cancelled")
-        finally:
-            await self.adapter.disconnect()
-
-        logger.info(f"Collection complete: {len(self.collected)} liquidations")
+        logger.error(
+            "%s Requested duration was %ss.",
+            UNSUPPORTED_REASON,
+            duration_seconds,
+        )
+        raise SystemExit(2)
 
     def load_predicted_zones(self, zones_file: str | None = None) -> None:
         """Load predicted liquidation zones from file or API.
@@ -176,7 +162,7 @@ class HyperliquidValidator:
         return str(output_file)
 
 
-async def main():
+def main():
     parser = argparse.ArgumentParser(description="Validate Hyperliquid liquidation data")
     parser.add_argument(
         "--duration",
@@ -203,7 +189,7 @@ async def main():
     validator.load_predicted_zones(args.zones_file)
 
     # Collect liquidations
-    await validator.collect_liquidations(args.duration)
+    validator.collect_liquidations(args.duration)
 
     # Calculate hit rate
     results = validator.calculate_hit_rate()
@@ -230,4 +216,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        logger.error("Hyperliquid validation failed: %s", exc)
+        sys.exit(1)

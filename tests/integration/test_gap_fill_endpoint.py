@@ -2,7 +2,7 @@
 
 import asyncio
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,7 +42,7 @@ class TestGapFillEndpoint:
             mock_admin_settings.db_path = mock_settings.db_path
             mock_admin_settings.symbols = mock_settings.symbols
             mock_admin_settings.internal_api_token = mock_settings.internal_api_token
-            
+
             response = client.post("/api/v1/gap-fill")
 
         assert response.status_code == 500
@@ -162,7 +162,7 @@ class TestInternalTokenAuth:
             mock_admin_settings.db_path = mock_settings.db_path
             mock_admin_settings.symbols = mock_settings.symbols
             mock_admin_settings.internal_api_token = mock_settings.internal_api_token
-            
+
             response = client.post(
                 "/api/v1/gap-fill",
                 headers={"X-Internal-Token": "test-secret-123"},
@@ -206,7 +206,7 @@ class TestInternalTokenAuth:
             mock_admin_settings.db_path = mock_settings.db_path
             mock_admin_settings.symbols = mock_settings.symbols
             mock_admin_settings.internal_api_token = mock_settings.internal_api_token
-            
+
             response = client.post("/api/v1/gap-fill")
 
         assert response.status_code == 200

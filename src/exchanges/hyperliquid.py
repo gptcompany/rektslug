@@ -1,19 +1,25 @@
-"""Hyperliquid DEX adapter using WebSocket.
+"""Legacy Hyperliquid liquidation adapter.
 
-Connects to wss://api.hyperliquid.xyz/ws and subscribes to trades channel,
-filtering for liquidation events.
+The active runtime does not use the public Hyperliquid WebSocket as a source of
+realized liquidation events. Historical and validated Hyperliquid liquidation
+data comes from `node_fills_by_block`, while the public Hyperliquid liq-map uses
+the sidecar/cache path.
 """
 
-import json
 import logging
 from datetime import datetime, timezone
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Optional, cast
 
 import websockets
 
 from src.exchanges.base import ExchangeAdapter, ExchangeHealth, NormalizedLiquidation
 
 logger = logging.getLogger(__name__)
+UNSUPPORTED_REASON = (
+    "Public Hyperliquid liquidation streaming is unsupported in rektslug; "
+    "use node_fills_by_block for realized liquidations or /liquidations/hl-public-map "
+    "for the sidecar surface."
+)
 
 
 class HyperliquidAdapter(ExchangeAdapter):
@@ -54,59 +60,10 @@ class HyperliquidAdapter(ExchangeAdapter):
     async def stream_liquidations(
         self, symbol: str = "BTCUSDT"
     ) -> AsyncIterator[NormalizedLiquidation]:
-        """Stream liquidations from Hyperliquid trades channel.
-
-        Subscribes to trades, filters for liquidation: true events.
-        """
-        if not self._is_connected:
-            await self.connect()
-
-        # Subscribe to trades channel
-        coin = self._denormalize_symbol(symbol)  # "BTCUSDT" -> "BTC"
-        subscribe_msg = {
-            "method": "subscribe",
-            "subscription": {"type": "trades", "coin": coin},
-        }
-        await self._ws.send(json.dumps(subscribe_msg))
-
-        async for message in self._ws:
-            try:
-                data = json.loads(message)
-
-                if data.get("channel") != "trades":
-                    continue
-
-                for trade in data.get("data", []):
-                    if not trade.get("liquidation"):
-                        continue
-
-                    self._message_count += 1
-                    self._last_heartbeat = datetime.now(timezone.utc)
-
-                    yield NormalizedLiquidation(
-                        exchange="hyperliquid",
-                        symbol=symbol,  # Keep as "BTCUSDT"
-                        price=float(trade["px"]),
-                        quantity=float(trade["sz"]),
-                        value_usd=float(trade["px"]) * float(trade["sz"]),
-                        side=self._normalize_side(trade["side"]),
-                        timestamp=datetime.now(timezone.utc),  # HL doesn't provide timestamp
-                        raw_data=trade,
-                        liquidation_type="forced",
-                        is_validated=True,
-                        confidence=0.9,  # Lower confidence due to missing timestamp
-                    )
-
-            except json.JSONDecodeError as e:
-                self._error_count += 1
-                logger.error(f"Hyperliquid JSON parsing error: {e}")
-            except Exception as e:
-                self._error_count += 1
-                logger.error(f"Hyperliquid stream error: {e}")
-
-        # WebSocket loop exited (connection closed) - update state for consistency
-        self._is_connected = False
-        logger.warning("Hyperliquid WebSocket connection closed")
+        """Raise explicitly because this legacy public-WS path is unsupported."""
+        if False:  # pragma: no cover - keeps this method an async iterator
+            yield cast(NormalizedLiquidation, None)
+        raise NotImplementedError(UNSUPPORTED_REASON)
 
     def _normalize_side(self, side: str) -> str:
         """Convert Hyperliquid side to standard format.

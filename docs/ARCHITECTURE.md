@@ -968,4 +968,13 @@ Current operational status is tracked in `docs/PRODUCTION_E2E_STATUS.md`.
 
 **Maintained by**: Claude Code architecture-validator
 **Last Updated**: 2026-04-21
-**Version**: 1.4 (production e2e runtime, shadow pipeline, backfill monitor)
+**Version**: 1.5 (production e2e runtime, shadow pipeline, backfill monitor, scorecard runtime evidence)
+
+## Scorecard Runtime Evidence
+
+The scorecard runtime evidence plane (spec-043) provides deterministic artifacts and APIs to prove the health and accuracy of the adaptive parameter signals:
+
+- **Generator:** `scripts/generate-scorecard-evidence.py`
+- **Artifact:** `latest.json` (canonical JSON) and `latest-summary.json`
+- **Endpoint:** `GET /ops/scorecard/latest` provides the scorecard summary, and scorecard status is aggregated into `GET /ops/summary`.
+- **Calibration Metadata:** Contains governance constants (e.g. freshness SLA), method constants (e.g. bootstrap iterations), and dynamically derived values.

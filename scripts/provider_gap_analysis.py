@@ -33,6 +33,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import compare_provider_liquidations as provider_compare
+
 RAW_CAPTURE_ROOT = provider_compare.RAW_CAPTURE_ROOT
 DEFAULT_OUTPUT_DIR = provider_compare.DEFAULT_OUTPUT_DIR
 DEFAULT_ANALYSIS_DB_PATH = provider_compare.DEFAULT_COMPARISON_DB_PATH

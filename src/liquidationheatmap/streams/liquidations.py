@@ -19,6 +19,10 @@ from src.liquidationheatmap.streams.models import Liquidation, Side, Venue
 
 logger = logging.getLogger(__name__)
 UTC = timezone.utc
+HYPERLIQUID_UNSUPPORTED_REASON = (
+    "Public Hyperliquid liquidation streaming is unsupported: the public trades feed "
+    "does not provide a stable realized-liquidation signal for this runtime."
+)
 
 
 class BaseLiquidationStream(ABC):
@@ -192,7 +196,12 @@ class BinanceLiquidationStream(BaseLiquidationStream):
 
 
 class HyperliquidLiquidationStream(BaseLiquidationStream):
-    """Hyperliquid liquidation stream via trades WebSocket."""
+    """Legacy Hyperliquid liquidation stream placeholder.
+
+    Public Hyperliquid liquidation streaming is not supported in the active
+    runtime. This class is retained only for backwards compatibility in tests
+    and older imports.
+    """
 
     @property
     def venue(self) -> Venue:
@@ -275,12 +284,15 @@ class LiquidationStreamManager:
                     )
                 )
             elif exchange.lower() == "hyperliquid":
-                streams.append(
-                    HyperliquidLiquidationStream(
-                        self.symbols,
-                        self.callback,
-                        status_callback=getattr(self, "status_callback", None),
+                if self.status_callback:
+                    self.status_callback(
+                        Venue.HYPERLIQUID,
+                        "unsupported",
+                        {"reason": HYPERLIQUID_UNSUPPORTED_REASON},
                     )
+                logger.warning(
+                    "Skipping Hyperliquid liquidation stream: %s",
+                    HYPERLIQUID_UNSUPPORTED_REASON,
                 )
         return streams
 
