@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import pandas as pd
 import psycopg2
 
 try:
@@ -86,6 +87,12 @@ class QuestDBService:
         if isinstance(value, datetime):
             return value.isoformat()
         return value
+
+    @staticmethod
+    def _prepare_dataframe_for_ilp(df, timestamp_col: str):
+        prepared = df.copy()
+        prepared[timestamp_col] = pd.to_datetime(prepared[timestamp_col], utc=True).astype("datetime64[ns, UTC]")
+        return prepared
 
     @classmethod
     def reset_singleton(cls) -> None:
@@ -469,12 +476,13 @@ class QuestDBService:
             return
 
         symbol_cols = symbol_cols or []
+        ingest_df = self._prepare_dataframe_for_ilp(df, timestamp_col)
 
         try:
             with self._open_sender() as sender:
                 try:
                     sender.dataframe(
-                        df,
+                        ingest_df,
                         table_name=table_name,
                         symbols=symbol_cols,
                         at=timestamp_col,
@@ -485,7 +493,7 @@ class QuestDBService:
                         table_name,
                         exc,
                     )
-                    for row in df.itertuples(index=False):
+                    for row in ingest_df.itertuples(index=False):
                         row_dict = row._asdict()
                         raw_ts = row_dict.pop(timestamp_col)
                         if hasattr(raw_ts, "to_pydatetime"):

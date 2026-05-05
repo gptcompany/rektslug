@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from src.liquidationheatmap.ingestion.questdb_service import QuestDBService
@@ -169,3 +170,53 @@ def test_get_recent_liquidations_returns_api_ready_records():
             "leverage": 25.0,
         }
     ]
+
+
+def test_prepare_dataframe_for_ilp_normalizes_timestamp_to_questdb_supported_unit():
+    """QuestDB dataframe ingest supports ns precision timestamps, not DuckDB's us unit."""
+    source = pd.DataFrame(
+        {
+            "timestamp": pd.Series(
+                [pd.Timestamp("2026-05-05T23:16:00.123456Z")],
+                dtype="datetime64[us, UTC]",
+            ),
+            "symbol": ["BTCUSDT"],
+            "price": [1.0],
+        }
+    )
+
+    prepared = QuestDBService._prepare_dataframe_for_ilp(source, "timestamp")
+
+    assert str(prepared["timestamp"].dtype) == "datetime64[ns, UTC]"
+    assert str(source["timestamp"].dtype) == "datetime64[us, UTC]"
+
+
+def test_ingest_dataframe_uses_prepared_dataframe_for_sender():
+    sender_cm = MagicMock()
+    sender = sender_cm.__enter__.return_value
+    sender.dataframe.return_value = None
+
+    with patch("src.liquidationheatmap.ingestion.questdb_service.Sender") as sender_cls:
+        sender_cls.from_conf.return_value = MagicMock()
+        qdb = QuestDBService()
+
+    qdb._sender_conf = "tcp::addr=questdb:9009;"
+    qdb._sender = qdb._sender_conf
+
+    source = pd.DataFrame(
+        {
+            "timestamp": pd.Series(
+                [pd.Timestamp("2026-05-05T23:16:00.123456Z")],
+                dtype="datetime64[us, UTC]",
+            ),
+            "symbol": ["BTCUSDT"],
+            "price": [1.0],
+        }
+    )
+
+    with patch.object(qdb, "_open_sender", return_value=sender_cm):
+        qdb.ingest_dataframe("klines", source, symbol_cols=["symbol"])
+
+    sent_df = sender.dataframe.call_args.args[0]
+    assert str(sent_df["timestamp"].dtype) == "datetime64[ns, UTC]"
+    sender.row.assert_not_called()
