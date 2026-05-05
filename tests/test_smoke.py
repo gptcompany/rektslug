@@ -7,6 +7,7 @@ def test_imports():
     import fastapi
     import pandas
     import plotly
+    import pyarrow
     import redis
 
     assert duckdb.__version__
@@ -14,6 +15,7 @@ def test_imports():
     assert redis.__version__
     assert plotly.__version__
     assert pandas.__version__
+    assert pyarrow.__version__
 
 
 def test_pytest_fixtures(temp_dir, sample_csv_data, sample_trade_data):

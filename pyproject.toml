@@ -33,6 +33,7 @@ dependencies = [
     "msgspec>=0.20.0",
     "questdb>=4.1.0",
     "psycopg2-binary>=2.9.11",
+    "pyarrow>=14.0.0",
 ]
 
 [project.optional-dependencies]
@@ -44,7 +45,6 @@ dev = [
     "hypothesis>=6.90.0",
     "mypy>=1.7.0",
     "ruff>=0.1.0",
-    "pyarrow>=14.0.0",
 ]
 
 [build-system]
