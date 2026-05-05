@@ -4,8 +4,10 @@ import os
 import signal
 import subprocess
 import time
-import pytest
 from pathlib import Path
+
+import pytest
+
 
 @pytest.fixture
 def mock_curl(tmp_path):
@@ -13,7 +15,7 @@ def mock_curl(tmp_path):
     mock_bin = tmp_path / "bin"
     mock_bin.mkdir()
     curl_script = mock_bin / "curl"
-    
+
     # Improved mock curl that correctly handles the body + http_code pattern
     # ensuring they are on separate lines for tail -n1 to work.
     script_content = """#!/bin/bash
@@ -60,10 +62,12 @@ def mock_env(tmp_path, mock_curl):
     env["HEATMAP_SYMBOLS_SHELL"] = "BTCUSDT"
     env["HEATMAP_LOG_DIR"] = str(tmp_path / "logs")
     env["REKTSLUG_INTERNAL_TOKEN"] = ""
-    
+    env["LH_DB_LOCK_MAX_RETRIES"] = "3"
+    env["LH_DB_LOCK_RETRY_DELAY"] = "0"
+
     os.makedirs(env["HEATMAP_LOG_DIR"], exist_ok=True)
     os.makedirs(env["HEATMAP_CCXT_CATALOG"], exist_ok=True)
-    
+
     import duckdb
     conn = duckdb.connect(env["HEATMAP_DB_PATH"])
     conn.execute("CREATE TABLE IF NOT EXISTS klines_5m_history (open_time TIMESTAMP, symbol VARCHAR, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE, close_time TIMESTAMP, quote_volume DOUBLE, count INTEGER, taker_buy_volume DOUBLE, taker_buy_quote_volume DOUBLE)")
@@ -73,7 +77,7 @@ def mock_env(tmp_path, mock_curl):
     conn.execute("INSERT INTO open_interest_history (timestamp, symbol) VALUES ('2026-01-01 00:00:00', 'BTCUSDT')")
     conn.execute("INSERT INTO funding_rate_history (timestamp, symbol) VALUES ('2026-01-01 00:00:00', 'BTCUSDT')")
     conn.close()
-    
+
     return env
 
 class TestShellScenariosMocked:

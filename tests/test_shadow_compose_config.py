@@ -47,6 +47,7 @@ def test_shadow_consumer_uses_redis_hostname(compose_config):
     consumer = compose_config["services"]["rektslug-shadow-consumer"]
     env = consumer.get("environment", {})
     assert env.get("REDIS_HOST") == "redis"
+    assert env.get("FEEDBACK_DB_PATH") == "/var/lib/rektslug-db/signal_feedback.duckdb"
 
 
 def test_extra_hosts_in_core_service(compose_config):

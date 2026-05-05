@@ -148,6 +148,7 @@ services:
       HEATMAP_API_URL: http://rektslug-api:8002
       HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      FEEDBACK_DB_PATH: /var/lib/rektslug-db/signal_feedback.duckdb
       HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
       HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
       REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}
@@ -207,6 +208,7 @@ services:
       HEATMAP_API_URL: http://rektslug-api:8002
       HEATMAP_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
       HEATMAP_CONTAINER_DB_PATH: /var/lib/rektslug-db/liquidations.duckdb
+      FEEDBACK_DB_PATH: /var/lib/rektslug-db/signal_feedback.duckdb
       HEATMAP_CCXT_CATALOG: /var/lib/rektslug-ccxt
       HEATMAP_CONTAINER_CCXT_CATALOG: /var/lib/rektslug-ccxt
       REKTSLUG_GAP_FILL_INTERVAL_SECONDS: ${REKTSLUG_GAP_FILL_INTERVAL_SECONDS:-300}

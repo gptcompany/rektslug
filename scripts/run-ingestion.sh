@@ -23,9 +23,10 @@ lh_load_runtime_env host
 # Configuration
 # =============================================================================
 
-# Retry settings
-MAX_RETRIES=3
-RETRY_DELAY=5
+# Retry settings. Daily ingestion can collide with short near-real-time gap-fill
+# cycles, so keep this configurable and wait long enough for transient writers.
+MAX_RETRIES="${LH_DB_LOCK_MAX_RETRIES:-12}"
+RETRY_DELAY="${LH_DB_LOCK_RETRY_DELAY:-5}"
 
 # Date calculations
 TODAY=$(date +%Y-%m-%d)
