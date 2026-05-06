@@ -264,6 +264,35 @@ refresh_api_connections() {
     log "API refresh: ${result}"
 }
 
+prepare_api_for_write_path() {
+    local context="${1:-write path}"
+    log "Preparing API connections for ${context}..."
+    local token_header=""
+    if [ -n "${REKTSLUG_INTERNAL_TOKEN:-}" ]; then
+        token_header="-H X-Internal-Token:${REKTSLUG_INTERNAL_TOKEN}"
+    fi
+    local prep_result
+    prep_result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/prepare-for-ingestion" 2>/dev/null || echo '{"status":"api_unavailable"}')
+    log "API preparation: ${prep_result}"
+
+    sleep 2
+    local attempt=1
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if test_db_write_access; then
+            log "Database write access confirmed for ${context}"
+            return 0
+        fi
+        if [ $attempt -eq $MAX_RETRIES ]; then
+            log "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock for ${context} after $MAX_RETRIES attempts"
+            ps aux | grep -E "python.*duckdb|ingest" | grep -v grep || true
+            return 2
+        fi
+        log "Database locked before ${context}, waiting ${RETRY_DELAY}s (attempt $attempt/$MAX_RETRIES)..."
+        sleep $RETRY_DELAY
+        attempt=$((attempt + 1))
+    done
+}
+
 # =============================================================================
 # Ingestion tasks
 # =============================================================================
@@ -617,18 +646,24 @@ else
 fi
 set -e
 
-# Release API ingestion lock without reopening DuckDB yet.
-refresh_api_connections false
+# Gap-fill runs inside the API and may warm a read-only DuckDB connection after
+# completion. Close API DuckDB handles again before the precompute write path.
+PRECOMPUTE_PREP_FAILED=0
+prepare_api_for_write_path "heatmap precompute" || PRECOMPUTE_PREP_FAILED=$?
 
 # Phase 7: Pre-compute heatmap timeseries cache (spec-024)
-# MUST run after refresh_api_connections so the ingestion lock is released.
+# MUST run after API DuckDB handles are closed so the write lock is available.
 log_section "Heatmap Timeseries Pre-computation"
 if [ "$MODE" != "dry-run" ]; then
-    log "Pre-computing heatmap timeseries cache (BTC+ETH, 15m+1h)..."
-    set +e
-    uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/precompute_heatmap_timeseries.py" --all
-    PC_FAILED=$?
-    set -e
+    if [ "$PRECOMPUTE_PREP_FAILED" -eq 0 ]; then
+        log "Pre-computing heatmap timeseries cache (BTC+ETH, 15m+1h)..."
+        set +e
+        uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/precompute_heatmap_timeseries.py" --all
+        PC_FAILED=$?
+        set -e
+    else
+        PC_FAILED=$PRECOMPUTE_PREP_FAILED
+    fi
     if [ $PC_FAILED -eq 0 ]; then
         RESULTS="${RESULTS}Heatmap Precompute: OK\n"
         log "Heatmap timeseries pre-computation complete"

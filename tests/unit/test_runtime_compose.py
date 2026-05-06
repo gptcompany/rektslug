@@ -113,11 +113,12 @@ def test_precompute_wrapper_uses_runtime_env_and_v3_defaults():
     )
 
 
-def test_run_ingestion_releases_api_lock_before_precompute_without_warmup():
-    """run-ingestion.sh should not reopen DuckDB before heatmap precompute write-path."""
+def test_run_ingestion_closes_api_duckdb_before_precompute_write_path():
+    """run-ingestion.sh should close API DuckDB handles before heatmap precompute writes."""
     script_path = REPO_ROOT / "scripts" / "run-ingestion.sh"
     text = script_path.read_text(encoding="utf-8")
 
-    assert "refresh_api_connections false" in text
+    assert 'prepare_api_for_write_path "heatmap precompute"' in text
+    assert "${API_URL}/api/v1/prepare-for-ingestion" in text
     assert "refresh_api_connections true" in text
     assert "${API_URL}/api/v1/refresh-connections?warmup=${warmup}" in text
