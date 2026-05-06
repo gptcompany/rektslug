@@ -124,5 +124,6 @@ def test_core_services_mount_nautilus_runtime_snapshot(compose_config):
     )
     assert any("/var/lib/nautilus-runtime:ro" in volume for volume in volumes)
     assert any("/app/specs:ro" in volume for volume in volumes)
-    assert env.get("REDIS_HOST") == "${REDIS_HOST:-redis}"
-    assert env.get("REDIS_PORT") == "${REDIS_PORT:-6379}"
+    assert env.get("REDIS_HOST") == "redis"
+    assert env.get("REDIS_PORT") == "6379"
+    assert env.get("REDIS_URL") == "redis://redis:6379/0"

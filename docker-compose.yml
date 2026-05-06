@@ -36,8 +36,9 @@ x-core-service: &default-core-service
     QUESTDB_HOST: ${QUESTDB_HOST:-questdb}
     QUESTDB_PORT: ${QUESTDB_PORT:-9009}
     QUESTDB_PG_PORT: ${QUESTDB_PG_PORT:-8812}
-    REDIS_HOST: ${REDIS_HOST:-redis}
-    REDIS_PORT: ${REDIS_PORT:-6379}
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    REDIS_URL: redis://redis:6379/0
   volumes:
     - ${REKTSLUG_DB_DIR:-/media/sam/2TB-NVMe/liquidationheatmap_db}:/var/lib/rektslug-db
     - ${HEATMAP_CCXT_CATALOG:-/media/sam/1TB/ccxt-data-pipeline/data/catalog}:/var/lib/rektslug-ccxt:ro
