@@ -122,3 +122,15 @@ def test_run_ingestion_closes_api_duckdb_before_precompute_write_path():
     assert "${API_URL}/api/v1/prepare-for-ingestion" in text
     assert "refresh_api_connections true" in text
     assert "${API_URL}/api/v1/refresh-connections?warmup=${warmup}" in text
+
+
+def test_run_ingestion_waits_after_gap_fill_lock_contention():
+    """A concurrent gap-fill writer should drain before heatmap precompute starts."""
+    script_path = REPO_ROOT / "scripts" / "run-ingestion.sh"
+    text = script_path.read_text(encoding="utf-8")
+
+    assert "wait_for_db_write_access()" in text
+    assert "Gap fill already in progress, waiting for active writer" in text
+    assert 'wait_for_db_write_access \\\n            "concurrent gap fill"' in text
+    assert "Gap fill API lock contention, waiting for active writer" in text
+    assert 'wait_for_db_write_access \\\n            "gap fill API lock contention"' in text

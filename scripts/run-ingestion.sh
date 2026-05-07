@@ -215,6 +215,29 @@ except Exception as e:
     return $?
 }
 
+wait_for_db_write_access() {
+    local context="${1:-database write access}"
+    local locked_message="${2:-Database locked, waiting}"
+    local failure_message="${3:-Cannot acquire database write lock}"
+
+    sleep 2
+    local attempt=1
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if test_db_write_access; then
+            log "Database write access confirmed for ${context}"
+            return 0
+        fi
+        if [ $attempt -eq $MAX_RETRIES ]; then
+            log "SKIPPED_LOCK_CONTENTION: ${failure_message} after $MAX_RETRIES attempts"
+            ps aux | grep -E "python.*duckdb|ingest" | grep -v grep || true
+            return 2
+        fi
+        log "${locked_message}, waiting ${RETRY_DELAY}s (attempt $attempt/$MAX_RETRIES)..."
+        sleep $RETRY_DELAY
+        attempt=$((attempt + 1))
+    done
+}
+
 prepare_database() {
     log_section "Preparing database"
 
@@ -233,23 +256,10 @@ prepare_database() {
     uv run --project "$PROJECT_DIR" python "${PROJECT_DIR}/scripts/cleanup_duckdb_locks.py" "${DB_PATH}" || true
 
     # Step 3: Wait for DB availability
-    sleep 2
-    local attempt=1
-    while [ $attempt -le $MAX_RETRIES ]; do
-        if test_db_write_access; then
-            log "Database write access confirmed"
-            return 0
-        else
-            if [ $attempt -eq $MAX_RETRIES ]; then
-                log "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock after $MAX_RETRIES attempts"
-                ps aux | grep -E "python.*duckdb|ingest" | grep -v grep || true
-                return 2
-            fi
-            log "Database locked, waiting ${RETRY_DELAY}s (attempt $attempt/$MAX_RETRIES)..."
-            sleep $RETRY_DELAY
-            attempt=$((attempt + 1))
-        fi
-    done
+    wait_for_db_write_access \
+        "database preparation" \
+        "Database locked" \
+        "Cannot acquire database write lock"
 }
 
 refresh_api_connections() {
@@ -275,22 +285,10 @@ prepare_api_for_write_path() {
     prep_result=$(curl -s --max-time 10 $token_header -X POST "${API_URL}/api/v1/prepare-for-ingestion" 2>/dev/null || echo '{"status":"api_unavailable"}')
     log "API preparation: ${prep_result}"
 
-    sleep 2
-    local attempt=1
-    while [ $attempt -le $MAX_RETRIES ]; do
-        if test_db_write_access; then
-            log "Database write access confirmed for ${context}"
-            return 0
-        fi
-        if [ $attempt -eq $MAX_RETRIES ]; then
-            log "SKIPPED_LOCK_CONTENTION: Cannot acquire database write lock for ${context} after $MAX_RETRIES attempts"
-            ps aux | grep -E "python.*duckdb|ingest" | grep -v grep || true
-            return 2
-        fi
-        log "Database locked before ${context}, waiting ${RETRY_DELAY}s (attempt $attempt/$MAX_RETRIES)..."
-        sleep $RETRY_DELAY
-        attempt=$((attempt + 1))
-    done
+    wait_for_db_write_access \
+        "$context" \
+        "Database locked before ${context}" \
+        "Cannot acquire database write lock for ${context}"
 }
 
 # =============================================================================
@@ -520,11 +518,19 @@ fill_gap_from_ccxt() {
         log "Gap fill via API: $body"
         return 0
     elif [ "$http_code" = "409" ]; then
-        log "SKIPPED_LOCK_CONTENTION: Gap fill already in progress, skipping"
-        return 0
+        log "SKIPPED_LOCK_CONTENTION: Gap fill already in progress, waiting for active writer"
+        wait_for_db_write_access \
+            "concurrent gap fill" \
+            "Database locked by concurrent gap fill" \
+            "Cannot acquire database write lock after concurrent gap fill"
+        return $?
     elif [ "$http_code" = "500" ] && echo "$body" | grep -qiE "Could not set lock|Conflicting lock"; then
-        log "SKIPPED_LOCK_CONTENTION: Gap fill API lock contention, skipping"
-        return 0
+        log "SKIPPED_LOCK_CONTENTION: Gap fill API lock contention, waiting for active writer"
+        wait_for_db_write_access \
+            "gap fill API lock contention" \
+            "Database locked after gap fill contention" \
+            "Cannot acquire database write lock after gap fill contention"
+        return $?
     elif [ "$http_code" = "404" ] || [ "$http_code" = "405" ] || [ "$http_code" = "000" ] || [ -z "$http_code" ]; then
         log "Gap fill endpoint not available (HTTP ${http_code}): ${body:-no response body}"
         if run_gap_fill_cli_fallback "http_${http_code:-unknown}"; then
