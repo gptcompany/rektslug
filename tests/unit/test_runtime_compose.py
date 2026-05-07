@@ -61,6 +61,7 @@ def test_core_deploy_workflow_targets_core_code():
     assert "docker/build-push-action" in text
     assert "scripts/deploy-core.sh" in text
     assert "scripts/lib/runtime_env.sh" in text
+    assert "scripts/run-ingestion.sh" in text
     assert "self-hosted" in text
     assert "deploy-core.sh" in text
     assert 'cd "${GITHUB_WORKSPACE}"' in text

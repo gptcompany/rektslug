@@ -14,6 +14,7 @@ on:
       - "scripts/lib/runtime_env.sh"
       - "scripts/run-ccxt-gap-fill.sh"
       - "scripts/run-gapfill-daemon.sh"
+      - "scripts/run-ingestion.sh"
       - ".github/workflows/core-deploy.yml"
   workflow_dispatch:
 
