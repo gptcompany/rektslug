@@ -15,13 +15,9 @@ class TestPrecomputeSingle:
             mock_rw.__enter__ = MagicMock(return_value=mock_rw)
             mock_rw.__exit__ = MagicMock(return_value=False)
 
-            mock_ro = MagicMock()
-            mock_ro.get_last_cached_ts_timestamp.return_value = now_str
-            mock_ro.__enter__ = MagicMock(return_value=mock_ro)
-            mock_ro.__exit__ = MagicMock(return_value=False)
+            mock_rw.get_last_cached_ts_timestamp.return_value = now_str
 
-            # Flow: rw(bootstrap) → ro(last_cached) → early return
-            mock_db.side_effect = [mock_rw, mock_ro]
+            mock_db.return_value = mock_rw
 
             from scripts.precompute_heatmap_timeseries import precompute_single
             result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
@@ -44,21 +40,17 @@ class TestPrecomputeSingle:
             mock_rw.__enter__ = MagicMock(return_value=mock_rw)
             mock_rw.__exit__ = MagicMock(return_value=False)
 
-            mock_ro = MagicMock()
-            mock_ro.get_last_cached_ts_timestamp.return_value = None
-            mock_ro.get_heatmap_timeseries.return_value = [mock_snapshot]
-            mock_ro.__enter__ = MagicMock(return_value=mock_ro)
-            mock_ro.__exit__ = MagicMock(return_value=False)
+            mock_rw.get_last_cached_ts_timestamp.return_value = None
+            mock_rw.get_heatmap_timeseries.return_value = [mock_snapshot]
 
-            # Flow: rw(bootstrap) → ro(last_cached) → ro(compute) → rw(insert)
-            mock_db.side_effect = [mock_rw, mock_ro, mock_ro, mock_rw]
+            mock_db.return_value = mock_rw
 
             from scripts.precompute_heatmap_timeseries import precompute_single
             # Pass explicit price_bin_size to skip profile resolution
             result = precompute_single("BTCUSDT", "15m", 30, price_bin_size=100.0)
             assert result == 1
             mock_rw.put_cached_ts_snapshots.assert_called_once()
-            kwargs = mock_ro.get_heatmap_timeseries.call_args.kwargs
+            kwargs = mock_rw.get_heatmap_timeseries.call_args.kwargs
             assert kwargs["allow_stale_kline_fallback"] is True
 
 

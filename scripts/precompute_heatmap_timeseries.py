@@ -49,18 +49,22 @@ def check_ingestion_lock() -> bool:
     return False
 
 
-def _resolve_profile_bin_size(symbol: str, lookback_days: int) -> float:
+def _resolve_profile_bin_size(symbol: str, lookback_days: int, db=None) -> float:
     """Resolve the same dynamic bin_size the API endpoint uses.
 
     This ensures pre-computed rows match the cache key the API looks up.
     Falls back to 100.0 (BTC) / 10.0 (ETH) if profile resolution fails.
     """
     try:
-        from src.liquidationheatmap.ingestion.db_service import DuckDBService
         from src.liquidationheatmap.models.profiles import get_profile
 
         profile = get_profile("rektslug-ank")
-        with DuckDBService(read_only=True) as db:
+        if db is None:
+            from src.liquidationheatmap.ingestion.db_service import DuckDBService
+
+            with DuckDBService(read_only=True) as db_ro:
+                current_price, _ = db_ro.get_historical_latest_open_interest(symbol)
+        else:
             current_price, _ = db.get_historical_latest_open_interest(symbol)
         bin_size = profile.get_bin_size(lookback_days, float(current_price), symbol)
         logger.info(f"[{symbol}] Resolved profile bin_size={bin_size} (price={current_price})")
@@ -86,44 +90,42 @@ def precompute_single(
     from src.liquidationheatmap.ingestion.db_service import DuckDBService
 
     try:
-        # Phase 1: Bootstrap cache table (needs write), then find what's missing
+        # Use one read-write connection for the whole run. A read-only DuckDB
+        # connection held by this process can block the later write lock.
         DuckDBService.reset_singletons()
         with DuckDBService(read_only=False) as db_rw:
             db_rw.conn.execute("SET memory_limit='1GB'")
             db_rw.ensure_heatmap_ts_cache_table()
-        DuckDBService.reset_singletons()
 
-        # Resolve bin_size from profile (same logic as API endpoint)
-        if price_bin_size is None:
-            price_bin_size = _resolve_profile_bin_size(symbol, days)
+            # Resolve bin_size from profile (same logic as API endpoint)
+            if price_bin_size is None:
+                price_bin_size = _resolve_profile_bin_size(symbol, days, db=db_rw)
 
-        with DuckDBService(read_only=True) as db_ro:
-            last_cached = db_ro.get_last_cached_ts_timestamp(symbol, interval, price_bin_size)
+            last_cached = db_rw.get_last_cached_ts_timestamp(symbol, interval, price_bin_size)
 
-        now = datetime.now(timezone.utc)
-        if last_cached:
-            start = datetime.fromisoformat(str(last_cached).replace("Z", "+00:00"))
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
-            # Start from next interval after last cached
-            interval_map = {"15m": timedelta(minutes=15), "1h": timedelta(hours=1)}
-            start = start + interval_map.get(interval, timedelta(minutes=15))
-        else:
-            start = now - timedelta(days=days)
+            now = datetime.now(timezone.utc)
+            if last_cached:
+                start = datetime.fromisoformat(str(last_cached).replace("Z", "+00:00"))
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=timezone.utc)
+                # Start from next interval after last cached
+                interval_map = {"15m": timedelta(minutes=15), "1h": timedelta(hours=1)}
+                start = start + interval_map.get(interval, timedelta(minutes=15))
+            else:
+                start = now - timedelta(days=days)
 
-        if start >= now:
-            logger.info(f"[{symbol}/{interval}] Cache is up to date, nothing to compute")
-            return 0
+            if start >= now:
+                logger.info(f"[{symbol}/{interval}] Cache is up to date, nothing to compute")
+                return 0
 
-        # Phase 2: Compute missing snapshots
-        start_str = start.strftime("%Y-%m-%d %H:%M:%S")
-        end_str = now.strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(
-            f"[{symbol}/{interval}] Computing snapshots from {start_str} to {end_str} (bin_size={price_bin_size})"
-        )
+            # Phase 2: Compute missing snapshots
+            start_str = start.strftime("%Y-%m-%d %H:%M:%S")
+            end_str = now.strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(
+                f"[{symbol}/{interval}] Computing snapshots from {start_str} to {end_str} (bin_size={price_bin_size})"
+            )
 
-        with DuckDBService(read_only=True) as db_ro:
-            snapshots = db_ro.get_heatmap_timeseries(
+            snapshots = db_rw.get_heatmap_timeseries(
                 symbol=symbol,
                 start_time=start_str,
                 end_time=end_str,
@@ -132,34 +134,30 @@ def precompute_single(
                 allow_stale_kline_fallback=True,
             )
 
-        if not snapshots:
-            logger.info(f"[{symbol}/{interval}] No snapshots computed (no data in range)")
-            return 0
+            if not snapshots:
+                logger.info(f"[{symbol}/{interval}] No snapshots computed (no data in range)")
+                return 0
 
-        # Phase 3: Serialize and batch insert
-        rows = []
-        for s in snapshots:
-            payload = json.dumps(s.to_dict(), default=str)
-            ts_str = (
-                s.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                if hasattr(s.timestamp, "strftime")
-                else str(s.timestamp)
-            )
-            rows.append((symbol, interval, ts_str, price_bin_size, payload))
+            # Phase 3: Serialize and batch insert
+            rows = []
+            for s in snapshots:
+                payload = json.dumps(s.to_dict(), default=str)
+                ts_str = (
+                    s.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                    if hasattr(s.timestamp, "strftime")
+                    else str(s.timestamp)
+                )
+                rows.append((symbol, interval, ts_str, price_bin_size, payload))
 
-        if check_ingestion_lock():
-            logger.warning(f"[{symbol}/{interval}] Ingestion lock held, skipping cache write")
-            return 0
+            if check_ingestion_lock():
+                logger.warning(f"[{symbol}/{interval}] Ingestion lock held, skipping cache write")
+                return 0
 
-        DuckDBService.reset_singletons()
-        with DuckDBService(read_only=False) as db_rw:
-            db_rw.conn.execute("SET memory_limit='1GB'")
-            db_rw.ensure_heatmap_ts_cache_table()
             inserted = db_rw.put_cached_ts_snapshots(rows)
             db_rw.delete_stale_ts_cache()
 
-        logger.info(f"[{symbol}/{interval}] Inserted {inserted} snapshots into cache")
-        return inserted
+            logger.info(f"[{symbol}/{interval}] Inserted {inserted} snapshots into cache")
+            return inserted
     finally:
         DuckDBService.reset_singletons()
 

@@ -15,6 +15,7 @@ on:
       - "scripts/run-ccxt-gap-fill.sh"
       - "scripts/run-gapfill-daemon.sh"
       - "scripts/run-ingestion.sh"
+      - "scripts/precompute_heatmap_timeseries.py"
       - ".github/workflows/core-deploy.yml"
   workflow_dispatch:
 
