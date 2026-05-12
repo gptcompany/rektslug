@@ -24,7 +24,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: core-deploy-${{ github.repository }}-${{ github.ref }}
+  group: core-deploy-v2-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
